@@ -1,0 +1,531 @@
+/**
+id: analysis
+description: Function sequences and explicit convergence claims over Calculus abstract functions and effective lazy sequences.
+kind: rix
+mount: analysis
+exports: [FunctionSequence, TailEvidence, ConvergenceClaim, CheckConvergence, GeometricSeries, Term, Terms, TailBound, Modulus, Record, IsFunctionSequence, IsConvergenceClaim, IsConvergenceResult]
+groups: [Analysis, Calculus, Exact]
+permissions: []
+requires: [rix.abstract-function@1]
+provides: [rix.analysis@1, rix.analysis.function-sequence@1]
+schemas: [rix.analysis.function-sequence@1, rix.analysis.function-term-stream@1, rix.analysis.tail-evidence@1, rix.analysis.convergence-claim@1, rix.analysis.convergence-result@1]
+snapshot: false
+deterministic: true
+defaultEnabled: false
+**/
+
+AnalysisOption(options, key, fallback ?= _) -> options.Has(key) ?: options[key] ?_ fallback;
+
+AnalysisRequireOptions(value, label) ->
+    value ? :Map ?: value ?_ .Error(@"@{label} must be a map");
+
+AnalysisRequireIndex(value, label) -> {;
+    index = value ~!: :Integer;
+    index >= 0 ?: index ?_ .Error(@"@{label} must be a nonnegative Integer");
+};
+
+AnalysisRequireCount(value, label) -> AnalysisRequireIndex(value, label);
+
+AnalysisRequirePositiveWork(value, label) -> {;
+    work = value ~!: :Integer;
+    work >= 1 ?: work ?_ .Error(@"@{label} must be a positive Integer");
+};
+
+AnalysisRequirePositiveRational(value, label) -> {;
+    exact = value ~!: :Rational;
+    exact > 0 ?: exact ?_ .Error(@"@{label} must be a positive Rational");
+};
+
+AnalysisRequireNonnegativeRational(value, label) -> {;
+    exact = value ~!: :Rational;
+    exact >= 0 ?: exact ?_ .Error(@"@{label} must be a nonnegative Rational");
+};
+
+AnalysisRequireMode(value) -> {;
+    valid = value == :pointwise || value == :uniform || value == :almostEverywhere ||
+      value == :inMeasure || value == :norm;
+    valid
+      ?: value
+      ?_ .Error("Analysis convergence mode must be :pointwise, :uniform, :almostEverywhere, :inMeasure, or :norm");
+};
+
+AnalysisRequireFunction(value, label) ->
+    .calculus.IsFunction(value) ?: value ?_ .Error(@"@{label} must be a Calculus MathematicalFunction");
+
+AnalysisFunctionSemanticId(value, label) -> AnalysisRequireFunction(value, label).SemanticId();
+
+AnalysisIsFunctionSequenceValue(value) ->
+    (value ? :Map) && value[:schema] == "rix.analysis.function-sequence@1";
+
+AnalysisIsClaimValue(value) ->
+    (value ? :Map) && value[:schema] == "rix.analysis.convergence-claim@1";
+
+AnalysisIsResultValue(value) ->
+    (value ? :Map) && value[:schema] == "rix.analysis.convergence-result@1";
+
+AnalysisRequireSequence(value) ->
+    AnalysisIsFunctionSequenceValue(value) ?: value ?_ .Error("Analysis expected a FunctionSequence");
+
+AnalysisRequireClaim(value) ->
+    AnalysisIsClaimValue(value) ?: value ?_ .Error("Analysis expected a ConvergenceClaim");
+
+AnalysisEvidenceLimitId(limit) -> {;
+    limit == _
+      ?: _
+      ?_ (limit ? :MathematicalFunction
+           ?: limit.SemanticId()
+           ?_ (limit ? :String
+                ?: limit
+                ?_ .Error("Analysis tail-evidence limit must be a MathematicalFunction or semantic-ID string")));
+};
+
+AnalysisDeclaredTailEvidence(modeValue, boundFunction, modulusFunction, options ?= {= }) -> {;
+    options = AnalysisRequireOptions(options, "Analysis TailEvidence options");
+    mode = AnalysisRequireMode(modeValue);
+    .ImmutableValue({=
+        valueKind=:analysisTailEvidence,
+        schema="rix.analysis.tail-evidence@1",
+        mode=mode,
+        boundFunction=boundFunction,
+        modulusFunction=modulusFunction,
+        limitSemanticId=AnalysisEvidenceLimitId(AnalysisOption(options,"limit")),
+        authority=:declared,
+        evidenceLevel=:assumed,
+        property=AnalysisOption(options,"property",:effectiveTailBound),
+        source=AnalysisOption(options,"source",:callerDeclaration)
+    });
+};
+
+AnalysisValidateTailEvidence(value) -> {;
+    value ? :Map ?: _ ?_ .Error("FunctionSequence tailEvidence must be a map");
+    value[:schema] == "rix.analysis.tail-evidence@1"
+      ?: .ImmutableValue({=
+          valueKind=:analysisTailEvidence,
+          schema="rix.analysis.tail-evidence@1",
+          mode=AnalysisRequireMode(value[:mode]),
+          boundFunction=value[:boundFunction],
+          modulusFunction=value[:modulusFunction],
+          limitSemanticId=AnalysisEvidenceLimitId(value[:limitSemanticId]),
+          authority=:declared,
+          evidenceLevel=:assumed,
+          property=value[:property],
+          source=value[:source]
+      })
+      ?_ .Error("FunctionSequence tailEvidence must use rix.analysis.tail-evidence@1");
+};
+
+AnalysisTermAt(sequenceValue, indexValue) -> {;
+    sequence = AnalysisRequireSequence(sequenceValue);
+    index = AnalysisRequireIndex(indexValue, "FunctionSequence term index");
+    index >= sequence[:indexDomain][:lower]
+      ?: AnalysisRequireFunction(index |> sequence[:termConstructor], @"FunctionSequence term @{index}")
+      ?_ .Error(@"FunctionSequence term index must be at least @{sequence[:indexDomain][:lower]}");
+};
+
+AnalysisTerms(sequenceValue, startValue ?= _, countValue ?= _) -> {;
+    sequence = AnalysisRequireSequence(sequenceValue);
+    first = startValue == _ ?: sequence[:indexDomain][:lower] ?_ AnalysisRequireIndex(startValue,"FunctionSequence Terms start");
+    first >= sequence[:indexDomain][:lower]
+      ?: _
+      ?_ .Error(@"FunctionSequence Terms start must be at least @{sequence[:indexDomain][:lower]}");
+    count = countValue == _ ?: _ ?_ AnalysisRequireCount(countValue,"FunctionSequence Terms count");
+    indices = count == _ ?: [first |+ 1] ?_ [first |+ 1 |^ count];
+    terms = indices |>> (index) -> AnalysisTermAt(@sequence,index);
+    terms .= {=
+        valueKind=:analysisFunctionTermStream,
+        schema="rix.analysis.function-term-stream@1",
+        sequenceSchema=sequence[:schema],
+        start=first,
+        count=count,
+        bounded=count == _ ?: _ ?_ 1,
+        clonePolicy=:cachedIndependent,
+        deepClonePolicy=:restart
+    };
+    terms;
+};
+
+AnalysisGeometricTailBound(radius, indexValue) -> {;
+    index = AnalysisRequireIndex(indexValue,"Geometric tail-bound index");
+    radius == 0 ?: 0 ?_ radius^(index+1)/(1-radius);
+};
+
+AnalysisTailBoundAt(sequenceValue, indexValue) -> {;
+    sequence = AnalysisRequireSequence(sequenceValue);
+    evidence = sequence[:tailEvidence];
+    evidence != _ ?: _ ?_ .Error("FunctionSequence has no effective tail evidence");
+    index = AnalysisRequireIndex(indexValue,"FunctionSequence tail-bound index");
+    index >= sequence[:indexDomain][:lower]
+      ?: _
+      ?_ .Error(@"FunctionSequence tail-bound index must be at least @{sequence[:indexDomain][:lower]}");
+    bound = evidence[:authority] == :analysisGeometricKernel
+      ?: AnalysisGeometricTailBound(evidence[:ratioBound],index)
+      ?_ AnalysisRequireNonnegativeRational(index |> evidence[:boundFunction],@"FunctionSequence tail bound @{index}");
+    AnalysisRequireNonnegativeRational(bound,@"FunctionSequence tail bound @{index}");
+};
+
+AnalysisGeometricModulus(radius, epsilonValue, maxWorkValue) -> {;
+    epsilon = AnalysisRequirePositiveRational(epsilonValue,"Geometric modulus epsilon");
+    maxWork = AnalysisRequirePositiveWork(maxWorkValue,"Geometric modulus maxWork");
+    index := 0;
+    bound := AnalysisGeometricTailBound(radius,index);
+    work := 0;
+    {@ step=1; @bound > @epsilon && @work < @maxWork; {;
+        @index += 1;
+        @bound = AnalysisGeometricTailBound(@radius,@index);
+        @work += 1;
+    }; step += 1 };
+    .ImmutableValue({=
+        valueKind=:analysisModulusResult,
+        status=bound <= epsilon ?: :complete ?_ :budgetExhausted,
+        index=index,
+        bound=bound,
+        epsilon=epsilon,
+        work={= iterations=work, maxWork=maxWork, exhausted=bound > epsilon }
+    });
+};
+
+AnalysisModulusAt(sequenceValue, epsilonValue, options ?= {= }) -> {;
+    sequence = AnalysisRequireSequence(sequenceValue);
+    options = AnalysisRequireOptions(options,"FunctionSequence Modulus options");
+    epsilon = AnalysisRequirePositiveRational(epsilonValue,"FunctionSequence modulus epsilon");
+    evidence = sequence[:tailEvidence];
+    evidence != _ ?: _ ?_ .Error("FunctionSequence has no effective tail evidence");
+    evidence[:authority] == :analysisGeometricKernel
+      ?: AnalysisGeometricModulus(evidence[:ratioBound],epsilon,AnalysisOption(options,"maxwork",10000))
+      ?_ {;
+          index = AnalysisRequireIndex(@epsilon |> @evidence[:modulusFunction],"FunctionSequence modulus result");
+          bound = AnalysisTailBoundAt(@sequence,index);
+          bound <= @epsilon
+            ?: .ImmutableValue({=
+                valueKind=:analysisModulusResult,
+                status=:complete,
+                index=index,
+                bound=bound,
+                epsilon=@epsilon,
+                work={= iterations=1, maxWork=1, exhausted=_ }
+            })
+            ?_ .Error(@"FunctionSequence modulus certificate failed: tail bound @{bound} exceeds @{epsilon} at index @{index}");
+      };
+};
+
+AnalysisSequenceRecord(sequenceValue) -> {;
+    sequence = AnalysisRequireSequence(sequenceValue);
+    evidence = sequence[:tailEvidence];
+    .ImmutableValue({=
+        valueKind=:functionSequenceRecord,
+        schema=sequence[:schema],
+        name=sequence[:name],
+        kind=sequence[:kind],
+        indexDomain=sequence[:indexDomain],
+        domain=sequence[:domain],
+        codomain=sequence[:codomain],
+        limitSemanticId=sequence[:limit] == _ ?: _ ?_ sequence[:limit].SemanticId(),
+        effective=evidence == _ ?: _ ?_ 1,
+        tailMode=evidence == _ ?: _ ?_ evidence[:mode],
+        evidenceLevel=evidence == _ ?: :none ?_ evidence[:evidenceLevel],
+        provenance=sequence[:provenance]
+    });
+};
+
+AnalysisAttachSequenceProtocol(sequence) -> {;
+    sequence._proto = {=
+        Term=(self,index)->AnalysisTermAt(self,index),
+        Terms=(self,start ?= _,count ?= _)->AnalysisTerms(self,start,count),
+        TailBound=(self,index)->AnalysisTailBoundAt(self,index),
+        Modulus=(self,epsilon,options ?= {= })->AnalysisModulusAt(self,epsilon,options),
+        Limit=(self)->self[:limit],
+        Claim=(self,mode,limit ?= _,options ?= {= })->AnalysisConvergenceClaim(self,mode,limit,options),
+        Check=(self,mode,request ?= {= })->AnalysisCheckConvergence(AnalysisConvergenceClaim(self,mode,_,{= }),request),
+        Record=(self)->AnalysisSequenceRecord(self)
+    };
+    .ImmutableValue(sequence);
+};
+
+AnalysisFunctionSequence(termConstructor, options ?= {= }) -> {;
+    options = AnalysisRequireOptions(options,"Analysis FunctionSequence options");
+    start = AnalysisRequireIndex(AnalysisOption(options,"start",0),"FunctionSequence start");
+    tailEvidenceValue = AnalysisOption(options,"tailevidence");
+    tailEvidence = tailEvidenceValue == _ ?: _ ?_ AnalysisValidateTailEvidence(tailEvidenceValue);
+    limitValue = AnalysisOption(options,"limit");
+    limit = limitValue == _ ?: _ ?_ AnalysisRequireFunction(limitValue,"FunctionSequence limit");
+    first = AnalysisRequireFunction(start |> termConstructor,@"FunctionSequence term @{start}");
+    sequence = {=
+        valueKind=:functionSequence,
+        schema="rix.analysis.function-sequence@1",
+        kind=AnalysisOption(options,"kind",:functionSequence),
+        name=AnalysisOption(options,"name",:functionSequence),
+        indexDomain={= kind=:integerRay, lower=start, upper=_ },
+        domain=AnalysisOption(options,"domain",:unspecified),
+        codomain=AnalysisOption(options,"codomain",:unspecified),
+        termConstructor=termConstructor,
+        firstTerm=first,
+        limit=limit,
+        tailEvidence=tailEvidence,
+        radius=AnalysisOption(options,"radius"),
+        provenance=AnalysisOption(options,"provenance",{= plugin=:analysis, version=1, source=:functionSequence })
+    };
+    AnalysisAttachSequenceProtocol(sequence);
+};
+
+AnalysisConvergenceClaim(sequenceValue, modeValue, limitValue ?= _, options ?= {= }) -> {;
+    sequence = AnalysisRequireSequence(sequenceValue);
+    options = AnalysisRequireOptions(options,"Analysis ConvergenceClaim options");
+    mode = AnalysisRequireMode(modeValue);
+    candidateLimit = limitValue == _ ?: sequence[:limit] ?_ limitValue;
+    limit = candidateLimit == _ ?: _ ?_ AnalysisRequireFunction(candidateLimit,"ConvergenceClaim limit");
+    claim = {=
+        valueKind=:convergenceClaim,
+        schema="rix.analysis.convergence-claim@1",
+        sequence=sequence,
+        sequenceName=sequence[:name],
+        mode=mode,
+        limit=limit,
+        limitSemanticId=limit == _ ?: _ ?_ limit.SemanticId(),
+        domain=sequence[:domain],
+        codomain=sequence[:codomain],
+        point=AnalysisOption(options,"point"),
+        measure=AnalysisOption(options,"measure"),
+        norm=AnalysisOption(options,"norm"),
+        samples=AnalysisOption(options,"samples"),
+        requestedEvidence=AnalysisOption(options,"evidence",:certifiedTail)
+    };
+    claim._proto = {=
+        Check=(self,request ?= {= })->AnalysisCheckConvergence(self,request),
+        Record=(self)->.ImmutableValue({=
+            valueKind=self[:valueKind], schema=self[:schema], sequenceName=self[:sequenceName],
+            mode=self[:mode], limitSemanticId=self[:limitSemanticId], domain=self[:domain], codomain=self[:codomain],
+            point=self[:point], measure=self[:measure], norm=self[:norm], requestedEvidence=self[:requestedEvidence]
+        })
+    };
+    .ImmutableValue(claim);
+};
+
+AnalysisSampleDiagnostic(claim) -> claim[:samples] == _
+  ?: []
+  ?_ [{=
+      code=:finiteSamplesIgnored,
+      message="Finite samples are observations, not convergence evidence, and were not used"
+  }];
+
+AnalysisUnknownResult(claim, epsilon, reason, details ?= {= }) -> .ImmutableValue({=
+    valueKind=:convergenceResult,
+    schema="rix.analysis.convergence-result@1",
+    status=:unknown,
+    conclusion=:unknown,
+    goalMet=_,
+    certified=_,
+    mode=claim[:mode],
+    sequenceName=claim[:sequenceName],
+    limitSemanticId=claim[:limitSemanticId],
+    requestedEpsilon=epsilon,
+    witness=_,
+    evidenceLevel=:none,
+    reason=reason,
+    obligations=[reason],
+    diagnostics=AnalysisSampleDiagnostic(claim).Push({= code=reason, details=details }),
+    allows={= evaluation=_, integration=_, differentiation=_, expectation=_ }
+});
+
+AnalysisCheckedGeometricResult(claim, epsilon, maxWork) -> {;
+    sequence = claim[:sequence];
+    modulus = AnalysisGeometricModulus(sequence[:radius],epsilon,maxWork);
+    modulus[:status] == :complete
+      ?: .ImmutableValue({=
+          valueKind=:convergenceResult,
+          schema="rix.analysis.convergence-result@1",
+          status=:converged,
+          conclusion=:uniformConvergence,
+          goalMet=1,
+          certified=1,
+          mode=:uniform,
+          sequenceName=claim[:sequenceName],
+          limitSemanticId=claim[:limitSemanticId],
+          requestedEpsilon=epsilon,
+          witness={=
+              index=modulus[:index],
+              tailBound=modulus[:bound],
+              epsilon=epsilon,
+              domain=sequence[:domain],
+              theorem=:finiteGeometricRemainder
+          },
+          evidenceLevel=:proof,
+          reason=:checkedGeometricTail,
+          obligations=[],
+          diagnostics=AnalysisSampleDiagnostic(claim),
+          work=modulus[:work],
+          evidence={=
+              authority=:analysisGeometricKernel,
+              property=:uniformAbsoluteRemainderBound,
+              formula="r^(n+1)/(1-r)",
+              ratioBound=sequence[:radius]
+          },
+          allows={= evaluation=1, integration=_, differentiation=_, expectation=_ }
+      })
+      ?_ AnalysisUnknownResult(claim,epsilon,:workBudgetReached,modulus[:work]);
+};
+
+AnalysisGeometricResult(claim, epsilon, maxWork) -> {;
+    sequence = claim[:sequence];
+    evidence = sequence[:tailEvidence];
+    validConstruction = sequence[:kind] == :geometricPartialSums && sequence[:radius] != _ &&
+      evidence[:ratioBound] == sequence[:radius] && evidence[:property] == :uniformAbsoluteRemainderBound;
+    expectedLimit = evidence[:limitSemanticId];
+    matchingLimit = claim[:limitSemanticId] != _ && claim[:limitSemanticId] == expectedLimit;
+    validConstruction
+      ?: (matchingLimit
+           ?: AnalysisCheckedGeometricResult(claim,epsilon,maxWork)
+           ?_ AnalysisUnknownResult(claim,epsilon,:limitIdentityMismatch,{= expected=expectedLimit, received=claim[:limitSemanticId] }))
+      ?_ AnalysisUnknownResult(claim,epsilon,:invalidGeometricCertificate,{= check=:constructorFields });
+};
+
+AnalysisCheckConvergence(claimValue, request ?= {= }) -> {;
+    claim = AnalysisRequireClaim(claimValue);
+    request = AnalysisRequireOptions(request,"Analysis convergence request");
+    epsilon = AnalysisRequirePositiveRational(AnalysisOption(request,"epsilon",1/1000),"Analysis convergence epsilon");
+    maxWork = AnalysisRequirePositiveWork(AnalysisOption(request,"maxwork",10000),"Analysis convergence maxWork");
+    evidence = claim[:sequence][:tailEvidence];
+    evidence == _
+      ?: AnalysisUnknownResult(claim,epsilon,:missingEffectiveTailEvidence)
+      ?_ (evidence[:mode] != claim[:mode]
+           ?: AnalysisUnknownResult(claim,epsilon,:unsupportedConvergenceMode,{= available=evidence[:mode], requested=claim[:mode] })
+           ?_ (evidence[:authority] != :analysisGeometricKernel
+                ?: AnalysisUnknownResult(claim,epsilon,:unverifiedTailProperty,{= authority=evidence[:authority] })
+                ?_ (claim[:mode] == :uniform
+                     ?: AnalysisGeometricResult(claim,epsilon,maxWork)
+                     ?_ AnalysisUnknownResult(claim,epsilon,:unsupportedConvergenceMode,{= available=evidence[:mode], requested=claim[:mode] }))));
+};
+
+AnalysisFiniteGeometricValue(value, indexValue) -> {;
+    index = AnalysisRequireIndex(indexValue,"Geometric partial-sum index");
+    total := 0;
+    power := 1;
+    {@ count=0; count<=@index; {;
+        @total += @power;
+        @power *= @value;
+    }; count += 1 };
+    total;
+};
+
+AnalysisRadiusKey(radius) -> @"@{radius.Numerator()}-over-@{radius.Denominator()}";
+
+AnalysisGeometricPartialSum(radius, domain, indexValue) -> {;
+    index = AnalysisRequireIndex(indexValue,"Geometric partial-sum index");
+    key = AnalysisRadiusKey(radius);
+    .calculus.Function(@"rix.analysis.geometric.partial.@{key}.n@{index}@1", {=
+        name=@"GeometricPartial@{index}",
+        domain=domain,
+        codomain=:Rational,
+        facts=[{=
+            kind=:finiteGeometricSum,
+            firstExponent=0,
+            lastExponent=index,
+            exact=1
+        }],
+        implementation=(value)->AnalysisFiniteGeometricValue(value,@index),
+        implementationEvidence=:exactFiniteSum
+    });
+};
+
+AnalysisGeometricLimit(radius, domain) -> {;
+    key = AnalysisRadiusKey(radius);
+    .calculus.Function(@"rix.analysis.geometric.limit.@{key}@1", {=
+        name=:GeometricLimit,
+        domain=domain,
+        codomain=:Rational,
+        facts=[{= kind=:geometricSeriesIdentity, expression="1/(1-x)", radiusBound=radius }],
+        implementation=(value)->1/(1-value),
+        implementationEvidence=:exactRationalIdentity
+    });
+};
+
+AnalysisGeometricSeries(radiusValue, options ?= {= }) -> {;
+    options = AnalysisRequireOptions(options,"Analysis GeometricSeries options");
+    radius = AnalysisRequireNonnegativeRational(radiusValue,"GeometricSeries radius");
+    radius < 1 ?: _ ?_ .Error("GeometricSeries radius must be less than one");
+    domain = (-radius):radius;
+    limit = AnalysisGeometricLimit(radius,domain);
+    evidence = .ImmutableValue({=
+        valueKind=:analysisTailEvidence,
+        schema="rix.analysis.tail-evidence@1",
+        mode=:uniform,
+        authority=:analysisGeometricKernel,
+        evidenceLevel=:proof,
+        property=:uniformAbsoluteRemainderBound,
+        ratioBound=radius,
+        domain=domain,
+        limitSemanticId=limit.SemanticId(),
+        formula="r^(n+1)/(1-r)",
+        source=:finiteGeometricRemainderIdentity
+    });
+    termConstructor = (index)->AnalysisGeometricPartialSum(@radius,@domain,index);
+    sequence = {=
+        valueKind=:functionSequence,
+        schema="rix.analysis.function-sequence@1",
+        kind=:geometricPartialSums,
+        name=AnalysisOption(options,"name",:geometricFunctionSeries),
+        indexDomain={= kind=:integerRay, lower=0, upper=_ },
+        domain=domain,
+        codomain=:Rational,
+        termConstructor=termConstructor,
+        firstTerm=AnalysisGeometricPartialSum(radius,domain,0),
+        limit=limit,
+        tailEvidence=evidence,
+        radius=radius,
+        provenance={= plugin=:analysis, version=1, source=:geometricFunctionSeries, radius=radius }
+    };
+    AnalysisAttachSequenceProtocol(sequence);
+};
+
+.TypeKnown(:FunctionSequence) ?: _ ?_ .TypeRegister({=
+    name=:FunctionSequence,
+    nativeType=:map,
+    defaultTraits=[],
+    validate=(value)->AnalysisIsFunctionSequenceValue(value),
+    proto={= },
+    installs={= }
+});
+.TypeInstall(:FunctionSequence);
+
+.TypeKnown(:ConvergenceClaim) ?: _ ?_ .TypeRegister({=
+    name=:ConvergenceClaim,
+    nativeType=:map,
+    defaultTraits=[],
+    validate=(value)->AnalysisIsClaimValue(value),
+    proto={= },
+    installs={= }
+});
+.TypeInstall(:ConvergenceClaim);
+
+.TypeKnown(:ConvergenceResult) ?: _ ?_ .TypeRegister({=
+    name=:ConvergenceResult,
+    nativeType=:map,
+    defaultTraits=[],
+    validate=(value)->AnalysisIsResultValue(value),
+    proto={= },
+    installs={= }
+});
+.TypeInstall(:ConvergenceResult);
+
+analysisNamespace = {= };
+analysisNamespace._proto = {=
+    FunctionSequence=(self,termConstructor,options ?= {= })->AnalysisFunctionSequence(termConstructor,options),
+    TailEvidence=(self,mode,boundFunction,modulusFunction,options ?= {= })->AnalysisDeclaredTailEvidence(mode,boundFunction,modulusFunction,options),
+    ConvergenceClaim=(self,sequence,mode,limit ?= _,options ?= {= })->AnalysisConvergenceClaim(sequence,mode,limit,options),
+    CheckConvergence=(self,claim,request ?= {= })->AnalysisCheckConvergence(claim,request),
+    GeometricSeries=(self,radius,options ?= {= })->AnalysisGeometricSeries(radius,options),
+    Term=(self,sequence,index)->AnalysisTermAt(sequence,index),
+    Terms=(self,sequence,start ?= _,count ?= _)->AnalysisTerms(sequence,start,count),
+    TailBound=(self,sequence,index)->AnalysisTailBoundAt(sequence,index),
+    Modulus=(self,sequence,epsilon,options ?= {= })->AnalysisModulusAt(sequence,epsilon,options),
+    Record=(self,sequence)->AnalysisSequenceRecord(sequence),
+    IsFunctionSequence=(self,value)->AnalysisIsFunctionSequenceValue(value) ?: 1 ?_ _,
+    IsConvergenceClaim=(self,value)->AnalysisIsClaimValue(value) ?: 1 ?_ _,
+    IsConvergenceResult=(self,value)->AnalysisIsResultValue(value) ?: 1 ?_ _
+};
+
+.Host.RegisterValue(
+    "analysis",
+    analysisNamespace,
+    "Function sequences and explicit convergence claims over Calculus abstract functions and effective lazy sequences",
+    ["Analysis","Calculus","Exact"]
+);

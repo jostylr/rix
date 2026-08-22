@@ -240,6 +240,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.WARN` | function | — | Emit a warning event: .Warn(label, dataMap ?= {=}) |
 | `.algebra` | function | — | Exact Polynomial and RationalFunction algorithms with checked presentations. |
 | `.algebraicreal` | function | — | Exact real algebraic roots certified by canonical Polynomial values and Sturm isolating intervals. |
+| `.analysis` | function | — | Calculus-backed function sequences with explicit convergence modes and certified geometric uniform-tail evidence. |
 | `.ar` | function | — | Exact real algebraic roots certified by canonical Polynomial values and Sturm isolating intervals. |
 | `.ball` | function | — | Certified real and complex rational balls with precision-negotiated elementary functions. |
 | `.bessel` | function | — | Clearly named Bessel-function namespace backed by certified universal Numerics algorithms. |

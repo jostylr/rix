@@ -24,6 +24,7 @@ describe("browser-safe explanatory explorations", () => {
         "continued-fractions/gosper-arithmetic",
         "continued-fractions/certified-function-extraction",
         "probability/central-limit-theorem",
+        "analysis/geometric-function-series",
     ]) {
         test(`${name} explains the algorithm and evaluates to portable output`, () => {
             const markdown = readFileSync(new URL(`${name}.md`, explorationRoot), "utf8");

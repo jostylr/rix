@@ -1,0 +1,69 @@
+## Explanatory Exploration: exact uniform convergence of a geometric function series.
+## Browser-safe: the final value is a portable Fragment.
+
+.Plugin.Load("analysis");
+.Plugin.Load("plot");
+
+$$radiusTenths := 5;
+$$accuracyPower := 3;
+
+$$view := {;
+    radius := $radiusTenths/10;
+    epsilon := 1/(10^$accuracyPower);
+    series := .analysis.GeometricSeries(radius);
+    uniform := series.Check(:uniform,{= epsilon=epsilon,maxWork=160 });
+    selected := [0,1,2,3,uniform[:witness][:index]];
+    termRows := selected.Map((index)->[
+        index,
+        series.Term(index)(radius),
+        series.TailBound(index),
+        series.TailBound(index) <= epsilon ?: :meetsTarget ?_ :tooWide
+    ]);
+
+    tailData := [];
+    {@ index=0; index<=@uniform[:witness][:index]; {;
+        @tailData ~= @tailData.Push([index,@series.TailBound(index)]);
+    }; index+=1 };
+    graph := .plot.Line(tailData,{=
+        size=[700,320],
+        label="certified uniform remainder r^(n+1)/(1-r)",
+        stroke="#216e8c",
+        xLabel="partial-sum index n",
+        yLabel="exact tail bound"
+    });
+
+    modes := [:pointwise,:uniform,:almostEverywhere,:inMeasure,:norm];
+    modeRows := modes.Map((mode)->{;
+        result := series.Check(mode,{= epsilon=@epsilon,maxWork=160 });
+        [mode,result[:status],result[:reason],result[:allows][:evaluation]]
+    });
+
+    .Fragment([
+        .Heading(1,"Uniform convergence of the geometric function series"),
+        .Paragraph(@"On the exact domain [-@{radius},@{radius}], S_n(x)=1+x+...+x^n has the global remainder bound @{radius}^(n+1)/(1-@{radius})."),
+        .ControlPanel({=
+            title="Exact domain and accuracy",
+            description="The controls select exact Rational values; the checker searches only within its explicit work budget.",
+            controls=[
+                .Controls.Slider($$radiusTenths,1:9,1,"radius in tenths"),
+                .Controls.Slider($$accuracyPower,1:4,1,"epsilon = 10^-p")
+            ]
+        }),
+        .Figure(graph,"The line displays exact theorem bounds. It illustrates the certificate; it is not sampled evidence for convergence."),
+        .Table(
+            ["n","S_n(r)","uniform tail bound","target test"],
+            termRows,
+            {= caption=@"Exact endpoint values and bounds for epsilon=@{epsilon}" }
+        ),
+        .Heading(2,"One sequence, five distinct claims"),
+        .Table(
+            ["mode","status","reason","may exchange limit and evaluation"],
+            modeRows,
+            {= caption="Phase 1 certifies only the supported uniform theorem; other modes stay explicit and unknown" }
+        ),
+        .Paragraph(@"The certified witness is N=@{uniform[:witness][:index]} with tail @{uniform[:witness][:tailBound]} <= @{epsilon}.")
+    ])
+};
+
+$view
+

@@ -6,7 +6,7 @@ const pluginKind = (id) => parseAndEvaluate(`.Plugin.Info("${id}").Get("kind")`)
 describe("math plugin implementation boundary", () => {
     test("computational exact and certified plugins load from RiX source", () => {
         for (const id of [
-            "algebra", "algebraic-real", "ball", "cauchy", "continued-fraction",
+            "algebra", "algebraic-real", "analysis", "ball", "cauchy", "continued-fraction",
             "complex", "complex-viz", "exact-algebras", "fraction", "fractals", "geometry", "numerics", "oracle", "plot", "poly", "radix",
             "ratfun", "stats", "stern-brocot", "symbolic", "linalg", "optimize", "solve", "scene3d", "nd",
         ]) {

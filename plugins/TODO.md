@@ -702,17 +702,17 @@ tracked in
 ### `.analysis`
 
 1. **Phase 1 — Function sequences and explicit convergence claims**
-   - [ ] Depend on `rix.abstract-function@1` and a cloneable/effective sequence
+   - [x] Depend on `rix.abstract-function@1` and a cloneable/effective sequence
      protocol rather than inventing a second function representation.
-   - [ ] Add first-class function-sequence values with an index domain,
+   - [x] Add first-class function-sequence values with an index domain,
      function domain/codomain, term constructor, and optional effective tail
      evidence.
-   - [ ] Distinguish pointwise, uniform, almost-everywhere, in-measure, and
+   - [x] Distinguish pointwise, uniform, almost-everywhere, in-measure, and
      norm convergence in versioned claim/result records.
-   - [ ] Implement one end-to-end geometric function-series example with an
+   - [x] Implement one end-to-end geometric function-series example with an
      exact or certified uniform tail bound; return `unknown` for an unsupported
      convergence claim rather than sampling it into a theorem.
-   - [ ] Add README documentation, a runnable tutorial, and focused tests that
+   - [x] Add README documentation, a runnable tutorial, and focused tests that
      prevent exchanging limits with evaluation solely from finite samples.
 2. **Phase 2 — Limits, series, and justified exchanges**
    - [ ] Add scalar/function limits, limsup/liminf, infinite series, Cauchy
