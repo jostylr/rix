@@ -81,6 +81,72 @@ describe("radix plugin", () => {
         expect(result.values[5].value).toBe("23");
     });
 
+    test("lazy digit streams repeat or terminate with zeros and support bounded windows", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("radix");
+            repeating := (1/7).DigitStream(10);
+            terminating := (1/8).DigitStream(10);
+            window := (1/7).DigitStream(10, {= start=3, count=5 });
+            empty := (1/7).DigitStream(10, {= count=0 });
+            {:
+                [repeating[1], repeating[6], repeating[7], repeating[8]],
+                [terminating[1], terminating[3], terminating[5]],
+                window.Materialize(),
+                empty.Materialize(),
+                [repeating.schema, repeating.base, repeating.start,
+                    repeating.count, repeating.clonePolicy, repeating.deepClonePolicy]
+            };
+        `, runtime());
+
+        expect(ints(result.values[0])).toEqual([1, 7, 1, 4]);
+        expect(ints(result.values[1])).toEqual([1, 5, 0]);
+        expect(ints(result.values[2])).toEqual([2, 8, 5, 7, 1]);
+        expect(result.values[3].values).toEqual([]);
+        expect(result.values[4].values.map((value) => value?.value ?? null)).toEqual([
+            "rix.radix.digit-stream@1", 10n, 1n, null, "cachedIndependent", "restart",
+        ]);
+    });
+
+    test("lazy digit stream clones preserve independent caches while deep copies restart", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("radix");
+            stream := (1/7).DigitStream(10);
+            stream[3];
+            copy := stream;
+            copy[8];
+            restart ::= stream;
+            {:
+                [stream[7], copy[8], restart[2]],
+                [stream.schema, copy.schema, restart.schema]
+            };
+        `, options);
+
+        expect(ints(result.values[0])).toEqual([1, 4, 4]);
+        expect(result.values[1].values.map(({ value }) => value)).toEqual([
+            "rix.radix.digit-stream@1",
+            "rix.radix.digit-stream@1",
+            "rix.radix.digit-stream@1",
+        ]);
+        expect(options.context.get("stream")._lazy.cache).toHaveLength(7);
+        expect(options.context.get("copy")._lazy.cache).toHaveLength(8);
+        expect(options.context.get("restart")._lazy.cache).toHaveLength(2);
+        expect(options.context.get("stream")).not.toBe(options.context.get("copy"));
+    });
+
+    test("digit streams validate their finite window and publish the Phase 2 protocol", () => {
+        const options = runtime();
+        parseAndEvaluate('.Plugin.Load("radix")', options);
+        expect(parseAndEvaluate('.Plugin.Info("radix").Get("provides")', options).values.map(({ value }) => value)).toEqual([
+            "rix.radix@1",
+            "rix.radix.digit-stream@1",
+        ]);
+        expect(() => parseAndEvaluate('(1/7).DigitStream(10, {= start=0 })', options))
+            .toThrow("Digit stream start must be at least 1");
+        expect(() => parseAndEvaluate('(1/7).DigitStream(10, {= count=1000001 })', options))
+            .toThrow("Digit stream count must be between 0 and 1000000");
+    });
+
     test("recognizes a repeat reached exactly at the digit budget", () => {
         const result = parseAndEvaluate(`
             .Plugin.Load("radix");

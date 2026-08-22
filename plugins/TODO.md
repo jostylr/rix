@@ -108,7 +108,7 @@ newline normalization.
    - [x] Provide finite digit generation and bounded period analysis.
    - [x] Add reference documentation, a tutorial, and focused tests.
 2. **Phase 2 — Streaming and richer representation**
-   - [ ] Add a cloneable lazy digit stream once plugin-defined lazy values have a stable protocol.
+   - [x] Add a cloneable lazy digit stream once plugin-defined lazy values have a stable protocol.
    - [x] Add formatting policies for digit alphabets above base 36 and grouped radices.
    - [x] Share generic work-budget diagnostics with `.numerics`.
 3. **Phase 3 — Extensible numeral-system definitions**

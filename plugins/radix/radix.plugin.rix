@@ -1,13 +1,13 @@
 /**
 id: radix
-description: Bounded exact positional expansions, configurable formatting, and repeating-period analysis for rational values.
+description: Exact positional expansions, cloneable lazy digit streams, configurable formatting, and bounded period analysis.
 kind: rix
 mount: radix
-exports: [Expansion, Digits, PeriodLength, PeriodInfo, ToString]
+exports: [Expansion, Digits, DigitStream, PeriodLength, PeriodInfo, ToString]
 groups: [Exact, Radix]
 permissions: []
-provides: [rix.radix@1]
-schemas: [rix.radix.expansion@1, rix.radix.period-info@1]
+provides: [rix.radix@1, rix.radix.digit-stream@1]
+schemas: [rix.radix.expansion@1, rix.radix.digit-stream@1, rix.radix.period-info@1]
 snapshot: true
 deterministic: true
 defaultEnabled: false
@@ -138,6 +138,76 @@ RadixDigits(value, baseValue ?= 10, countValue ?= 1) -> {;
         @remainder %= @parts[:denominator];
     }; index += 1 };
     digits;
+};
+
+RadixPowMod(base, exponent, modulus) -> {;
+    result := 1 % modulus;
+    factor := base % modulus;
+    remaining := exponent;
+    {@ step = 1; @remaining > 0; {;
+        @remaining % 2 == 1
+          ?: {; @result ~= (@result * @factor) % @modulus; }
+          ?_ _;
+        @remaining //= 2;
+        @remaining > 0
+          ?: {; @factor ~= (@factor * @factor) % @modulus; }
+          ?_ _;
+    }; step += 1 };
+    result;
+};
+
+RadixDigitAt(value, base, position) -> {;
+    index = RadixBounded(position, "Digit stream index", 1);
+    index >= 1
+      ?: _
+      ?_ .Error("Digit stream indexes are one-based");
+    parts = RadixUnsigned(value);
+    modulus = parts[:denominator] * base;
+    scaled = ((parts[:numerator] % parts[:denominator])
+        * RadixPowMod(base, index, modulus)) % modulus;
+    (scaled // parts[:denominator]) % base;
+};
+
+RadixDigitStream(value, baseValue ?= 10, options ?= _) -> {;
+    base = RadixBase(baseValue);
+    parts = RadixUnsigned(value);
+    start = RadixBounded(RadixOption(options, "start"), "Digit stream start", 1);
+    start >= 1
+      ?: _
+      ?_ .Error("Digit stream start must be at least 1");
+    countValue = RadixOption(options, "count");
+    count = countValue == _ ?: _ ?_ RadixBounded(countValue, "Digit stream count", 0);
+    denominator = parts[:denominator];
+    initial = {=
+        digit = RadixDigitAt(value, base, start),
+        remainder = ((parts[:numerator] % denominator)
+            * RadixPowMod(base, start, denominator)) % denominator
+    };
+    advance = (state) -> {;
+        scaled = state[:remainder] * @base;
+        {=
+            digit = scaled // @denominator,
+            remainder = scaled % @denominator
+        };
+    };
+    select = (state) -> state[:digit];
+    stream = count == _
+      ?: [initial, |> advance, |> select]
+      ?_ [initial, |> advance, |> select, |^ count];
+    stream .= {=
+        valueKind = :radixDigitStream,
+        schema = "rix.radix.digit-stream@1",
+        base = base,
+        sign = parts[:numerator] == 0 ?: 0 ?_ parts[:sign],
+        sourceNumerator = parts[:numerator],
+        sourceDenominator = parts[:denominator],
+        start = start,
+        count = count,
+        bounded = count == _ ?: _ ?_ 1,
+        clonePolicy = :cachedIndependent,
+        deepClonePolicy = :restart
+    };
+    stream;
 };
 
 RadixGcd(left, right) -> {;
@@ -348,20 +418,23 @@ radixNamespace = {= };
 radixNamespace._proto = {=
     Expansion = (self, value, base ?= 10, options ?= _) -> RadixExpansion(value, base, options),
     Digits = (self, value, base ?= 10, count ?= 1) -> RadixDigits(value, base, count),
+    DigitStream = (self, value, base ?= 10, options ?= _) -> RadixDigitStream(value, base, options),
     PeriodLength = (self, value, base ?= 10, options ?= _) -> RadixPeriodLength(value, base, options),
     PeriodInfo = (self, value, base ?= 10, options ?= _) -> RadixPeriodInfo(value, base, options),
     ToString = (self, value, baseValue ?= 10, options ?= _) -> RadixRenderText(value, baseValue, options)
 };
 
-.Host.RegisterValue("radix", radixNamespace, "Bounded exact positional expansions and period analysis", ["Exact", "Radix"]);
+.Host.RegisterValue("radix", radixNamespace, "Exact positional expansions, lazy digit streams, and bounded period analysis", ["Exact", "Radix"]);
 
 .Host.RegisterMethod("Integer", "Expansion", RadixExpansion, "radix", "radix");
 .Host.RegisterMethod("Integer", "Digits", RadixDigits, "radix", "radix");
+.Host.RegisterMethod("Integer", "DigitStream", RadixDigitStream, "radix", "radix");
 .Host.RegisterMethod("Integer", "PeriodLength", RadixPeriodLength, "radix", "radix");
 .Host.RegisterMethod("Integer", "PeriodInfo", RadixPeriodInfo, "radix", "radix");
 .Host.RegisterMethod("Integer", "RadixString", (value,base ?= 10,options ?= _)->.radix.ToString(value,base,options), "radix", "radix");
 .Host.RegisterMethod("Rational", "Expansion", RadixExpansion, "radix", "radix");
 .Host.RegisterMethod("Rational", "Digits", RadixDigits, "radix", "radix");
+.Host.RegisterMethod("Rational", "DigitStream", RadixDigitStream, "radix", "radix");
 .Host.RegisterMethod("Rational", "PeriodLength", RadixPeriodLength, "radix", "radix");
 .Host.RegisterMethod("Rational", "PeriodInfo", RadixPeriodInfo, "radix", "radix");
 .Host.RegisterMethod("Rational", "RadixString", (value,base ?= 10,options ?= _)->.radix.ToString(value,base,options), "radix", "radix");

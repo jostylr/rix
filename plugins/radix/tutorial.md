@@ -63,3 +63,45 @@ bounded := (1/97).PeriodInfo(10, {= maxWork=3 });
     bounded[:diagnostics]
 };
 ```
+
+## Pull exact digits lazily
+
+`DigitStream` uses RiX's restartable cached lazy-sequence protocol. With no
+`count`, a rational's fractional expansion is unbounded: a repeat continues
+to repeat, while a terminating expansion continues with exact zeros.
+
+```rix
+.Plugin.Load("radix");
+digits := (1/7).DigitStream(10);
+terminating := (1/8).DigitStream(10);
+{:
+    [digits[1], digits[6], digits[7], digits[8]],
+    [terminating[1], terminating[3], terminating[5]],
+    [digits.schema, digits.clonePolicy]
+};
+```
+
+Use a finite window when materialization is intended. `start` is one-based and
+`count` bounds the number of lazily produced digits.
+
+```rix
+.Plugin.Load("radix");
+window := (1/7).DigitStream(10, {= start=3, count=5 });
+window.Materialize();
+```
+
+A fresh copy keeps the current exact remainder and cached prefix but advances
+independently. A deep copy restarts the declared stream.
+
+```rix
+.Plugin.Load("radix");
+digits := (1/7).DigitStream(10);
+digits[3];
+copy := digits;
+copy[8];
+restart ::= digits;
+{:
+    [digits[7], copy[8], restart[2]],
+    [digits.schema, copy.schema, restart.schema]
+};
+```

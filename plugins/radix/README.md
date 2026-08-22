@@ -7,9 +7,10 @@ unbounded repeating expansion as a harmless conversion. Load it with:
 .Plugin.Load("radix");
 ```
 
-Expansion, bounded period detection, digit generation, configurable formatting,
-and the Integer/Rational receiver methods are implemented in RiX. The former
-host installer is retained only as `radix.reference.js`.
+Expansion, bounded period detection, cloneable lazy digit streams,
+configurable formatting, and the Integer/Rational receiver methods are
+implemented in RiX. The former host installer is retained only as
+`radix.reference.js`.
 
 The plugin exposes namespace operations and matching methods on `Integer` and
 `Rational` values:
@@ -17,6 +18,7 @@ The plugin exposes namespace operations and matching methods on `Integer` and
 ```rix
 (1/6).Expansion(10, {= maxDigits=1000 });
 (1/7).Digits(10, {= count=20 });
+(1/7).DigitStream(10, {= start=3, count=20 });
 (1/7).PeriodLength(10, {= maxWork=10000 });
 (1/7).RadixString(10, {= maxDigits=1000 });
 61.RadixString(62, {=
@@ -49,6 +51,47 @@ integer digit arrays in `Expansion` are unchanged.
 `rix.radix.period-info@1` result. `PeriodLength` is the scalar convenience form
 and throws on exhaustion, directing callers to `PeriodInfo` when they need
 normal budget handling.
+
+## Cloneable lazy digit streams
+
+`DigitStream(base, options)` returns the native cached `lazy_sequence`
+protocol with `rix.radix.digit-stream@1` metadata. It represents the
+fractional digits of the magnitude; `sign`, `sourceNumerator`,
+`sourceDenominator`, `base`, and the one-based `start` position remain
+inspectable metadata. Integer digits remain available from `Expansion`.
+
+```rix
+digits := (1/7).DigitStream(10);
+[digits[1], digits[6], digits[7], digits[8]];
+```
+
+Without `count`, the stream is unbounded: repeating expansions repeat and
+terminating expansions emit exact trailing zeros. Pull it by positive index or
+through `.Iterator()`; do not call `.Materialize()` on an unbounded stream.
+Set `count` for a finite lazy window:
+
+```rix
+window := (1/7).DigitStream(10, {= start=3, count=5 });
+window.Materialize();
+```
+
+The stream uses exact remainder recurrence after its initial offset, so it
+does not form an enormous positional numerator for every successive digit.
+The ordinary fresh-copy operator `:=` clones the current cache and recurrence
+state; each copy can then advance independently. Deep copy `::=` restarts from
+the declared `start`. This matches the core lazy-sequence cloning contract:
+
+```rix
+digits[3];
+copy := digits;
+copy[8];
+restart ::= digits;
+[digits[7], copy[8], restart[2]];
+```
+
+`count` may be zero and both `start` and `count` are bounded at one million,
+matching the plugin's explicit work-bound policy. The metadata records
+`clonePolicy=:cachedIndependent` and `deepClonePolicy=:restart`.
 
 `Expansion` and `PeriodInfo` use the same generic bounded-work vocabulary as
 `.numerics`: a `work` map records `total`, `iterations`, the active maximum, its
