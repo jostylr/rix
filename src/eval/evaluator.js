@@ -548,6 +548,11 @@ export function createDefaultSystemContext(options = {}) {
         renderValue(value, target, renderOptions, { evaluationContext, evaluate: evaluateValue } = {}) {
             return renderResultValue(rendererRegistry.render(value, target, renderOptions, {
                 format: (item) => formatValue(item, { context: evaluationContext, evaluate: evaluateValue }),
+                context: evaluationContext,
+                evaluate: evaluateValue,
+                invoke: (callable, args, callContext = evaluationContext, callEvaluate = evaluateValue) => (
+                    invokeResolvedCallableSync(callable, args, callContext, callEvaluate, ctx)
+                ),
             }));
         },
     });

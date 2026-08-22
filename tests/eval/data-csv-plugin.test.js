@@ -7,6 +7,7 @@ import {
     formatValue,
     parseAndEvaluate,
 } from "../../src/index.js";
+import { parseCsvRecords } from "../../plugins/render-csv/csv-import.js";
 
 function runtime() {
     return {
@@ -23,6 +24,19 @@ function nativeRows(value) {
 }
 
 describe("data and csv plugins", () => {
+    test("CSV import record parsing handles CRLF, quotes, embedded newlines, and comments", () => {
+        const parsed = parseCsvRecords(
+            '# source: fixture\r\nname,note\r\n"comma,here","line\nbreak"\r\nquote,"say ""yes"""\r\n',
+        );
+        expect(parsed.comments).toEqual([{ text: "source: fixture", line: 1 }]);
+        expect(parsed.records.map(({ fields, line }) => ({ fields: [...fields], line }))).toEqual([
+            { fields: ["name", "note"], line: 2 },
+            { fields: ["comma,here", "line\nbreak"], line: 3 },
+            { fields: ["quote", 'say "yes"'], line: 5 },
+        ]);
+        expect(() => parseCsvRecords('name\n"unfinished')).toThrow("unterminated quoted field");
+    });
+
     test("typed relations project, filter, and stably sort exact rows", () => {
         const options = runtime();
         const result = parseAndEvaluate(`
@@ -183,13 +197,110 @@ break"""]
         expect(new TextEncoder().encode(result.values[1].value)).toEqual(new TextEncoder().encode(tsvFixture));
         expect(result.values[2].value).toBe('"comma,here",3/2,"quote ""yes"""\r\nplain,NA,"line\nbreak"');
         expect(parseAndEvaluate('.Renderer.Info("tsv").Get("target")', options).value).toBe("csv");
+        expect(parseAndEvaluate('.Plugin.Info("csv").Get("provides")', options).values.map(({ value }) => value)).toEqual([
+            "rix.renderer.csv@1",
+            "rix.renderer.csv@2",
+            "rix.csv.import@1",
+            "rix.csv.sidecar@1",
+        ]);
     });
 
-    test("CSV refuses nested values instead of flattening them", () => {
+    test("CSV rejects nested values with a path unless tagged JSON flattening is explicit", () => {
         const options = runtime();
         expect(() => parseAndEvaluate(`
             .Plugin.Load("csv");
             .csv.Render(.Table(["nested"], [[[1, 2]]]));
-        `, options)).toThrow("csv cells must be missing, strings, or exact numeric scalars");
+        `, options)).toThrow("csv nested cell at row[1].column1 requires flatten=:json");
+
+        const result = parseAndEvaluate(`
+            flattened := .csv.Render(
+                .Table(["nested"], [[{= b=1/2, a=[2, 3] }]]),
+                {= flatten=:json, metadata={= source="demo" }, comments=["lossless tags"] }
+            );
+            [flattened.Get("content"), flattened.Get("diagnostics"), flattened.Get("metadata")];
+        `, options);
+        expect(result.values[0].value).toContain('# source: demo\n# lossless tags\nnested\n');
+        expect(result.values[0].value).toContain('"$rational"');
+        expect(result.values[1].values[0].entries.get("code").value).toBe("csv-flattened-cell");
+        expect(result.values[1].values[0].entries.get("path").value).toBe("row[1].column1");
+        expect(result.values[2].entries.get("flattening").entries.get("count").value).toBe(1n);
+    });
+
+    test("typed CSV import uses explicit locale policy and preserves sidecars", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("csv");
+            .Plugin.Load("data");
+            schema := [
+                {= id="name", type=:String, nullable=0 },
+                {= id="amount", type=:Rational },
+                {= id="band", type=:Interval }
+            ];
+            input := """# source: lab
+name;amount;band
+a;1,5;1,4:1,6
+b;;2:2
+""";
+            parsed := .csv.Parse(input, schema, {=
+                delimiter=:semicolon, decimal=:locale, locale="de-DE"
+            });
+            [.data.Rows(parsed), .csv.Sidecar(parsed)];
+        `, options);
+
+        expect(nativeRows(result.values[0])).toEqual([
+            { name: "a", amount: "1..1/2", band: "1..2/5:1..3/5" },
+            { name: "b", amount: null, band: "2:2" },
+        ]);
+        const sidecar = result.values[1].entries;
+        expect(sidecar.get("metadata").entries.get("source").value).toBe("lab");
+        expect(sidecar.get("comments").values[0].entries.get("line").value).toBe(1n);
+        expect(sidecar.get("dialect").entries.get("decimalMark").value).toBe(",");
+        expect(sidecar.get("rowCount").value).toBe(2n);
+    });
+
+    test("CSV row streams compose with data collection and both rendering entry points", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("csv");
+            .Plugin.Load("data");
+            schema := [
+                {= id="x", type=:Integer, nullable=0 },
+                {= id="y", type=:Rational }
+            ];
+            stream := .csv.ParseStream("""x,y
+1,1/2
+2,3/2
+""", schema);
+            [
+                .data.Rows(.csv.Collect(stream, 1)),
+                .csv.Render(stream).Get("content"),
+                .Render(stream, :csv, {= limit=1 }).Get("content"),
+                .csv.Sidecar(stream).Get("rowCount")
+            ];
+        `, options);
+
+        expect(nativeRows(result.values[0])).toEqual([{ x: "1", y: "1/2" }]);
+        expect(result.values[1].value).toBe("x,y\n1,1/2\n2,3/2\n");
+        expect(result.values[2].value).toBe("x,y\n1,1/2\n");
+        expect(result.values[3].value).toBe(2n);
+    });
+
+    test("locale decimal export remains exact and rejects ambiguous or repeating forms", () => {
+        const options = runtime();
+        parseAndEvaluate('.Plugin.Load("csv")', options);
+        const content = parseAndEvaluate(`
+            .csv.Render(.Table(["value"], [[3/2], [10005]]), {=
+                delimiter=:semicolon, decimal=:locale, locale="de-DE", grouping=1
+            }).Get("content")
+        `, options);
+        expect(content.value).toBe("value\n1,5\n10.005\n");
+        expect(() => parseAndEvaluate(`
+            .csv.Render(.Table(["value"], [[1/3]]), {= decimal=:locale })
+        `, options)).toThrow("nonterminating decimal expansion");
+        expect(() => parseAndEvaluate(`
+            .csv.Parse("value\\n1,5\\n", [{= id="value", type=:Rational }], {=
+                decimal=:locale, locale="de-DE"
+            })
+        `, options)).toThrow("delimiter must differ from the locale decimal mark");
     });
 });

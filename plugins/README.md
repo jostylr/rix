@@ -60,7 +60,7 @@ The implementation order and per-plugin phased work are tracked in
 | `render-pdf/` | host | `pdf` | LaTeX-orchestrated PDF output. |
 | `render-gif/` | host | `gif` | PNG-frame orchestration and host-encoded animated GIF output. |
 | `render-gltf/` | host | `gltf` | Browser-safe glTF 2.0 JSON export for retained Scene3D values. |
-| `render-csv/` | host | `csv` | Exact scalar Table/relation export to CSV and TSV dialects. |
+| `render-csv/` | host | `csv` | Typed CSV/TSV interchange with exact locale policy, RowSources, sidecars, and flattening diagnostics. |
 
 The shared renderer contract, format matrix, toolchain boundary, and future 3D
 targets are documented in [`renderers/README.md`](renderers/README.md).

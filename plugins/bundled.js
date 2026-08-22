@@ -202,6 +202,25 @@ const BUNDLED_PLUGINS = [
         },
         install: installWebglPlugin,
     },
+    {
+        metadata: {
+            id: "csv",
+            description: "Schema-aware CSV/TSV import and export with exact numeric, sidecar, and streaming-row policies.",
+            kind: "host",
+            mount: "csv",
+            exports: ["Render", "Parse", "ParseStream", "Collect", "Sidecar"],
+            groups: ["Renderers", "Data"],
+            permissions: [],
+            requires: [],
+            provides: ["rix.renderer.csv@1", "rix.renderer.csv@2", "rix.csv.import@1", "rix.csv.sidecar@1"],
+            schemas: ["rix.csv.import@1", "rix.csv.sidecar@1", "rix.data.relation@1", "rix.data.row-source@1"],
+            targets: ["csv", "text/csv", "tsv", "text/tab-separated-values"],
+            snapshot: false,
+            deterministic: true,
+            defaultEnabled: false,
+        },
+        install: installCsvPlugin,
+    },
     ...[
         ["canvas", "Serializable Canvas 2D drawing plans for core Graphics scenes.", "canvas", ["Render"], [], installCanvasPlugin, "application/vnd.rix.canvas+json", true],
         ["tikz", "Editable TikZ/PGF source renderer for core Graphics scenes.", "tikz", ["Render"], [], installTikzPlugin, "text/x-tikz", true],
@@ -212,7 +231,6 @@ const BUNDLED_PLUGINS = [
         ["png", "PNG snapshot renderer for core Graphics through a host rasterizer.", "png", ["Render"], ["process"], installPngPlugin, "image/png", true],
         ["pdf", "PDF document and figure renderer orchestrated through LaTeX.", "pdf", ["Render"], ["process", "files"], installPdfPlugin, "application/pdf", false],
         ["gltf", "Browser-safe glTF 2.0 JSON exporter for retained Scene3D values.", "gltf", ["Render"], [], installGltfPlugin, "model/gltf+json", true],
-        ["csv", "Deterministic CSV and TSV export for portable Tables and typed data Relations.", "csv", ["Render"], [], installCsvPlugin, "text/csv", true, ["tsv", "text/tab-separated-values"], ["Renderers", "Data"]],
         ["gif", "Deterministic animated GIF rendering from Slides, Timelines, or Snapshots through PNG frames.", "gif", ["Render"], ["process", "files"], installGifPlugin, "image/gif", true, [], ["Renderers"], ["rix.renderer.png@1"]],
     ].map(([id, description, mount, exports, permissions, install, mime, deterministic, aliases = [], groups = ["Renderers"], requires = []]) => ({
         metadata: {

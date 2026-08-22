@@ -1359,7 +1359,7 @@ The RiX/host extraction sequence is specified in
    - [x] Demonstrate commas, quotes, newlines, rationals, and missing cells.
    - [x] Add README, tutorial, byte-level tests, and CSV/TSV dialect fixtures.
 2. **Phase 2 — Schema-aware tabular interchange**
-   - [ ] Add typed import, explicit locale/decimal policy, streaming rows,
+   - [x] Add typed import, explicit locale/decimal policy, streaming rows,
      comments/metadata sidecars, and flattening diagnostics.
 3. **Phase 3 — Data format family**
    - [ ] Add JSON/JSONL and coordinate Arrow/Parquet export with `.data`.
