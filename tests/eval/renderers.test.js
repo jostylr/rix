@@ -12,10 +12,12 @@ import {
     parseAndEvaluate,
 } from "../../src/index.js";
 import { createDefinition as createPngDefinition } from "../../plugins/render-png/png.plugin.rix.js";
+import { createDefinition as createPdfDefinition } from "../../plugins/render-pdf/pdf.plugin.rix.js";
 import { definition as quartoDefinition } from "../../plugins/render-quarto/quarto.plugin.rix.js";
 import { definition as svgDefinition } from "../../plugins/render-svg/svg.plugin.rix.js";
 import { renderGraphicTikz } from "../../plugins/render-tikz/tikz-renderer.js";
 import { createWebGLPlan, paintWebGLPlan } from "../../plugins/render-webgl/webgl-plan.js";
+import { hitTestCanvasPlan, invertCanvasPoint } from "../../plugins/render-canvas/canvas-plan.js";
 import { lowerGraphicSvg } from "../../src/runtime/output.js";
 
 function runtime() {
@@ -40,6 +42,33 @@ g := .Graphics.Graphic({=
 `;
 
 describe("renderer registry", () => {
+    test("Phase 2 renderer gates normalize diagnostics/metadata and expose shared schemas through independent providers", () => {
+        const registry = new RendererRegistry();
+        registry.register({
+            target: "fixture", mime: "text/x-fixture", deterministic: true,
+            render: () => ({ content: "ok", diagnostics: ["visible warning"] }),
+        });
+        const rendered = registry.render(1, "fixture");
+        expect(rendered.diagnostics).toEqual([{
+            level: "warning", code: "fixture.diagnostic", message: "visible warning",
+        }]);
+        expect(rendered.metadata).toMatchObject({
+            schema: "rix.renderer.metadata@1", target: "fixture", deterministic: true, encoding: "utf8",
+        });
+
+        const options = runtime();
+        const providers = parseAndEvaluate(`
+            [
+                .Plugin.Info("svg").Get("provides"),
+                .Plugin.Info("canvas").Get("provides")
+            ]
+        `, options).values.map((values) => values.values.map(({ value }) => value));
+        for (const capabilities of providers) {
+            expect(capabilities).toContain("rix.viewport@1");
+            expect(capabilities).toContain("rix.selection@1");
+        }
+    });
+
     test("negotiates canonical targets, MIME aliases, fallbacks, and diagnostics", () => {
         const registry = new RendererRegistry();
         registry.register({
@@ -91,6 +120,37 @@ describe("renderer registry", () => {
         expect(plan.commands.map(([command]) => command)).toEqual(["path2d", "rectangle", "circle", "text"]);
         expect(result.values[2].value).toContain("\\begin{tikzpicture}");
         expect(result.values[2].value).toContain("rectangle");
+    });
+
+    test("Canvas Phase 2 publishes pixel, viewport, hit-test, repaint, asset, and accessibility services", () => {
+        const options = runtime();
+        const rendered = parseAndEvaluate(`
+            .Plugin.Load("canvas");
+            scene := .Graphics.Graphic([100,60], [
+                .Graphics.Rectangle([10,10],[30,20], {= fill="#2563eb", id="box" }),
+                .Graphics.Text([50,50], "measurement", {= id="label" })
+            ]);
+            .canvas.Render(scene, {=
+                pixelRatio=2,
+                viewport={= origin=[10,5], pan=[4,6], zoom=2 },
+                selection={= ids=["box"], focus="box" },
+                assets=[{= id="texture", path="images/texture.png", mime="image/png" }]
+            }).Get("content");
+        `, options);
+        const plan = JSON.parse(rendered.value);
+        expect(plan).toMatchObject({
+            schema: "rix.canvas-plan@1", phase: 2, width: 100, height: 60,
+            backingWidth: 200, backingHeight: 120, pixelRatio: 2,
+            viewport: { schema: "rix.viewport@1", origin: [10, 5], pan: [4, 6], zoom: 2 },
+            selection: { schema: "rix.selection@1", ids: ["box"], focus: "box" },
+            accessibility: { schema: "rix.canvas-accessibility@1" },
+        });
+        expect(plan.hitRegions.map(({ semanticId }) => semanticId)).toEqual(["box", "label"]);
+        expect(plan.dirtyRegions).toEqual([{ x: 10, y: 10, width: 30, height: 20 }]);
+        expect(plan.assets).toEqual([{ id: "texture", ref: "images/texture.png", mime: "image/png", crossOrigin: null }]);
+        expect(plan.accessibility.text).toContain("text: measurement");
+        expect(invertCanvasPoint(plan, [24, 26])).toEqual([20, 15]);
+        expect(hitTestCanvasPlan(plan, [15, 15])).toMatchObject({ semanticId: "box" });
     });
 
     test("TikZ Phase 2 emits native PGFPlots, reusable styles, markers, gradients, and dependencies", () => {
@@ -254,6 +314,32 @@ describe("renderer registry", () => {
         expect(lowered.metadata.collisions.length).toBeGreaterThan(0);
     });
 
+    test("SVG Phase 2 reuses stable paint definitions, markers, masks, and font policy", () => {
+        const graphic = parseAndEvaluate(`
+            paint := {= gradient={= from="#dbeafe", to="#2563eb", angle=45 }, mask={= opacity=3/4 } };
+            .Graphics.Graphic([120,70], [
+                .Graphics.Group([
+                    .Graphics.Rectangle([5,5],[30,20], paint),
+                    .Graphics.Rectangle([45,5],[30,20], paint)
+                ], {= stroke="#172033", width=2, id="shapes" }),
+                .Graphics.Path([[10,55],[100,55]], {= stroke="#be123c", marker="arrow", markerSize=4 }),
+                .Graphics.Circle([95,15], 10, {= pattern={= type="dots", color="#172033", size=6 } }),
+                .Graphics.Text([60,68], "portable", {= anchor="middle", font="Fancy Display" })
+            ])
+        `, runtime());
+        const lowered = lowerGraphicSvg(graphic, String, { precision: 4, fontPolicy: "generic" });
+        expect(lowered.content.match(/<linearGradient /g)).toHaveLength(1);
+        expect(lowered.content.match(/<mask /g)).toHaveLength(1);
+        expect(lowered.content).toContain("<marker ");
+        expect(lowered.content).toContain("<pattern ");
+        expect(lowered.content).toContain('id="shapes"');
+        expect(lowered.content).toContain('font-family="sans-serif"');
+        expect(lowered.metadata.definitions).toHaveLength(4);
+        expect(lowered.diagnostics).toContainEqual(expect.objectContaining({ code: "svg-font-policy" }));
+        const second = lowerGraphicSvg(graphic, String, { precision: 4, fontPolicy: "generic" });
+        expect(second.metadata.definitions).toEqual(lowered.metadata.definitions);
+    });
+
     test("document renderers preserve structure and report static fallbacks", () => {
         const options = runtime();
         const result = parseAndEvaluate(`${sceneSource}
@@ -277,8 +363,77 @@ describe("renderer registry", () => {
         expect(result.values[1].value).toContain("<title>Test report</title>");
         expect(result.values[1].value).toContain("<figure");
         expect(result.values[2].value).toStartWith('---\ntitle: "Test report"\nformat: "pdf"');
-        expect(result.values[3].value).toContain("\\documentclass{article}");
+        expect(result.values[3].value).toContain("\\documentclass[letterpaper]{article}");
         expect(result.values[3].value).toContain("\\begin{tikzpicture}");
+    });
+
+    test("Phase 2 publication renderers negotiate assets, styles, target blocks, projects, and LaTeX packages", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("document"); .Plugin.Load("svg"); .Plugin.Load("markdown");
+            .Plugin.Load("html"); .Plugin.Load("quarto"); .Plugin.Load("latex");
+            graphic := .Graphics.Graphic([30,20],[
+                .Graphics.Circle([15,10],5,{= fill="#2563eb" })
+            ]);
+            report := .document.Report("Portable", [
+                .Paragraph([.document.TargetMarkup(:markdown,"<mark>markdown-only</mark>","[markdown]")]),
+                .Paragraph([.document.TargetMarkup(:html,"<aside id='html-only'>HTML</aside>","[html]")]),
+                .Paragraph([.document.TargetMarkup(:quarto,"::: {.note}\\nQuarto only\\n:::","[quarto]")]),
+                .Paragraph([.document.TargetMarkup(:latex,"\\\\newcommand{\\\\RiXOnly}{yes}","[latex]")]),
+                .Figure(graphic,"Portable figure","portable","A circle")
+            ], {= theme=:compact });
+            [
+                .markdown.Render(report,{= assets="svg",assetDir="media",rawMarkup="allow" }),
+                .html.Render(report,{= assets="svg",stylePolicy="external",assetDir="site",rawMarkup="allow" }),
+                .quarto.Render(report,{=
+                    assets="svg",rawMarkup="allow",theme="cosmo",bibliography="references.bib",
+                    codePolicy="hide",project={= type="website",outputDir="public",navigation=["index.qmd","about.qmd"] }
+                }),
+                .latex.Render(report,{= figureAsset="svg",assetDir="figures",rawMarkup="allow",pageSize="a4paper" })
+            ];
+        `, options);
+        const markdown = result.values[0];
+        expect(markdown.entries.get("content").value).toContain("<mark>markdown-only</mark>");
+        expect(markdown.entries.get("assets").values[0].entries.get("path").value).toBe("media/figure-1.svg");
+        const html = result.values[1];
+        expect(html.entries.get("content").value).toContain("<aside id='html-only'>HTML</aside>");
+        expect(html.entries.get("content").value).toContain('href="site/rix.css"');
+        expect(html.entries.get("assets").values).toHaveLength(2);
+        const quarto = result.values[2];
+        expect(quarto.entries.get("content").value).toContain("theme: \"cosmo\"");
+        expect(quarto.entries.get("content").value).toContain("::: {.note}");
+        expect(quarto.entries.get("assets").values[0].entries.get("path").value).toBe("_quarto.yml");
+        const latex = result.values[3];
+        expect(latex.entries.get("content").value).toContain(String.raw`\documentclass[a4paper]{article}`);
+        expect(latex.entries.get("content").value).toContain(String.raw`\\newcommand{\\RiXOnly}{yes}`);
+        expect(latex.entries.get("content").value).toContain(String.raw`\includesvg{figures/figure-1.svg}`);
+        expect(latex.entries.get("assets").values[0].entries.get("path").value).toBe("figures/figure-1.svg");
+    });
+
+    test("PDF Phase 2 records figure profiles, page metadata, bookmarks, and font diagnostics", () => {
+        let compilation = null;
+        const registry = new RendererRegistry();
+        registry.register(svgDefinition);
+        registry.register(createPdfDefinition((source, options, assets) => {
+            compilation = { source, options, assets };
+            return {
+                content: new Uint8Array([37, 80, 68, 70]), toolchain: "fixture-pdf",
+                pages: 1, fonts: ["Latin Modern Roman"], diagnostics: [],
+            };
+        }));
+        const graphic = parseAndEvaluate(`${sceneSource} g`, runtime());
+        const result = registry.render(graphic, "pdf", {
+            profile: "figure", pageSize: "a4paper", figureAsset: "svg", bookmarks: false,
+            metadata: new Map([["title", "Exact figure"], ["author", "Ada"]]),
+        }, { format: String });
+        expect(compilation.source).toContain("\\documentclass[a4paper]{article}");
+        expect(compilation.source).toContain("pdftitle={Exact figure}");
+        expect(compilation.source).toContain("bookmarks=false");
+        expect(compilation.assets).toHaveLength(1);
+        expect(result.metadata).toMatchObject({
+            schema: "rix.pdf.render@2", profile: "figure", pageSize: "a4paper",
+            bookmarks: false, fonts: ["Latin Modern Roman"], figureAsset: "svg", assetCount: 1,
+        });
     });
 
     test("binary renderers retain bytes and toolchain metadata", () => {
@@ -500,11 +655,11 @@ describe("renderer registry", () => {
             type: "output", kind: "graphic", size: [10, 10], metadata: null,
             children: [{
                 type: "output", kind: "circle", center: [5, 5], radius: 2,
-                style: new Map([["pattern", { type: "string", value: "dots" }]]),
+                style: new Map([["filter", { type: "string", value: "blur" }]]),
             }],
         };
         expect(() => lowerGraphicSvg(unsupportedStyle, String))
-            .toThrow("graphic[1].style.pattern: SVG does not support Graphics style property 'pattern'");
+            .toThrow("graphic[1].style.filter: SVG does not support Graphics style property 'filter'");
 
         const registry = new RendererRegistry();
         registry.register(svgDefinition);

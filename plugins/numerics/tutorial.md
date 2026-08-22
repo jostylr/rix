@@ -81,6 +81,92 @@ real := .oracle.Rational(5 / 8);
 .numerics.Capabilities(real);
 ```
 
+## Relative accuracy, reuse, and generic algorithms
+
+Absolute and relative accuracy can be requested together. Here one percent of
+a reference magnitude of ten is `1/10`, which is tighter than `1/8`; addition
+splits that target into two exact `1/20` operand budgets:
+
+```rix
+.Plugin.Load("numerics");
+
+budget := .numerics.ErrorBudget({=
+  absoluteWidth=1/8,
+  relativeWidth=1/100,
+  reference=10
+});
+propagation := .numerics.PropagateError(:add, budget, {= operands=2 });
+
+.Table({=
+  columns=["effective target", "left budget", "right budget"],
+  rows=[[
+    budget[:effectiveWidth],
+    propagation[:operandBudgets][1][:effectiveWidth],
+    propagation[:operandBudgets][2][:effectiveWidth]
+  ]]
+});
+```
+
+An immutable refinement history makes cache behavior inspectable. In this
+example the first result is already narrower than `1/100`, so both later calls
+reuse it and retain the original proof record:
+
+```rix
+.Plugin.Load("numerics");
+
+h0 := .numerics.RefinementHistory(.numerics.Sqrt(2));
+h1 := h0.Refine({= absoluteWidth=1/10, maxWork=30 });
+h2 := h1.Refine({= absoluteWidth=1/100, maxWork=30 });
+h3 := h2.Refine({= absoluteWidth=1/10, maxWork=30 });
+
+{: h3[:providerCalls], h3[:cacheHits], h3[:entries] };
+```
+
+The generic algorithms keep their evidence boundary visible:
+
+```rix
+.Plugin.Load("numerics");
+.Plugin.Load("algebraic-real");
+
+polynomial := .p`x^2-2`;
+proved := .numerics.IsolateRoot(polynomial, 1:2, {=
+  absoluteWidth=1/100,
+  maxWork=20
+});
+assumed := .numerics.IsolateRoot((x)->x^2-2, 1:2, {=
+  absoluteWidth=1/100,
+  maxWork=20
+});
+comparison := .numerics.Compare(
+  .numerics.Sqrt(2), 3/2,
+  {= absoluteWidth=1/100, maxWork=40 }
+);
+
+{: proved, assumed, comparison };
+```
+
+`proved` uses the Polynomial root-count protocol and is certified. `assumed`
+only observes an exact sign crossing and records continuity as a caller
+obligation. Likewise, finite adaptive samples are observations, and the
+one-dimensional optimizer requires the caller to justify its Lipschitz bound:
+
+```rix
+sample := .numerics.AdaptiveSample((x)->x^2, 0:1, {=
+  tolerance=1/100,
+  maxWork=32
+});
+minimum := .numerics.Optimize((x)->x^2, (-1):1, {=
+  lipschitz=2,
+  maxWork=16
+});
+
+pi := .numerics.Constant(:pi);
+piBound := .numerics.Refine(pi, {= absoluteWidth=1/1000, maxWork=100 });
+why := .numerics.ExplainSelection(pi, :refine);
+
+{: sample, minimum, piBound, why };
+```
+
 The three entry points make distinct requests. A provider may support only a
 subset; unsupported work is returned as a structured result rather than being
 silently treated as another operation:
@@ -408,7 +494,7 @@ The positive-real Gamma family shares the same bounded refinement contract:
 
 ```rix
 .Plugin.Load("numerics");
-.numerics[:Refine, :Hypot, :Atan2, :Beta, :LogBeta, :Digamma, :Trigamma];
+.numerics[:RefineGamma=:Refine, :Hypot, :Atan2, :Beta, :LogBeta, :Digamma, :Trigamma];
 values := [
   Hypot(3, 4),
   Atan2(1, -1),
@@ -417,7 +503,7 @@ values := [
   Digamma(1),
   Trigamma(1)
 ];
-values |>> ((value) -> Refine(value, {=
+values |>> ((value) -> RefineGamma(value, {=
   absoluteWidth=1/1000,
   maxWork=1200
 }));

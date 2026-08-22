@@ -289,6 +289,55 @@ describe("Scene3D and n-dimensional geometry plugins", () => {
         expect(result.values[1].value).toBe(1n);
     });
 
+    test("models exact fields, affine slices, sections, and finite fibers", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("nd");
+            field := .nd.Field(2,1,(p)->[p[1]+p[2]],{= name="sum" });
+            samples := field.Sample([[-1,-1],[-1,1],[1,-1],[1,1]]);
+            slice := .nd.AffineSlice([0,0,1],[[1,0,0],[0,1,0]]);
+            embedded := slice.Parameterize(.nd.Polyline([[-1,-1],[1,-1],[1,1],[-1,1]],{= closed=1 }));
+            section := .nd.Section(.nd.Hypercube(3,2),.nd.Hyperplane([0,0,1],0));
+            fiber := .nd.Fiber(field,[0],.nd.Polyline([[-1,1],[0,0],[1,-1],[1,1]]));
+            [field.Evaluate([2,3]),samples,slice.Parameterize([2,3]),embedded,section,fiber];
+        `);
+        expect(sequence(result.values[0]).map(String)).toEqual(["5"]);
+        expect(text(field(result.values[1], "kind"))).toBe("fieldSamples");
+        expect(sequence(field(result.values[1], "values")).map(sequence).map((row) => row.map(String)))
+            .toEqual([["-2"], ["0"], ["0"], ["2"]]);
+        expect(sequence(result.values[2]).map(String)).toEqual(["2", "3", "1"]);
+        expect(integer(field(result.values[3], "dimension"))).toBe(3);
+        expect(sequence(field(result.values[4], "points"))).toHaveLength(4);
+        expect(sequence(field(result.values[4], "points")).map(sequence).map((point) => point.map(String)))
+            .toEqual([["-1", "-1", "0"], ["1", "-1", "0"], ["-1", "1", "0"], ["1", "1", "0"]]);
+        expect(sequence(field(result.values[5], "points")).map(sequence).map((point) => point.map(String)))
+            .toEqual([["-1", "1"], ["0", "0"], ["1", "-1"]]);
+    });
+
+    test("evaluates projection families and lowers field samples to Plot and Scene3D", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("nd");
+            family := .nd.ProjectionFamily(3,2,
+                (t)->.nd.Compose(.nd.CoordinateProjection(3,[1,2]),.nd.CayleyRotation(3,1,2,t)),
+                (-1):1
+            );
+            projection := family.At(1/3);
+            curve := .nd.Field(1,1,(p)->[p[1]^2]).Sample([[-2],[-1],[0],[1],[2]]);
+            surface := .nd.Field(2,1,(p)->[p[1]+p[2]]).Sample([[-1,-1],[-1,1],[1,-1],[1,1]]);
+            [family,projection,.nd.ToPlot(curve,{= size=[200,120] }),.nd.ToScene3D(surface)];
+        `);
+        const [family, projection, plot, scene] = result.values;
+        expect(text(field(family, "schema"))).toBe("rix.nd.projection-family@1");
+        expect(field(family, "parameterdomain").toString()).toBe("-1:1");
+        expect(sequence(field(projection, "matrix")).map(sequence).map((row) => row.map(String)))
+            .toEqual([["4/5", "-3/5", "0"], ["3/5", "4/5", "0"]]);
+        expect(plot).toMatchObject({ type: "output", kind: "graphic" });
+        expect(plot.metadata.get("schema").value).toBe("rix.plot@1");
+        expect(text(field(scene, "schema"))).toBe("rix.scene3d@1");
+        const primitives = sequence(field(field(scene, "realized"), "primitives"));
+        expect(sequence(field(primitives[0], "points")).map(sequence).map((point) => point.map(String)))
+            .toEqual([["-1", "-1", "-2"], ["-1", "1", "0"], ["1", "-1", "0"], ["1", "1", "2"]]);
+    });
+
     test("rejects implicit dimensional loss", () => {
         expect(() => parseAndEvaluate(`
             .Plugin.Load("scene3d"); .Plugin.Load("nd");

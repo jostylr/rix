@@ -1,20 +1,21 @@
 import { describe, expect, test } from "bun:test";
 import { parseAndEvaluate } from "../../src/eval/evaluator.js";
 
-const pluginKind = (id) => parseAndEvaluate(`.Plugin.Info("${id}").Get("kind")`).value;
+const pluginKinds = (ids) => parseAndEvaluate(
+    `[${ids.map((id) => `.Plugin.Info("${id}").Get("kind")`).join(",")}]`,
+).values.map(({ value }) => value);
 
 describe("math plugin implementation boundary", () => {
     test("computational exact and certified plugins load from RiX source", () => {
-        for (const id of [
+        const ids = [
             "algebra", "algebraic-real", "analysis", "ball", "cauchy", "continued-fraction",
             "complex", "complex-viz", "exact-algebras", "fraction", "fractals", "geometry", "numerics", "oracle", "plot", "poly", "radix",
             "ratfun", "stats", "stern-brocot", "symbolic", "linalg", "optimize", "solve", "scene3d", "nd",
-        ]) {
-            expect(pluginKind(id), id).toBe("rix");
-        }
+        ];
+        expect(pluginKinds(ids)).toEqual(ids.map(() => "rix"));
     });
 
     test("documents the currently blocked bundled host exception", () => {
-        expect(pluginKind("fracfun")).toBe("host");
+        expect(pluginKinds(["fracfun"])).toEqual(["host"]);
     });
 });

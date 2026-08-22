@@ -174,6 +174,14 @@ export function encodeGifFrames(frames, options = {}) {
         for (let index = 0; index < files.length; index += 1) {
             args.push("-delay", String(delays[index]), files[index]);
         }
+        if (options.transition === "crossfade" && options.transitionFrames > 0) {
+            args.push("-morph", String(options.transitionFrames));
+        }
+        if (options.dithering === "none") args.push("+dither");
+        else if (options.dithering === "ordered") args.push("-ordered-dither", "o8x8");
+        else args.push("-dither", "FloydSteinberg");
+        if (options.palette === "adaptive") args.push("-colors", "256");
+        else if (options.palette === "global") args.push("-coalesce", "-colors", "256");
         args.push("-loop", String(options.loop ?? 0), "-strip", "gif:-");
         const runOptions = {
             env: { ...process.env, SOURCE_DATE_EPOCH: "946684800" },
@@ -189,7 +197,7 @@ export function encodeGifFrames(frames, options = {}) {
     }
 }
 
-export function compileLatex(source) {
+export function compileLatex(source, _options = {}, assets = []) {
     const temporaryRoot = path.resolve(process.cwd(), "tmp");
     mkdirSync(temporaryRoot, { recursive: true });
     const directory = mkdtempSync(path.join(temporaryRoot, "rix-pdf-"));
@@ -197,6 +205,14 @@ export function compileLatex(source) {
     const output = path.join(directory, "document.pdf");
     try {
         writeFileSync(input, source, "utf8");
+        for (const asset of assets || []) {
+            if (!asset?.path || path.isAbsolute(asset.path) || asset.path.split(/[\\/]/).includes("..")) {
+                throw new Error("PDF delegated assets require safe relative paths");
+            }
+            const filename = path.join(directory, asset.path);
+            mkdirSync(path.dirname(filename), { recursive: true });
+            writeFileSync(filename, asset.content);
+        }
         const result = run("pdflatex", ["-interaction=nonstopmode", "-halt-on-error", "document.tex"], {
             cwd: directory,
             env: { ...process.env, SOURCE_DATE_EPOCH: "946684800", FORCE_SOURCE_DATE: "1" },

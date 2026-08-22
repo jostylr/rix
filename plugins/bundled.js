@@ -8,6 +8,9 @@ import ballSource from "./ball/ball.plugin.rix" with { type: "text" };
 import continuedFractionSource from "./continued-fraction/continued-fraction.plugin.rix" with { type: "text" };
 import algebraicRealSource from "./algebraic-real/algebraic-real.plugin.rix" with { type: "text" };
 import complexSource from "./complex/complex.plugin.rix" with { type: "text" };
+import cayleySource from "./cayley/cayley.plugin.rix" with { type: "text" };
+import quaternionSource from "./quaternion/quaternion.plugin.rix" with { type: "text" };
+import octonionSource from "./octonion/octonion.plugin.rix" with { type: "text" };
 import polySource from "./poly/poly.plugin.rix" with { type: "text" };
 import algebraSource from "./algebra/algebra.plugin.rix" with { type: "text" };
 import sternBrocotSource from "./stern-brocot/stern-brocot.plugin.rix" with { type: "text" };
@@ -31,6 +34,7 @@ import scene3dSource from "./scene3d/scene3d.plugin.rix" with { type: "text" };
 import ndSource from "./nd/nd.plugin.rix" with { type: "text" };
 import { readPluginHeader } from "../src/runtime/plugin-catalog.js";
 import { install as installDrawPlugin } from "./draw/draw.plugin.rix.js";
+import { install as installFloatPlugin } from "./float/float.plugin.rix.js";
 import { install as installFracfunPlugin } from "./fracfun/fracfun.plugin.rix.js";
 import { install as installDataPlugin } from "./data/data.plugin.rix.js";
 import { install as installDocumentPlugin } from "./document/document.plugin.rix.js";
@@ -95,6 +99,18 @@ const BUNDLED_PLUGINS = [
         source: complexSource,
         sourcePath: "bundled:complex.plugin.rix",
     },
+    {
+        metadata: {
+            id: "float", description: "Configurable IEEE-754 binary32/binary64 conversion, diagnostics, and optional approximate math.",
+            kind: "host", mount: "float",
+            exports: ["Float", "Binary32", "Binary64", "Format", "Classify", "Diagnostics", "NextUp", "NextDown", "NextAfter", "Interval", "Round", "Floor", "Ceiling", "Abs", "Sqrt", "Sin", "Cos", "Tan", "Asin", "Acos", "Atan", "Atan2", "Log", "Ln", "Log10", "Exp"],
+            groups: ["ApproximateMath", "Float"], permissions: [], provides: ["rix.float@2"], schemas: ["rix.float.classification@1"], defaultEnabled: false,
+        },
+        install: installFloatPlugin,
+    },
+    { metadata: readPluginHeader(cayleySource, "cayley.plugin.rix"), source: cayleySource, sourcePath: "bundled:cayley.plugin.rix" },
+    { metadata: readPluginHeader(quaternionSource, "quaternion.plugin.rix"), source: quaternionSource, sourcePath: "bundled:quaternion.plugin.rix" },
+    { metadata: readPluginHeader(octonionSource, "octonion.plugin.rix"), source: octonionSource, sourcePath: "bundled:octonion.plugin.rix" },
     { metadata: readPluginHeader(radixSource, "radix.plugin.rix"), source: radixSource, sourcePath: "bundled:radix.plugin.rix" },
     { metadata: readPluginHeader(exactAlgebrasSource, "exact-algebras.plugin.rix"), source: exactAlgebrasSource, sourcePath: "bundled:exact-algebras.plugin.rix" },
     { metadata: readPluginHeader(fractionSource, "fraction.plugin.rix"), source: fractionSource, sourcePath: "bundled:fraction.plugin.rix" },
@@ -166,11 +182,11 @@ const BUNDLED_PLUGINS = [
     { metadata: readPluginHeader(solveSource, "solve.plugin.rix"), source: solveSource, sourcePath: "bundled:solve.plugin.rix" },
     {
         metadata: {
-            id: "document", description: "Numbered portable reports with labels, forward references, captions, and small semantic themes.",
+            id: "document", description: "Portable report templates with citations, assets, numbering policies, and safe target-specific nodes.",
             kind: "host", mount: "document",
-            exports: ["Report", "Label", "Ref", "Theme", "References"],
-            groups: ["Documents"], permissions: [], provides: ["rix.document.report@1"],
-            schemas: ["rix.document.report@1", "rix.document.theme@1"],
+            exports: ["Report", "Label", "Ref", "Theme", "References", "Bibliography", "Citation", "AssetManifest", "Asset", "Numbering", "Header", "Footer", "Template", "ApplyTemplate", "TargetMarkup"],
+            groups: ["Documents"], permissions: [], provides: ["rix.document.report@1", "rix.document.report@2", "rix.document.template@1", "rix.document.assets@1"],
+            schemas: ["rix.document.report@1", "rix.document.theme@1", "rix.document.bibliography@1", "rix.document.citation@1", "rix.document.assets@1", "rix.document.numbering@1", "rix.document.template@1", "rix.document.target-markup@1"],
             snapshot: true, deterministic: true, defaultEnabled: false,
         },
         install: ({ systemContext }) => installDocumentPlugin({ systemContext }),
@@ -188,8 +204,8 @@ const BUNDLED_PLUGINS = [
         metadata: {
             id: "svg", description: "Portable SVG renderer with outward-safe exact-coordinate lowering.",
             kind: "host", mount: "svg", exports: ["Render"], groups: ["Renderers"], permissions: [],
-            provides: ["rix.renderer.svg@1", "rix.svg.coordinate-lowering@1"],
-            schemas: ["rix.svg.coordinate-lowering@1"], targets: ["svg", "image/svg+xml"],
+            provides: ["rix.renderer.svg@1", "rix.renderer.svg@2", "rix.svg.coordinate-lowering@1", "rix.viewport@1", "rix.selection@1"],
+            schemas: ["rix.svg.coordinate-lowering@1", "rix.viewport@1", "rix.selection@1"], targets: ["svg", "image/svg+xml"],
             snapshot: true, deterministic: true, defaultEnabled: false,
         },
         install: installSvgPlugin,
@@ -244,7 +260,20 @@ const BUNDLED_PLUGINS = [
             groups,
             permissions,
             requires,
-            provides: [`rix.renderer.${id}@1`],
+            provides: id === "canvas"
+                ? ["rix.renderer.canvas@1", "rix.renderer.canvas@2", "rix.viewport@1", "rix.selection@1"]
+                : ["markdown", "html", "quarto", "latex", "pdf", "gif"].includes(id)
+                    ? [`rix.renderer.${id}@1`, `rix.renderer.${id}@2`]
+                    : [`rix.renderer.${id}@1`],
+            schemas: id === "canvas"
+                ? ["rix.canvas-plan@1", "rix.canvas-accessibility@1", "rix.viewport@1", "rix.selection@1"]
+                : id === "markdown" ? ["rix.markdown.render@2"]
+                    : id === "html" ? ["rix.html.render@2"]
+                        : id === "quarto" ? ["rix.quarto.project@1", "rix.quarto.render@2"]
+                            : id === "latex" ? ["rix.latex.render@2"]
+                                : id === "pdf" ? ["rix.pdf.render@2"]
+                                    : id === "gif" ? ["rix.gif.render@1", "rix.gif.render@2"]
+                                        : [],
             targets: [id, mime, ...aliases],
             snapshot: true,
             deterministic,

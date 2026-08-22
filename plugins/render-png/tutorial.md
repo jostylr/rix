@@ -38,6 +38,9 @@ This cell is browser-safe because it constructs and displays the policy rather
 than attempting host process execution:
 
 ```rix
+scene := .Graphics.Graphic([180, 100], [
+    .Graphics.Circle([90, 50], 32, {= fill="#0c7b7f" })
+]);
 policy := {=
     dpi=300,
     background="white",
@@ -56,13 +59,16 @@ only `width` or only `height` preserves the crop's aspect ratio.
 ## Select a Figure from a document
 
 ```rix
+scene := .Graphics.Graphic([180, 100], [
+    .Graphics.Circle([90, 50], 32, {= fill="#0c7b7f" })
+]);
 report := .Fragment([
     .Figure(scene,"Whole scene","whole","A teal circle"),
     .Figure(.Graphics.Graphic([80,60],[
         .Graphics.Circle([40,30],20,{= fill="#be123c" })
     ]),"Detail","detail","A red detail circle")
 ]);
-[report,"CLI: .png.Render(report,{= figure=\"detail\",dpi=144 })"];
+[report,"""CLI: .png.Render(report,{= figure="detail",dpi=144 })"""];
 ```
 
 A capable host can rasterize either Figure without flattening the whole

@@ -59,3 +59,29 @@ commands, and style properties fail with a stable path such as
 `graphic[2].group[1]`; they are never silently omitted. Generic `.Render` can
 use an explicitly requested fallback target, which retains the SVG failure in
 its diagnostics.
+
+## Reuse paint and interaction definitions
+
+```rix
+paint := {= gradient={= from="#dbeafe", to="#2563eb", angle=45 },
+            mask={= opacity=3/4 } };
+decorated := .Graphics.Graphic([120,70], [
+    .Graphics.Group([
+        .Graphics.Rectangle([5,5],[30,20], paint),
+        .Graphics.Rectangle([45,5],[30,20], paint)
+    ], {= stroke="#172033", id="boxes" }),
+    .Graphics.Path([[10,55],[100,55]], {=
+        stroke="#be123c", marker="arrow", markerSize=4
+    }),
+    .Graphics.Text([60,68], "portable", {= anchor="middle", font="Display" })
+]);
+.svg.Render(decorated, {=
+    fontPolicy="generic",
+    viewport={= pan=[4,6], zoom=2 },
+    selection={= ids=["boxes"], focus="boxes" }
+});
+```
+
+The two rectangles share one gradient and one mask definition. The requested
+font is mapped to a generic family, and the viewport/selection records remain
+available in the render metadata.

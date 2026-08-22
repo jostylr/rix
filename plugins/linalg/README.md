@@ -117,3 +117,50 @@ A := [1,2,3; 2,4,6];
 The current QR surface deliberately stops at the Rational coefficient-domain
 boundary. Algebraic-real and generic inner-product-space extensions remain
 separate future work.
+
+## Linear maps, duality, and contractions
+
+`LinearMap(domain,codomain,matrix,options?)` separates the abstract source and
+target spaces from the Frames used by its exact coordinate matrix. Maps expose
+`Pushforward`/`Apply`, `Pullback`, `Compose`, `Inverse`, `Dual`, `Verify`, and
+`Serialize`. Composition inserts the exact coordinate-change matrix when the
+adjacent maps use different Frames of their shared space.
+
+```rix
+.Plugin.Load("linalg");
+V := .linalg.VectorSpace("V",2); W := .linalg.VectorSpace("W",3);
+e := .linalg.Frame(V,"e",:defining); g := .linalg.Frame(W,"g",:defining);
+A := .linalg.LinearMap(V,W,{:3x2: 1,0;0,1;1,1},{=
+  sourceFrame=e,targetFrame=g,name="A"
+});
+x := .linalg.Vector([1,2],e);
+alpha := .linalg.Covector([1,1,1],g);
+{: A.Pushforward(x),A.Pullback(alpha),A.Dual() };
+```
+
+`DualSpace(V)` is an explicit distinct VectorSpace linked back to `V`.
+`TensorProduct` accepts either two spaces or two coordinate tensors. Contract
+one primal and one dual slot of the same space with `tensor.Contract(i,j)`;
+Frame alignment is exact and an all-axis contraction returns a scalar.
+
+## Domain-preserving linear realizations
+
+`rix.linear-realization@1` lets a domain value retain its semantic identity
+while exposing a linked Vector view. `PolynomialSpace(n,variable?)` is the
+first adapter: it models polynomials of degree at most `n` in the monomial
+Frame. `Realize` pads ascending coefficients with exact zeros, and
+`Reconstruct` returns a genuine Polynomial rather than a generic coefficient
+array.
+
+```rix
+.Plugin.Load("linalg");
+P3 := .linalg.PolynomialSpace(3,:x);
+p := .p`x^2+2*x+3`;
+view := P3.Realize(p);
+{: view[:domain].__type,view[:vector].components,view.Reconstruct()==p };
+```
+
+`Serialize` emits `rix.linalg.identity-record@1` data for spaces, Frames,
+tensors, maps, and realizations. Tensor records use stable numeric tensor and
+representation IDs and refer to prior representations by ID, avoiding live
+object cycles while preserving bounded in-memory lineage separately.

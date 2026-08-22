@@ -235,7 +235,7 @@ table := .Table(["name", "value"], [["half", 1/2], ["unknown", _]]);
         expect(readFileSync(path.join(outputPath, "report.md"), "utf8")).toContain("# Renderer export");
         expect(readFileSync(path.join(outputPath, "report.html"), "utf8")).toContain("<!doctype html>");
         expect(readFileSync(path.join(outputPath, "report.qmd"), "utf8")).toStartWith('---\ntitle: "report"\nformat: html');
-        expect(readFileSync(path.join(outputPath, "report.tex"), "utf8")).toContain("\\documentclass{article}");
+        expect(readFileSync(path.join(outputPath, "report.tex"), "utf8")).toContain("\\documentclass[letterpaper]{article}");
         expect(readFileSync(path.join(outputPath, "report.txt"), "utf8")).toContain("# Renderer export");
         expect(readFileSync(path.join(outputPath, "values.csv"), "utf8")).toBe("name,value\nhalf,1/2\nunknown,\n");
         expect(readFileSync(path.join(outputPath, "values.tsv"), "utf8")).toBe("name\tvalue\nhalf\t1/2\nunknown\t\n");

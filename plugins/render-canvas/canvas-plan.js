@@ -5,10 +5,47 @@ import {
     numberValue,
     point,
     rixString,
+    sequence,
     stableNumber,
     styleValue,
     textValue,
 } from "../renderers/common.js";
+import { createSelection, createViewport, invertViewportPoint } from "../renderers/interaction.js";
+
+function semanticId(node, path) {
+    return rixString(styleValue(node.style, "hitId"))
+        || rixString(styleValue(node.style, "id"))
+        || rixString(field(node.metadata, "id"))
+        || node.id || node.targetId
+        || path.replace(/[^A-Za-z0-9:_.-]+/g, "-");
+}
+
+function boundsOfPoints(points) {
+    if (!points.length) return null;
+    const xs = points.map(([x]) => x);
+    const ys = points.map(([, y]) => y);
+    return { x: Math.min(...xs), y: Math.min(...ys), width: Math.max(...xs) - Math.min(...xs), height: Math.max(...ys) - Math.min(...ys) };
+}
+
+function pathBounds(node) {
+    if (node.points) return boundsOfPoints(node.points.map((entry, index) => point(entry, `Path point ${index + 1}`)));
+    const points = [];
+    for (const command of node.commands || []) {
+        for (const name of ["to", "control", "control1", "control2"]) {
+            const value = field(command, name);
+            if (value !== null) points.push(point(value, `Path ${name}`));
+        }
+    }
+    return boundsOfPoints(points);
+}
+
+function recordHit(interaction, node, path, bounds, role, label = null) {
+    if (!bounds) return;
+    const id = semanticId(node, path);
+    const region = Object.freeze({ id, semanticId: id, role, label: label || id, bounds: Object.freeze(bounds) });
+    interaction.hitRegions.push(region);
+    interaction.accessibility.push(Object.freeze({ id, role, label: region.label, bounds: region.bounds }));
+}
 
 function pathData(node) {
     if (!node.commands) {
@@ -86,44 +123,121 @@ function transformCommands(node) {
     return commands;
 }
 
-function visit(node, commands, diagnostics, format, path = "graphic", inheritedStyle = {}) {
+function visit(node, commands, diagnostics, format, interaction, path = "graphic", inheritedStyle = {}) {
     if (!node || node.type !== "output") throw new Error(`${path} contains a non-Graphics scene node`);
-    if (node.kind === "path") commands.push(["path2d", pathData(node), mergedStyle(inheritedStyle, node.style)]);
-    else if (node.kind === "rectangle") commands.push(["rectangle", ...point(node.origin, `${path} origin`), ...point(node.size, `${path} size`), mergedStyle(inheritedStyle, node.style)]);
+    if (node.kind === "path") {
+        const style = { ...mergedStyle(inheritedStyle, node.style), hitId: semanticId(node, path) };
+        commands.push(["path2d", pathData(node), style]);
+        recordHit(interaction, node, path, pathBounds(node), "graphics-symbol");
+    }
+    else if (node.kind === "rectangle") {
+        const origin = point(node.origin, `${path} origin`);
+        const size = point(node.size, `${path} size`);
+        commands.push(["rectangle", ...origin, ...size, { ...mergedStyle(inheritedStyle, node.style), hitId: semanticId(node, path) }]);
+        recordHit(interaction, node, path, { x: origin[0], y: origin[1], width: size[0], height: size[1] }, "graphics-symbol");
+    }
     else if (node.kind === "circle" || node.kind === "drag_point") {
-        commands.push(["circle", ...point(node.center, `${path} center`), numberValue(node.radius, `${path} radius`), mergedStyle(inheritedStyle, node.style, node.kind === "drag_point" ? "#7c3aed" : null)]);
+        const center = point(node.center, `${path} center`);
+        const radius = numberValue(node.radius, `${path} radius`);
+        commands.push(["circle", ...center, radius, { ...mergedStyle(inheritedStyle, node.style, node.kind === "drag_point" ? "#7c3aed" : null), hitId: semanticId(node, path) }]);
+        recordHit(interaction, node, path, { x: center[0] - radius, y: center[1] - radius, width: radius * 2, height: radius * 2 }, node.kind === "drag_point" ? "slider" : "graphics-symbol", node.label);
         if (node.kind === "drag_point") diagnostics.push(diagnostic("canvas-static-drag-point", "Canvas plans render DragPoint as a static marker; host interaction must bind the target separately", "info", path));
     } else if (node.kind === "text_mark") {
         const [x, y] = point(node.position, `${path} position`);
         const size = styleValue(node.style, "size", styleValue(node.style, "fontSize", 16));
-        commands.push(["text", x, y, textValue(node.text, format), {
+        const content = textValue(node.text, format);
+        commands.push(["text", x, y, content, {
             ...mergedStyle(inheritedStyle, node.style, "currentColor"),
             font: rixString(styleValue(node.style, "font")) || "sans-serif",
             size: numberValue(size, `${path} font size`),
             weight: rixString(styleValue(node.style, "weight")) || "normal",
             anchor: rixString(styleValue(node.style, "anchor")) || "start",
+            hitId: semanticId(node, path),
         }]);
-    } else if (["group", "transform", "clip"].includes(node.kind)) {
+        recordHit(interaction, node, path, { x, y: y - numberValue(size, `${path} font size`), width: Math.max(1, content.length * numberValue(size, `${path} font size`) * 0.6), height: numberValue(size, `${path} font size`) }, "text", content);
+    } else if (["group", "transform", "clip", "graphic_action"].includes(node.kind)) {
         commands.push(["save"]);
         if (node.kind === "transform") commands.push(...transformCommands(node));
         if (node.kind === "clip") commands.push(["clipRect", ...node.bounds.map((entry, index) => numberValue(entry, `${path} clip bound ${index + 1}`))]);
         const childStyle = mergedStyle(inheritedStyle, node.style);
-        node.children.forEach((child, index) => visit(child, commands, diagnostics, format, `${path}.${node.kind}[${index + 1}]`, childStyle));
+        node.children.forEach((child, index) => visit(child, commands, diagnostics, format, interaction, `${path}.${node.kind}[${index + 1}]`, childStyle));
         commands.push(["restore"]);
+        if (node.kind === "graphic_action") {
+            interaction.accessibility.push(Object.freeze({ id: semanticId(node, path), role: "button", label: node.label || "Graphic action", bounds: null }));
+        }
     } else throw new Error(`Canvas renderer does not support Graphics node '${node.kind}'`);
 }
 
-export function createCanvasPlan(graphic, format) {
+function canvasAssets(options) {
+    const source = field(options, "assets");
+    if (source === null || source === undefined) return [];
+    return sequence(source, "Canvas assets").map((value, index) => {
+        const id = rixString(field(value, "id"));
+        const ref = rixString(field(value, "ref")) || rixString(field(value, "path"));
+        if (!id || !ref) throw new Error(`Canvas asset ${index + 1} requires string id and ref/path`);
+        if (ref.startsWith("/") || ref.includes("..")) throw new Error("Canvas asset references must be safe relative paths or explicit URLs");
+        return Object.freeze({ id, ref, mime: rixString(field(value, "mime")) || "application/octet-stream", crossOrigin: rixString(field(value, "crossOrigin")) || null });
+    });
+}
+
+export function createCanvasPlan(graphic, format, options = {}) {
     const commands = [];
     const diagnostics = [];
-    graphic.children.forEach((child, index) => visit(child, commands, diagnostics, format, `graphic[${index + 1}]`));
+    const logicalWidth = numberValue(graphic.size[0], "Graphic width");
+    const logicalHeight = numberValue(graphic.size[1], "Graphic height");
+    const pixelRatio = numberValue(field(options, "pixelRatio", 1), "Canvas pixel ratio");
+    if (!(pixelRatio > 0)) throw new Error("Canvas pixel ratio must be positive");
+    const viewport = createViewport(options, logicalWidth, logicalHeight);
+    const selection = createSelection(options);
+    const interaction = { hitRegions: [], accessibility: [] };
+    graphic.children.forEach((child, index) => visit(child, commands, diagnostics, format, interaction, `graphic[${index + 1}]`));
+    const selected = new Set(selection.ids);
+    const dirtyRegions = interaction.hitRegions.filter((region) => selected.size === 0 || selected.has(region.semanticId)).map((region) => region.bounds);
+    const assets = canvasAssets(options);
+    if (assets.length) diagnostics.push(diagnostic("canvas-assets-deferred", `${assets.length} image asset${assets.length === 1 ? " is" : "s are"} declared for host loading`, "info"));
     return {
         schema: "rix.canvas-plan@1",
-        width: numberValue(graphic.size[0], "Graphic width"),
-        height: numberValue(graphic.size[1], "Graphic height"),
+        phase: 2,
+        width: logicalWidth,
+        height: logicalHeight,
+        backingWidth: Math.ceil(logicalWidth * pixelRatio),
+        backingHeight: Math.ceil(logicalHeight * pixelRatio),
+        pixelRatio,
+        viewport,
+        selection,
         commands,
+        hitRegions: interaction.hitRegions,
+        dirtyRegions,
+        assets,
+        accessibility: {
+            schema: "rix.canvas-accessibility@1",
+            objects: interaction.accessibility,
+            text: interaction.accessibility.map(({ label, role }) => `${role}: ${label}`).join("\n"),
+        },
         diagnostics,
     };
+}
+
+/** Convert a browser pointer position into logical Graphic coordinates. */
+export function invertCanvasPoint(plan, pointValue, bounds = null) {
+    const [clientX, clientY] = Array.isArray(pointValue) ? pointValue : [pointValue.x, pointValue.y];
+    const rect = bounds || { left: 0, top: 0, width: plan.width, height: plan.height };
+    const canvasX = (clientX - rect.left) * (plan.width / rect.width);
+    const canvasY = (clientY - rect.top) * (plan.height / rect.height);
+    return invertViewportPoint(plan.viewport, canvasX, canvasY);
+}
+
+export function hitTestCanvasPlan(plan, pointValue) {
+    const [x, y] = Array.isArray(pointValue) ? pointValue : [pointValue.x, pointValue.y];
+    return [...plan.hitRegions].reverse().find(({ bounds }) => x >= bounds.x && y >= bounds.y && x <= bounds.x + bounds.width && y <= bounds.y + bounds.height) || null;
+}
+
+/** Resolve declared image assets without granting the evaluator I/O access. */
+export async function loadCanvasAssets(plan, loadImage) {
+    if (typeof loadImage !== "function") throw new Error("Canvas asset loading requires an explicit host loadImage callback");
+    const loaded = new Map();
+    for (const asset of plan.assets || []) loaded.set(asset.id, await loadImage(asset));
+    return loaded;
 }
 
 function applyStyle(context, style = {}) {
@@ -145,6 +259,16 @@ function paintShape(context, path, style) {
 /** Execute a serialized RiX Canvas plan against CanvasRenderingContext2D. */
 export function paintCanvasPlan(context, plan) {
     if (!context || typeof context.save !== "function") throw new Error("Canvas plan requires CanvasRenderingContext2D");
+    if (context.canvas) {
+        context.canvas.width = plan.backingWidth || plan.width;
+        context.canvas.height = plan.backingHeight || plan.height;
+    }
+    const ratio = plan.pixelRatio || 1;
+    const transform = plan.viewport?.transform || [1, 0, 0, 1, 0, 0];
+    if (typeof context.setTransform === "function") context.setTransform(
+        transform[0] * ratio, transform[1] * ratio, transform[2] * ratio,
+        transform[3] * ratio, transform[4] * ratio, transform[5] * ratio,
+    );
     for (const [name, ...args] of plan.commands) {
         if (name === "save" || name === "restore") context[name]();
         else if (["translate", "rotate", "scale"].includes(name)) context[name](...args);

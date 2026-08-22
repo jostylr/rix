@@ -65,8 +65,7 @@ mode is never inferred from a plot or a list of values.
 ```rix
 .Plugin.Load("analysis");
 series := .analysis.GeometricSeries(1/2);
-claims := [:pointwise,:uniform,:almostEverywhere,:inMeasure,:norm]
-  .Map((mode)->series.Claim(mode));
+claims := [:pointwise,:uniform,:almostEverywhere,:inMeasure,:norm].Map((mode)->series.Claim(mode));
 .Table({=
   columns=["mode","status","reason"],
   rows=claims.Map((claim)->{;
@@ -133,8 +132,7 @@ sequence := .analysis.FunctionSequence(make,{=
   domain=(-1):1,
   codomain=:Rational
 });
-result := sequence.Claim(:uniform,_,{= samples=[-1,-1/2,0,1/2,1] })
-  .Check({= epsilon=1/100 });
+result := sequence.Claim(:uniform,_,{= samples=[-1,-1/2,0,1/2,1] }).Check({= epsilon=1/100 });
 result[:status];
 result[:diagnostics];
 ```
@@ -213,8 +211,7 @@ unknown.
 ```rix
 .Plugin.Load("analysis");
 series := .analysis.GeometricSeries(1/2);
-limit := .analysis.Limit(series,_,{= mode=:uniform })
-  .Check({= epsilon=1/1000,maxWork=20 });
+limit := .analysis.Limit(series,_,{= mode=:uniform }).Check({= epsilon=1/1000,maxWork=20 });
 continuity := .analysis.Exchange(:continuity,limit).Check();
 differentiation := .analysis.Exchange(:differentiation,limit).Check();
 .Table({=
@@ -242,8 +239,7 @@ series := .analysis.GeometricSeries(1/2);
 exchange := .analysis.IntegralExchange(series,-1/2,1/2,{= epsilon=1/1000 });
 termIntegral := exchange.TermIntegral(2);
 limitIntegral := exchange.LimitIntegral();
-enclosure := exchange.Numerical({= secondDerivativeBound=16 })
-  .Refine({= targetWidth=1/1000,maxIterations=10000 });
+enclosure := exchange.Numerical({= secondDerivativeBound=16 }).Refine({= targetWidth=1/1000,maxIterations=10000 });
 {:
   exchange[:status],
   termIntegral[:schema],

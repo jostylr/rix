@@ -3,12 +3,12 @@ id: complex
 description: Representation-generic certified complex singletons over RiX real backends.
 kind: rix
 mount: complex
-exports: [FromParts, Real, Imaginary, Conjugate, NormSquared, ZeroStatus, Enclose, Refine, Exp, Sin, Cos, Log, LogResult, Sqrt, SqrtResult, Record, Capabilities]
+exports: [FromParts, Real, Imaginary, Conjugate, NormSquared, ZeroStatus, Enclose, Refine, Exp, Sin, Cos, Log, LogResult, Sqrt, SqrtResult, Record, Capabilities, Rectangle, Disc, Union, FromSingleton, BoundingRectangle, RegionImage, Subdivide, AnalyzeBoundary]
 groups: [Numerics, Exact]
 permissions: []
 requires: [rix.numerics@1]
-provides: [rix.complex@1, rix.enclosable-complex@1]
-schemas: [rix.complex.real@1, rix.complex.capabilities@1, rix.complex.enclosure@1, rix.complex.zero-status@1, rix.complex.function-result@1]
+provides: [rix.complex@1, rix.complex@2, rix.enclosable-complex@1, rix.complex-region@1]
+schemas: [rix.complex.real@1, rix.complex.capabilities@1, rix.complex.enclosure@1, rix.complex.zero-status@1, rix.complex.function-result@1, rix.complex.region@1, rix.complex.region-analysis@1]
 snapshot: false
 deterministic: true
 defaultEnabled: false
@@ -399,6 +399,172 @@ ComplexRecord(value) -> {;
     };
 };
 
+## ComplexRegion denotes a set. It deliberately does not implement the
+## singleton arithmetic operators above.
+ComplexRegionIs(value) -> value ? :ComplexRegion;
+ComplexRegionRequire(value) -> ComplexRegionIs(value) ?: value ?_ .Error("Expected a ComplexRegion value");
+ComplexRegionBuild(geometry,data,evidence ?= {= constructor=geometry }) -> {;
+    value={=
+        valueKind=:complexRegion,schema="rix.complex.region@1",denotation=:set,
+        geometry=geometry,data=data,evidence=evidence,certified=1
+    };
+    value.__type="ComplexRegion"; value._type="complex_region";
+    .ImmutableValue(value ~!: :ComplexRegion);
+};
+ComplexRectangle(realInterval,imaginaryInterval,evidence ?= {= constructor=:rectangle }) ->
+    ComplexRegionBuild(:rectangle,{= real=realInterval ~!: :RationalInterval,imaginary=imaginaryInterval ~!: :RationalInterval },evidence);
+ComplexDisc(center,radius,evidence ?= {= constructor=:disc }) -> {;
+    exactRadius=radius ~!: :Rational; exactRadius>=0 ?: _ ?_ .Error("Complex disc radius must be nonnegative");
+    ComplexRegionBuild(:disc,{= center=ComplexPromote(center),radius=exactRadius },evidence);
+};
+ComplexUnion(regions,evidence ?= {= constructor=:finiteUnion }) -> {;
+    regions.Len()>0 ?: _ ?_ .Error("Complex finite union needs at least one region");
+    normalized:=[];
+    {@ index=1;index<=@regions.Len();{;
+        region=ComplexRegionRequire(@regions[index]);
+        region[:geometry]==:finiteUnion
+          ?:{; {@ child=1;child<=@region[:data][:regions].Len();{; @normalized~=@normalized.Push(@region[:data][:regions][child]); };child+=1}; }
+          ?_ {; @normalized~=@normalized.Push(@region); };
+    };index+=1};
+    ComplexRegionBuild(:finiteUnion,{= regions=normalized },evidence);
+};
+ComplexRegionFromSingleton(value,request ?= {= absoluteWidth=1/1000,maxWork=400 }) -> {;
+    exact=ComplexPromote(value); enclosure=exact.Refine(request);
+    ComplexRectangle(enclosure[:realInterval],enclosure[:imaginaryInterval],{=
+        constructor=:singletonEnclosure,source=exact,enclosure=enclosure,
+        correlation={= sharedExpression=1,realSource=exact[:real],imaginarySource=exact[:imaginary] }
+    });
+};
+ComplexRegionBoundingRectangle(region,request ?= {= absoluteWidth=1/1000,maxWork=400 }) -> {;
+    exact=ComplexRegionRequire(region); geometry=exact[:geometry];
+    geometry==:rectangle ?: exact
+      ?_ geometry==:disc ?: {;
+          center=@exact[:data][:center].Refine(@request); radius=@exact[:data][:radius];
+          ComplexRectangle(
+              (center[:realInterval].Low()-radius):(center[:realInterval].High()+radius),
+              (center[:imaginaryInterval].Low()-radius):(center[:imaginaryInterval].High()+radius),
+              {= constructor=:discBoundingRectangle,source=@exact,centerEnclosure=center,outward=1 }
+          );
+      }
+      ?_ {;
+          regions=@exact[:data][:regions]; first=ComplexRegionBoundingRectangle(regions[1],@request);
+          realHull:=first[:data][:real]; imaginaryHull:=first[:data][:imaginary];
+          {@ index=2;index<=@regions.Len();{;
+              next=ComplexRegionBoundingRectangle(@regions[index],@request);
+              @realHull=@realHull.Hull(next[:data][:real]);
+              @imaginaryHull=@imaginaryHull.Hull(next[:data][:imaginary]);
+          };index+=1};
+          ComplexRectangle(realHull,imaginaryHull,{= constructor=:finiteUnionHull,source=@exact,outward=1 });
+      };
+};
+
+ComplexRegionRange(kind,interval,options) -> {?
+    kind==:exp ? .numerics.Range(.numerics.Exp(interval),options)[:interval];
+    kind==:sin ? .numerics.Range(.numerics.Sin(interval),options)[:interval];
+    kind==:cos ? .numerics.Range(.numerics.Cos(interval),options)[:interval];
+    kind==:sinh ? .numerics.Range(.numerics.Sinh(interval),options)[:interval];
+    kind==:cosh ? .numerics.Range(.numerics.Cosh(interval),options)[:interval];
+    .Error("Unsupported certified scalar range in complex region kernel")
+};
+ComplexRegionRectangleImage(functionName,region,options) -> {;
+    rectangle=ComplexRegionBoundingRectangle(region,options); x=rectangle[:data][:real]; y=rectangle[:data][:imaginary];
+    sinX=ComplexRegionRange(:sin,x,options); cosX=ComplexRegionRange(:cos,x,options);
+    sinY=ComplexRegionRange(:sin,y,options); cosY=ComplexRegionRange(:cos,y,options);
+    sinhY=ComplexRegionRange(:sinh,y,options); coshY=ComplexRegionRange(:cosh,y,options);
+    functionName==:exp ?: {;
+        expX=ComplexRegionRange(:exp,@x,@options);
+        ComplexRectangle(expX*@cosY,expX*@sinY,{= operation=:regionImage,function=:exp,algorithm=:validatedCartesianRange,source=@region,outward=1,correlation=@region[:evidence][:correlation] });
+    }
+      ?_ functionName==:sin
+           ?: ComplexRectangle(sinX*coshY,cosX*sinhY,{= operation=:regionImage,function=:sin,algorithm=:validatedCartesianRange,source=region,outward=1,correlation=region[:evidence][:correlation] })
+      ?_ functionName==:cos
+           ?: ComplexRectangle(cosX*coshY,-sinX*sinhY,{= operation=:regionImage,function=:cos,algorithm=:validatedCartesianRange,source=region,outward=1,correlation=region[:evidence][:correlation] })
+      ?_ .Error("Complex RegionImage currently supports Exp, Sin, and Cos");
+};
+ComplexRegionDiscImage(functionName,region,options) -> {;
+    center=region[:data][:center]; radius=region[:data][:radius]; centerBox=center.Refine(options);
+    realCenter=centerBox[:realInterval]; imaginaryCenter=centerBox[:imaginaryInterval];
+    functionName==:exp ?: {;
+        centerValue=ComplexExp(@center);
+        expRealUpper=ComplexRegionRange(:exp,@realCenter,@options).High();
+        expRadiusUpper=ComplexRegionRange(:exp,0:@radius,@options).High();
+        outputRadius=expRealUpper*(expRadiusUpper-1);
+        ComplexDisc(centerValue,outputRadius,{=
+            operation=:regionImage,function=:exp,algorithm=:centeredValidatedComplexSeries,
+            argumentReduction=:centeredDisc,series=:exponential,remainderBound=outputRadius,
+            source=@region,correlation={= sharedCenter=1,source=@center },outward=1
+        });
+    }
+      ?_ (functionName==:sin||functionName==:cos) ?: {;
+          centerValue=@functionName==:sin ?: ComplexSin(@center) ?_ ComplexCos(@center);
+          imaginaryMagnitude=.Max(@imaginaryCenter.Low().Abs(),@imaginaryCenter.High().Abs())+@radius;
+          derivativeUpper=ComplexRegionRange(:cosh,0:imaginaryMagnitude,@options).High();
+          outputRadius=@radius*derivativeUpper;
+          ComplexDisc(centerValue,outputRadius,{=
+              operation=:regionImage,function=@functionName,algorithm=:centeredValidatedComplexSeries,
+              argumentReduction=:centeredDisc,series=@functionName,remainderBound=outputRadius,
+              source=@region,correlation={= sharedCenter=1,source=@center },outward=1
+          });
+      }
+      ?_ .Error("Complex RegionImage currently supports Exp, Sin, and Cos");
+};
+ComplexRegionImage(functionName,region,options ?= {= absoluteWidth=1/1000,maxWork=1000 }) -> {;
+    exact=ComplexRegionRequire(region);
+    exact[:geometry]==:finiteUnion ?: {;
+        images=@exact[:data][:regions].Map((part)->ComplexRegionImage(@functionName,part,@options));
+        ComplexUnion(images,{= operation=:regionImage,function=@functionName,algorithm=:componentwiseFiniteUnion,source=@exact,outward=1 });
+    }
+      ?_ exact[:geometry]==:disc
+           ?: ComplexRegionDiscImage(functionName,exact,options)
+           ?_ ComplexRegionRectangleImage(functionName,exact,options);
+};
+
+ComplexRegionSubdivide(region,options ?= {= }) -> {;
+    rectangle=ComplexRegionBoundingRectangle(region,options); real=rectangle[:data][:real]; imaginary=rectangle[:data][:imaginary];
+    real.Width()>=imaginary.Width() ?: {;
+        midpoint=@real.Midpoint();
+        [ComplexRectangle(@real.Low():midpoint,@imaginary,{= constructor=:adaptiveSubdivision,parent=@region,axis=:real }),ComplexRectangle(midpoint:@real.High(),@imaginary,{= constructor=:adaptiveSubdivision,parent=@region,axis=:real })];
+    } ?_ {;
+        midpoint=@imaginary.Midpoint();
+        [ComplexRectangle(@real,@imaginary.Low():midpoint,{= constructor=:adaptiveSubdivision,parent=@region,axis=:imaginary }),ComplexRectangle(@real,midpoint:@imaginary.High(),{= constructor=:adaptiveSubdivision,parent=@region,axis=:imaginary })];
+    };
+};
+ComplexRegionBoundaryClass(region,feature,options) -> {;
+    rectangle=ComplexRegionBoundingRectangle(region,options); real=rectangle[:data][:real]; imaginary=rectangle[:data][:imaginary]; containsOrigin=real.ContainsZero()&&imaginary.ContainsZero();
+    offBranchCut=real.Low()>0||imaginary.Low()>0||imaginary.High()<0;
+    exactOrigin=real.Width()<=0&&imaginary.Width()<=0&&containsOrigin;
+    status=(feature==:zero||feature==:pole) ?: (containsOrigin ?: (exactOrigin ?: :hit ?_ :boundary) ?_ :resolved)
+      ?_ feature==:logBranch ?: (exactOrigin ?: :hit ?_ (offBranchCut ?: :resolved ?_ :boundary))
+      ?_ feature==:sqrtBranch ?: (exactOrigin ?: :hit ?_ (offBranchCut ?: :resolved ?_ :boundary))
+      ?_ .Error("AnalyzeBoundary feature must be zero, pole, logBranch, or sqrtBranch");
+    {= status=status,feature=feature,region=region,bounds=rectangle,certified=1 };
+};
+ComplexRegionAnalyzeNode(region,feature,depth,maxDepth,remaining,options) -> {;
+    classification=ComplexRegionBoundaryClass(region,feature,options); status=classification[:status];
+    status==:resolved ?: {= resolved=[classification],hits=[],unresolved=[],inspected=1,subdivisions=0 }
+      ?_ status==:hit ?: {= resolved=[],hits=[classification],unresolved=[],inspected=1,subdivisions=0 }
+      ?_ (depth>=maxDepth||remaining<=1) ?: {= resolved=[],hits=[],unresolved=[classification.Merge({= status=:budgetExhausted })],inspected=1,subdivisions=0 }
+      ?_ {;
+          children=ComplexRegionSubdivide(@region,@options); childBudget=(@remaining-1)//2;
+          left=ComplexRegionAnalyzeNode(children[1],@feature,@depth+1,@maxDepth,childBudget,@options);
+          right=ComplexRegionAnalyzeNode(children[2],@feature,@depth+1,@maxDepth,@remaining-1-childBudget,@options);
+          {=
+              resolved=left[:resolved]++right[:resolved],hits=left[:hits]++right[:hits],unresolved=left[:unresolved]++right[:unresolved],
+              inspected=1+left[:inspected]+right[:inspected],subdivisions=1+left[:subdivisions]+right[:subdivisions]
+          };
+      };
+};
+ComplexRegionAnalyzeBoundary(region,feature,options ?= {= maxDepth=6,maxCells=256,absoluteWidth=1/1000,maxWork=1000 }) -> {;
+    exact=ComplexRegionRequire(region); maxDepth=options[:maxDepth]==_ ?: 6 ?_ options[:maxDepth]; maxCells=options[:maxCells]==_ ?: 256 ?_ options[:maxCells];
+    analysis=ComplexRegionAnalyzeNode(exact,feature,0,maxDepth,maxCells,options); unresolved=analysis[:unresolved];
+    .ImmutableValue({=
+        valueKind=:complexRegionAnalysis,schema="rix.complex.region-analysis@1",feature=feature,
+        status=unresolved.Len()==0 ?: :resolved ?_ :partial,resolved=analysis[:resolved],hits=analysis[:hits],unresolved=unresolved,
+        certified=1,source=exact,work={= inspected=analysis[:inspected],subdivisions=analysis[:subdivisions],maxCells=maxCells,maxDepth=maxDepth },
+        evidence={= kind=:adaptiveCertifiedRegionClassification,outward=1 }
+    });
+};
+
 .TypeKnown(:ComplexReal) ?: _ ?_ .TypeRegister({=
     name=:ComplexReal,
     nativeType=:map,
@@ -431,6 +597,19 @@ ComplexRecord(value) -> {;
 
 .TypeInstall(:ComplexReal);
 
+.TypeKnown(:ComplexRegion) ?: _ ?_ .TypeRegister({=
+    name=:ComplexRegion,nativeType=:map,convertFrom={= map=(x) ?- [x[:valueKind]==:complexRegion] -> x },
+    validate=(x)->x[:schema]=="rix.complex.region@1"&&x[:denotation]==:set,
+    proto={=
+        Geometry=(self)->self[:geometry],BoundingRectangle=(self,request ?= {= })->ComplexRegionBoundingRectangle(self,request),
+        Image=(self,functionName,options ?= {= })->ComplexRegionImage(functionName,self,options),
+        Subdivide=(self,options ?= {= })->ComplexRegionSubdivide(self,options),
+        AnalyzeBoundary=(self,feature,options ?= {= })->ComplexRegionAnalyzeBoundary(self,feature,options),
+        Record=(self)->self
+    },installs={= }
+});
+.TypeInstall(:ComplexRegion);
+
 complexNamespace=(real,imaginary ?= 0)->ComplexBuild(real,imaginary);
 complexNamespace._proto={=
     FromParts=(self,real,imaginary)->ComplexBuild(real,imaginary),
@@ -450,6 +629,14 @@ complexNamespace._proto={=
     LogResult=(self,value,options ?= {= })->ComplexLogResult(value,options),
     Sqrt=(self,value,options ?= {= })->ComplexSqrt(value,options),
     SqrtResult=(self,value,options ?= {= })->ComplexSqrtResult(value,options),
+    Rectangle=(self,realInterval,imaginaryInterval)->ComplexRectangle(realInterval,imaginaryInterval),
+    Disc=(self,center,radius)->ComplexDisc(center,radius),
+    Union=(self,regions)->ComplexUnion(regions),
+    FromSingleton=(self,value,request ?= {= absoluteWidth=1/1000,maxWork=400 })->ComplexRegionFromSingleton(value,request),
+    BoundingRectangle=(self,region,request ?= {= })->ComplexRegionBoundingRectangle(region,request),
+    RegionImage=(self,functionName,region,options ?= {= absoluteWidth=1/1000,maxWork=1000 })->ComplexRegionImage(functionName,region,options),
+    Subdivide=(self,region,options ?= {= })->ComplexRegionSubdivide(region,options),
+    AnalyzeBoundary=(self,region,feature,options ?= {= maxDepth=6,maxCells=256,absoluteWidth=1/1000,maxWork=1000 })->ComplexRegionAnalyzeBoundary(region,feature,options),
     Record=(self,value)->ComplexRecord(value),
     Capabilities=(self,value)->ComplexCapabilities(ComplexRequire(value))
 };

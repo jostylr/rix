@@ -3,12 +3,12 @@ id: numerics
 description: Backend-neutral bounded enclosure and refinement orchestration.
 kind: rix
 mount: numerics
-exports: [Request, WorkPolicy, EffectiveLimits, Enclose, Refine, Sample, Range, GraphRange, CheckGraphRange, SimplifyGraph, CheckGraphSimplification, RewriteGraph, CheckGraphRewrite, CheckDerivativeGraph, DerivativeSign, LipschitzRange, TaylorRange, Box, MultivariateRequest, JacobianRange, AffineRange, TaylorModelRange, CheckMultivariateRange, RecognizeGraph, FunctionFacts, WithRangeKnowledge, RegisterRangeProvider, CheckRangeResult, Sign, RootCount, Capabilities, CheckResult, NthRoot, Sqrt, Cbrt, Hypot, Pow, Exp, Expm1, Log, Log1p, Ln, Log2, Log10, Pi, EulerGamma, Sin, Cos, Tan, Sec, Csc, Cot, Sinc, Asin, Acos, Atan, Atan2, Arcsin, Arccos, Arctan, Sinh, Cosh, Tanh, Sech, Csch, Coth, Asinh, Acosh, Atanh, Arsinh, Arcosh, Artanh, Radians, Degrees, Gamma, LogGamma, Beta, LogBeta, Digamma, Trigamma, Erf, Erfc, NormalPDF, NormalCDF, NormalQuantile, LambertW, BesselJ, BesselJ0, BesselJ1, BesselY, BesselY0, BesselY1, BesselI, BesselI0, BesselI1, BesselK, BesselK0, BesselK1, Zeta, Quadrature, Kantorovich]
+exports: [Request, WorkPolicy, EffectiveLimits, ErrorBudget, PropagateError, RefinementHistory, RefineHistory, Enclose, Refine, Sample, Compare, IsolateRoot, AdaptiveSample, Integrate, Optimize, Constant, ExplainSelection, Range, GraphRange, CheckGraphRange, SimplifyGraph, CheckGraphSimplification, RewriteGraph, CheckGraphRewrite, CheckDerivativeGraph, DerivativeSign, LipschitzRange, TaylorRange, Box, MultivariateRequest, JacobianRange, AffineRange, TaylorModelRange, CheckMultivariateRange, RecognizeGraph, FunctionFacts, WithRangeKnowledge, RegisterRangeProvider, CheckRangeResult, Sign, RootCount, Capabilities, CheckResult, NthRoot, Sqrt, Cbrt, Hypot, Pow, Exp, Expm1, Log, Log1p, Ln, Log2, Log10, Pi, EulerGamma, Sin, Cos, Tan, Sec, Csc, Cot, Sinc, Asin, Acos, Atan, Atan2, Arcsin, Arccos, Arctan, Sinh, Cosh, Tanh, Sech, Csch, Coth, Asinh, Acosh, Atanh, Arsinh, Arcosh, Artanh, Radians, Degrees, Gamma, LogGamma, Beta, LogBeta, Digamma, Trigamma, Erf, Erfc, NormalPDF, NormalCDF, NormalQuantile, LambertW, BesselJ, BesselJ0, BesselJ1, BesselY, BesselY0, BesselY1, BesselI, BesselI0, BesselI1, BesselK, BesselK0, BesselK1, Zeta, Quadrature, Kantorovich]
 groups: [Numerics]
 permissions: []
 requires: [rix.oracle@1]
-provides: [rix.numerics@1, rix.enclosable-real-consumer@1, rix.exact-sign-consumer@1, rix.root-count-consumer@1, rix.calculus-range-consumer@1]
-schemas: [rix.numerics.refinement-request@1, rix.numerics.enclosure@1, rix.numerics.algorithm-real@1, rix.numerics.interval-image@1, rix.numerics.range-enclosure@1, rix.numerics.range-provider@1, rix.numerics.range-provider-result@1, rix.numerics.function-facts@1, rix.numerics.calculus-graph-range@1, rix.calculus.graph-simplification@1, rix.calculus.graph-rewrite@1, rix.numerics.rational-box@1, rix.numerics.multivariate-range-request@1, rix.numerics.jacobian-box-range@1, rix.numerics.affine-box-range@1, rix.numerics.taylor-model-box-range@1, rix.numerics.calculus-graph-recognition@1, rix.numerics.calculus-derivative-sign@1, rix.exact.sign-witness@1, rix.exact.root-count@1]
+provides: [rix.numerics@1, rix.numerics@2, rix.enclosable-real-consumer@1, rix.exact-sign-consumer@1, rix.root-count-consumer@1, rix.calculus-range-consumer@1]
+schemas: [rix.numerics.refinement-request@1, rix.numerics.enclosure@1, rix.numerics.error-budget@1, rix.numerics.error-propagation@1, rix.numerics.refinement-history@1, rix.numerics.selection-explanation@1, rix.numerics.comparison@1, rix.numerics.root-isolation@1, rix.numerics.adaptive-sample@1, rix.numerics.optimization@1, rix.numerics.algorithm-real@1, rix.numerics.interval-image@1, rix.numerics.range-enclosure@1, rix.numerics.range-provider@1, rix.numerics.range-provider-result@1, rix.numerics.function-facts@1, rix.numerics.calculus-graph-range@1, rix.calculus.graph-simplification@1, rix.calculus.graph-rewrite@1, rix.numerics.rational-box@1, rix.numerics.multivariate-range-request@1, rix.numerics.jacobian-box-range@1, rix.numerics.affine-box-range@1, rix.numerics.taylor-model-box-range@1, rix.numerics.calculus-graph-recognition@1, rix.numerics.calculus-derivative-sign@1, rix.exact.sign-witness@1, rix.exact.root-count@1]
 defaultEnabled: false
 **/
 
@@ -5608,6 +5608,102 @@ NumericsWorkPolicy(options ?= {= }) -> NumericsRequest(options)[:work];
 NumericsEffectiveLimits(request, capabilities ?= {= }) ->
     .RefinementEffectiveLimits(request, capabilities);
 
+NumericsErrorBudget(options ?= {= }) -> {;
+    options ? :Map ?: _ ?_ .Error("Numerics ErrorBudget options must be a map");
+    reference = NumericsOption(options,"reference",_);
+    scale = reference == _
+      ?: NumericsOption(options,"relativescale",NumericsOption(options,"scale",1))
+      ?_ .Max(1,(reference ~!: :Rational).Abs());
+    normalizedOptions = options.Merge({= relativeScale=scale });
+    request = NumericsRequest(normalizedOptions);
+    .ImmutableValue({=
+        valueKind=:numericsErrorBudget,
+        schema="rix.numerics.error-budget@1",
+        absoluteLimit=request[:absoluteLimit],
+        relativeLimit=request[:relativeWidth],
+        relativeScale=request[:relativeScale],
+        effectiveWidth=request[:effectiveWidth],
+        rule=:minimumOfActiveAbsoluteAndScaledRelativeLimits,
+        reference=reference,
+        evidenceLevel=:definition,
+        request=request
+    });
+};
+
+NumericsRequireErrorBudget(value) ->
+    (value ? :Map) && value[:schema] == "rix.numerics.error-budget@1"
+      ?: value
+      ?_ NumericsErrorBudget(value);
+
+NumericsEqualPropagationBudgets(width, count) -> {;
+    budgets := [];
+    {@ index=1; index<=@count; {;
+        @budgets ~= @budgets.Push(NumericsErrorBudget({= absoluteWidth=@width/@count }));
+    }; index+=1 };
+    budgets;
+};
+
+NumericsMultiplyPropagationBudgets(width, count, magnitudes) -> {;
+    budgets := [];
+    {@ selected=1; selected<=@count; {;
+        sensitivity := 1;
+        {@ index=1; index<=@magnitudes.Len(); {;
+            @sensitivity = index == @selected
+              ?: @sensitivity
+              ?_ @sensitivity*NumericsNonnegative(@magnitudes[index],"Magnitude bound");
+        }; index+=1 };
+        @budgets ~= @budgets.Push(
+            NumericsErrorBudget({= absoluteWidth=@width/(@count*.Max(1,sensitivity)) })
+        );
+    }; selected+=1 };
+    budgets;
+};
+
+NumericsPropagationBudgets(operation, target, options) -> {;
+    count = NumericsNonnegativeInteger(NumericsOption(options,"operands",2),"Error propagation operand count");
+    count >= 1 ?: _ ?_ .Error("Error propagation needs at least one operand");
+    width = target[:effectiveWidth];
+    additive = operation == :add || operation == :subtract;
+    {? additive ?
+         NumericsEqualPropagationBudgets(width,count);
+       operation == :compose ? {;
+         lipschitz = NumericsPositive(NumericsOption(@options,"lipschitz",_),"Composition Lipschitz bound");
+         [NumericsErrorBudget({= absoluteWidth=@width/lipschitz })];
+       };
+       operation == :reciprocal ? {;
+         separation = NumericsPositive(NumericsOption(@options,"separation",_),"Reciprocal zero separation");
+         [NumericsErrorBudget({= absoluteWidth=@width*separation^2/2 })];
+       };
+       operation == :multiply ? {;
+         magnitudes = NumericsOption(@options,"magnitudebounds",_);
+         magnitudes ? :Array ?: _ ?_ .Error("Multiplication error propagation needs magnitudeBounds");
+         magnitudes.Len() == @count ?: _ ?_ .Error("magnitudeBounds length must equal operands");
+         NumericsMultiplyPropagationBudgets(@width,@count,magnitudes);
+       };
+       .Error("Error propagation operation must be :add, :subtract, :multiply, :reciprocal, or :compose")
+    };
+};
+
+NumericsPropagateError(operation, targetValue, options ?= {= }) -> {;
+    options ? :Map ?: _ ?_ .Error("Numerics PropagateError options must be a map");
+    target = NumericsRequireErrorBudget(targetValue);
+    operandBudgets = NumericsPropagationBudgets(operation,target,options);
+    .ImmutableValue({=
+        valueKind=:numericsErrorPropagation,
+        schema="rix.numerics.error-propagation@1",
+        operation=operation,
+        target=target,
+        operandBudgets=operandBudgets,
+        assumptions={=
+            magnitudes=NumericsOption(options,"magnitudebounds",_),
+            separation=NumericsOption(options,"separation",_),
+            lipschitz=NumericsOption(options,"lipschitz",_)
+        },
+        evidenceLevel=:exactBoundRule,
+        rounding=:exactRational
+    });
+};
+
 CheckEnclosure(result, request, capabilities ?= _) ->
     .RefinementCheck(result, request, capabilities);
 
@@ -5629,6 +5725,342 @@ ProviderOperation(value, options, operation) -> {;
     result = supported ?: InvokeProvider(value, request, operation)
                        ?_ .RefinementUnsupported(request, capabilities, :operationUnsupported);
     supported ?: CheckedEnclosure(result, request, capabilities) ?_ result;
+};
+
+NumericsExactEnclosure(value, options, operation) -> {;
+    exact = value ~!: :Rational;
+    request = NumericsRequest(options,operation);
+    .ImmutableValue({=
+        valueKind=:enclosure,
+        schema="rix.numerics.enclosure@1",
+        status=:enclosed,
+        interval=exact:exact,
+        certified=1,
+        goalMet=1,
+        requestedWidth=request[:absoluteWidth],
+        achievedWidth=0,
+        approximation=.CertifiedApproximation(exact,exact:exact,{= provider=:exactRational }),
+        evidenceLevel=:proof,
+        backend=:exactRational,
+        operation=operation,
+        work={= calls=0,iterations=0,exhausted=_ },
+        diagnostics=[],
+        evidence={= kind=:exactScalar,property=:containment }
+    });
+};
+
+NumericsGenericEnclosure(value, options, operation) -> {;
+    exact = value ~: :Rational;
+    exact != _
+      ?: NumericsExactEnclosure(exact,options,operation)
+      ?_ ProviderOperation(value,options,operation);
+};
+
+NumericsHistoryValue(value) ->
+    (value ? :Map) && value[:schema] == "rix.numerics.refinement-history@1";
+
+NumericsAttachHistoryProtocol(history) -> {;
+    history._proto = {=
+        Refine=(self,options ?= {= })->NumericsRefineHistory(self,options),
+        Result=(self)->self[:lastResult],
+        Entries=(self)->self[:entries],
+        Record=(self)->.ImmutableValue({=
+            valueKind=self[:valueKind],schema=self[:schema],entries=self[:entries],
+            lastResult=self[:lastResult],cacheHits=self[:cacheHits],providerCalls=self[:providerCalls],
+            invariant=self[:invariant]
+        })
+    };
+    .ImmutableValue(history);
+};
+
+NumericsRefinementHistory(value, options ?= {= }) ->
+    NumericsAttachHistoryProtocol({=
+        valueKind=:numericsRefinementHistory,
+        schema="rix.numerics.refinement-history@1",
+        value=value,
+        entries=[],
+        lastResult=_,
+        cacheHits=0,
+        providerCalls=0,
+        invariant=:certifiedResultsMustBeNestedAndEvidencePreserving,
+        options=options,
+        provenance={= plugin=:numerics,version=2,source=:refinementHistory }
+    });
+
+NumericsHistoryNested(previous, current) ->
+    current[:interval].Low() >= previous[:interval].Low() &&
+      current[:interval].High() <= previous[:interval].High();
+
+NumericsHistoryEntry(request, result, reused, priorResult ?= _) ->
+    .ImmutableValue({=
+        valueKind=:numericsRefinementHistoryEntry,
+        request=request,
+        result=result,
+        reused=reused,
+        cacheHit=reused,
+        priorInterval=priorResult == _ ?: _ ?_ priorResult[:interval],
+        interval=result[:interval],
+        evidenceLevel=result[:evidenceLevel],
+        provenance={= backend=result[:backend],operation=result[:operation] },
+        requestedWidth=request[:absoluteWidth],
+        achievedWidth=result[:achievedWidth],
+        work=reused ?: {= calls=0,iterations=0,reused=1 } ?_ result[:work]
+    });
+
+NumericsRefineHistory(historyValue, options ?= {= }) -> {;
+    history = NumericsHistoryValue(historyValue)
+      ?: historyValue
+      ?_ .Error("RefineHistory requires a rix.numerics.refinement-history@1 value");
+    request = NumericsRequest(options,:refine);
+    previous = history[:lastResult];
+    reusable = previous != _ && previous[:certified] == 1 &&
+      previous[:achievedWidth] <= request[:absoluteWidth];
+    result = reusable
+      ?: previous
+      ?_ NumericsGenericEnclosure(history[:value],options,:refine);
+    nested = previous == _ || reusable || previous[:certified] != 1 || result[:certified] != 1
+      ?: 1
+      ?_ NumericsHistoryNested(previous,result);
+    nested ?: _ ?_ .Error("Certified refinement history rejected a non-nested enclosure");
+    entry = NumericsHistoryEntry(request,result,reusable ?: 1 ?_ _,previous);
+    NumericsAttachHistoryProtocol({=
+        valueKind=:numericsRefinementHistory,
+        schema="rix.numerics.refinement-history@1",
+        value=history[:value],
+        entries=history[:entries].Push(entry),
+        lastResult=result,
+        cacheHits=history[:cacheHits]+(reusable ?: 1 ?_ 0),
+        providerCalls=history[:providerCalls]+(reusable ?: 0 ?_ 1),
+        invariant=history[:invariant],
+        options=history[:options],
+        provenance=history[:provenance]
+    });
+};
+
+NumericsCompare(left, right, options ?= {= }) -> {;
+    leftResult = NumericsGenericEnclosure(left,options,:refine);
+    rightResult = NumericsGenericEnclosure(right,options,:refine);
+    leftInterval = leftResult[:interval];
+    rightInterval = rightResult[:interval];
+    relation = leftInterval.High() < rightInterval.Low()
+      ?: :less
+      ?_ leftInterval.Low() > rightInterval.High()
+           ?: :greater
+           ?_ (leftInterval.Width() == 0 && rightInterval.Width() == 0 && leftInterval.Low() == rightInterval.Low())
+                ?: :equal
+                ?_ :overlap;
+    decided = relation != :overlap;
+    .ImmutableValue({=
+        valueKind=:numericsComparison,
+        schema="rix.numerics.comparison@1",
+        status=decided ?: :decided ?_ :unknown,
+        relation=relation,
+        certified=decided && leftResult[:certified] == 1 && rightResult[:certified] == 1 ?: 1 ?_ _,
+        left=leftResult,
+        right=rightResult,
+        requestedWidth=NumericsRequest(options)[:absoluteWidth],
+        obligations=decided ?: [] ?_ [:separateEnclosuresOrExactEquality]
+    });
+};
+
+NumericsExactFunctionValue(function, point, label) ->
+    (point |> function) ~!: :Rational;
+
+NumericsRootIsolationResult(status, interval, certified, reason, work, evidence) ->
+    .ImmutableValue({=
+        valueKind=:numericsRootIsolation,
+        schema="rix.numerics.root-isolation@1",
+        status=status,
+        interval=interval,
+        certified=certified,
+        goalMet=(status == :isolated || status == :exactRoot) ?: 1 ?_ _,
+        reason=reason,
+        work=work,
+        evidence=evidence,
+        obligations=certified == 1 ?: [] ?_ [:continuityOrTrustedRootCount]
+    });
+
+NumericsPolynomialRootIsolation(function, interval, width, maxWork) -> {;
+    count = function.RootCount(interval);
+    count == 1
+      ?: {;
+          current := @interval;
+          work := 0;
+          {@ step=1; @current.Width()>@width && @work<@maxWork; {;
+              midpoint = @current.Midpoint();
+              left = @current.Low():midpoint;
+              leftCount = @function.RootCount(left);
+              @current = leftCount == 1 ?: left ?_ midpoint:@current.High();
+              @work += 1;
+          }; step+=1 };
+          NumericsRootIsolationResult(
+              current.Width()<=@width ?: :isolated ?_ :budgetExhausted,
+              current,1,:sturmUniqueRoot,{= iterations=work,maxWork=@maxWork },
+              {= authority=:polynomialRootCount,initialCount=@count }
+          );
+      }
+      ?_ NumericsRootIsolationResult(:unknown,interval,_,:rootCountNotOne,{= iterations=0,maxWork=maxWork },{= rootCount=count });
+};
+
+NumericsSignCrossingIsolation(function, interval, width, maxWork) -> {;
+    lowValue = NumericsExactFunctionValue(function,interval.Low(),"Root-isolation lower endpoint");
+    highValue = NumericsExactFunctionValue(function,interval.High(),"Root-isolation upper endpoint");
+    endpoint = lowValue == 0 ?: interval.Low() ?_ (highValue == 0 ?: interval.High() ?_ _);
+    endpoint != _
+      ?: NumericsRootIsolationResult(:exactRoot,endpoint:endpoint,1,:exactEndpoint,{= iterations=0,maxWork=maxWork },{= value=0 })
+      ?_ (lowValue*highValue < 0
+           ?: {;
+               current := @interval;
+               leftValue := @lowValue;
+               work := 0;
+               {@ step=1; @current.Width()>@width && @work<@maxWork; {;
+                   midpoint = @current.Midpoint();
+                   midValue = NumericsExactFunctionValue(@function,midpoint,"Root-isolation midpoint");
+                   midValue == 0
+                     ?: {; @current = @midpoint:@midpoint; }
+                     ?_ @leftValue*midValue < 0
+                          ?: {; @current = @current.Low():@midpoint; }
+                          ?_ {; @current = @midpoint:@current.High(); @leftValue = @midValue; };
+                   @work += 1;
+               }; step+=1 };
+               NumericsRootIsolationResult(
+                   current.Width()<=@width ?: :isolatedAssumed ?_ :budgetExhausted,
+                   current,_,:signCrossingWithDeclaredContinuity,{= iterations=work,maxWork=@maxWork },
+                   {= authority=:callerAssumption,continuous=1,endpointSigns=[@lowValue,@highValue] }
+               );
+           }
+           ?_ NumericsRootIsolationResult(:unknown,interval,_,:noSignCrossing,{= iterations=0,maxWork=maxWork },{= endpointValues=[lowValue,highValue] }));
+};
+
+NumericsIsolateRoot(function, intervalValue, options ?= {= }) -> {;
+    interval = intervalValue ~!: :RationalInterval;
+    request = NumericsRequest(options);
+    width = request[:absoluteWidth];
+    maxWork = request[:work][:maxIterations];
+    function ? :Polynomial
+      ?: NumericsPolynomialRootIsolation(function,interval,width,maxWork)
+      ?_ NumericsSignCrossingIsolation(function,interval,width,maxWork);
+};
+
+NumericsAdaptiveRows(function, interval, count) -> {;
+    rows := [];
+    {@ index=0; index<=@count; {;
+        point = @interval.Low()+@interval.Width()*index/@count;
+        @rows ~= @rows.Push([point,NumericsExactFunctionValue(@function,point,"Adaptive sample")]);
+    }; index+=1 };
+    rows;
+};
+
+NumericsMaximumMidpointDeviation(function, rows) -> {;
+    maximum := 0;
+    {@ index=1; index<@rows.Len(); {;
+        left = @rows[index];
+        right = @rows[index+1];
+        midpoint = (left[1]+right[1])/2;
+        value = NumericsExactFunctionValue(@function,midpoint,"Adaptive midpoint sample");
+        deviation = (value-(left[2]+right[2])/2).Abs();
+        @maximum = .Max(@maximum,deviation);
+    }; index+=1 };
+    maximum;
+};
+
+NumericsAdaptiveSample(function, intervalValue, options ?= {= }) -> {;
+    interval = intervalValue ~!: :RationalInterval;
+    tolerance = NumericsPositive(NumericsOption(options,"tolerance",NumericsOption(options,"absolutewidth",1/1000)),"Adaptive sampling tolerance");
+    maxWork = NumericsNonnegativeInteger(NumericsOption(options,"maxwork",256),"Adaptive sampling maxWork");
+    count := 1;
+    rows := NumericsAdaptiveRows(function,interval,count);
+    deviation := NumericsMaximumMidpointDeviation(function,rows);
+    {@ step=1; @deviation>@tolerance && 2*@count<=@maxWork; {;
+        @count *= 2;
+        @rows = NumericsAdaptiveRows(@function,@interval,@count);
+        @deviation = NumericsMaximumMidpointDeviation(@function,@rows);
+    }; step+=1 };
+    .ImmutableValue({=
+        valueKind=:numericsAdaptiveSample,
+        schema="rix.numerics.adaptive-sample@1",
+        status=deviation<=tolerance ?: :complete ?_ :budgetExhausted,
+        samples=rows,
+        interval=interval,
+        tolerance=tolerance,
+        observedMidpointDeviation=deviation,
+        certified=_,
+        evidenceLevel=:observed,
+        diagnostics=[:finiteSamplesDoNotProveGlobalError],
+        work={= intervals=count,evaluations=2*count+1,maxWork=maxWork }
+    });
+};
+
+NumericsIntegrate(function, lower, upper, options ?= {= }) ->
+    NumericsQuadrature(function,lower,upper,options);
+
+NumericsOptimize(function, intervalValue, options ?= {= }) -> {;
+    interval = intervalValue ~!: :RationalInterval;
+    lipschitz = NumericsPositive(NumericsOption(options,"lipschitz",_),"Optimization Lipschitz bound");
+    samples = .Max(2,NumericsNonnegativeInteger(NumericsOption(options,"maxwork",64),"Optimization maxWork"));
+    rows = NumericsAdaptiveRows(function,interval,samples);
+    best := rows[1];
+    {@ index=2; index<=@rows.Len(); {;
+        @best = @rows[index][2] < @best[2] ?: @rows[index] ?_ @best;
+    }; index+=1 };
+    mesh = interval.Width()/samples;
+    lowerBound = best[2]-lipschitz*mesh/2;
+    .ImmutableValue({=
+        valueKind=:numericsOptimization,
+        schema="rix.numerics.optimization@1",
+        status=:boundedUnderAssumption,
+        objective=:minimize,
+        point=best[1],
+        value=best[2],
+        valueEnclosure=lowerBound:best[2],
+        domain=interval,
+        certified=_,
+        evidenceLevel=:assumed,
+        assumptions={= lipschitzBound=lipschitz },
+        work={= intervals=samples,evaluations=samples+1 },
+        diagnostics=[:callerMustJustifyLipschitzBound]
+    });
+};
+
+NumericsConstant(nameValue, options ?= {= }) -> {;
+    name = nameValue.Lower();
+    value = {? name == "pi" ? NumericsPiAlgorithm();
+               name == "e" ? NumericsNaturalExp(1);
+               .Error("Certified constant must currently be :pi or :e")
+            };
+    value;
+};
+
+NumericsExplainSelection(value, operationValue ?= :refine) -> {;
+    operation = operationValue.Lower();
+    constantRequest = (value ? :Map) && value[:schema] == "rix.numerics.constant-request@1";
+    selected = constantRequest ?: value[:value] ?_ value;
+    exact = selected ~: :Rational;
+    capabilities = exact != _
+      ?: {=
+          schema="rix.numerics.capabilities@1",backend=:exactRational,representation=:exact,
+          operations=[:enclose,:refine],evidenceLevels=[:proof],certified=1,deterministic=1
+      }
+      ?_ selected.NumericsCapabilities();
+    supported = .RefinementSupports(capabilities,operation);
+    .ImmutableValue({=
+        valueKind=:numericsSelectionExplanation,
+        schema="rix.numerics.selection-explanation@1",
+        operation=operation,
+        supported=supported,
+        selectedBackend=capabilities[:backend],
+        representation=capabilities[:representation],
+        certified=capabilities[:certified],
+        deterministic=capabilities[:deterministic],
+        capabilities=capabilities,
+        reasons=[
+            exact != _ ?: :exactValueNeedsNoApproximateBackend ?_ :valueAdvertisedCapability,
+            supported ?: :operationSupported ?_ :operationUnsupported,
+            constantRequest ?: :namedConstantRequest ?_ :directValueRequest
+        ],
+        rejected=[],
+        provenance={= plugin=:numerics,version=2,selection=:valueProtocol }
+    });
 };
 
 NumericsSignLabel(value) -> value < 0 ?: :negative ?_ value > 0 ?: :positive ?_ :zero;
@@ -5709,9 +6141,20 @@ numericsNamespace._proto = {=
     Request = (self, options ?= {= }) -> NumericsRequest(options),
     WorkPolicy = (self, options ?= {= }) -> NumericsWorkPolicy(options),
     EffectiveLimits = (self, request, capabilities ?= {= }) -> NumericsEffectiveLimits(request, capabilities),
-    Enclose = (self, value, options ?= {= }) -> ProviderOperation(value, options, :enclose),
-    Refine = (self, value, options ?= {= }) -> ProviderOperation(value, options, :refine),
+    ErrorBudget = (self, options ?= {= }) -> NumericsErrorBudget(options),
+    PropagateError = (self, operation, target, options ?= {= }) -> NumericsPropagateError(operation,target,options),
+    RefinementHistory = (self, value, options ?= {= }) -> NumericsRefinementHistory(value,options),
+    RefineHistory = (self, history, options ?= {= }) -> NumericsRefineHistory(history,options),
+    Enclose = (self, value, options ?= {= }) -> NumericsGenericEnclosure(value, options, :enclose),
+    Refine = (self, value, options ?= {= }) -> NumericsGenericEnclosure(value, options, :refine),
     Sample = (self, value, options ?= {= }) -> ProviderOperation(value, options, :sample),
+    Compare = (self, left, right, options ?= {= }) -> NumericsCompare(left,right,options),
+    IsolateRoot = (self, function, interval, options ?= {= }) -> NumericsIsolateRoot(function,interval,options),
+    AdaptiveSample = (self, function, interval, options ?= {= }) -> NumericsAdaptiveSample(function,interval,options),
+    Integrate = (self, function, lower, upper, options ?= {= }) -> NumericsIntegrate(function,lower,upper,options),
+    Optimize = (self, function, interval, options ?= {= }) -> NumericsOptimize(function,interval,options),
+    Constant = (self, name, options ?= {= }) -> NumericsConstant(name,options),
+    ExplainSelection = (self, value, operation ?= :refine) -> NumericsExplainSelection(value,operation),
     Range = (self, value, intervalOrOptions ?= _, options ?= {= }) ->
         NumericsRangeDispatch(value, intervalOrOptions, options),
     GraphRange = (self, expression, bindings, options ?= {= }) ->

@@ -113,7 +113,7 @@ describe("statistics plugin", () => {
     });
 });
 
-describe("Phase 1 complex visualization plugin", () => {
+describe("Phase 1 and 2 complex visualization plugin", () => {
     test("uses documented exact phase and magnitude color fixtures", () => {
         const result = parseAndEvaluate(`
             .Plugin.Load("complex-viz");
@@ -150,6 +150,34 @@ describe("Phase 1 complex visualization plugin", () => {
         expect(result.values[1].value).toContain("<rect");
         expect(JSON.parse(result.values[2].value).commands).toHaveLength(25);
     });
+
+    test("consumes certified complex enclosures and publishes Cayley color metadata", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("complex-viz");
+            enclosure := .complex.FromParts(1,1).Refine({= absoluteWidth=1/1000,maxWork=100 });
+            cayley := .complexViz.CayleyColor(.Complex.FromParts(3,4));
+            [.complexViz.Color(enclosure),cayley[:schema],cayley[:magnitude],
+             cayley[:direction],cayley[:phaseSector],cayley[:color]]
+        `, runtime());
+        expect(formatValue(result)).toBe("[#ef4444, rix.complex-viz.cayley-color@1, 5, 1/2, 1, #9a3412]");
+    });
+
+    test("creates Scene3D magnitude surfaces and exact Riemann-sphere points", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("complex-viz");
+            surface := .complexViz.Surface({=
+                fn=(z)->z^2,height=:magnitudeSquared,
+                domain={= re=[-1,1],im=[-1,1] },resolution=[3,3]
+            });
+            sphere := .complexViz.RiemannSphere([
+                .Complex.FromParts(0,0),.Complex.FromParts(1,0),.Complex.FromParts(0,1)
+            ],{= branchcut=:nonpositiveRealAxis });
+            [surface[:schema],surface[:metadata][:schema],surface[:children][1][:vertices].Len(),
+             surface[:children][1][:triangles].Len(),surface[:metadata][:unresolved],
+             sphere[:metadata][:schema],sphere[:metadata][:projection],sphere[:children][1][:points]]
+        `, runtime());
+        expect(formatValue(result)).toBe("[rix.scene3d@1, rix.complex-viz.surface@1, 9, 8, 0, rix.complex-viz.riemann-sphere@1, inverseStereographic, [[0, 0, -1], [1, 0, 0], [0, 1, 0]]]");
+    });
 });
 
 describe("Phase 1 GIF renderer", () => {
@@ -175,7 +203,10 @@ describe("Phase 1 GIF renderer", () => {
         const result = registry.render(timeline, "gif", null, { format: formatValue });
         expect([...result.content]).toEqual([71, 73, 70, 56, 57, 97]);
         expect(received.frames).toHaveLength(2);
-        expect(received.options).toEqual({ delays: [50, 50], loop: 0 });
+        expect(received.options).toEqual({
+            delays: [50, 50], loop: 0, transition: "none", transitionFrames: 0,
+            dithering: "floyd-steinberg", palette: "global",
+        });
         expect(result.metadata).toMatchObject({ frameCount: 2, delays: [50, 50], width: 40, height: 30 });
     });
 
@@ -188,5 +219,35 @@ describe("Phase 1 GIF renderer", () => {
             .Slides([.Slide(frame), .Slide(frame)])
         `, runtime());
         expect(() => registry.render(slides, "gif")).toThrow("approved host encoder");
+    });
+
+    test("Phase 2 preserves transitions, palette policy, and projected Scene3D rotation snapshots", () => {
+        const registry = new RendererRegistry();
+        registry.register(createPngDefinition((_svg, { width, height }) => ({
+            content: new Uint8Array([137, 80, 78, 71]), toolchain: "fixture-png", width, height,
+        })));
+        let encoderOptions = null;
+        registry.register(createGifDefinition((_frames, options) => {
+            encoderOptions = options;
+            return { content: new Uint8Array([71, 73, 70]), toolchain: "fixture-gif" };
+        }));
+        const graphic = parseAndEvaluate(`.Graphics.Graphic([40,30],[.Graphics.Circle([20,15],5)])`, runtime());
+        const sceneSnapshot = { type: "output", kind: "scene3d_snapshot", value: graphic };
+        const snapshots = {
+            type: "output", kind: "snapshots", title: "Orbit rotation", caption: null,
+            snapshots: [{ content: sceneSnapshot }, { content: sceneSnapshot }],
+        };
+        const result = registry.render(snapshots, "gif", {
+            transition: "crossfade", transitionFrames: 3, dithering: "ordered",
+            palette: "adaptive", delays: [0.4, 0.6], loop: 2,
+        }, { format: formatValue });
+        expect(encoderOptions).toEqual({
+            delays: [40, 60], loop: 2, transition: "crossfade", transitionFrames: 3,
+            dithering: "ordered", palette: "adaptive",
+        });
+        expect(result.metadata).toMatchObject({
+            schema: "rix.gif.render@2", frameCount: 2, transition: "crossfade",
+            transitionFrames: 3, dithering: "ordered", palette: "adaptive",
+        });
     });
 });

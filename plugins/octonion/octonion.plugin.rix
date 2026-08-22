@@ -1,0 +1,135 @@
+/**
+id: octonion
+description: Certified octonion facade with explicit nonassociativity and intrinsic one-variable functions.
+kind: rix
+mount: octonion
+exports: [Octonion, FromCayley, FromExactAlgebra, Components, Scalar, Vector, Basis, Conjugate, NormSquared, Inverse, LeftDivide, RightDivide, Enclose, Refine, ZeroStatus, Exp, Log, LogResult, Root, RootResult, Power, Series, VerifyIdentity, Associator]
+groups: [Exact, Numerics]
+permissions: []
+requires: [rix.cayley@2, rix.float@2]
+provides: [rix.octonion@2, rix.enclosable-octonion@1]
+schemas: [rix.octonion.value@1, rix.octonion.function-result@1, rix.octonion.identity-evidence@1]
+snapshot: false
+deterministic: true
+defaultEnabled: false
+**/
+
+OctonionIs(value) -> value ? :OctonionValue;
+OctonionRequire(value) -> OctonionIs(value) ?: value ?_ .Error("Expected an Octonion value");
+OctonionFloatProvider=.cayley.Provider({= name=:octonionFloat,certifiedSingleton=_,can=(value)->1 });
+OctonionWrap(cayley,evidence ?= {= constructor=:cayleyFacade }) -> {;
+    cayley[:dimension]==8 ?: _ ?_ .Error("Octonion facade requires an eight-component Cayley value");
+    value={= valueKind=:octonionValue,schema="rix.octonion.value@1",cayley=cayley,components=cayley[:components],evidence=evidence };
+    value.__type="OctonionValue"; value._type="octonion_value";
+    .ImmutableValue(value ~!: :OctonionValue);
+};
+OctonionBuild(a0 ?= 0,a1 ?= 0,a2 ?= 0,a3 ?= 0,a4 ?= 0,a5 ?= 0,a6 ?= 0,a7 ?= 0) -> OctonionWrap(.cayley.Value(3,[a0,a1,a2,a3,a4,a5,a6,a7]),{= constructor=:components });
+OctonionFromCayley(value) -> OctonionWrap(value,{= adapter=:cayley });
+OctonionFromExactAlgebra(value) -> OctonionWrap(.cayley.FromExactAlgebra(value),{= adapter=:exactAlgebras,source=value });
+OctonionBasis(index) -> OctonionWrap(.cayley.BasisValue(3,index),{= constructor=:basis,index=index });
+OctonionComponents(value) -> OctonionRequire(value)[:components];
+OctonionFromComponentsLike(reference,components,evidence) -> OctonionWrap(.cayley.Value(reference[:cayley][:level],components,evidence),evidence);
+OctonionPair(left,right) -> {;
+    source=OctonionIs(left) ?: left ?_ (OctonionIs(right) ?: right ?_ .Error("Octonion operation needs an Octonion operand"));
+    a=OctonionIs(left) ?: left ?_ OctonionFromComponentsLike(source,[left],{= constructor=:scalarEmbedding });
+    b=OctonionIs(right) ?: right ?_ OctonionFromComponentsLike(source,[right],{= constructor=:scalarEmbedding });
+    {= left=a,right=b };
+};
+OctonionAdd(left,right) -> {; pair=OctonionPair(left,right); OctonionWrap(pair[:left][:cayley]+pair[:right][:cayley],{= operation=:add,left=pair[:left],right=pair[:right] }); };
+OctonionSubtract(left,right) -> {; pair=OctonionPair(left,right); OctonionWrap(pair[:left][:cayley]-pair[:right][:cayley],{= operation=:subtract,left=pair[:left],right=pair[:right] }); };
+OctonionMultiply(left,right) -> {; pair=OctonionPair(left,right); OctonionWrap(pair[:left][:cayley]*pair[:right][:cayley],{= operation=:multiply,left=pair[:left],right=pair[:right],parenthesization=[:multiply,pair[:left][:evidence],pair[:right][:evidence]] }); };
+OctonionNegate(value) -> {; exact=OctonionRequire(value); OctonionWrap(-exact[:cayley],{= operation=:negate,source=exact }); };
+OctonionConjugate(value) -> {; exact=OctonionRequire(value); OctonionWrap(exact[:cayley].Conjugate(),{= operation=:conjugate,source=exact }); };
+OctonionNormSquared(value) -> OctonionRequire(value)[:cayley].NormSquared();
+OctonionDivideComponents(components,norm) -> components.Map((x)->x/norm);
+OctonionInverse(value) -> {;
+    exact=OctonionRequire(value); status=OctonionZeroStatus(exact); status[:status]==:nonzero ?: _ ?_ .Error("Octonion inverse requires nonzero evidence");
+    norm=OctonionNormSquared(exact); components=OctonionDivideComponents(OctonionConjugate(exact)[:components],norm);
+    OctonionFromComponentsLike(exact,components,{= operation=:inverse,source=exact,evidence=status });
+};
+OctonionLeftDivide(value,divisor) -> OctonionInverse(divisor)*value;
+OctonionRightDivide(value,divisor) -> value*OctonionInverse(divisor);
+OctonionEqual(left,right) -> {; pair=OctonionPair(left,right); pair[:left][:cayley]==pair[:right][:cayley]; };
+OctonionEnclose(value,request ?= {= }) -> OctonionRequire(value)[:cayley].Enclose(request);
+OctonionRefine(value,request ?= {= }) -> OctonionRequire(value)[:cayley].Refine(request);
+OctonionZeroStatus(value,request ?= {= absoluteWidth=1/1000000,maxWork=1000 }) -> {;
+    exact=OctonionRequire(value); hasFloat:=_; anyNonzero:=_; allFloatZero:=1;
+    {@ i=1;i<=8;{; component=@exact[:components][i]; component ? :float ?:{; @hasFloat~=1; @component==.float.Float(0) ?: _ ?_ {; @anyNonzero~=1; @allFloatZero~=_; }; } ?_ _; };i+=1};
+    hasFloat ?: {= valueKind=:cayleyZeroStatus,schema="rix.cayley.zero-status@1",status=anyNonzero ?: :nonzero ?_ (allFloatZero ?: :zero ?_ :unknown),certified=_,property=:originSeparation,source=exact }
+      ?_ exact[:cayley].ZeroStatus(request);
+};
+
+OctonionFloat(value) -> value ? :float ?: value ?_ .float.Float(value);
+OctonionFloatParts(value) -> OctonionComponents(value).Map((x)->OctonionFloat(x));
+OctonionFloatBuild(components,evidence) -> OctonionWrap(.cayley.Value(.cayley.Level(3,OctonionFloatProvider),components,evidence),evidence);
+OctonionVectorNorm(parts) -> {; total:=.float.Float(0); {@ i=2;i<=8;{; @total+=@parts[i]*@parts[i]; };i+=1}; .float.Sqrt(total); };
+OctonionDirectionNonzero(parts,norm) -> parts.Slice(2).Map((x)->x/norm);
+OctonionDirection(parts,norm,defaultDirection ?= [1,0,0,0,0,0,0]) -> norm==.float.Float(0) ?: defaultDirection ?_ OctonionDirectionNonzero(parts,norm);
+OctonionScaledDirection(direction,scale) -> direction.Map((x)->OctonionFloat(x)*scale);
+OctonionSliceValue(scalarPart,direction,vectorScale,evidence) -> OctonionFloatBuild([scalarPart].Concat(OctonionScaledDirection(direction,vectorScale)),evidence);
+OctonionPi() -> .float.Atan2(.float.Float(0),.float.Float(-1));
+OctonionExp(value) -> {;
+    exact=OctonionRequire(value); parts=OctonionFloatParts(exact); radius=OctonionVectorNorm(parts); unitVector=OctonionDirection(parts,radius); expScalar=.float.Exp(parts[1]);
+    OctonionSliceValue(expScalar*.float.Cos(radius),unitVector,expScalar*.float.Sin(radius),{= operation=:exp,source=exact,evaluationOrder=:sliceFormula,sliceEvidence={= generatedBy=:oneAndVectorDirection,associativeSubalgebra=1,realCoefficients=1 },approximate=1 });
+};
+OctonionLogResult(value,options ?= {= }) -> {;
+    exact=OctonionRequire(value); zero=exact.ZeroStatus(); zero[:status]==:zero ?: .Error("Octonion Log is undefined at zero") ?_ _;
+    parts=OctonionFloatParts(exact); vectorNorm=OctonionVectorNorm(parts); norm=.float.Sqrt(parts[1]*parts[1]+vectorNorm*vectorNorm); zeroFloat=.float.Float(0);
+    vectorZero=vectorNorm==zeroFloat; negativeAxis=vectorZero&&parts[1]<zeroFloat; positiveAxis=vectorZero&&parts[1]>zeroFloat; requestedDirection=options[:branchDirection]; direction=requestedDirection==_ ?: OctonionDirection(parts,vectorNorm) ?_ requestedDirection;
+    angle=positiveAxis ?: zeroFloat ?_ .float.Atan2(vectorNorm,parts[1]); real=.float.Log(norm);
+    principal=negativeAxis&&requestedDirection==_ ?: _ ?_ OctonionSliceValue(real,direction,negativeAxis ?: OctonionPi() ?_ angle,{= operation=:log,source=exact,branch=:principal,evaluationOrder=:sliceFormula,sliceEvidence={= generatedBy=:oneAndDirection,associativeSubalgebra=1,realCoefficients=1 },approximate=1 });
+    {= valueKind=:octonionFunctionResult,schema="rix.octonion.function-result@1",function=:log,status=principal==_ ?: :branchFamily ?_ :resolved,value=principal,branchFamily=negativeAxis ?: {= kind=:directionSphere,directions=:unitSphere6,angle=OctonionPi() } ?_ _,branchDirection=negativeAxis ?: requestedDirection ?_ direction,source=exact,approximate=1 };
+};
+OctonionLog(value,options ?= {= }) -> {; result=OctonionLogResult(value,options); result[:value]!=_ ?: result[:value] ?_ .Error("Octonion Log has a direction family on the negative real axis; use LogResult or supply branchDirection"); };
+OctonionRootResult(value,degree,options ?= {= }) -> {;
+    (degree ? :Integer)&&degree>0 ?: _ ?_ .Error("Octonion root degree must be a positive Integer");
+    exact=OctonionRequire(value); parts=OctonionFloatParts(exact); vectorNorm=OctonionVectorNorm(parts); norm=.float.Sqrt(parts[1]*parts[1]+vectorNorm*vectorNorm); zeroFloat=.float.Float(0);
+    negativeAxis=vectorNorm==zeroFloat&&parts[1]<zeroFloat; requestedDirection=options[:branchDirection]; direction=requestedDirection==_ ?: OctonionDirection(parts,vectorNorm) ?_ requestedDirection;
+    rootNorm=.float.Exp(.float.Log(norm)/.float.Float(degree)); theta=.float.Atan2(vectorNorm,parts[1]); branch=options[:branch]==_ ?: 0 ?_ options[:branch]; angle=((negativeAxis ?: OctonionPi() ?_ theta)+.float.Float(2)*OctonionPi()*.float.Float(branch))/.float.Float(degree);
+    root=negativeAxis&&requestedDirection==_ ?: _ ?_ OctonionSliceValue(rootNorm*.float.Cos(angle),direction,rootNorm*.float.Sin(angle),{= operation=:root,source=exact,degree=degree,branch=branch,evaluationOrder=:sliceFormula,sliceEvidence={= generatedBy=:oneAndDirection,associativeSubalgebra=1,realCoefficients=1 },approximate=1 });
+    {= valueKind=:octonionFunctionResult,schema="rix.octonion.function-result@1",function=:root,status=root==_ ?: :branchFamily ?_ :resolved,value=root,degree=degree,branch=branch,branchFamily=root==_ ?: {= kind=:directionSphere,directions=:unitSphere6 } ?_ _,source=exact,approximate=1 };
+};
+OctonionRoot(value,degree,options ?= {= }) -> {; result=OctonionRootResult(value,degree,options); result[:value]!=_ ?: result[:value] ?_ .Error("Octonion root has a direction family; use RootResult or supply branchDirection"); };
+OctonionPositiveIntegerPower(value,exponent) -> {; result:=OctonionFromComponentsLike(value,[1],{= constructor=:multiplicativeIdentity }); factor:=value; {@ n=@exponent;n>0;{; n%2==1 ?:{; @result~=@result*@factor; } ?_ _; n>1 ?:{; @factor~=@factor*@factor; } ?_ _; };n//=2}; result; };
+OctonionIntegerPower(value,exponent) -> {; exact=OctonionRequire(value); exponent==0 ?: OctonionFromComponentsLike(exact,[1],{= constructor=:multiplicativeIdentity }) ?_ _; exponent<0 ?: OctonionPositiveIntegerPower(exact.Inverse(),-exponent) ?_ OctonionPositiveIntegerPower(exact,exponent); };
+OctonionPower(value,exponent,options ?= {= }) -> exponent ? :Integer ?: OctonionIntegerPower(value,exponent) ?_ OctonionExp(OctonionLog(value,options)*exponent);
+
+OctonionSeries(value,coefficients,options ?= {= }) -> {;
+    exact=OctonionRequire(value); coefficients.Len()>0 ?: _ ?_ .Error("Series needs at least one real coefficient");
+    result:=OctonionFromComponentsLike(exact,[coefficients[coefficients.Len()]],{= constructor=:seriesCoefficient,index=coefficients.Len() });
+    {@ index=@coefficients.Len()-1;index>=1;{; @result=@result*@exact+@coefficients[index]; };index-=1};
+    final=OctonionWrap(result[:cayley],{= operation=:realCoefficientSeries,source=exact,coefficients=coefficients,evaluationOrder=:rightHorner,sliceEvidence={= generatedBy=:oneAndSource,associativeSubalgebra=1,realCoefficients=1 },remainderEvidence=options[:remainderEvidence] });
+    final;
+};
+OctonionAssociator(a,b,c) -> (a*b)*c-a*(b*c);
+OctonionVerifyIdentity(identity,a,b,c ?= _) -> {;
+    altLeft=identity==:alternativityLeft; altRight=identity==:alternativityRight; moufang=identity==:moufang; nonassociative=identity==:nonassociative;
+    valid=altLeft ?: OctonionAssociator(a,a,b)==0
+      ?_ (altRight ?: OctonionAssociator(a,b,b)==0
+      ?_ (moufang ?: ((a*b)*(c*a))==(a*((b*c)*a))
+      ?_ (nonassociative ?: !(OctonionAssociator(a,b,c)==0)
+      ?_ .Error("Unknown octonion identity fixture"))));
+    {= valueKind=:octonionIdentityEvidence,schema="rix.octonion.identity-evidence@1",identity=identity,valid=valid,parenthesized=1,inputs=[a,b,c] };
+};
+OctonionRecord(value) -> {; exact=OctonionRequire(value); {= schema=exact[:schema],components=exact[:components],cayley=exact[:cayley].Record(),evidence=exact[:evidence],evaluationOrder=exact[:evidence][:evaluationOrder],sliceEvidence=exact[:evidence][:sliceEvidence] }; };
+
+.TypeKnown(:OctonionValue) ?: _ ?_ .TypeRegister({=
+    name=:OctonionValue,nativeType=:map,defaultTraits=[:number],convertFrom={= map=(x) ?- [x[:valueKind]==:octonionValue] -> x },validate=(x)->x[:schema]=="rix.octonion.value@1",
+    proto={=
+        Components=(self)->self[:components],Scalar=(self)->self[:components][1],Vector=(self)->self[:components].Slice(2),Conjugate=(self)->OctonionConjugate(self),NormSquared=(self)->OctonionNormSquared(self),Inverse=(self)->OctonionInverse(self),
+        LeftDivide=(self,d)->OctonionLeftDivide(self,d),RightDivide=(self,d)->OctonionRightDivide(self,d),Enclose=(self,r ?= {= })->OctonionEnclose(self,r),Refine=(self,r ?= {= })->OctonionRefine(self,r),ZeroStatus=(self,r ?= {= absoluteWidth=1/1000000,maxWork=1000 })->OctonionZeroStatus(self,r),
+        Exp=(self)->OctonionExp(self),Log=(self,o ?= {= })->OctonionLog(self,o),LogResult=(self,o ?= {= })->OctonionLogResult(self,o),Root=(self,n,o ?= {= })->OctonionRoot(self,n,o),RootResult=(self,n,o ?= {= })->OctonionRootResult(self,n,o),Power=(self,e,o ?= {= })->OctonionPower(self,e,o),Series=(self,c,o ?= {= })->OctonionSeries(self,c,o),Associator=(self,b,c)->OctonionAssociator(self,b,c),Record=(self)->OctonionRecord(self)
+    },
+    installs={=
+        ADD=[{= name=:OctonionAdd,priority=460,prep=(x,y)->OctonionIs(x)||OctonionIs(y),impl=OctonionAdd }],SUB=[{= name=:OctonionSubtract,priority=460,prep=(x,y)->OctonionIs(x)||OctonionIs(y),impl=OctonionSubtract }],MUL=[{= name=:OctonionMultiply,priority=460,prep=(x,y)->OctonionIs(x)||OctonionIs(y),impl=OctonionMultiply }],DIV=[{= name=:OctonionRightDivide,priority=460,prep=(x,y)->OctonionIs(x)&&OctonionIs(y),impl=OctonionRightDivide }],NEG=[{= name=:OctonionNegate,priority=460,prep=(x)->OctonionIs(x),impl=OctonionNegate }],EQ=[{= name=:OctonionEqual,priority=460,prep=(x,y)->OctonionIs(x)||OctonionIs(y),impl=OctonionEqual }],NEQ=[{= name=:OctonionNotEqual,priority=460,prep=(x,y)->OctonionIs(x)||OctonionIs(y),impl=(x,y)->!OctonionEqual(x,y) }]
+    }
+});
+.TypeInstall(:OctonionValue);
+
+octonionNamespace={= };
+octonionNamespace._proto={=
+    Octonion=(self,a0 ?= 0,a1 ?= 0,a2 ?= 0,a3 ?= 0,a4 ?= 0,a5 ?= 0,a6 ?= 0,a7 ?= 0)->OctonionBuild(a0,a1,a2,a3,a4,a5,a6,a7),FromCayley=(self,value)->OctonionFromCayley(value),FromExactAlgebra=(self,value)->OctonionFromExactAlgebra(value),
+    Components=(self,value)->OctonionComponents(value),Scalar=(self,value)->OctonionComponents(value)[1],Vector=(self,value)->OctonionComponents(value).Slice(2),Basis=(self,index)->OctonionBasis(index),Conjugate=(self,value)->OctonionConjugate(value),NormSquared=(self,value)->OctonionNormSquared(value),Inverse=(self,value)->OctonionInverse(value),LeftDivide=(self,value,d)->OctonionLeftDivide(value,d),RightDivide=(self,value,d)->OctonionRightDivide(value,d),Enclose=(self,value,r ?= {= })->OctonionEnclose(value,r),Refine=(self,value,r ?= {= })->OctonionRefine(value,r),ZeroStatus=(self,value,r ?= {= absoluteWidth=1/1000000,maxWork=1000 })->OctonionZeroStatus(value,r),
+    Exp=(self,value)->OctonionExp(value),Log=(self,value,o ?= {= })->OctonionLog(value,o),LogResult=(self,value,o ?= {= })->OctonionLogResult(value,o),Root=(self,value,n,o ?= {= })->OctonionRoot(value,n,o),RootResult=(self,value,n,o ?= {= })->OctonionRootResult(value,n,o),Power=(self,value,e,o ?= {= })->OctonionPower(value,e,o),Series=(self,value,c,o ?= {= })->OctonionSeries(value,c,o),VerifyIdentity=(self,identity,a,b,c ?= _)->OctonionVerifyIdentity(identity,a,b,c),Associator=(self,a,b,c)->OctonionAssociator(a,b,c)
+};
+.Host.RegisterValue("octonion",octonionNamespace,"Certified octonions with explicit nonassociativity and intrinsic slice functions",["Exact","Numerics"]);

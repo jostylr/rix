@@ -42,3 +42,51 @@ same numbered links and captions.
 .Plugin.Load("markdown");
 .markdown.Render(report).Get("content");
 ```
+
+## Reuse a course-report template
+
+The template stores presentation defaults while the report supplies its title
+and children. Bibliography and asset values remain portable data; declaring an
+asset does not read it.
+
+```rix
+bib := .document.Bibliography([
+    {= key="knuth84", author="Donald Knuth", year=1984,
+       title="Literate Programming" }
+]);
+assets := .document.AssetManifest([
+    {= id="logo", path="images/logo.svg", mime="image/svg+xml",
+       alt="Course logo", checksum="sha256:abc" }
+]);
+numbers := .document.Numbering({=
+    style=:roman, tableStart=3, citationStyle="author-year"
+});
+course := .document.Template("course-report", {=
+    author="Ada", theme=:compact, bibliography=bib, assets=assets,
+    numbering=numbers,
+    header=.document.Header(.Paragraph("Exact mathematics")),
+    footer=.document.Footer(.Paragraph("Generated with RiX"))
+});
+discussion := .Paragraph([
+    .Text("Compare "), .document.Citation("knuth84"), .Text(".")
+]);
+templated := .document.ApplyTemplate(course, {=
+    title="Evidence report", children=[discussion, values]
+});
+[.document.Asset(assets, "logo"), .document.References(templated), templated];
+```
+
+## Isolate target-specific source
+
+Raw target text is explicit and has a portable fallback. Generic HTML and text
+views see only the fallback; a matching renderer may opt into the raw content
+under its own policy.
+
+```rix
+latexOnly := .document.TargetMarkup(
+    :latex,
+    "\\newcommand{\\CourseName}{Exact Mathematics}",
+    "[LaTeX preamble omitted]"
+);
+latexOnly;
+```

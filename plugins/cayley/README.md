@@ -1,31 +1,29 @@
-# Proposed `cayley` plugin
+# Cayley plugin
 
-`cayley` is the planned scalar-generic Cayley–Dickson service. This directory
-is specification-only: there is deliberately no discoverable
-`*.plugin.rix` manifest until the Phase 1 component, enclosure, and capability
-contracts are implemented and tested.
+The `cayley` plugin is RiX's scalar-generic Cayley–Dickson kernel. It keeps the
+older `exact-algebras` schema unchanged while adding certified-real components,
+component boxes, provider capabilities, typed adapters, and dimensions `2^n`.
 
-The service will sit between representation-generic real/complex values and
-typed Quaternion/Octonion façades. Its responsibilities are:
+```rix
+.Plugin.Load("cayley");
+level := .cayley.Level(2);
+i := level.BasisValue(1);
+j := level.BasisValue(2);
+{: level.Dimension(), (i*j).Components(), (j*i).Components() };
+```
 
-- recursive basis/component construction in dimensions `2^n`;
-- parenthesized multiplication and conjugation;
-- norm-squared and certified origin separation;
-- component-box enclosure over certified real singletons;
-- capability-gated inverse and left/right division;
-- adapters that preserve existing exact-rational `exact-algebras` values.
+`Level(n, provider?)` records the scalar backend and algebra laws. Total
+inverse/division is advertised only for levels 1–3 over a central commutative
+provider that supports division. Later levels remain constructible, but do not
+silently inherit a division-algebra claim.
 
-The scalar contract must supply a central commutative real algebra with exact
-or certified singleton arithmetic. A value using mixed real backends may meet
-at Oracle, but the Cayley layer must retain component evidence and must never
-turn finite real set enclosures into scalar singletons.
+Main operations are `Value`, `BasisValue`, `Components`, `Conjugate`,
+`NormSquared`, `ZeroStatus`, `Enclose`/`Refine`, `Inverse`, `LeftDivide`, and
+`RightDivide`. `BasisProduct` is a sparse signed-basis lookup;
+`VerifyMultiplication` compares the specialized 2D/4D/8D path with the recursive
+law. `Record()` retains component backend identities and multiplication
+parentheses.
 
-Division is not inferred solely from a power-of-two dimension. Complex,
-Quaternion, and Octonion levels have the required composition-algebra
-properties over appropriate real scalars; sedenions and later levels have zero
-divisors and must advertise only partial invertibility.
-
-See [tutorial.md](tutorial.md) for the intended teaching surface,
-[`../complex/architecture.md`](../complex/architecture.md) for the layer
-boundary, and [`../TODO.md`](../TODO.md) for acceptance phases.
-
+`FromComplex` accepts both core complex values and `.complex` singletons.
+`FromExactAlgebra` adapts rational Quaternion/Octonion values without changing
+their source schema.

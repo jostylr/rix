@@ -809,4 +809,89 @@ describe("pure RiX Numerics plugin", () => {
                 .toEqual(["rangeReductionBudgetExhausted"]);
         }
     });
+
+    test("normalizes absolute and scaled-relative budgets and propagates exact bounds", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("numerics");
+            budget := .numerics.ErrorBudget({=
+                absoluteWidth=1/8,
+                relativeWidth=1/100,
+                reference=10
+            });
+            propagated := .numerics.PropagateError(:add, budget, {= operands=2 });
+            {: budget, propagated };
+        `, runtime());
+
+        const budget = result.values[0];
+        expect(entry(budget, "absoluteLimit").toString()).toBe("1/8");
+        expect(entry(budget, "relativeLimit").toString()).toBe("1/100");
+        expect(entry(budget, "relativeScale").toString()).toBe("10");
+        expect(entry(budget, "effectiveWidth").toString()).toBe("1/10");
+        const operands = entry(result.values[1], "operandBudgets").values;
+        expect(operands).toHaveLength(2);
+        expect(operands.map((item) => entry(item, "effectiveWidth").toString()))
+            .toEqual(["1/20", "1/20"]);
+    });
+
+    test("reuses compatible refinements while preserving nested certified history", () => {
+        const history = parseAndEvaluate(`
+            .Plugin.Load("numerics");
+            h0 := .numerics.RefinementHistory(.numerics.Sqrt(2));
+            h1 := h0.Refine({= absoluteWidth=1/10, maxWork=30 });
+            h2 := h1.Refine({= absoluteWidth=1/100, maxWork=30 });
+            h2.Refine({= absoluteWidth=1/10, maxWork=30 });
+        `, runtime());
+
+        expect(entry(history, "providerCalls").value).toBe(1n);
+        expect(entry(history, "cacheHits").value).toBe(2n);
+        const entries = entry(history, "entries").values;
+        expect(entries).toHaveLength(3);
+        expect(entry(entry(entries[0], "result"), "certified").value).toBe(1n);
+        expect(entry(entries[1], "cacheHit").value).toBe(1n);
+        expect(entry(entries[2], "requestedWidth").toString()).toBe("1/10");
+        expect(entry(entries[2], "achievedWidth").toString()).toBe("1/204");
+    });
+
+    test("compares certified reals and separates proved from assumed root isolation", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("numerics");
+            .Plugin.Load("algebraic-real");
+            polynomial := .p\`x^2-2\`;
+            {:
+                .numerics.Compare(.numerics.Sqrt(2), 3/2, {= absoluteWidth=1/100, maxWork=40 }),
+                .numerics.IsolateRoot(polynomial, 1:2, {= absoluteWidth=1/100, maxWork=20 }),
+                .numerics.IsolateRoot((x)->x^2-2, 1:2, {= absoluteWidth=1/100, maxWork=20 })
+            };
+        `, runtime());
+
+        expect(textValue(entry(result.values[0], "relation"))).toBe("less");
+        expect(entry(result.values[0], "certified").value).toBe(1n);
+        expect(textValue(entry(result.values[1], "status"))).toBe("isolated");
+        expect(entry(result.values[1], "certified").value).toBe(1n);
+        expect(textValue(entry(result.values[1], "reason"))).toBe("sturmUniqueRoot");
+        expect(textValue(entry(result.values[2], "status"))).toBe("isolatedAssumed");
+        expect(entry(result.values[2], "certified")).toBeNull();
+    });
+
+    test("exposes bounded generic exploration and refinable named constants", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("numerics");
+            sample := .numerics.AdaptiveSample((x)->x^2, 0:1, {= tolerance=1/100, maxWork=32 });
+            optimum := .numerics.Optimize((x)->x^2, (-1):1, {= lipschitz=2, maxWork=16 });
+            pi := .numerics.Constant(:pi);
+            piBound := .numerics.Refine(pi, {= absoluteWidth=1/1000, maxWork=100 });
+            explanation := .numerics.ExplainSelection(pi);
+            {: sample, optimum, piBound, explanation };
+        `, runtime());
+
+        expect(textValue(entry(result.values[0], "evidenceLevel"))).toBe("observed");
+        expect(entry(result.values[0], "certified")).toBeNull();
+        expect(textValue(entry(result.values[1], "status"))).toBe("boundedUnderAssumption");
+        expect(entry(result.values[1], "certified")).toBeNull();
+        expect(entry(result.values[2], "certified").value).toBe(1n);
+        expect(entry(result.values[2], "interval").low.toNumber()).toBeLessThanOrEqual(Math.PI);
+        expect(entry(result.values[2], "interval").high.toNumber()).toBeGreaterThanOrEqual(Math.PI);
+        expect(textValue(entry(result.values[3], "selectedBackend"))).toBe("numerics");
+        expect(entry(result.values[3], "supported").value).toBe(1n);
+    });
 });

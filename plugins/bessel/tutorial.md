@@ -73,6 +73,7 @@ requires a certifiably positive argument.
 The same namespace provides integer-order `I` and `K`:
 
 ```rix
+.Plugin.Load("bessel");
 modified := [.bessel.I(2, 1), .bessel.K(2, 1)];
 modified.Map((value) -> .numerics.Refine(value, {=
   absoluteWidth=1/1000,

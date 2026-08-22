@@ -11,6 +11,14 @@ function markdownEscape(value) {
 
 function inlineMarkdown(value, state) {
     if (!isOutputValue(value)) return markdownEscape(state.format(value));
+    if (value.documentTargetMarkup) {
+        const { target, content } = value.documentTargetMarkup;
+        if (target === state.target && state.rawMarkup === "allow") {
+            state.diagnostics.push(diagnostic("document-target-markup", `Emitted explicit ${target} target markup`, "info"));
+            return content;
+        }
+        if (target === state.target && state.rawMarkup === "deny") throw new Error(`${state.target} rawMarkup policy denies explicit target markup`);
+    }
     if (value.kind === "text") return markdownEscape(textValue(value.value, state.format));
     if (value.kind === "emphasis") return `*${value.children.map((child) => inlineMarkdown(child, state)).join("")}*`;
     if (value.kind === "strong") return `**${value.children.map((child) => inlineMarkdown(child, state)).join("")}**`;
@@ -130,8 +138,9 @@ function blockMarkdown(value, state, depth = 0) {
     return formatOutputText(value, state.format);
 }
 
-export function renderMarkdown(value, { format, render, quarto = false, graphic = null } = {}) {
-    const state = { format, render, quarto, graphic, diagnostics: [], figureAlt: null };
+export function renderMarkdown(value, { format, render, quarto = false, graphic = null, rawMarkup = "fallback" } = {}) {
+    if (!["allow", "fallback", "deny"].includes(rawMarkup)) throw new Error("rawMarkup must be allow, fallback, or deny");
+    const state = { format, render, quarto, graphic, rawMarkup, target: quarto ? "quarto" : "markdown", diagnostics: [], figureAlt: null };
     return { content: `${blockMarkdown(value, state).trim()}\n`, diagnostics: state.diagnostics };
 }
 
@@ -144,6 +153,14 @@ function texEscape(value) {
 
 function inlineLatex(value, state) {
     if (!isOutputValue(value)) return texEscape(state.format(value));
+    if (value.documentTargetMarkup) {
+        const { target, content } = value.documentTargetMarkup;
+        if ((target === "latex" || target === "tex") && state.rawMarkup === "allow") {
+            state.diagnostics.push(diagnostic("document-target-markup", "Emitted explicit latex target markup", "info"));
+            return content;
+        }
+        if ((target === "latex" || target === "tex") && state.rawMarkup === "deny") throw new Error("latex rawMarkup policy denies explicit target markup");
+    }
     if (value.kind === "text") return texEscape(textValue(value.value, state.format));
     if (value.kind === "emphasis") return `\\emph{${value.children.map((child) => inlineLatex(child, state)).join("")}}`;
     if (value.kind === "strong") return `\\textbf{${value.children.map((child) => inlineLatex(child, state)).join("")}}`;
@@ -186,11 +203,11 @@ function blockLatex(value, state) {
     if (value.kind === "heading") {
         const commands = ["section", "subsection", "subsubsection", "paragraph", "subparagraph", "subparagraph"];
         const content = (Array.isArray(value.content) ? value.content : [value.content]).map((child) => inlineLatex(child, state)).join("");
-        return `\\${commands[value.level - 1]}{${content}}${value.id ? `\\label{${texEscape(value.id)}}` : ""}`;
+        return `\\${commands[value.level - 1]}${state.preNumbered ? "*" : ""}{${content}}${value.id ? `\\label{${texEscape(value.id)}}` : ""}`;
     }
     if (value.kind === "section") {
         const commands = ["section", "subsection", "subsubsection", "paragraph", "subparagraph", "subparagraph"];
-        return `\\${commands[value.level - 1]}{${value.title.map((child) => inlineLatex(child, state)).join("")}}${value.id ? `\\label{${texEscape(value.id)}}` : ""}\n${value.children.map((child) => blockLatex(child, state)).join("\n\n")}`;
+        return `\\${commands[value.level - 1]}${state.preNumbered ? "*" : ""}{${value.title.map((child) => inlineLatex(child, state)).join("")}}${value.id ? `\\label{${texEscape(value.id)}}` : ""}\n${value.children.map((child) => blockLatex(child, state)).join("\n\n")}`;
     }
     if (value.kind === "list") {
         const environment = value.ordered ? "enumerate" : "itemize";
@@ -234,6 +251,16 @@ function blockLatex(value, state) {
         return `\\begin{figure}[htbp]\n\\centering\n${blockLatex(value.content, state)}${value.caption ? `\n\\caption{${texEscape(value.caption)}}` : ""}${value.label ? `\n\\label{${texEscape(value.label)}}` : ""}\n\\end{figure}`;
     }
     if (value.kind === "graphic") {
+        if (state.figureAsset !== "tikz") {
+            if (typeof state.render !== "function") throw new Error(`LaTeX ${state.figureAsset} figure delegation requires a renderer registry`);
+            state.figure += 1;
+            const rendered = state.render(value, state.figureAsset, {});
+            const path = `${state.assetDir}/figure-${state.figure}.${rendered.extension}`;
+            state.assets.push({ path, mime: rendered.mime, content: rendered.content });
+            state.diagnostics.push(...rendered.diagnostics);
+            state.packages.add(state.figureAsset === "svg" ? "svg" : "graphicx");
+            return state.figureAsset === "svg" ? `\\includesvg{${texEscape(path)}}` : `\\includegraphics{${texEscape(path)}}`;
+        }
         const rendered = renderGraphicTikz(value, state.format);
         state.diagnostics.push(...rendered.diagnostics);
         return rendered.content.trim();
@@ -243,21 +270,44 @@ function blockLatex(value, state) {
     throw new UnsupportedRenderError(`LaTeX renderer does not support output kind '${outputKind(value)}'`, { target: "latex" });
 }
 
-export function renderLatex(value, { format, standalone = true, title = null } = {}) {
-    const state = { format, diagnostics: [] };
-    const body = blockLatex(value, state);
-    if (!standalone) return { content: `${body.trim()}\n`, diagnostics: state.diagnostics };
+export function renderLatex(value, {
+    format, standalone = true, title = null, render = null, rawMarkup = "fallback",
+    figureAsset = "tikz", assetDir = "assets", pageSize = "letterpaper", placement = "htbp", bookmarks = true, metadata = null,
+} = {}) {
+    if (!["allow", "fallback", "deny"].includes(rawMarkup)) throw new Error("LaTeX rawMarkup must be allow, fallback, or deny");
+    if (!["tikz", "svg", "png"].includes(figureAsset)) throw new Error("LaTeX figureAsset must be tikz, svg, or png");
+    if (!/^[htbp!]+$/.test(placement)) throw new Error("LaTeX placement must contain only h, t, b, p, or !");
+    if (!/^[a-z0-9]+paper$/i.test(pageSize)) throw new Error("LaTeX pageSize must be a paper name such as letterpaper or a4paper");
+    if (!assetDir || assetDir.startsWith("/") || assetDir.split("/").includes("..")) throw new Error("LaTeX assetDir must be a safe relative directory");
+    const state = {
+        format, render, rawMarkup, figureAsset, assetDir, diagnostics: [], assets: [], figure: 0,
+        packages: new Set(["amsmath", "amssymb", "booktabs", "graphicx", "hyperref", "xcolor", ...(figureAsset === "tikz" ? ["tikz"] : [])]),
+        preNumbered: value?.documentSchema === "rix.document.report@1",
+    };
+    const body = blockLatex(value, state)
+        .replaceAll("\\begin{table}[htbp]", `\\begin{table}[${placement}]`)
+        .replaceAll("\\begin{figure}[htbp]", `\\begin{figure}[${placement}]`);
+    const renderMetadata = { schema: "rix.latex.render@2", packages: [...state.packages].sort(), pageSize, figureAsset, placement };
+    if (!standalone) return { content: `${body.trim()}\n`, diagnostics: state.diagnostics, assets: state.assets, metadata: renderMetadata };
     const heading = title ? `\\title{${texEscape(title)}}\n\\date{}\n` : "";
     const makeTitle = title ? "\\maketitle\n" : "";
+    const pdfTitle = metadata?.title || title || "RiX document";
+    const pdfAuthor = metadata?.author || "";
+    const themeAccent = value?.documentTheme?.entries?.get("accent")?.value || null;
+    const themePreamble = themeAccent && /^#[0-9a-f]{6}$/i.test(themeAccent)
+        ? `\\definecolor{rixaccent}{HTML}{${themeAccent.slice(1).toUpperCase()}}\n`
+        : "";
     return {
-        content: `\\documentclass{article}\n\\usepackage[margin=1in]{geometry}\n\\usepackage{amsmath,amssymb}\n\\usepackage{booktabs}\n\\usepackage{graphicx}\n\\usepackage{hyperref}\n\\usepackage{xcolor}\n\\usepackage{tikz}\n${heading}\\begin{document}\n${makeTitle}${body.trim()}\n\\end{document}\n`,
+        content: `\\documentclass[${pageSize}]{article}\n\\usepackage[margin=1in]{geometry}\n${[...state.packages].sort().map((name) => `\\usepackage{${name}}`).join("\n")}\n${themePreamble}\\hypersetup{pdftitle={${texEscape(pdfTitle)}},pdfauthor={${texEscape(pdfAuthor)}},bookmarks=${bookmarks ? "true" : "false"}}\n${heading}\\begin{document}\n${makeTitle}${body.trim()}\n\\end{document}\n`,
         diagnostics: state.diagnostics,
+        assets: state.assets,
+        metadata: renderMetadata,
     };
 }
 
 export function quartoFrontMatter(options) {
     const metadata = field(options, "metadata", options);
-    const keys = ["title", "author", "date", "format"];
+    const keys = ["title", "author", "date", "format", "theme", "bibliography"];
     const lines = [];
     for (const key of keys) {
         const value = field(metadata, key);

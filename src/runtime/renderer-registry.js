@@ -56,6 +56,8 @@ export function createRenderResult(fields) {
         throw new Error("RenderResult content must be text or Uint8Array bytes");
     }
     const target = targetName(fields.target, "RenderResult target");
+    const deterministic = fields.deterministic !== false;
+    const binary = fields.content instanceof Uint8Array;
     return Object.freeze({
         type: "render_result",
         target,
@@ -64,9 +66,15 @@ export function createRenderResult(fields) {
         content: fields.content,
         assets: Object.freeze((fields.assets || []).map(normalizeAsset)),
         diagnostics: Object.freeze((fields.diagnostics || []).map((item) => normalizeDiagnostic(item, `${target}.diagnostic`))),
-        deterministic: fields.deterministic !== false,
+        deterministic,
         toolchain: fields.toolchain ? String(fields.toolchain) : null,
-        metadata: Object.freeze({ ...(fields.metadata || {}) }),
+        metadata: Object.freeze({
+            schema: "rix.renderer.metadata@1",
+            target,
+            deterministic,
+            encoding: binary ? "binary" : "utf8",
+            ...(fields.metadata || {}),
+        }),
     });
 }
 

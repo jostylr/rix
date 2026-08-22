@@ -1462,8 +1462,10 @@ const shapedMethods = {
     }),
     RESHAPE: method("RESHAPE", ([target, shape]) => {
         ensureShaped(target, "Reshape");
-        const nextShape = shape?.type === "tuple" ? shape.values.map((value) => numericIndex(value)) : null;
-        if (!nextShape) throw new Error("Reshape expects a shape tuple");
+        const nextShape = shape?.type === "tuple" || shape?.type === "sequence"
+            ? shape.values.map((value) => numericIndex(value))
+            : null;
+        if (!nextShape) throw new Error("Reshape expects a shape tuple or Array");
         const expected = nextShape.reduce((product, dim) => product * dim, 1);
         if (expected !== shapedSize(target)) throw new Error("Reshape size mismatch");
         return createShaped(nextShape, target.data);

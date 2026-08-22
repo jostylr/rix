@@ -134,3 +134,38 @@ The boundary values are conventional principal values, but their
 `:branchBoundary` status warns analytic transformations that no open
 neighborhood avoids the cut.
 
+## Enclose images of complex sets
+
+Regions denote sets rather than hidden singleton values. A centered disc uses
+the direct validated analytic kernel, while a rectangle uses outward interval
+ranges:
+
+```rix
+.Plugin.Load("complex");
+disc := .complex.Disc(.complex(0,0),1/10);
+box := .complex.Rectangle((-1):1,(-1):1);
+discImage := disc.Image(:exp,{= absoluteWidth=1/10000,maxWork=1000 });
+boxImage := box.Image(:sin,{= absoluteWidth=1/10000,maxWork=1000 });
+.Table({=
+  columns=["input","output geometry","algorithm","outward"],
+  rows=[
+    ["disc",discImage[:geometry],discImage[:evidence][:algorithm],discImage[:evidence][:outward]],
+    ["rectangle",boxImage[:geometry],boxImage[:evidence][:algorithm],boxImage[:evidence][:outward]]
+  ]
+});
+```
+
+## Subdivide uncertainty without hiding it
+
+```rix
+.Plugin.Load("complex");
+region := .complex.Rectangle((-1):1,(-1):1);
+analysis := region.AnalyzeBoundary(:logBranch,{=
+  maxDepth=4,maxCells=40,absoluteWidth=1/1000,maxWork=500
+});
+{: analysis[:status],analysis[:resolved].Len(),analysis[:hits].Len(),
+   analysis[:unresolved].Len(),analysis[:work] };
+```
+
+Any cells left by the work/depth budget remain in `unresolved`, still carrying
+their certified outward rectangles.

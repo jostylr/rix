@@ -12,3 +12,8 @@ Graphics are inline SVG by default. Set `assets="svg"` or `assets="png"` to
 return subsidiary files in the RenderResult, with `assetDir="assets"` as the
 default relative directory. PNG assets require a host rasterizer. The CLI
 writes returned assets safely alongside the QMD.
+
+Phase 2 can return a deterministic `_quarto.yml` from a `project` map containing
+`type`, `outputDir`, and multi-document `navigation`. Front matter accepts
+`bibliography` and `theme`; `codePolicy` is `"show"`, `"hide"`, or `"execute"`.
+Explicit Quarto blocks require `rawMarkup="allow"`.

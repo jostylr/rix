@@ -7,6 +7,15 @@ not a second scene type. Browser hosts can execute it with
 
 Use `.canvas.Render(graphic)` or `.Out("name.canvas.json", graphic)`.
 
+Phase 2 plans retain the compatible `rix.canvas-plan@1` schema and add
+`phase=2`, logical and backing-store dimensions, a positive device pixel
+ratio, shared `rix.viewport@1`/`rix.selection@1` records, semantic hit regions,
+dirty regions, deferred asset declarations, and a DOM/text accessibility
+companion. `invertCanvasPoint` maps CSS pointer coordinates back through the
+viewport, while `hitTestCanvasPlan` returns the topmost stable semantic ID.
+`loadCanvasAssets` requires an explicit host callback, so the evaluator never
+gains ambient filesystem or network access.
+
 A `rix.scene3d.snapshot@1` result is also accepted directly. Canvas consumes
 its projected Graphic while preserving the Scene3D source and picking maps in
 the plan's `scene3d` field:

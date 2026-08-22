@@ -222,6 +222,68 @@ describe("linalg Phase 2 exact decompositions", () => {
         expect(result.values[8].value).toBe("requiresTallOrSquareMatrix");
         expect(result.values.slice(9).map(String)).toEqual(["2", "3"]);
     });
+
+    test("models linear maps between spaces with composition, duals, pushforwards, and pullbacks", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("linalg");
+            V := .linalg.VectorSpace("V",2); W := .linalg.VectorSpace("W",3);
+            e := .linalg.Frame(V,"e",:defining); g := .linalg.Frame(W,"g",:defining);
+            A := .linalg.LinearMap(V,W,{:3x2: 1,0;0,1;1,1},{= sourceFrame=e,targetFrame=g,name="A" });
+            B := .linalg.LinearMap(V,V,[1,1;0,1],{= sourceFrame=e,targetFrame=e,name="B" });
+            x := .linalg.Vector([1,2],e); alpha := .linalg.Covector([1,1,1],g);
+            {:
+                A.Pushforward(x).components,
+                A.Pullback(alpha).components,
+                B.Inverse().Pushforward(B.Pushforward(x)).components,
+                A.Compose(B).Pushforward(x).components,
+                A.Dual().Verify(),A.Verify(),.linalg.DualSpace(V)[:dimension]
+            };
+        `);
+        expect(flat(result.values[0])).toEqual(["1", "2", "3"]);
+        expect(flat(result.values[1])).toEqual(["2", "2"]);
+        expect(flat(result.values[2])).toEqual(["1", "2"]);
+        expect(flat(result.values[3])).toEqual(["3", "2", "5"]);
+        expect(result.values.slice(4, 6).map(String)).toEqual(["1", "1"]);
+        expect(String(result.values[6])).toBe("2");
+    });
+
+    test("forms tensor products and exact primal-dual contractions", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("linalg");
+            V := .linalg.VectorSpace("V",2); e := .linalg.Frame(V,"e",:defining);
+            x := .linalg.Vector([1,2],e); alpha := .linalg.Covector([3,4],e);
+            product := .linalg.TensorProduct(x,alpha);
+            spaceProduct := .linalg.TensorProduct(V,.linalg.DualSpace(V));
+            {: product.components,product.Contract(1,2),spaceProduct[:dimension] };
+        `);
+        expect(flat(result.values[0])).toEqual(["3", "4", "6", "8"]);
+        expect(String(result.values[1])).toBe("11");
+        expect(String(result.values[2])).toBe("4");
+    });
+
+    test("realizes bounded polynomials as linked vectors and serializes stable lineage records", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("linalg");
+            P3 := .linalg.PolynomialSpace(3,:x);
+            polynomial := .p\`x^2+2*x+3\`;
+            view := P3.Realize(polynomial);
+            rebuilt := view.Reconstruct();
+            moved := view[:vector].Transform(P3[:frame]);
+            {:
+                view[:schema],view[:domain].__type,view[:vector].components,
+                rebuilt==polynomial,.linalg.Serialize(view),.linalg.Serialize(moved)
+            };
+        `);
+        expect(result.values[0].value).toBe("rix.linalg.linear-realization@1");
+        expect(result.values[1].value).toBe("Polynomial");
+        expect(flat(result.values[2])).toEqual(["3", "2", "1", "0"]);
+        expect(String(result.values[3])).toBe("1");
+        expect(result.values[4].entries.get("kind").value).toBe("linearRealization");
+        expect(result.values[5].entries.get("kind").value).toBe("tensorRepresentation");
+        expect(String(result.values[5].entries.get("tensorid"))).toBe(
+            String(result.values[4].entries.get("vector").entries.get("tensorid")),
+        );
+    });
 });
 
 describe("optimize Phase 1 plugin", () => {
@@ -263,11 +325,91 @@ describe("optimize Phase 1 plugin", () => {
         expect(result.values[6].value).toBe("rix");
     });
 
-    test("rejects Phase 1 models without an initial feasible origin", () => {
-        expect(() => parseAndEvaluate(`
+    test("reports infeasible models through the two-phase solver", () => {
+        const result = parseAndEvaluate(`
             .Plugin.Load("optimize");
-            .optimize.Minimize([1], {:1x1: 1}, [-1]);
-        `)).toThrow("nonnegative b");
+            solved := .optimize.Minimize([1], {:1x1: 1}, [-1]);
+            solved.status;
+        `);
+        expect(result.value).toBe("infeasible");
+    });
+});
+
+describe("optimize Phase 2 general exact LP", () => {
+    test("handles equality and greater-than constraints with exact primal/dual certificates", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("optimize");
+            equality := .optimize.LinearProgram([1,0],[1,1;1,0],[3,2],{= relations=[:eq,:le] });
+            minimum := .optimize.LinearProgram([1],{:1x1: 1},[2],{= sense=:min,relations=[:ge] });
+            a := equality.Solve({= twoPhase=1 }); b := minimum.Solve();
+            {:
+                a[:status],a[:solution],a[:objectivevalue],a[:dualsolution],a[:certificate].Verify(),
+                b[:status],b[:solution],b[:objectivevalue],b[:dualsolution],b[:certificate].Verify()
+            };
+        `);
+        expect(result.values[0].value).toBe("optimal");
+        expect(flat(result.values[1])).toEqual(["2", "1"]);
+        expect(String(result.values[2])).toBe("2");
+        expect(flat(result.values[3])).toEqual(["0", "1"]);
+        expect(String(result.values[4])).toBe("1");
+        expect(result.values[5].value).toBe("optimal");
+        expect(flat(result.values[6])).toEqual(["2"]);
+        expect(String(result.values[7])).toBe("2");
+        expect(flat(result.values[8])).toEqual(["-1"]);
+        expect(String(result.values[9])).toBe("1");
+    });
+
+    test("canonicalizes free and bounded variables without losing original coordinates", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("optimize");
+            free := .optimize.LinearProgram([1],{:1x1: 1},[-1],{=
+                relations=[:le],lowerBounds=[_],upperBounds=[_]
+            }).Solve();
+            bounded := .optimize.LinearProgram([1],{:1x1: 0},[1],{=
+                lowerBounds=[-2],upperBounds=[3]
+            }).Solve();
+            {: free[:solution],free[:objectivevalue],bounded[:solution],bounded[:objectivevalue] };
+        `);
+        expect(flat(result.values[0])).toEqual(["-1"]);
+        expect(String(result.values[1])).toBe("-1");
+        expect(flat(result.values[2])).toEqual(["3"]);
+        expect(String(result.values[3])).toBe("3");
+    });
+
+    test("returns independently replayable infeasible and unbounded certificates", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("optimize");
+            impossible := .optimize.LinearProgram([1],[1;1],[2,1],{= relations=[:ge,:le] }).Solve();
+            ray := .optimize.LinearProgram([1],{:1x1: 1},[0],{= relations=[:ge] }).Solve();
+            {:
+                impossible[:status],impossible[:certificate].Verify(),
+                ray[:status],ray[:certificate][:direction],ray[:certificate].Verify()
+            };
+        `);
+        expect(result.values[0].value).toBe("infeasible");
+        expect(String(result.values[1])).toBe("1");
+        expect(result.values[2].value).toBe("unbounded");
+        expect(flat(result.values[3])).toEqual(["1"]);
+        expect(String(result.values[4])).toBe("1");
+    });
+
+    test("publishes basis reuse, exact RHS sensitivity, and stable model interchange", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("optimize");
+            model := .optimize.LinearProgram([1,0],[1,1;1,0],[3,2],{= relations=[:eq,:le],name="demo" });
+            solved := model.Solve({= twoPhase=1 });
+            rebuilt := .optimize.FromRecord(model.Record());
+            {:
+                solved[:basisfactorization].Verify(),solved.BasisSolve([4,1]),
+                solved[:sensitivity][:rhsranges],rebuilt.Record(),rebuilt.Solve({= twoPhase=1 })[:objectivevalue]
+            };
+        `);
+        expect(String(result.values[0])).toBe("1");
+        expect(flat(result.values[1])).toEqual(["3", "1"]);
+        expect(result.values[2].values).toHaveLength(2);
+        expect(result.values[2].values[0].entries.get("deltalower")).not.toBeNull();
+        expect(result.values[3].entries.get("schema").value).toBe("rix.optimize.linear-program@2");
+        expect(String(result.values[4])).toBe("2");
     });
 });
 
@@ -287,14 +429,82 @@ describe("solve Phase 1 plugin", () => {
         expect(result.values[4].value).toBe("rix");
     });
 
-    test("rejects nonlinear and inequality systems explicitly", () => {
+    test("rejects implicit nonlinear dispatch without an explicit polynomial provider", () => {
         expect(() => parseAndEvaluate(`
             .Plugin.Load("solve");
             .solve.System({#:x# x^2 == 4 });
         `)).toThrow("Nonlinear power");
-        expect(() => parseAndEvaluate(`
+    });
+});
+
+describe("solve Phase 2 domain dispatch and Solution values", () => {
+    test("returns finite, parametric, and empty exact Solution objects", () => {
+        const result = parseAndEvaluate(`
             .Plugin.Load("solve");
-            .solve.System({#:x# x >= 1 });
-        `)).toThrow("supports exact equalities");
+            finite := .solve.System({#a,b:x,y# x+y==a; x-y==b },{= values={= a=3,b=1 } });
+            parametric := .solve.System({#:x,y# x+y==2 },{= parameters=["s"] });
+            chosen := parametric.Substitute({= s=3 });
+            empty := .solve.System({#:x# x==1; x==2 });
+            {:
+                finite[:kind],finite[:solution],finite.Check(),
+                parametric[:kind],parametric[:parameters],chosen,parametric.Residuals(chosen),parametric.Check(chosen),
+                empty[:kind]
+            };
+        `);
+        expect(result.values[0].value).toBe("finite");
+        expect(String(result.values[1].entries.get("x"))).toBe("2");
+        expect(String(result.values[2])).toBe("1");
+        expect(result.values[3].value).toBe("parametric");
+        expect(result.values[4].values[0].value).toBe("s");
+        expect([String(result.values[5].entries.get("x")), String(result.values[5].entries.get("y"))])
+            .toEqual(["-1", "3"]);
+        expect(result.values[6].values.map(String)).toEqual(["0"]);
+        expect(String(result.values[7])).toBe("1");
+        expect(result.values[8].value).toBe("empty");
+    });
+
+    test("normalizes mixed definitions and inequalities before Optimize dispatch", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("solve");
+            linearProgram := .solve.System({#:x,y# x+y<=4; x<=2; y<=3 },{=
+                objective={= x=3,y=2 },sense=:max
+            });
+            mixed := .solve.System({#:x,y# y=x+1; x>=0; y<=3 },{=
+                objective={= x=1 },sense=:max
+            });
+            {:
+                linearProgram[:classification],linearProgram[:solution],linearProgram.Check(),
+                mixed[:solution],mixed.Check(),mixed[:optimizationresult][:certificate].Verify()
+            };
+        `);
+        expect(result.values[0].value).toBe("optimization");
+        expect([String(result.values[1].entries.get("x")), String(result.values[1].entries.get("y"))])
+            .toEqual(["2", "2"]);
+        expect(String(result.values[2])).toBe("1");
+        expect([String(result.values[3].entries.get("x")), String(result.values[3].entries.get("y"))])
+            .toEqual(["2", "3"]);
+        expect(result.values.slice(4).map(String)).toEqual(["1", "1"]);
+    });
+
+    test("dispatches polynomial roots exactly and scalar callables through Numerics", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("solve");
+            polynomial := .solve.Polynomial(.p\`x^2-2\`,1:2);
+            viaSystem := .solve.System({#:x# x^2==2 },{= polynomial=.p\`x^2-2\`,interval=1:2 });
+            numerical := .solve.Numerical((x)->x^2-2,1:2,{= absoluteWidth=1/100,maxWork=20 });
+            {:
+                polynomial[:kind],polynomial[:solution].CompareRational(3/2),polynomial.Check(),
+                viaSystem[:classification],
+                numerical[:classification],numerical[:status],numerical[:certified],numerical[:assumptions]
+            };
+        `);
+        expect(result.values[0].value).toBe("branch");
+        expect(result.values[1].value).toBe("less");
+        expect(String(result.values[2])).toBe("1");
+        expect(result.values[3].value).toBe("polynomial");
+        expect(result.values[4].value).toBe("numerical");
+        expect(result.values[5].value).toBe("isolatedAssumed");
+        expect(result.values[6]).toBeNull();
+        expect(result.values[7].values.map((item) => item.value)).toEqual(["continuityOrTrustedRootCount"]);
     });
 });

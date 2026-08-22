@@ -6,7 +6,8 @@ mount: html
 exports: [Render]
 groups: [Renderers]
 permissions: []
-provides: [rix.renderer.html@1]
+provides: [rix.renderer.html@1, rix.renderer.html@2]
+schemas: [rix.html.render@2]
 targets: [html, text/html]
 snapshot: true
 deterministic: true
@@ -30,6 +31,43 @@ function staticDiagnostics(value, diagnostics, seen = new Set()) {
     for (const snapshot of value.snapshots || []) staticDiagnostics(snapshot.content, diagnostics, seen);
 }
 
+function prepareHtmlValue(value, state, seen = new Map()) {
+    if (!value || typeof value !== "object") return value;
+    if (seen.has(value)) return seen.get(value);
+    if (value.documentTargetMarkup) {
+        const { target, content } = value.documentTargetMarkup;
+        if ((target === "html" || target === "htm") && state.rawMarkup === "deny") throw new Error("html rawMarkup policy denies explicit target markup");
+        if ((target === "html" || target === "htm") && state.rawMarkup === "allow") {
+            const marker = `RIXRAWMARKUP${state.replacements.length}END`;
+            state.replacements.push([marker, content]);
+            return { ...value, value: { type: "string", value: marker } };
+        }
+    }
+    if (value.type === "output" && value.kind === "graphic" && state.assetPolicy !== "inline") {
+        state.figure += 1;
+        const rendered = state.render(value, state.assetPolicy, {});
+        const path = `${state.assetDir}/figure-${state.figure}.${rendered.extension}`;
+        state.assets.push({ path, mime: rendered.mime, content: rendered.content });
+        state.diagnostics.push(...rendered.diagnostics);
+        return {
+            type: "output", kind: "image", asset: { type: "output", kind: "asset", ref: path, mime: rendered.mime },
+            alt: `Figure ${state.figure}`, width: null, height: null, title: null, caption: null, id: null,
+        };
+    }
+    const clone = Array.isArray(value) ? [] : { ...value };
+    seen.set(value, clone);
+    if (Array.isArray(value)) {
+        value.forEach((entry) => clone.push(prepareHtmlValue(entry, state, seen)));
+        return clone;
+    }
+    for (const key of ["children", "items", "slides"]) {
+        if (Array.isArray(value[key])) clone[key] = value[key].map((entry) => prepareHtmlValue(entry, state, seen));
+    }
+    if (value.content) clone.content = prepareHtmlValue(value.content, state, seen);
+    if (Array.isArray(value.snapshots)) clone.snapshots = value.snapshots.map((entry) => ({ ...entry, content: prepareHtmlValue(entry.content, state, seen) }));
+    return clone;
+}
+
 export const definition = {
     target: "html",
     mime: "text/html",
@@ -38,15 +76,37 @@ export const definition = {
     inputKinds: [],
     deterministic: true,
     description: "Standalone semantic HTML renderer for portable RiX output trees",
-    render({ value, options, format }) {
+    render({ value, options, format, render }) {
         const title = rixString(option(options, "title")) || "RiX output";
+        const stylePolicy = (rixString(option(options, "stylePolicy", "inline")) || "inline").toLowerCase();
+        if (!["inline", "external", "none"].includes(stylePolicy)) throw new Error("html stylePolicy must be inline, external, or none");
+        const assetPolicy = (rixString(option(options, "assets", "inline")) || "inline").toLowerCase();
+        if (!["inline", "svg", "png"].includes(assetPolicy)) throw new Error("html assets must be inline, svg, or png");
+        const rawMarkup = (rixString(option(options, "rawMarkup", "fallback")) || "fallback").toLowerCase();
+        if (!["allow", "fallback", "deny"].includes(rawMarkup)) throw new Error("html rawMarkup must be allow, fallback, or deny");
+        const assetDir = rixString(option(options, "assetDir", "assets")) || "assets";
+        if (!assetDir || assetDir.startsWith("/") || assetDir.split("/").includes("..")) throw new Error("html assetDir must be a safe relative directory");
         const style = rixString(option(options, "style")) || DEFAULT_STYLE;
-        const body = renderOutputHtml(value, format);
+        const reportTheme = value?.documentTheme?.entries;
+        const theme = rixString(option(options, "theme")) || reportTheme?.get("name")?.value || "plain";
+        if (!/^[a-z][a-z0-9_-]*$/i.test(theme)) throw new Error("html theme must be a simple theme name");
+        const accent = reportTheme?.get("accent")?.value || "#275dad";
         const diagnostics = [];
         staticDiagnostics(value, diagnostics);
+        const state = { rawMarkup, assetPolicy, assetDir, render, assets: [], diagnostics, replacements: [], figure: 0 };
+        const prepared = prepareHtmlValue(value, state);
+        let body = renderOutputHtml(prepared, format);
+        for (const [marker, content] of state.replacements) body = body.replaceAll(marker, content);
+        const styleHref = `${assetDir}/rix.css`;
+        if (stylePolicy === "external") state.assets.push({ path: styleHref, mime: "text/css", content: style });
+        const themedStyle = `:root{--rix-accent:${accent}}${style}`;
+        if (stylePolicy === "external") state.assets[state.assets.length - 1].content = themedStyle;
+        const styleTag = stylePolicy === "inline" ? `<style>${themedStyle}</style>` : stylePolicy === "external" ? `<link rel="stylesheet" href="${escapeHtml(styleHref)}">` : "";
         return {
-            content: `<!doctype html>\n<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)}</title><style>${style}</style></head><body><main>${body}</main></body></html>\n`,
+            content: `<!doctype html>\n<html lang="en" data-rix-theme="${escapeHtml(theme)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)}</title>${styleTag}</head><body><main>${body}</main></body></html>\n`,
             diagnostics,
+            assets: state.assets,
+            metadata: { schema: "rix.html.render@2", assetPolicy, stylePolicy, rawMarkup, theme },
         };
     },
 };

@@ -6,7 +6,8 @@ mount: canvas
 exports: [Render]
 groups: [Renderers]
 permissions: []
-provides: [rix.renderer.canvas@1]
+provides: [rix.renderer.canvas@1, rix.renderer.canvas@2, rix.viewport@1, rix.selection@1]
+schemas: [rix.canvas-plan@1, rix.canvas-accessibility@1, rix.viewport@1, rix.selection@1]
 targets: [canvas, application/vnd.rix.canvas+json]
 snapshot: true
 deterministic: true
@@ -24,10 +25,10 @@ export const definition = {
     inputKinds: ["graphic", "figure", "scene3d_snapshot"],
     deterministic: true,
     description: "Serializable CanvasRenderingContext2D plan for core Graphics",
-    render({ value, format }) {
+    render({ value, options, format }) {
         const { value: graphic, snapshot } = unwrapGraphic(value);
         requireOutput(graphic, ["graphic"], "canvas");
-        const plan = createCanvasPlan(graphic, format);
+        const plan = createCanvasPlan(graphic, format, options);
         if (snapshot) {
             plan.scene3d = {
                 schema: "rix.scene3d.snapshot@1",
@@ -43,7 +44,13 @@ export const definition = {
         return {
             content: `${JSON.stringify({ ...plan, diagnostics: undefined })}\n`,
             diagnostics: plan.diagnostics,
-            metadata: { width: plan.width, height: plan.height, schema: plan.schema },
+            metadata: {
+                width: plan.width, height: plan.height, backingWidth: plan.backingWidth,
+                backingHeight: plan.backingHeight, pixelRatio: plan.pixelRatio,
+                schema: plan.schema, viewport: plan.viewport, selection: plan.selection,
+                hitCount: plan.hitRegions.length, assetCount: plan.assets.length,
+                accessibility: plan.accessibility.schema,
+            },
         };
     },
 };
@@ -52,4 +59,4 @@ export function install(api) {
     return installRendererPlugin({ ...api, definition });
 }
 
-export { createCanvasPlan, paintCanvasPlan } from "./canvas-plan.js";
+export { createCanvasPlan, hitTestCanvasPlan, invertCanvasPoint, loadCanvasAssets, paintCanvasPlan } from "./canvas-plan.js";

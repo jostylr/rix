@@ -3,12 +3,12 @@ id: nd
 description: Pure-RiX exact n-dimensional geometry with affine and Cayley projection records and explicit Scene3D adaptation.
 kind: rix
 mount: nd
-exports: [Point, Polyline, Polytope, Hypercube, Projection, CoordinateProjection, CayleyRotation, Compose, Project, ToScene3D]
+exports: [Point, Polyline, Polytope, Hypercube, Projection, CoordinateProjection, CayleyRotation, Compose, Project, Field, Evaluate, SampleField, AffineSlice, Parameterize, Hyperplane, Section, Fiber, ProjectionFamily, ProjectionAt, ToPlot, ToScene3D]
 groups: [Geometry, Scene3D, Exact]
 permissions: []
-requires: [rix.scene3d@1]
-provides: [rix.nd@1, rix.nd.projection@1]
-schemas: [rix.nd@1, rix.nd.projection@1]
+requires: [rix.scene3d@1, rix.plot@1]
+provides: [rix.nd@1, rix.nd@2, rix.nd.projection@1, rix.nd.field@1, rix.nd.slice@1, rix.nd.fiber@1, rix.nd.projection-family@1]
+schemas: [rix.nd@1, rix.nd.projection@1, rix.nd.field@1, rix.nd.slice@1, rix.nd.hyperplane@1, rix.nd.fiber@1, rix.nd.projection-family@1]
 snapshot: true
 deterministic: true
 defaultEnabled: false
@@ -18,7 +18,7 @@ NDOption(options,key,fallback ?= _)->options.Has(key) ?: options[key] ?_ fallbac
 NDExact(value,label)->{; exact=value ~!: :Rational; exact==_ ?: .Error(@"@{label} must be an exact Integer or Rational") ?_ exact; };
 NDInteger(value,label)->{; integer=value ~!: :Integer; integer==_ ?: .Error(@"@{label} must be an Integer") ?_ integer; };
 
-NDValue(kind,fields)->.DeepMutable({= type="nd_geometry",kind=kind,schema="rix.nd@1" }.Merge(fields),_);
+NDValue(kind,fields)->.ImmutableValue({= type="nd_geometry",kind=kind,schema="rix.nd@1" }.Merge(fields));
 NDIsGeometry(value)->(value ? :Map)&&value.Has("schema")&&value[:schema]=="rix.nd@1"&&value[:type]=="nd_geometry";
 NDIsProjection(value)->(value ? :Map)&&value.Has("schema")&&value[:schema]=="rix.nd.projection@1"&&value[:type]=="nd_projection";
 
@@ -74,7 +74,7 @@ NDProjectionValue(matrix,offset,method,provenance ?= [])->{;
     rows.Filter((row)->row.Len()!=@source).Len()==0 ?: _ ?_ .Error("nd.Projection matrix rows must have equal lengths");
     offset ? :Array ?: _ ?_ .Error("nd.Projection offset must be an Array");
     offset.Len()==rows.Len() ?: _ ?_ .Error(@"nd.Projection offset must have @{rows.Len()} coordinates");
-    .DeepMutable({= type="nd_projection",kind=:affine,schema="rix.nd.projection@1",sourceDimension=source,targetDimension=rows.Len(),matrix=rows,offset=offset.Map((value)->NDExact(value,"nd.Projection offset")),method=method,provenance=provenance },_);
+    .ImmutableValue({= type="nd_projection",kind=:affine,schema="rix.nd.projection@1",sourceDimension=source,targetDimension=rows.Len(),matrix=rows,offset=offset.Map((value)->NDExact(value,"nd.Projection offset")),method=method,provenance=provenance });
 };
 
 NDProjection(matrix,offset ?= _,options ?= {= })->{;
@@ -169,10 +169,184 @@ NDHypercube(dimension,size ?= 2)->{;
     NDPolytope(vertices,edges);
 };
 
+NDVector(value,dimension,label)->{;
+    value ? :Array ?: _ ?_ .Error(@"@{label} must be an Array");
+    value.Len()==dimension ?: _ ?_ .Error(@"@{label} must have dimension @{dimension}");
+    value.Map((coordinate)->NDExact(coordinate,label));
+};
+NDDot(left,right)->{; total:=0; {@ index=1;index<=@left.Len();{; @total+=@left[index]*@right[index]; };index+=1}; total; };
+NDVectorAddScaled(origin,directions,parameters)->{;
+    result:=origin.Map((coordinate)->coordinate);
+    {@ direction=1;direction<=@directions.Len();{;
+        {@ coordinate=1;coordinate<=@result.Len();{; @result=@result.Set(coordinate,@result[coordinate]+@parameters[@direction]*@directions[@direction][coordinate]); };coordinate+=1};
+    };direction+=1};
+    result;
+};
+
+NDField(domainDimension,codomainDimension ?= _,fn ?= _,options ?= {= })->{;
+    settings=domainDimension ? :Map ?: domainDimension ?_ {= domainDimension=domainDimension,codomainDimension=codomainDimension,fn=fn }.Merge(options);
+    domain=NDInteger(settings[:domainDimension],"nd.Field domain dimension"); codomain=NDInteger(settings[:codomainDimension],"nd.Field codomain dimension");
+    domain>=1&&codomain>=1 ?: _ ?_ .Error("nd.Field dimensions must be positive"); settings[:fn]!=_ ?: _ ?_ .Error("nd.Field requires fn");
+    value={=
+        valueKind=:ndField,schema="rix.nd.field@1",domainDimension=domain,codomainDimension=codomain,fn=settings[:fn],
+        domain=NDOption(settings,"domain"),name=NDOption(settings,"name","field"),provenance=NDProvenance(settings),metadata=NDOption(settings,"metadata")
+    };
+    value._proto={=
+        Evaluate=(self,point)->NDFieldEvaluate(self,point),
+        Sample=(self,points)->NDFieldSample(self,points),
+        Fiber=(self,target,domainGeometry ?= _)->NDFiber(self,target,domainGeometry),
+        Record=(self)->self
+    };
+    .ImmutableValue(value);
+};
+NDFieldRequire(value)->((value ? :Map)&&value[:schema]=="rix.nd.field@1") ?: value ?_ .Error("Expected an nd.Field");
+NDFieldEvaluate(field,point)->{;
+    exact=NDFieldRequire(field); input=NDVector(point,exact[:domainDimension],"nd.Field input"); output=input|>exact[:fn];
+    NDVector(output,exact[:codomainDimension],"nd.Field output");
+};
+NDFieldSample(field,points)->{;
+    exact=NDFieldRequire(field); normalized=NDPoints(points,"nd.Field sample",exact[:domainDimension]);
+    values=normalized[:values].Map((point)->NDFieldEvaluate(@exact,point));
+    NDValue(:fieldSamples,{=
+        dimension=exact[:domainDimension],domainDimension=exact[:domainDimension],codomainDimension=exact[:codomainDimension],
+        points=normalized[:values],values=values,field=exact,provenance=exact[:provenance].Push({= operation=:sample,count=values.Len() }),metadata={= schema="rix.nd.field-samples@1" }
+    });
+};
+
+NDAffineSlice(origin,directions,options ?= {= })->{;
+    origin ? :Array ?: _ ?_ .Error("nd.AffineSlice origin must be an Array"); dimension=origin.Len(); dimension>=1 ?: _ ?_ .Error("nd.AffineSlice origin cannot be empty");
+    exactOrigin=NDVector(origin,dimension,"nd.AffineSlice origin"); directions ? :Array ?: _ ?_ .Error("nd.AffineSlice directions must be an Array");
+    directions.Len()>=1 ?: _ ?_ .Error("nd.AffineSlice requires at least one direction"); exactDirections=directions.Map((direction)->NDVector(direction,@dimension,"nd.AffineSlice direction"));
+    rows:=[]; {@ coordinate=1;coordinate<=@dimension;{; row:=[]; {@ direction=1;direction<=@exactDirections.Len();{; @row~=@row.Push(@exactDirections[direction][@coordinate]); };direction+=1}; @rows~=@rows.Push(row); };coordinate+=1};
+    inclusion=NDProjectionValue(rows,exactOrigin,"affine-slice-inclusion",[{= origin=exactOrigin,directions=exactDirections }]);
+    value={=
+        valueKind=:ndAffineSlice,schema="rix.nd.slice@1",sourceDimension=dimension,parameterDimension=exactDirections.Len(),
+        origin=exactOrigin,directions=exactDirections,inclusion=inclusion,provenance=NDProvenance(options),metadata=NDOption(options,"metadata")
+    };
+    value._proto={=
+        Parameterize=(self,parameters)->NDParameterize(self,parameters),
+        Projection=(self)->self[:inclusion],Record=(self)->self
+    };
+    .ImmutableValue(value);
+};
+NDSliceRequire(value)->((value ? :Map)&&value[:schema]=="rix.nd.slice@1") ?: value ?_ .Error("Expected an nd.AffineSlice");
+NDParameterize(slice,parameters)->{;
+    exact=NDSliceRequire(slice);
+    NDIsGeometry(parameters)
+      ?: NDProject(parameters,exact[:inclusion])
+      ?_ NDVectorAddScaled(exact[:origin],exact[:directions],NDVector(parameters,exact[:parameterDimension],"nd.AffineSlice parameters"));
+};
+
+NDHyperplane(normal,offset ?= 0,options ?= {= })->{;
+    normal ? :Array ?: _ ?_ .Error("nd.Hyperplane normal must be an Array"); normal.Len()>=1 ?: _ ?_ .Error("nd.Hyperplane normal cannot be empty");
+    exactNormal=NDVector(normal,normal.Len(),"nd.Hyperplane normal");
+    .ImmutableValue({=
+        valueKind=:ndHyperplane,schema="rix.nd.hyperplane@1",dimension=normal.Len(),normal=exactNormal,offset=NDExact(offset,"nd.Hyperplane offset"),
+        provenance=NDProvenance(options),metadata=NDOption(options,"metadata")
+    });
+};
+NDHyperplaneRequire(value)->((value ? :Map)&&value[:schema]=="rix.nd.hyperplane@1") ?: value ?_ .Error("Expected an nd.Hyperplane");
+NDGeometryPoints(geometry)->{?
+    geometry[:kind]==:point ? [geometry[:coordinates]];
+    geometry[:kind]==:polyline ? geometry[:points];
+    geometry[:kind]==:polytope ? geometry[:vertices];
+    geometry[:kind]==:section ? geometry[:points];
+    geometry[:kind]==:fiber ? geometry[:points];
+    geometry[:kind]==:fieldSamples ? geometry[:points];
+    .Error("This ND geometry does not expose finite points")
+};
+NDGeometryEdges(geometry,pointCount)->{;
+    geometry[:kind]==:polytope ?: geometry[:edges]
+      ?_ geometry[:kind]==:polyline ?: {;
+          edges:=[]; {@ index=1;index<@pointCount;{; @edges~=@edges.Push([index,index+1]); };index+=1};
+          @geometry[:closed]&&@pointCount>2 ?:{; @edges~=@edges.Push([@pointCount,1]); } ?_ _; edges;
+      }
+      ?_ [];
+};
+NDPointEqual(left,right)->{; equal:=left.Len()==right.Len(); {@ index=1;index<=@left.Len()&&@equal;{; @left[index]==@right[index] ?: _ ?_ {; @equal=_; }; };index+=1}; equal; };
+NDAppendUnique(points,point)->{;
+    found:=_; {@ index=1;index<=@points.Len()&&!@found;{; NDPointEqual(@points[index],@point) ?:{; @found=1; } ?_ _; };index+=1};
+    found ?: points ?_ points.Push(point);
+};
+NDSectionPoint(left,right,leftValue,rightValue)->{;
+    parameter=-leftValue/(rightValue-leftValue);
+    result:=[]; {@ coordinate=1;coordinate<=@left.Len();{; @result~=@result.Push(@left[coordinate]+@parameter*(@right[coordinate]-@left[coordinate])); };coordinate+=1}; result;
+};
+NDSection(geometry,hyperplane,options ?= {= })->{;
+    source=geometry; NDIsGeometry(source) ?: _ ?_ .Error("nd.Section requires finite ND geometry"); plane=NDHyperplaneRequire(hyperplane);
+    source[:dimension]==plane[:dimension] ?: _ ?_ .Error("nd.Section geometry and hyperplane dimensions differ");
+    points=NDGeometryPoints(source); edges=NDGeometryEdges(source,points.Len()); selected:=[];
+    values=points.Map((point)->NDDot(@plane[:normal],point)-@plane[:offset]);
+    {@ index=1;index<=@points.Len();{; @values[index]==0 ?:{; @selected=NDAppendUnique(@selected,@points[@index]); } ?_ _; };index+=1};
+    {@ index=1;index<=@edges.Len();{;
+        edge=@edges[index]; first=@values[edge[1]]; second=@values[edge[2]];
+        first*second<0 ?:{; point=NDSectionPoint(@points[@edge[1]],@points[@edge[2]],@first,@second); @selected=NDAppendUnique(@selected,point); } ?_ _;
+    };index+=1};
+    NDValue(:section,{=
+        dimension=source[:dimension],points=selected,source=source,hyperplane=plane,status=:exactFiniteSection,
+        provenance=source[:provenance].Push({= operation=:section,hyperplane=plane }),metadata=NDOption(options,"metadata"),style=NDOption(options,"style")
+    });
+};
+
+NDOutputsEqual(left,right)->NDPointEqual(left,right);
+NDFiber(field,target,domainGeometry ?= _,options ?= {= })->{;
+    exact=NDFieldRequire(field); exactTarget=NDVector(target,exact[:codomainDimension],"nd.Fiber target");
+    domainGeometry==_ ?: .ImmutableValue({=
+        valueKind=:ndFiber,schema="rix.nd.fiber@1",kind=:abstractFiber,field=exact,target=exactTarget,domainDimension=exact[:domainDimension],
+        status=:implicitPreimage,provenance=exact[:provenance].Push({= operation=:fiber,target=exactTarget })
+    }) ?_ {;
+        NDIsGeometry(@domainGeometry) ?: _ ?_ .Error("nd.Fiber finite domain must be ND geometry");
+        points=NDGeometryPoints(@domainGeometry); selected:=[];
+        {@ index=1;index<=@points.Len();{; output=NDFieldEvaluate(@exact,@points[index]); NDOutputsEqual(output,@exactTarget) ?:{; @selected~=@selected.Push(@points[@index]); } ?_ _; };index+=1};
+        NDValue(:fiber,{=
+            dimension=@exact[:domainDimension],points=selected,field=@exact,target=@exactTarget,source=@domainGeometry,status=:sampledExactFiber,
+            provenance=@domainGeometry[:provenance].Push({= operation=:fiber,target=@exactTarget }),metadata=NDOption(@options,"metadata"),style=NDOption(@options,"style")
+        });
+    };
+};
+
+NDProjectionFamily(sourceDimension,targetDimension,fn,parameterDomain ?= _,options ?= {= })->{;
+    source=NDInteger(sourceDimension,"nd.ProjectionFamily source dimension"); target=NDInteger(targetDimension,"nd.ProjectionFamily target dimension");
+    fn!=_ ?: _ ?_ .Error("nd.ProjectionFamily requires fn");
+    value={=
+        valueKind=:ndProjectionFamily,schema="rix.nd.projection-family@1",sourceDimension=source,targetDimension=target,fn=fn,
+        parameterDomain=parameterDomain,provenance=NDProvenance(options),metadata=NDOption(options,"metadata")
+    };
+    value._proto={=
+        At=(self,parameter)->NDProjectionAt(self,parameter),
+        Project=(self,geometry,parameter)->NDProject(geometry,NDProjectionAt(self,parameter)),Record=(self)->self
+    };
+    .ImmutableValue(value);
+};
+NDProjectionFamilyRequire(value)->((value ? :Map)&&value[:schema]=="rix.nd.projection-family@1") ?: value ?_ .Error("Expected an nd.ProjectionFamily");
+NDProjectionAt(family,parameter)->{;
+    exact=NDProjectionFamilyRequire(family); projection=parameter|>exact[:fn]; NDIsProjection(projection) ?: _ ?_ .Error("nd.ProjectionFamily fn must return an nd.Projection");
+    projection[:sourceDimension]==exact[:sourceDimension]&&projection[:targetDimension]==exact[:targetDimension] ?: _ ?_ .Error("nd.ProjectionFamily result dimensions changed");
+    NDProjectionValue(projection[:matrix],projection[:offset],"parameterized-projection",projection[:provenance].Push({= family=exact,parameter=parameter }));
+};
+
+NDFieldLineData(source)->{; data:=[]; {@ index=1;index<=@source[:points].Len();{; @data~=@data.Push([@source[:points][index][1],@source[:values][index][1]]); };index+=1}; data; };
+NDFieldLiftedPoints(source)->{; data:=[]; {@ index=1;index<=@source[:points].Len();{; @data~=@data.Push([@source[:points][index][1],@source[:points][index][2],@source[:values][index][1]]); };index+=1}; data; };
+
+NDToPlot(geometry,options ?= {= })->{;
+    settings=((geometry ? :Map)&&geometry.Has("geometry")) ?: geometry ?_ options.Merge({= geometry=geometry }); source=settings[:geometry];
+    NDIsGeometry(source) ?: _ ?_ .Error("nd.ToPlot requires finite ND geometry or field samples");
+    source[:kind]==:fieldSamples&&source[:domainDimension]==1&&source[:codomainDimension]==1
+      ?: .plot.Line(NDFieldLineData(source),settings)
+      ?_ source[:dimension]==2 ?: {;
+          points=NDGeometryPoints(@source);
+          @source[:kind]==:polyline ?: .plot.Line(points,@settings)
+            ?_ @source[:kind]==:polytope ?: .plot.Scatter(points,@settings)
+            ?_ .plot.Scatter(points,@settings);
+      }
+      ?_ .Error("nd.ToPlot needs 2D geometry or a scalar field sampled over a 1D domain");
+};
+
 NDToScene3D(geometry,options ?= {= })->{;
     settings=((geometry ? :Map)&&geometry.Has("geometry")) ?: geometry ?_ options.Merge({= geometry=geometry }); source=settings[:geometry];
     NDIsGeometry(source) ?: _ ?_ .Error("nd.ToScene3D requires n-dimensional geometry");
-    source[:dimension]==3 ?: _ ?_ .Error(@"nd.ToScene3D requires dimension 3; explicitly project dimension @{source[:dimension]} first");
+    liftableField=source[:kind]==:fieldSamples&&source[:domainDimension]==2&&source[:codomainDimension]==1;
+    source[:dimension]==3||liftableField ?: _ ?_ .Error(@"nd.ToScene3D requires dimension 3 (or a sampled 2D scalar field); explicitly project dimension @{source[:dimension]} first");
     style=NDOption(settings,"style",NDOption(source,"style",{= })); style=style==_ ?: {= } ?_ style;
     children:=[];
     source[:kind]==:point
@@ -181,6 +355,16 @@ NDToScene3D(geometry,options ?= {= })->{;
            ?: {; @children ~= [.scene3d.Polyline(@source[:points],@style.Merge({= closed=@source[:closed] }))]; }
            ?_ source[:kind]==:polytope
                 ?: {; @children ~= @source[:edges].Map((edge)->.scene3d.Polyline([@source[:vertices][edge[1]],@source[:vertices][edge[2]]],@style)); }
+           ?_ source[:kind]==:section||source[:kind]==:fiber
+                ?: {; @children ~= [.scene3d.PointCloud(@source[:points],@style.Merge({= radius=NDOption(@style,"radius",1/30) }))]; }
+           ?_ source[:kind]==:fieldSamples
+                ?: {;
+                    @source[:domainDimension]==2&&@source[:codomainDimension]==1
+                      ?: {; lifted=NDFieldLiftedPoints(@source); @children ~= [.scene3d.PointCloud(lifted,@style)]; }
+                      ?_ @source[:domainDimension]==3
+                           ?: {; @children ~= [.scene3d.PointCloud(@source[:points],@style)]; }
+                           ?_ .Error("nd.ToScene3D field samples need a 2D scalar domain or 3D domain");
+                }
                 ?_ .Error(@"nd.ToScene3D does not support geometry kind '@{source[:kind]}'");
     sceneOptions={= metadata={= source="rix.nd@1",projectionCount=source[:provenance].Len() } };
     camera=NDOption(settings,"camera"); sceneOptions=camera==_ ?: sceneOptions ?_ sceneOptions.Set("camera",camera);
@@ -198,6 +382,17 @@ ndNamespace._proto={=
     CayleyRotation=(self,dimension,axis1 ?= _,axis2 ?= _,t ?= _)->NDCayleyRotation(dimension,axis1,axis2,t),
     Compose=(self,after,before ?= _)->NDCompose(after,before),
     Project=(self,geometry,projection ?= _)->NDProject(geometry,projection),
+    Field=(self,domainDimension,codomainDimension ?= _,fn ?= _,options ?= {= })->NDField(domainDimension,codomainDimension,fn,options),
+    Evaluate=(self,field,point)->NDFieldEvaluate(field,point),
+    SampleField=(self,field,points)->NDFieldSample(field,points),
+    AffineSlice=(self,origin,directions,options ?= {= })->NDAffineSlice(origin,directions,options),
+    Parameterize=(self,slice,parameters)->NDParameterize(slice,parameters),
+    Hyperplane=(self,normal,offset ?= 0,options ?= {= })->NDHyperplane(normal,offset,options),
+    Section=(self,geometry,hyperplane,options ?= {= })->NDSection(geometry,hyperplane,options),
+    Fiber=(self,field,target,domainGeometry ?= _,options ?= {= })->NDFiber(field,target,domainGeometry,options),
+    ProjectionFamily=(self,sourceDimension,targetDimension,fn,parameterDomain ?= _,options ?= {= })->NDProjectionFamily(sourceDimension,targetDimension,fn,parameterDomain,options),
+    ProjectionAt=(self,family,parameter)->NDProjectionAt(family,parameter),
+    ToPlot=(self,geometry,options ?= {= })->NDToPlot(geometry,options),
     ToScene3D=(self,geometry,options ?= {= })->NDToScene3D(geometry,options)
 };
-.Host.RegisterValue("nd",ndNamespace,"Pure-RiX exact n-dimensional geometry and explicit projections",["Geometry","Scene3D","Exact"]);
+.Host.RegisterValue("nd",ndNamespace,"Pure-RiX exact ND fields, slices, fibers, geometry, and explicit projections",["Geometry","Scene3D","Exact"]);

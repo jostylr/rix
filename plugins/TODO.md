@@ -321,20 +321,20 @@ newline normalization.
      and elliptic-integral families.
    - [x] Extend Gamma and Zeta across their remaining real domains with
      explicit pole, sign, and continuation policies.
-   - [ ] Add generic `Enclose`, `Refine`, `Compare`, `Sign`, root isolation,
+   - [x] Add generic `Enclose`, `Refine`, `Compare`, `Sign`, root isolation,
      adaptive sampling, integration, and optimization.
-   - [ ] Define absolute/relative error budgets and propagation rules.
-   - [ ] Define refinement-cache semantics in the shared contract. A backend
+   - [x] Define absolute/relative error budgets and propagation rules.
+   - [x] Define refinement-cache semantics in the shared contract. A backend
      may reuse prior work, but every certified result in one refinement history
      must be compatible with and nested inside the applicable earlier
      enclosure; cache hits must retain evidence, provenance, requested
      precision, achieved precision, and work accounting.
-   - [ ] Define backend-neutral certified-constant requests for at least `pi`.
+   - [x] Define backend-neutral certified-constant requests for at least `pi`.
      Natural `Exp(1)` now provides certified `e` bounds; named constants must
      provide exact rational bounds, evidence/provenance,
      and a finite verification path independent of trusting a displayed decimal
      or an unbounded computation.
-   - [ ] Add capability negotiation and explain why an algorithm/backend pair
+   - [x] Add capability negotiation and explain why an algorithm/backend pair
      was selected.
 3. **Phase 3 — Differential and multidimensional methods**
    - [ ] Add ODE solvers, multidimensional optimization, interval Newton, and
@@ -446,13 +446,13 @@ tracked in
      orthogonalized column norms have exact Rational square roots; report
      unsupported coefficient extensions, dependent columns, and wide shapes
      with structured diagnostics.
-   - [ ] Add linear maps between distinct vector spaces, composition, inverses,
+   - [x] Add linear maps between distinct vector spaces, composition, inverses,
      dual spaces, tensor products, contractions, and explicit pushforward and
      pullback operations.
-   - [ ] Add a versioned linear-realization protocol so domain objects retain
+   - [x] Add a versioned linear-realization protocol so domain objects retain
      their own identity and operations while exposing linked Vector views;
      use degree-at-most-`n` polynomial spaces as the first finite adapter.
-   - [ ] Make coordinate lineage serializable with stable identity records;
+   - [x] Make coordinate lineage serializable with stable identity records;
      in-memory lineage is already bounded and retains its origin.
    - [x] Define Shaped arithmetic as exact-shape elementwise operations or
      scalar application only, with no implicit broadcasting; keep Matrix
@@ -497,12 +497,12 @@ tracked in
      implementation to pure RiX; retain the JavaScript algorithm only as a
      non-discoverable reference source.
 2. **Phase 2 — General LP forms and certificates**
-   - [ ] Add Phase I feasibility, equality and greater-than constraints,
+   - [x] Add Phase I feasibility, equality and greater-than constraints,
      arbitrary variable bounds, free variables, presolve, and degeneracy/cycle
      policies.
-   - [ ] Return exact primal/dual solutions and checkable certificates for
+   - [x] Return exact primal/dual solutions and checkable certificates for
      optimality, infeasibility, and unboundedness; expose sensitivity ranges.
-   - [ ] Add revised/simplex factorization reuse and a stable model interchange
+   - [x] Add revised/simplex factorization reuse and a stable model interchange
      schema.
 3. **Phase 3 — Broader mathematical optimization**
    - [ ] Add branch-and-bound integer/mixed-integer LP with bounded work and
@@ -534,12 +534,12 @@ tracked in
      `.SpecRoles`, and the pure `rix.linear-algebra@1` service; retain the host
      implementation only as a non-discoverable comparison source.
 2. **Phase 2 — Domain dispatch and solution sets**
-   - [ ] Dispatch linear inequalities/objectives to `.optimize`, univariate
+   - [x] Dispatch linear inequalities/objectives to `.optimize`, univariate
      polynomial equations to `.poly`/`.algebraicReal`, and supported scalar
      numerical equations to `.numerics`.
-   - [ ] Define finite, parametric, empty, unbounded, and branch-valued Solution
+   - [x] Define finite, parametric, empty, unbounded, and branch-valued Solution
      objects with substitution, residual checking, assumptions, and provenance.
-   - [ ] Support role overrides, parameter declarations, and mixed
+   - [x] Support role overrides, parameter declarations, and mixed
      definition/constraint normalization without inferring direction from
      statement order.
 3. **Phase 3 — Polynomial and nonlinear systems**
@@ -849,14 +849,14 @@ the certified numerical singleton layer; it does not replace the core exact
    - [x] Reject finite Balls and Floats as singleton components, and add a
      reference README, runnable tutorial, architecture note, and focused tests.
 2. **Phase 2 — Complex regions and tighter analytic kernels**
-   - [ ] Add first-class `ComplexRegion` values with rectangle, disc, and
+   - [x] Add first-class `ComplexRegion` values with rectangle, disc, and
      finite-union geometries; keep set images separate from singleton recipes.
-   - [ ] Add direct validated complex-ball series and argument reduction for
+   - [x] Add direct validated complex-ball series and argument reduction for
      elementary functions, selecting them ahead of Cartesian fallback when
      they produce tighter bounds.
-   - [ ] Preserve shared-expression correlation and add adaptive subdivision
+   - [x] Preserve shared-expression correlation and add adaptive subdivision
      near poles, zeros, and branch boundaries.
-   - [ ] Let `.complexViz` consume the complex enclosure/branch schemas rather
+   - [x] Let `.complexViz` consume the complex enclosure/branch schemas rather
      than independently interpreting sample pairs.
 3. **Phase 3 — Branch sets and complex special functions**
    - [ ] Add named branches, finite branch sets, analytic-continuation paths,
@@ -878,19 +878,19 @@ the certified numerical singleton layer; it does not replace the core exact
 ### `.cayley`
 
 1. **Phase 1 — Scalar-generic Cayley–Dickson algebra**
-   - [ ] Generalize the recursive component kernel from `exact-algebras`
+   - [x] Generalize the recursive component kernel from `exact-algebras`
      without weakening that plugin's exact-rational schema.
-   - [ ] Accept a declared central real-scalar provider, retain component
+   - [x] Accept a declared central real-scalar provider, retain component
      backend identities, and expose basis, dimension, conjugation, norm
      squared, and parenthesized multiplication records.
-   - [ ] Add certified component-box enclosure and origin/norm separation
+   - [x] Add certified component-box enclosure and origin/norm separation
      protocols shared with `.complex`.
-   - [ ] Advertise inverse/division only when the selected algebra level and
+   - [x] Advertise inverse/division only when the selected algebra level and
      scalar provider justify them.
 2. **Phase 2 — Typed adapters and efficient multiplication**
-   - [ ] Add adapters for core exact Complex values, `.complex` singletons, and
+   - [x] Add adapters for core exact Complex values, `.complex` singletons, and
      rational `exact-algebras` Quaternion/Octonion values.
-   - [ ] Add sparse basis multiplication and specialized dimensions 2, 4, and
+   - [x] Add sparse basis multiplication and specialized dimensions 2, 4, and
      8 while retaining the recursive law as a checker.
 3. **Phase 3 — Validated Cayley functions**
    - [ ] Provide power-series evaluation for one-generated associative
@@ -904,17 +904,17 @@ the certified numerical singleton layer; it does not replace the core exact
 ### `.quaternion`
 
 1. **Phase 1 — Certified quaternion façade**
-   - [ ] Build a four-component typed façade over `.cayley`, with Rational and
+   - [x] Build a four-component typed façade over `.cayley`, with Rational and
      certified-real construction, conjugation, multiplicative norm, inverse,
      and explicit left/right division.
-   - [ ] Add component-box refinement and certified nonzero evidence.
-   - [ ] Add README, tutorial, multiplication-order fixtures, and mixed-real
+   - [x] Add component-box refinement and certified nonzero evidence.
+   - [x] Add README, tutorial, multiplication-order fixtures, and mixed-real
      backend tests.
 2. **Phase 2 — Intrinsic elementary functions**
-   - [ ] Implement `Exp`, principal/result `Log`, roots, powers, and
+   - [x] Implement `Exp`, principal/result `Log`, roots, powers, and
      trigonometric/hyperbolic functions through the associative slice generated
      by `1` and the vector direction.
-   - [ ] Make the zero-vector and negative-real-axis branch families explicit.
+   - [x] Make the zero-vector and negative-real-axis branch families explicit.
 3. **Phase 3 — Quaternion analysis**
    - [ ] Add slice-regular versus Fueter-regular function identities, explicit
      derivative conventions, and validated one-variable series.
@@ -925,16 +925,16 @@ the certified numerical singleton layer; it does not replace the core exact
 ### `.octonion`
 
 1. **Phase 1 — Certified octonion façade**
-   - [ ] Build an eight-component typed façade over `.cayley`, preserving
+   - [x] Build an eight-component typed façade over `.cayley`, preserving
      written parentheses and exposing conjugation, composition norm, inverse,
      and explicit division conventions.
-   - [ ] Add alternativity, Moufang-identity, and nonassociativity fixtures
+   - [x] Add alternativity, Moufang-identity, and nonassociativity fixtures
      over exact Rationals before enabling generic real components.
-   - [ ] Add component-box refinement, documentation, and a runnable tutorial.
+   - [x] Add component-box refinement, documentation, and a runnable tutorial.
 2. **Phase 2 — Intrinsic one-variable functions**
-   - [ ] Add real-coefficient power series and slice formulas whose powers stay
+   - [x] Add real-coefficient power series and slice formulas whose powers stay
      in the associative subalgebra generated by one octonion.
-   - [ ] Preserve branch direction sets and reject identities that reorder or
+   - [x] Preserve branch direction sets and reject identities that reorder or
      reassociate independent octonions.
 3. **Phase 3 — Octonionic analysis and geometry**
    - [ ] Add explicitly chosen derivative/function notions, `G2`-related
@@ -1065,9 +1065,9 @@ records without owning their probability semantics.
    - [x] Demonstrate a report containing prose, a table, and a plotted figure.
    - [x] Add README, template-language tutorial, and cross-reference tests.
 2. **Phase 2 — Citations, assets, and templates**
-   - [ ] Add bibliography/citation values, asset manifests, numbering policies,
+   - [x] Add bibliography/citation values, asset manifests, numbering policies,
      headers/footers, and reusable document templates.
-   - [ ] Keep raw target markup behind explicit target-specific nodes.
+   - [x] Keep raw target markup behind explicit target-specific nodes.
 3. **Phase 3 — Layout and publication profiles**
    - [ ] Add page/deck themes, floats, multi-column layout, indexes, and
      renderer capability negotiation.
@@ -1119,12 +1119,12 @@ The RiX/host extraction sequence is specified in
    - [x] Represent N-dimensional points/polytopes and explicit exact affine projections.
    - [x] Demonstrate a Cayley-rotated 4D hypercube projected to 3D.
    - [x] Add reference documentation, tutorial, projection provenance, and deterministic tests.
-   - [ ] Migrate the exact ND value/projection kernel to RiX, then keep
+   - [x] Migrate the exact ND value/projection kernel to RiX, then keep
      `ToScene3D` as a pure schema adapter over the RiX Scene3D model.
 2. **Phase 2 — Fields, slices, and fibers**
-   - [ ] Add N-dimensional fields, affine slices, sections, fibers, and
+   - [x] Add N-dimensional fields, affine slices, sections, fibers, and
      parameterized projection families.
-   - [ ] Lower results to Plot or Scene3D values.
+   - [x] Lower results to Plot or Scene3D values.
 3. **Phase 3 — Adaptive high-dimensional exploration**
    - [ ] Add implicit regions, sampling budgets, dimensional reduction, linked
      projections, and uncertainty-aware slicing.
@@ -1140,9 +1140,9 @@ The RiX/host extraction sequence is specified in
      poles, and unresolved samples marked.
    - [x] Add README, tutorial, color fixtures, and SVG/Canvas output tests.
 2. **Phase 2 — Cayley and surface views**
-   - [ ] Add magnitude/phase surfaces, Cayley color mapping, Riemann sphere,
+   - [x] Add magnitude/phase surfaces, Cayley color mapping, Riemann sphere,
      and branch-cut metadata.
-   - [ ] Consume Numerics enclosures and Scene3D values.
+   - [x] Consume Numerics enclosures and Scene3D values.
 3. **Phase 3 — Four-dimensional complex maps**
    - [ ] Add explicit projections/slices of
      `(Re z, Im z, Re f(z), Im f(z))`.
@@ -1164,7 +1164,7 @@ The RiX/host extraction sequence is specified in
    - [x] Add README, tutorial, focused source fixtures, and CLI/runtime tests.
    - [x] Add explicit RiX Web/Notebook renderer-plugin integration tests.
 2. **Phase 2 — Complete 2D scene fidelity**
-   - [ ] Add reusable definitions, markers, gradients, patterns, masks, style
+   - [x] Add reusable definitions, markers, gradients, patterns, masks, style
      inheritance, font policy, and stable IDs.
    - [x] Define an exact-coordinate lowering result that retains the original
      exact value and records when SVG text rounds or approximates it. Make the
@@ -1196,9 +1196,9 @@ The RiX/host extraction sequence is specified in
      fixtures.
    - [x] Add a browser performance/repaint tutorial and browser interaction tests.
 2. **Phase 2 — Interaction services**
-   - [ ] Add device-pixel scaling, hit-test IDs, pointer-coordinate inversion,
+   - [x] Add device-pixel scaling, hit-test IDs, pointer-coordinate inversion,
      dirty-region repaint, and image asset loading.
-   - [ ] Implement the shared viewport/selection protocol for pan and zoom,
+   - [x] Implement the shared viewport/selection protocol for pan and zoom,
      preserve semantic object IDs through hit testing, and provide a DOM/text
      accessibility companion so Canvas interaction is not pointer-only or
      screen-reader silent.
@@ -1272,7 +1272,7 @@ The RiX/host extraction sequence is specified in
    - [x] Add README, tutorial, source fixtures, and optional compilation test.
    - [x] Add a dedicated synthetic-division publication example.
 2. **Phase 2 — Themes, citations, and assets**
-   - [ ] Add package negotiation, bibliography, numbering, figure/table
+   - [x] Add package negotiation, bibliography, numbering, figure/table
      placement, and delegated TikZ/SVG/PNG assets.
 3. **Phase 3 — Slides and complex layout**
    - [ ] Add Beamer, multi-column pages, indexes, long tables, and accessibility
@@ -1290,7 +1290,7 @@ The RiX/host extraction sequence is specified in
      traversal for standalone pages.
    - [x] Add README, tutorials, source fixtures, and extension-driven CLI export.
 2. **Phase 2 — Asset and style policies**
-   - [ ] Add external/inline asset negotiation, document themes, semantic CSS
+   - [x] Add external/inline asset negotiation, document themes, semantic CSS
      bundles, cross-references, and configurable raw-markup policy.
 3. **Phase 3 — Interactive publication**
    - [ ] Add progressive enhancement descriptors without changing the static
@@ -1308,7 +1308,7 @@ The RiX/host extraction sequence is specified in
    - [x] Add README, tutorial, and golden source tests.
    - [x] Add an optional Quarto compilation smoke test.
 2. **Phase 2 — Projects and citations**
-   - [ ] Add multi-document projects, navigation, bibliographies, themes, code
+   - [x] Add multi-document projects, navigation, bibliographies, themes, code
      source policy, and target-specific blocks.
 3. **Phase 3 — Decks and books**
    - [ ] Add RevealJS slides, books/sites, cross-document references, and
@@ -1325,7 +1325,7 @@ The RiX/host extraction sequence is specified in
    - [x] Add README, tutorial, byte/toolchain tests, and CLI compilation smoke coverage.
    - [x] Add a page-render visual regression fixture.
 2. **Phase 2 — Figures and slides**
-   - [ ] Add standalone vector/raster figures, slide decks, page sizing,
+   - [x] Add standalone vector/raster figures, slide decks, page sizing,
      metadata, bookmarks, and font diagnostics.
 3. **Phase 3 — Robust multi-toolchain layout**
    - [ ] Negotiate SVG/TikZ/PNG assets, tagged accessibility, color profiles,
@@ -1342,7 +1342,7 @@ The RiX/host extraction sequence is specified in
    - [x] Demonstrate a short mathematical derivation or rotating 2D plot.
    - [x] Add README, tutorial, frame/timing tests, and a visual fixture.
 2. **Phase 2 — Transitions and scene animation**
-   - [ ] Add supported transitions, per-slide duration, dithering, palette
+   - [x] Add supported transitions, per-slide duration, dithering, palette
      policy, and Scene3D rotation snapshots.
 3. **Phase 3 — Rich animation exports**
    - [ ] Add APNG and WebM/MP4 adapters for better color, timing, and size.
@@ -1378,9 +1378,9 @@ The RiX/host extraction sequence is specified in
      action for project-local RiX plugins.
    - [x] Proposed tutorials are readable but cannot misleadingly run.
 2. **Phase 2 gate**
-   - [ ] Shared schema versions and capability negotiation are tested across at
+   - [x] Shared schema versions and capability negotiation are tested across at
      least two independent providers.
-   - [ ] All renderers return structured diagnostics and deterministic metadata.
+   - [x] All renderers return structured diagnostics and deterministic metadata.
 3. **Phase 3 gate**
    - [ ] Certified, approximate, assumed, and unresolved results have visibly
      distinct host presentation.

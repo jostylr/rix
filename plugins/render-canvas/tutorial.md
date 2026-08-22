@@ -25,7 +25,26 @@ diagnostics. Use `.Out("diagram.canvas.json", scene)` to save it with the CLI.
 
 - Browser: complete plan generation and optional host painting.
 - CLI: no external tools.
-- Options: none in the version 1 plan.
+- Options: `pixelRatio`, `viewport`, `selection`, and portable `assets`.
+
+## Preserve interaction semantics
+
+```rix
+interactivePlan := .canvas.Render(.Graphics.Graphic([100,60], [
+    .Graphics.Rectangle([10,10],[30,20], {= fill="#2563eb", id="box" }),
+    .Graphics.Text([50,50], "measurement", {= id="label" })
+]), {=
+    pixelRatio=2,
+    viewport={= origin=[10,5], pan=[4,6], zoom=2 },
+    selection={= ids=["box"], focus="box" },
+    assets=[{= id="texture", path="images/texture.png", mime="image/png" }]
+});
+interactivePlan.Get("metadata");
+```
+
+The serialized plan includes hit-test bounds and an accessibility text/object
+tree. A browser uses the exported host helpers for pointer inversion, hit
+testing, loading declared images, and repainting only the listed dirty regions.
 
 ## Repaint without rebuilding semantics
 

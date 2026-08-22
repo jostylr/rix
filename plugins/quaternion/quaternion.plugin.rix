@@ -1,0 +1,161 @@
+/**
+id: quaternion
+description: Certified quaternion facade with order-aware arithmetic and intrinsic slice functions.
+kind: rix
+mount: quaternion
+exports: [Quaternion, FromCayley, FromExactAlgebra, Components, Scalar, Vector, Basis, Conjugate, NormSquared, Inverse, LeftDivide, RightDivide, Enclose, Refine, ZeroStatus, Direction, Exp, Log, LogResult, Root, RootResult, Power, Sin, Cos, Tan, Sinh, Cosh]
+groups: [Exact, Numerics]
+permissions: []
+requires: [rix.cayley@2, rix.float@2]
+provides: [rix.quaternion@2, rix.enclosable-quaternion@1]
+schemas: [rix.quaternion.value@1, rix.quaternion.function-result@1]
+snapshot: false
+deterministic: true
+defaultEnabled: false
+**/
+
+QuaternionIs(value) -> value ? :QuaternionValue;
+QuaternionRequire(value) -> QuaternionIs(value) ?: value ?_ .Error("Expected a Quaternion value");
+QuaternionFloatProvider=.cayley.Provider({= name=:float,certifiedSingleton=_,can=(value)->1 });
+
+QuaternionWrap(cayley,evidence ?= {= constructor=:cayleyFacade }) -> {;
+    cayley[:dimension]==4 ?: _ ?_ .Error("Quaternion facade requires a four-component Cayley value");
+    value={= valueKind=:quaternionValue,schema="rix.quaternion.value@1",cayley=cayley,components=cayley[:components],evidence=evidence };
+    value.__type="QuaternionValue"; value._type="quaternion_value";
+    .ImmutableValue(value ~!: :QuaternionValue);
+};
+QuaternionBuild(a ?= 0,b ?= 0,c ?= 0,d ?= 0) -> QuaternionWrap(.cayley.Value(2,[a,b,c,d]),{= constructor=:components });
+QuaternionFromCayley(value) -> QuaternionWrap(value,{= adapter=:cayley });
+QuaternionFromExactAlgebra(value) -> QuaternionWrap(.cayley.FromExactAlgebra(value),{= adapter=:exactAlgebras,source=value });
+QuaternionBasis(index) -> QuaternionWrap(.cayley.BasisValue(2,index),{= constructor=:basis,index=index });
+QuaternionComponents(value) -> QuaternionRequire(value)[:components];
+QuaternionScalar(value) -> QuaternionComponents(value)[1];
+QuaternionVector(value) -> QuaternionComponents(value).Slice(2);
+QuaternionFromComponentsLike(reference,components,evidence) -> QuaternionWrap(.cayley.Value(reference[:cayley][:level],components,evidence),evidence);
+
+QuaternionPair(left,right) -> {;
+    source=QuaternionIs(left) ?: left ?_ (QuaternionIs(right) ?: right ?_ .Error("Quaternion operation needs a Quaternion operand"));
+    a=QuaternionIs(left) ?: left ?_ QuaternionFromComponentsLike(source,[left],{= constructor=:scalarEmbedding });
+    b=QuaternionIs(right) ?: right ?_ QuaternionFromComponentsLike(source,[right],{= constructor=:scalarEmbedding });
+    {= left=a,right=b };
+};
+QuaternionAdd(left,right) -> {; pair=QuaternionPair(left,right); QuaternionWrap(pair[:left][:cayley]+pair[:right][:cayley],{= operation=:add,left=pair[:left],right=pair[:right] }); };
+QuaternionSubtract(left,right) -> {; pair=QuaternionPair(left,right); QuaternionWrap(pair[:left][:cayley]-pair[:right][:cayley],{= operation=:subtract,left=pair[:left],right=pair[:right] }); };
+QuaternionMultiply(left,right) -> {; pair=QuaternionPair(left,right); QuaternionWrap(pair[:left][:cayley]*pair[:right][:cayley],{= operation=:multiply,left=pair[:left],right=pair[:right],parenthesization=[:multiply,pair[:left][:evidence],pair[:right][:evidence]] }); };
+QuaternionNegate(value) -> {; exact=QuaternionRequire(value); QuaternionWrap(-exact[:cayley],{= operation=:negate,source=exact }); };
+QuaternionConjugate(value) -> {; exact=QuaternionRequire(value); QuaternionWrap(exact[:cayley].Conjugate(),{= operation=:conjugate,source=exact }); };
+QuaternionNormSquared(value) -> QuaternionRequire(value)[:cayley].NormSquared();
+QuaternionDivideComponents(components,norm) -> components.Map((x)->x/norm);
+QuaternionInverse(value) -> {;
+    exact=QuaternionRequire(value); status=QuaternionZeroStatus(exact); status[:status]==:nonzero ?: _ ?_ .Error("Quaternion inverse requires nonzero evidence");
+    norm=QuaternionNormSquared(exact); components=QuaternionDivideComponents(QuaternionConjugate(exact)[:components],norm);
+    QuaternionFromComponentsLike(exact,components,{= operation=:inverse,source=exact,evidence=status });
+};
+QuaternionLeftDivide(value,divisor) -> QuaternionInverse(divisor)*value;
+QuaternionRightDivide(value,divisor) -> value*QuaternionInverse(divisor);
+QuaternionEqual(left,right) -> {; pair=QuaternionPair(left,right); pair[:left][:cayley]==pair[:right][:cayley]; };
+QuaternionEnclose(value,request ?= {= }) -> QuaternionRequire(value)[:cayley].Enclose(request);
+QuaternionRefine(value,request ?= {= }) -> QuaternionRequire(value)[:cayley].Refine(request);
+QuaternionZeroStatus(value,request ?= {= absoluteWidth=1/1000000,maxWork=1000 }) -> {;
+    exact=QuaternionRequire(value); hasFloat:=_; anyNonzero:=_; allFloatZero:=1;
+    {@ i=1;i<=4;{; component=@exact[:components][i]; component ? :float ?:{; @hasFloat~=1; @component==.float.Float(0) ?: _ ?_ {; @anyNonzero~=1; @allFloatZero~=_; }; } ?_ _; };i+=1};
+    hasFloat ?: {= valueKind=:cayleyZeroStatus,schema="rix.cayley.zero-status@1",status=anyNonzero ?: :nonzero ?_ (allFloatZero ?: :zero ?_ :unknown),certified=_,property=:originSeparation,source=exact }
+      ?_ exact[:cayley].ZeroStatus(request);
+};
+
+QuaternionFloat(value) -> value ? :float ?: value ?_ .float.Float(value);
+QuaternionFloatParts(value) -> QuaternionComponents(value).Map((x)->QuaternionFloat(x));
+QuaternionFloatBuild(components,evidence) -> QuaternionWrap(.cayley.Value(.cayley.Level(2,QuaternionFloatProvider),components,evidence),evidence);
+QuaternionVectorNorm(parts) -> .float.Sqrt(parts[2]*parts[2]+parts[3]*parts[3]+parts[4]*parts[4]);
+QuaternionScaleVector(parts,scale) -> [parts[1],parts[2]*scale,parts[3]*scale,parts[4]*scale];
+QuaternionDirectionNonzero(parts,norm) -> [parts[2]/norm,parts[3]/norm,parts[4]/norm];
+QuaternionDirection(parts,norm,defaultDirection ?= [1,0,0]) -> norm==.float.Float(0) ?: defaultDirection ?_ QuaternionDirectionNonzero(parts,norm);
+QuaternionSliceValue(scalarPart,unitVector,sliceImaginary,evidence) -> QuaternionFloatBuild([scalarPart,QuaternionFloat(unitVector[1])*sliceImaginary,QuaternionFloat(unitVector[2])*sliceImaginary,QuaternionFloat(unitVector[3])*sliceImaginary],evidence);
+QuaternionSinhScalar(value) -> (.float.Exp(value)-.float.Exp(-value))/.float.Float(2);
+QuaternionCoshScalar(value) -> (.float.Exp(value)+.float.Exp(-value))/.float.Float(2);
+QuaternionPi() -> .float.Atan2(.float.Float(0),.float.Float(-1));
+
+QuaternionExp(value) -> {;
+    exact=QuaternionRequire(value); parts=QuaternionFloatParts(exact); radius=QuaternionVectorNorm(parts); unitVector=QuaternionDirection(parts,radius);
+    expScalar=.float.Exp(parts[1]); result=QuaternionSliceValue(expScalar*.float.Cos(radius),unitVector,expScalar*.float.Sin(radius),{= operation=:exp,source=exact,sliceEvidence={= generatedBy=:oneAndVectorDirection,associative=1 },approximate=1 });
+    result;
+};
+
+QuaternionLogResult(value,options ?= {= }) -> {;
+    exact=QuaternionRequire(value); zero=exact.ZeroStatus();
+    zero[:status]==:zero ?: .Error("Quaternion Log is undefined at zero") ?_ _;
+    parts=QuaternionFloatParts(exact); vectorNorm=QuaternionVectorNorm(parts); norm=.float.Sqrt(parts[1]*parts[1]+vectorNorm*vectorNorm); real=.float.Log(norm);
+    zeroFloat=.float.Float(0); vectorZero=vectorNorm==zeroFloat; negativeAxis=vectorZero&&parts[1]<zeroFloat; positiveAxis=vectorZero&&parts[1]>zeroFloat;
+    requestedDirection=options[:branchDirection]; direction=requestedDirection==_ ?: QuaternionDirection(parts,vectorNorm) ?_ requestedDirection;
+    angle=positiveAxis ?: .float.Float(0) ?_ .float.Atan2(vectorNorm,parts[1]);
+    principal=negativeAxis&&requestedDirection==_ ?: _ ?_ QuaternionSliceValue(real,direction,negativeAxis ?: QuaternionPi() ?_ angle,{= operation=:log,source=exact,branch=:principal,sliceEvidence={= generatedBy=:oneAndDirection,associative=1 },approximate=1 });
+    {=
+        valueKind=:quaternionFunctionResult,schema="rix.quaternion.function-result@1",function=:log,
+        status=negativeAxis&&requestedDirection==_ ?: :branchFamily ?_ :resolved,value=principal,principalValue=principal,
+        branchFamily=negativeAxis ?: {= kind=:directionSphere,directions=:unitSphere2,angle=QuaternionPi() } ?_ _,
+        branchDirection=negativeAxis ?: requestedDirection ?_ direction,source=exact,certified=_,approximate=1
+    };
+};
+QuaternionLog(value,options ?= {= }) -> {; result=QuaternionLogResult(value,options); result[:value]!=_ ?: result[:value] ?_ .Error("Quaternion Log has a direction family on the negative real axis; use LogResult or supply branchDirection"); };
+
+QuaternionRootResult(value,degree,options ?= {= }) -> {;
+    (degree ? :Integer)&&degree>0 ?: _ ?_ .Error("Quaternion root degree must be a positive Integer");
+    exact=QuaternionRequire(value); parts=QuaternionFloatParts(exact); vectorNorm=QuaternionVectorNorm(parts); norm=.float.Sqrt(parts[1]*parts[1]+vectorNorm*vectorNorm);
+    zeroFloat=.float.Float(0); negativeAxis=vectorNorm==zeroFloat&&parts[1]<zeroFloat; requestedDirection=options[:branchDirection]; direction=requestedDirection==_ ?: QuaternionDirection(parts,vectorNorm) ?_ requestedDirection;
+    rootNorm=.float.Exp(.float.Log(norm)/.float.Float(degree)); theta=.float.Atan2(vectorNorm,parts[1]); branch=options[:branch]==_ ?: 0 ?_ options[:branch];
+    angle=(negativeAxis ?: QuaternionPi() ?_ theta)+.float.Float(2)*QuaternionPi()*.float.Float(branch); angle/= .float.Float(degree);
+    root=negativeAxis&&requestedDirection==_ ?: _ ?_ QuaternionSliceValue(rootNorm*.float.Cos(angle),direction,rootNorm*.float.Sin(angle),{= operation=:root,source=exact,degree=degree,branch=branch,sliceEvidence={= generatedBy=:oneAndDirection,associative=1 },approximate=1 });
+    {= valueKind=:quaternionFunctionResult,schema="rix.quaternion.function-result@1",function=:root,status=root==_ ?: :branchFamily ?_ :resolved,value=root,degree=degree,branch=branch,branchFamily=root==_ ?: {= kind=:directionSphere,directions=:unitSphere2 } ?_ _,source=exact,approximate=1 };
+};
+QuaternionRoot(value,degree,options ?= {= }) -> {; result=QuaternionRootResult(value,degree,options); result[:value]!=_ ?: result[:value] ?_ .Error("Quaternion root has a direction family; use RootResult or supply branchDirection"); };
+QuaternionPositiveIntegerPower(value,exponent) -> {; result:=QuaternionFromComponentsLike(value,[1],{= constructor=:multiplicativeIdentity }); factor:=value; {@ n=@exponent;n>0;{; n%2==1 ?:{; @result~=@result*@factor; } ?_ _; n>1 ?:{; @factor~=@factor*@factor; } ?_ _; };n//=2}; result; };
+QuaternionIntegerPower(value,exponent) -> {;
+    exact=QuaternionRequire(value); exponent==0 ?: QuaternionFromComponentsLike(exact,[1],{= constructor=:multiplicativeIdentity }) ?_ _;
+    exponent<0 ?: QuaternionPositiveIntegerPower(exact.Inverse(),-exponent) ?_ QuaternionPositiveIntegerPower(exact,exponent);
+};
+QuaternionPower(value,exponent,options ?= {= }) -> exponent ? :Integer ?: QuaternionIntegerPower(value,exponent) ?_ QuaternionExp(QuaternionLog(value,options)*exponent);
+
+QuaternionSin(value) -> {;
+    exact=QuaternionRequire(value); p=QuaternionFloatParts(exact); r=QuaternionVectorNorm(p); u=QuaternionDirection(p,r);
+    QuaternionSliceValue(.float.Sin(p[1])*QuaternionCoshScalar(r),u,.float.Cos(p[1])*QuaternionSinhScalar(r),{= operation=:sin,source=exact,sliceEvidence={= generatedBy=:oneAndVectorDirection,associative=1 },approximate=1 });
+};
+QuaternionCos(value) -> {;
+    exact=QuaternionRequire(value); p=QuaternionFloatParts(exact); r=QuaternionVectorNorm(p); u=QuaternionDirection(p,r);
+    QuaternionSliceValue(.float.Cos(p[1])*QuaternionCoshScalar(r),u,-.float.Sin(p[1])*QuaternionSinhScalar(r),{= operation=:cos,source=exact,sliceEvidence={= generatedBy=:oneAndVectorDirection,associative=1 },approximate=1 });
+};
+QuaternionTan(value) -> QuaternionSin(value).RightDivide(QuaternionCos(value));
+QuaternionSinh(value) -> {;
+    exact=QuaternionRequire(value); p=QuaternionFloatParts(exact); r=QuaternionVectorNorm(p); u=QuaternionDirection(p,r);
+    QuaternionSliceValue(QuaternionSinhScalar(p[1])*.float.Cos(r),u,QuaternionCoshScalar(p[1])*.float.Sin(r),{= operation=:sinh,source=exact,sliceEvidence={= generatedBy=:oneAndVectorDirection,associative=1 },approximate=1 });
+};
+QuaternionCosh(value) -> {;
+    exact=QuaternionRequire(value); p=QuaternionFloatParts(exact); r=QuaternionVectorNorm(p); u=QuaternionDirection(p,r);
+    QuaternionSliceValue(QuaternionCoshScalar(p[1])*.float.Cos(r),u,QuaternionSinhScalar(p[1])*.float.Sin(r),{= operation=:cosh,source=exact,sliceEvidence={= generatedBy=:oneAndVectorDirection,associative=1 },approximate=1 });
+};
+QuaternionRecord(value) -> {; exact=QuaternionRequire(value); {= schema=exact[:schema],components=exact[:components],cayley=exact[:cayley].Record(),evidence=exact[:evidence],evaluationOrder=exact[:evidence][:parenthesization],sliceEvidence=exact[:evidence][:sliceEvidence] }; };
+
+.TypeKnown(:QuaternionValue) ?: _ ?_ .TypeRegister({=
+    name=:QuaternionValue,nativeType=:map,defaultTraits=[:number],convertFrom={= map=(x) ?- [x[:valueKind]==:quaternionValue] -> x },validate=(x)->x[:schema]=="rix.quaternion.value@1",
+    proto={=
+        Components=(self)->self[:components],Scalar=(self)->self[:components][1],Vector=(self)->self[:components].Slice(2),Conjugate=(self)->QuaternionConjugate(self),NormSquared=(self)->QuaternionNormSquared(self),
+        Inverse=(self)->QuaternionInverse(self),LeftDivide=(self,d)->QuaternionLeftDivide(self,d),RightDivide=(self,d)->QuaternionRightDivide(self,d),Enclose=(self,r ?= {= })->QuaternionEnclose(self,r),Refine=(self,r ?= {= })->QuaternionRefine(self,r),
+        ZeroStatus=(self,r ?= {= absoluteWidth=1/1000000,maxWork=1000 })->QuaternionZeroStatus(self,r),Exp=(self)->QuaternionExp(self),Log=(self,o ?= {= })->QuaternionLog(self,o),LogResult=(self,o ?= {= })->QuaternionLogResult(self,o),
+        Root=(self,n,o ?= {= })->QuaternionRoot(self,n,o),RootResult=(self,n,o ?= {= })->QuaternionRootResult(self,n,o),Power=(self,e,o ?= {= })->QuaternionPower(self,e,o),Sin=(self)->QuaternionSin(self),Cos=(self)->QuaternionCos(self),Tan=(self)->QuaternionTan(self),Sinh=(self)->QuaternionSinh(self),Cosh=(self)->QuaternionCosh(self),Record=(self)->QuaternionRecord(self)
+    },
+    installs={=
+        ADD=[{= name=:QuaternionAdd,priority=460,prep=(x,y)->QuaternionIs(x)||QuaternionIs(y),impl=QuaternionAdd }],SUB=[{= name=:QuaternionSubtract,priority=460,prep=(x,y)->QuaternionIs(x)||QuaternionIs(y),impl=QuaternionSubtract }],
+        MUL=[{= name=:QuaternionMultiply,priority=460,prep=(x,y)->QuaternionIs(x)||QuaternionIs(y),impl=QuaternionMultiply }],DIV=[{= name=:QuaternionRightDivide,priority=460,prep=(x,y)->QuaternionIs(x)&&QuaternionIs(y),impl=QuaternionRightDivide }],
+        NEG=[{= name=:QuaternionNegate,priority=460,prep=(x)->QuaternionIs(x),impl=QuaternionNegate }],EQ=[{= name=:QuaternionEqual,priority=460,prep=(x,y)->QuaternionIs(x)||QuaternionIs(y),impl=QuaternionEqual }],NEQ=[{= name=:QuaternionNotEqual,priority=460,prep=(x,y)->QuaternionIs(x)||QuaternionIs(y),impl=(x,y)->!QuaternionEqual(x,y) }]
+    }
+});
+.TypeInstall(:QuaternionValue);
+
+quaternionNamespace=(a ?= 0,b ?= 0,c ?= 0,d ?= 0)->QuaternionBuild(a,b,c,d);
+quaternionNamespace._proto={=
+    Quaternion=(self,a ?= 0,b ?= 0,c ?= 0,d ?= 0)->QuaternionBuild(a,b,c,d),FromCayley=(self,value)->QuaternionFromCayley(value),FromExactAlgebra=(self,value)->QuaternionFromExactAlgebra(value),
+    Components=(self,value)->QuaternionComponents(value),Scalar=(self,value)->QuaternionScalar(value),Vector=(self,value)->QuaternionVector(value),Basis=(self,index)->QuaternionBasis(index),Conjugate=(self,value)->QuaternionConjugate(value),NormSquared=(self,value)->QuaternionNormSquared(value),
+    Inverse=(self,value)->QuaternionInverse(value),LeftDivide=(self,value,divisor)->QuaternionLeftDivide(value,divisor),RightDivide=(self,value,divisor)->QuaternionRightDivide(value,divisor),Enclose=(self,value,request ?= {= })->QuaternionEnclose(value,request),Refine=(self,value,request ?= {= })->QuaternionRefine(value,request),ZeroStatus=(self,value,request ?= {= absoluteWidth=1/1000000,maxWork=1000 })->QuaternionZeroStatus(value,request),
+    Direction=(self,value)->{; parts=QuaternionFloatParts(value); QuaternionDirection(parts,QuaternionVectorNorm(parts)); },
+    Exp=(self,value)->QuaternionExp(value),Log=(self,value,options ?= {= })->QuaternionLog(value,options),LogResult=(self,value,options ?= {= })->QuaternionLogResult(value,options),Root=(self,value,degree,options ?= {= })->QuaternionRoot(value,degree,options),RootResult=(self,value,degree,options ?= {= })->QuaternionRootResult(value,degree,options),Power=(self,value,exponent,options ?= {= })->QuaternionPower(value,exponent,options),Sin=(self,value)->QuaternionSin(value),Cos=(self,value)->QuaternionCos(value),Tan=(self,value)->QuaternionTan(value),Sinh=(self,value)->QuaternionSinh(value),Cosh=(self,value)->QuaternionCosh(value)
+};
+.Host.RegisterValue("quaternion",quaternionNamespace,"Certified quaternion facade and intrinsic slice functions",["Exact","Numerics"]);

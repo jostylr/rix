@@ -5,6 +5,7 @@ kind: host
 mount: float
 exports: [Float, Binary32, Binary64, Format, Classify, Diagnostics, NextUp, NextDown, NextAfter, Interval, Round, Floor, Ceiling, Abs, Sqrt, Sin, Cos, Tan, Asin, Acos, Atan, Atan2, Log, Ln, Log10, Exp]
 groups: [ApproximateMath, Float]
+provides: [rix.float@2]
 schemas: [rix.float.classification@1]
 permissions: []
 defaultEnabled: false

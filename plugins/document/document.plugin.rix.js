@@ -1,13 +1,13 @@
 /**
 id: document
-description: Numbered portable reports with labels, forward references, captions, and small semantic themes.
+description: Portable report templates with citations, assets, numbering policies, and safe target-specific nodes.
 kind: host
 mount: document
-exports: [Report, Label, Ref, Theme, References]
+exports: [Report, Label, Ref, Theme, References, Bibliography, Citation, AssetManifest, Asset, Numbering, Header, Footer, Template, ApplyTemplate, TargetMarkup]
 groups: [Documents]
 permissions: []
-provides: [rix.document.report@1]
-schemas: [rix.document.report@1, rix.document.theme@1]
+provides: [rix.document.report@1, rix.document.report@2, rix.document.template@1, rix.document.assets@1]
+schemas: [rix.document.report@1, rix.document.theme@1, rix.document.bibliography@1, rix.document.citation@1, rix.document.assets@1, rix.document.numbering@1, rix.document.template@1, rix.document.target-markup@1]
 snapshot: true
 deterministic: true
 defaultEnabled: false
@@ -18,6 +18,16 @@ import {
     createDocumentReference,
     createDocumentReport,
     createDocumentTheme,
+    createDocumentBibliography,
+    createDocumentCitation,
+    createDocumentAssetManifest,
+    documentAsset,
+    createDocumentNumbering,
+    createDocumentHeader,
+    createDocumentFooter,
+    createDocumentTemplate,
+    applyDocumentTemplate,
+    createDocumentTargetMarkup,
     documentReferences,
     labelDocumentValue,
 } from "./document.js";
@@ -28,6 +38,16 @@ const HELPERS = new Map([
     ["Ref", createDocumentReference],
     ["Theme", createDocumentTheme],
     ["References", documentReferences],
+    ["Bibliography", createDocumentBibliography],
+    ["Citation", createDocumentCitation],
+    ["AssetManifest", createDocumentAssetManifest],
+    ["Asset", documentAsset],
+    ["Numbering", createDocumentNumbering],
+    ["Header", createDocumentHeader],
+    ["Footer", createDocumentFooter],
+    ["Template", createDocumentTemplate],
+    ["ApplyTemplate", applyDocumentTemplate],
+    ["TargetMarkup", createDocumentTargetMarkup],
 ]);
 
 export function createDocumentPluginCollection() {

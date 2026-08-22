@@ -13,3 +13,8 @@ The optional host regression test compiles
 [`pdf-page-fixture.rix`](../../examples/renderers/pdf-page-fixture.rix), renders
 its first page through Poppler, and checks page geometry plus nonblank ink
 coverage without treating compiler-specific PDF bytes as a stable golden.
+
+Phase 2 selects `document`, `figure`, or `slides` profiles, page size, PDF
+metadata/bookmark policy, placement, and TikZ/SVG/PNG figure lowering. The
+result records packages, pages, delegated assets, and reported fonts; an absent
+font report is a visible diagnostic.

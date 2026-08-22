@@ -75,8 +75,38 @@ cos(a+bi) = cos(a) cosh(b) - i sin(a) sinh(b)
 ```
 
 `.complex.Exp`, `.complex.Sin`, and `.complex.Cos` return new refinable
-`ComplexReal` values. Direct complex-ball series may later tighten these
-fallback constructions without changing the public value contract.
+`ComplexReal` values.
+
+## Complex regions and validated set images
+
+`Rectangle`, `Disc`, and `Union` construct first-class `ComplexRegion` sets.
+They are deliberately separate from singleton recipes:
+
+```rix
+box := .complex.Rectangle((-1):1,(-1):1);
+disc := .complex.Disc(.complex(1,1),1/10);
+image := disc.Image(:exp,{= absoluteWidth=1/10000,maxWork=1000 });
+```
+
+Disc images of `Exp`, `Sin`, and `Cos` use centered validated complex-series
+or derivative remainder bounds, retain the shared center as correlation
+evidence, and record argument reduction explicitly. Rectangle images use
+certified real interval ranges in the Cartesian identities. Both paths return
+outward enclosures: a result may be wider than ideal, but never contracts past
+what is proved. Finite-union images map every component separately instead of
+silently filling gaps.
+
+`FromSingleton` converts a refinable singleton to its current certified
+rectangle while retaining its shared-expression provenance. `BoundingRectangle`
+returns an outward hull for any region geometry.
+
+## Adaptive branch and zero analysis
+
+`AnalyzeBoundary(feature, options)` recursively subdivides a region near
+`:zero`, `:pole`, `:logBranch`, or `:sqrtBranch`. The result separates resolved,
+hit, and unresolved cells and obeys both `maxDepth` and `maxCells`. Reaching a
+budget preserves a certified unresolved region; it never classifies overlap as
+absence.
 
 ## Principal branches
 

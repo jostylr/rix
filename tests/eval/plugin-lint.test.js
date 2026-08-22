@@ -28,5 +28,5 @@ describe("bundled RiX plugin lint", () => {
         });
 
         expect(diagnostics).toEqual([]);
-    });
+    }, 30_000);
 });

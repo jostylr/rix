@@ -24,3 +24,9 @@ hosts install the discoverable contract but report `gif-encoder-unavailable`.
 This is an explicit host boundary: the renderer declares `process` and `files`
 permissions, uses a temporary directory under `cwd/tmp`, and removes it after
 encoding.
+
+Phase 2 adds `none` and ImageMagick-backed `crossfade` transition policies,
+explicit transition-frame counts, global/local/adaptive palettes, and
+none/Floyd–Steinberg/ordered dithering. Per-slide metadata durations still win
+over the default. Scene3D orbit animations are ordinary `Snapshots` containing
+projected `scene3d_snapshot` values.

@@ -99,4 +99,64 @@ describe("document plugin", () => {
         expect(() => parseAndEvaluate('.document.Theme(:compact, {= accent="blue" })', options))
             .toThrow("six-digit hex color");
     });
+
+    test("builds reusable reports with citations, assets, regions, and numbering policies", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("document");
+            bibliography := .document.Bibliography([
+                {= key="knuth84", author="Donald Knuth", year=1984, title="Literate Programming" },
+                {= key="rix26", author="RiX Project", year=2026, title="RiX Manual" }
+            ]);
+            assets := .document.AssetManifest([
+                {= id="logo", path="images/logo.svg", mime="image/svg+xml", alt="Project logo", checksum="sha256:abc" }
+            ]);
+            numbering := .document.Numbering({=
+                style=:roman, sectionStart=2, tableStart=3,
+                citationStyle="author-year", numberSections=0
+            });
+            template := .document.Template("course-report", {=
+                author="Ada", theme=:compact, numbering=numbering,
+                bibliography=bibliography, assets=assets,
+                header=.document.Header(.Paragraph("Course header")),
+                footer=.document.Footer(.Paragraph("Course footer"))
+            });
+            prose := @"""
+            h1: Evidence #evidence
+
+            p: See @{.document.Citation(["knuth84", "rix26"], {= prefix="compare " })} and @{.document.Ref("tbl-data")}.
+            """;
+            table := .document.Label("tbl-data", .Table(["x"], [[1]], {= caption="Data" }));
+            report := .document.ApplyTemplate(template, {= title="Template report", children=[prose, table] });
+            raw := .document.TargetMarkup(:latex, "\\\\newcommand{\\\\private}{x}", "[LaTeX-only]");
+            [.document.References(report), .document.Asset(assets, "logo"), report, raw];
+        `, options);
+        expect(result.values[0].values.map((entry) => entry.entries.get("displayNumber").value)).toEqual(["II", "III"]);
+        expect(result.values[1].entries.get("path").value).toBe("images/logo.svg");
+        const report = result.values[2];
+        expect(report).toMatchObject({ documentVersion: 2, documentTemplate: "course-report" });
+        expect(report.documentCitations).toEqual(["knuth84", "rix26"]);
+        expect(report.children[0].documentRegion).toBe("header");
+        expect(report.children.at(-1).documentRegion).toBe("footer");
+        const html = renderOutputHtml(report, formatValue);
+        expect(html).toContain("compare Donald Knuth, 1984; RiX Project, 2026");
+        expect(html).toContain("Table III. Data");
+        expect(html).toContain(">Evidence<");
+        expect(result.values[3].documentTargetMarkup).toMatchObject({ target: "latex" });
+        expect(renderOutputHtml(result.values[3], formatValue)).toContain("[LaTeX-only]");
+        expect(renderOutputHtml(result.values[3], formatValue)).not.toContain("newcommand");
+    });
+
+    test("rejects unsafe manifests, duplicate bibliography keys, and unresolved citations", () => {
+        const options = runtime();
+        parseAndEvaluate('.Plugin.Load("document")', options);
+        expect(() => parseAndEvaluate(`.document.AssetManifest([{= id="x", path="../secret" }])`, options))
+            .toThrow("safe relative paths");
+        expect(() => parseAndEvaluate(`.document.Bibliography([
+            {= key="same", title="One" }, {= key="same", title="Two" }
+        ])`, options)).toThrow("duplicate key 'same'");
+        expect(() => parseAndEvaluate(`
+            .document.Report("Bad", [.Paragraph([.document.Citation("missing")])]);
+        `, options)).toThrow("cannot resolve citation 'missing'");
+    });
 });

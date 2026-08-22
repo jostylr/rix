@@ -168,4 +168,63 @@ describe("representation-generic Complex plugin", () => {
         expect(imaginary.low.multiply(imaginary.low).lessThanOrEqual(two)).toBe(true);
         expect(imaginary.high.multiply(imaginary.high).greaterThanOrEqual(two)).toBe(true);
     });
+
+    test("represents rectangle, disc, and finite-union sets separately from singletons", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("complex");
+            rectangle=.complex.Rectangle((-1):1,(-2):2);
+            disc=.complex.Disc(.complex(1,1),1/10);
+            union=.complex.Union([rectangle,disc]);
+            bounds=disc.BoundingRectangle({= absoluteWidth=1/1000,maxWork=100 });
+            {: rectangle[:denotation],rectangle[:geometry],disc[:geometry],union[:geometry],
+               union[:data][:regions].Len(),bounds[:data][:real],bounds[:data][:imaginary] }
+        `, options);
+
+        expect(result.values.slice(0, 5).map((value) => value?.value ?? String(value)))
+            .toEqual(["set", "rectangle", "disc", "finiteUnion", 2n]);
+        expect(result.values[5]).toBeInstanceOf(RationalInterval);
+        expect(result.values[6]).toBeInstanceOf(RationalInterval);
+        expect(result.values[5].containsValue(parseAndEvaluate("9/10", options))).toBe(true);
+        expect(result.values[5].containsValue(parseAndEvaluate("11/10", options))).toBe(true);
+    });
+
+    test("uses centered validated disc kernels and outward rectangle fallbacks", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("complex");
+            disc=.complex.Disc(.complex(0,0),1/10);
+            discImage=disc.Image(:exp,{= absoluteWidth=1/10000,maxWork=1000 });
+            rectangle=.complex.Rectangle((-1):1,(-1):1);
+            rectangleImage=rectangle.Image(:exp,{= absoluteWidth=1/10000,maxWork=1000 });
+            {: discImage[:geometry],discImage[:evidence][:algorithm],
+               discImage[:evidence][:correlation][:sharedCenter],discImage[:evidence][:outward],
+               discImage[:data][:radius],rectangleImage[:geometry],
+               rectangleImage[:data][:real],rectangleImage[:data][:imaginary] }
+        `, options);
+
+        expect(result.values.slice(0, 4).map((value) => value?.value ?? String(value)))
+            .toEqual(["disc", "centeredValidatedComplexSeries", 1n, 1n]);
+        expect(result.values[4].greaterThan(parseAndEvaluate("0", options).toRational())).toBe(true);
+        expect(result.values[6].containsValue(parseAndEvaluate("1", options))).toBe(true);
+        expect(result.values[7].containsZero()).toBe(true);
+    });
+
+    test("adaptively retains unresolved branch cells under a bounded budget", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("complex");
+            region=.complex.Rectangle((-1):1,(-1):1);
+            analysis=region.AnalyzeBoundary(:logBranch,{= maxDepth=3,maxCells=20,absoluteWidth=1/1000,maxWork=500 });
+            {: analysis[:schema],analysis[:status],analysis[:certified],analysis[:unresolved].Len(),
+               analysis[:work][:inspected],analysis[:work][:maxCells],analysis[:evidence][:outward] }
+        `, options);
+
+        expect(result.values[0].value).toBe("rix.complex.region-analysis@1");
+        expect(result.values[1].value).toBe("partial");
+        expect(result.values[2].value).toBe(1n);
+        expect(result.values[3].value > 0n).toBe(true);
+        expect(result.values[4].value <= result.values[5].value).toBe(true);
+        expect(result.values[6].value).toBe(1n);
+    });
 });

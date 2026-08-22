@@ -7,3 +7,9 @@ portable inline SVG, and interactive controls/timelines report static fallback
 diagnostics.
 
 Use `.markdown.Render(document)` or `.Out("report.md", document)`.
+
+Phase 2 accepts `assets="inline"`, `"svg"`, or `"png"`, plus a safe relative
+`assetDir`. External figures are returned as deterministic RenderResult assets.
+Resolved references and themes are recorded in metadata. Explicit Markdown
+target nodes require `rawMarkup="allow"`; `"fallback"` is the default and
+`"deny"` rejects them.

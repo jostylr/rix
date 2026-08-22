@@ -1906,17 +1906,24 @@ function styleEntry(style, name) {
 function svgPolicy(options = {}) {
     const precision = options.precision ?? 6;
     const rounding = options.rounding ?? "nearest";
+    const fontPolicy = options.fontPolicy ?? "system";
     if (!Number.isSafeInteger(precision) || precision < 0 || precision > 30) {
         throw new Error("SVG coordinate precision must be an integer between 0 and 30");
     }
     if (!["nearest", "floor", "ceil", "truncate"].includes(rounding)) {
         throw new Error("SVG coordinate rounding must be nearest, floor, ceil, or truncate");
     }
-    return { precision, rounding, entries: [], collisions: new Map(), gain: 1 };
+    if (!["system", "generic", "none"].includes(fontPolicy)) {
+        throw new Error("SVG font policy must be system, generic, or none");
+    }
+    return { precision, rounding, fontPolicy, entries: [], collisions: new Map(), gain: 1, definitionIds: new Map(), fonts: new Set() };
 }
 
-const SVG_SHAPE_STYLE_KEYS = new Set(["stroke", "fill", "width", "strokewidth", "dash", "opacity"]);
-const SVG_PATH_STYLE_KEYS = new Set([...SVG_SHAPE_STYLE_KEYS, "closed"]);
+const SVG_SHAPE_STYLE_KEYS = new Set([
+    "stroke", "fill", "width", "strokewidth", "dash", "opacity", "id", "class",
+    "gradient", "pattern", "mask",
+]);
+const SVG_PATH_STYLE_KEYS = new Set([...SVG_SHAPE_STYLE_KEYS, "closed", "marker", "markerstart", "markerend", "markersize"]);
 const SVG_TEXT_STYLE_KEYS = new Set([...SVG_SHAPE_STYLE_KEYS, "anchor", "size", "fontsize", "font", "weight"]);
 
 function unsupportedSvg(message, path, code = "svg-unsupported-scene-feature") {
@@ -2123,18 +2130,121 @@ function svgPathData(path, policy, scenePath) {
     }).join(" ");
 }
 
-function svgStyle(style, defaultFill = null, policy) {
+function svgDefinitionKey(value) {
+    if (value === null || value === undefined) return "null";
+    if (value instanceof Integer || value instanceof Rational || value instanceof RationalInterval) return String(value);
+    if (value?.type === "string") return JSON.stringify(value.value);
+    if (Array.isArray(value)) return `[${value.map(svgDefinitionKey).join(",")}]`;
+    if (Array.isArray(value?.values)) return `[${value.values.map(svgDefinitionKey).join(",")}]`;
+    if (value?.type === "map" && value.entries instanceof Map) return svgDefinitionKey(value.entries);
+    if (value instanceof Map) return `{${[...value].sort(([left], [right]) => String(left).localeCompare(String(right))).map(([key, entry]) => `${key}:${svgDefinitionKey(entry)}`).join(",")}}`;
+    return JSON.stringify(value);
+}
+
+function svgStableId(kind, value) {
+    const source = `${kind}:${svgDefinitionKey(value)}`;
+    let hash = 2166136261;
+    for (let index = 0; index < source.length; index += 1) {
+        hash ^= source.charCodeAt(index);
+        hash = Math.imul(hash, 16777619);
+    }
+    return `rix-${kind}-${(hash >>> 0).toString(36)}`;
+}
+
+function svgMap(value, label) {
+    if (value instanceof Map) return value;
+    if (value?.type === "map" && value.entries instanceof Map) return value.entries;
+    throw new Error(`${label} must be a map`);
+}
+
+function registerSvgDefinition(defs, policy, kind, value, render) {
+    const key = `${kind}:${svgDefinitionKey(value)}`;
+    if (policy.definitionIds.has(key)) return policy.definitionIds.get(key);
+    const id = svgStableId(kind, value);
+    policy.definitionIds.set(key, id);
+    defs.push(render(id));
+    return id;
+}
+
+function svgPaintDefinition(style, defs, policy, path) {
+    const gradient = styleEntry(style, "gradient");
+    const pattern = styleEntry(style, "pattern");
+    if (gradient !== null && pattern !== null) unsupportedSvg("gradient and pattern are mutually exclusive", `${path}.style`, "svg-conflicting-paint");
+    if (gradient !== null) {
+        const spec = svgMap(gradient, `${path}.style.gradient`);
+        const from = asString(styleEntry(spec, "from")) || "#ffffff";
+        const to = asString(styleEntry(spec, "to")) || "#000000";
+        const angleValue = styleEntry(spec, "angle") ?? int(0);
+        const angle = svgNumber(angleValue, `${path} gradient angle`, policy, "angle");
+        return registerSvgDefinition(defs, policy, "gradient", spec, (id) => `<linearGradient id="${id}" gradientTransform="rotate(${angle} .5 .5)"><stop offset="0" stop-color="${escapeHtml(from)}"/><stop offset="1" stop-color="${escapeHtml(to)}"/></linearGradient>`);
+    }
+    if (pattern !== null) {
+        const spec = svgMap(pattern, `${path}.style.pattern`);
+        const kind = (asString(styleEntry(spec, "type")) || "dots").toLowerCase();
+        if (!["dots", "stripes", "grid"].includes(kind)) unsupportedSvg(`unknown pattern '${kind}'`, `${path}.style.pattern.type`, "svg-unsupported-pattern");
+        const foreground = asString(styleEntry(spec, "color")) || "currentColor";
+        const background = asString(styleEntry(spec, "background")) || "none";
+        const size = svgNumber(styleEntry(spec, "size") ?? int(8), `${path} pattern size`, policy, "width");
+        return registerSvgDefinition(defs, policy, "pattern", spec, (id) => {
+            const backdrop = background === "none" ? "" : `<rect width="${size}" height="${size}" fill="${escapeHtml(background)}"/>`;
+            const mark = kind === "dots"
+                ? `<circle cx="${Number(size) / 2}" cy="${Number(size) / 2}" r="${Math.max(0.5, Number(size) / 8)}" fill="${escapeHtml(foreground)}"/>`
+                : kind === "stripes"
+                    ? `<path d="M0 ${size} L${size} 0" stroke="${escapeHtml(foreground)}"/>`
+                    : `<path d="M0 0 H${size} M0 0 V${size}" stroke="${escapeHtml(foreground)}"/>`;
+            return `<pattern id="${id}" width="${size}" height="${size}" patternUnits="userSpaceOnUse">${backdrop}${mark}</pattern>`;
+        });
+    }
+    return null;
+}
+
+function svgMaskDefinition(style, defs, policy, path) {
+    const mask = styleEntry(style, "mask");
+    if (mask === null) return null;
+    const spec = svgMap(mask, `${path}.style.mask`);
+    const opacity = svgNumber(styleEntry(spec, "opacity") ?? int(1), `${path} mask opacity`, policy, "opacity");
+    return registerSvgDefinition(defs, policy, "mask", spec, (id) => `<mask id="${id}" maskContentUnits="objectBoundingBox"><rect width="1" height="1" fill="white" fill-opacity="${opacity}"/></mask>`);
+}
+
+function svgMarkerDefinition(value, sizeValue, defs, policy, path) {
+    const kind = (asString(value) || String(value || "arrow")).toLowerCase();
+    if (!["arrow", "circle", "square", "diamond"].includes(kind)) unsupportedSvg(`unknown marker '${kind}'`, `${path}.style.marker`, "svg-unsupported-marker");
+    const size = svgNumber(sizeValue ?? int(5), `${path} marker size`, policy, "radius");
+    const spec = new Map([["kind", kind], ["size", size]]);
+    return registerSvgDefinition(defs, policy, "marker", spec, (id) => {
+        const shape = kind === "arrow" ? '<path d="M0 0 L10 5 L0 10 Z" fill="context-stroke"/>'
+            : kind === "circle" ? '<circle cx="5" cy="5" r="4" fill="context-stroke"/>'
+                : kind === "square" ? '<rect x="1" y="1" width="8" height="8" fill="context-stroke"/>'
+                    : '<path d="M5 0 L10 5 L5 10 L0 5 Z" fill="context-stroke"/>';
+        return `<marker id="${id}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="${size}" markerHeight="${size}" orient="auto-start-reverse">${shape}</marker>`;
+    });
+}
+
+function svgStyle(style, defaultFill = null, policy, defs = null, path = "graphic") {
     const attrs = [];
     const stroke = asString(styleEntry(style, "stroke"));
     const fill = asString(styleEntry(style, "fill"));
     const dash = asString(styleEntry(style, "dash"));
     const opacity = styleEntry(style, "opacity");
     const width = styleEntry(style, "width") ?? styleEntry(style, "strokeWidth");
-    if (fill || defaultFill !== null) attrs.push(`fill="${escapeHtml(fill || defaultFill)}"`);
+    const paint = defs && style instanceof Map ? svgPaintDefinition(style, defs, policy, path) : null;
+    if (paint) attrs.push(`fill="url(#${paint})"`);
+    else if (fill || defaultFill !== null) attrs.push(`fill="${escapeHtml(fill || defaultFill)}"`);
     if (stroke) attrs.push(`stroke="${escapeHtml(stroke)}"`);
     if (width !== null && width !== undefined) attrs.push(`stroke-width="${svgNumber(width, "Path stroke width", policy, "width")}"`);
     if (dash) attrs.push(`stroke-dasharray="${escapeHtml(dash)}"`);
     if (opacity !== null && opacity !== undefined) attrs.push(`opacity="${svgNumber(opacity, "Path opacity", policy, "opacity")}"`);
+    const id = asString(styleEntry(style, "id"));
+    const className = asString(styleEntry(style, "class"));
+    if (id) {
+        if (!/^[A-Za-z][A-Za-z0-9:_.-]*$/.test(id)) throw new Error(`${path} style id is not a valid stable SVG id`);
+        attrs.push(`id="${escapeHtml(id)}"`);
+    }
+    if (className) attrs.push(`class="${escapeHtml(className)}"`);
+    if (defs && style instanceof Map) {
+        const maskId = svgMaskDefinition(style, defs, policy, path);
+        if (maskId) attrs.push(`mask="url(#${maskId})"`);
+    }
     return attrs.join(" ");
 }
 
@@ -2169,16 +2279,23 @@ function svgTransform(node, policy) {
     return { text: transforms.join(" "), childGain: policy.gain * scaleGain };
 }
 
-function renderSvgText(node, format, policy) {
+function renderSvgText(node, format, defs, policy, path) {
     const [x, y] = svgPair(node.position, "TextMark position", policy);
     const anchor = asString(styleEntry(node.style, "anchor"));
     const size = styleEntry(node.style, "size") ?? styleEntry(node.style, "fontSize");
     const font = asString(styleEntry(node.style, "font"));
     const weight = asString(styleEntry(node.style, "weight"));
-    const attrs = [svgStyle(node.style, "currentColor", policy)];
+    const attrs = [svgStyle(node.style, "currentColor", policy, defs, path)];
     if (anchor) attrs.push(`text-anchor="${escapeHtml(anchor)}"`);
     if (size !== null && size !== undefined) attrs.push(`font-size="${svgNumber(size, "TextMark size", policy, "font-size")}"`);
-    if (font) attrs.push(`font-family="${escapeHtml(font)}"`);
+    if (font) {
+        policy.fonts.add(font);
+        if (policy.fontPolicy === "system") attrs.push(`font-family="${escapeHtml(font)}"`);
+        else if (policy.fontPolicy === "generic") {
+            const generic = /mono/i.test(font) ? "monospace" : /serif/i.test(font) && !/sans/i.test(font) ? "serif" : "sans-serif";
+            attrs.push(`font-family="${generic}"`);
+        }
+    }
     if (weight) attrs.push(`font-weight="${escapeHtml(weight)}"`);
     return `<text x="${x}" y="${y}" ${attrs.filter(Boolean).join(" ")}>${escapeHtml(cellText(node.text, format))}</text>`;
 }
@@ -2189,18 +2306,25 @@ function renderSvgNode(node, format, defs, policy, path) {
         validateSvgStyle(node.style, SVG_PATH_STYLE_KEYS, path);
         const d = svgPathData(node, policy, path);
         if (!d) return "";
-        return `<path d="${d}" ${svgStyle(node.style, "none", policy)}/>`;
+        const marker = styleEntry(node.style, "marker");
+        const markerStart = styleEntry(node.style, "markerStart");
+        const markerEnd = styleEntry(node.style, "markerEnd") ?? marker;
+        const size = styleEntry(node.style, "markerSize");
+        const markerAttrs = [];
+        if (markerStart !== null) markerAttrs.push(`marker-start="url(#${svgMarkerDefinition(markerStart, size, defs, policy, path)})"`);
+        if (markerEnd !== null) markerAttrs.push(`marker-end="url(#${svgMarkerDefinition(markerEnd, size, defs, policy, path)})"`);
+        return `<path d="${d}" ${svgStyle(node.style, "none", policy, defs, path)}${markerAttrs.length ? ` ${markerAttrs.join(" ")}` : ""}/>`;
     }
     if (node.kind === "rectangle") {
         validateSvgStyle(node.style, SVG_SHAPE_STYLE_KEYS, path);
         const [x, y] = svgPair(node.origin, "Rectangle origin", policy);
         const [width, height] = svgPair(node.size, "Rectangle size", policy, ["width", "height"]);
-        return `<rect x="${x}" y="${y}" width="${width}" height="${height}" ${svgStyle(node.style, "none", policy)}/>`;
+        return `<rect x="${x}" y="${y}" width="${width}" height="${height}" ${svgStyle(node.style, "none", policy, defs, path)}/>`;
     }
     if (node.kind === "circle") {
         validateSvgStyle(node.style, SVG_SHAPE_STYLE_KEYS, path);
         const [cx, cy] = svgPair(node.center, "Circle center", policy);
-        return `<circle cx="${cx}" cy="${cy}" r="${svgNumber(node.radius, "Circle radius", policy, "radius")}" ${svgStyle(node.style, "none", policy)}/>`;
+        return `<circle cx="${cx}" cy="${cy}" r="${svgNumber(node.radius, "Circle radius", policy, "radius")}" ${svgStyle(node.style, "none", policy, defs, path)}/>`;
     }
     if (node.kind === "drag_point") {
         validateSvgStyle(node.style, SVG_SHAPE_STYLE_KEYS, path);
@@ -2208,30 +2332,30 @@ function renderSvgNode(node, format, defs, policy, path) {
         const replaced = node.replacesDependencies?.length
             ? ` data-rix-replaces-dependencies="${escapeHtml(node.replacesDependencies.join(","))}"`
             : "";
-        return `<circle class="rix-output-drag-point" cx="${cx}" cy="${cy}" r="${svgNumber(node.radius, "DragPoint radius", policy, "radius")}" ${svgStyle(node.style, "#7c3aed", policy)} tabindex="0" role="button" aria-label="${escapeHtml(node.label)}" data-rix-drag-target="${escapeHtml(node.targetId)}" data-rix-position="${cx},${cy}"${replaced}/>`;
+        return `<circle class="rix-output-drag-point" cx="${cx}" cy="${cy}" r="${svgNumber(node.radius, "DragPoint radius", policy, "radius")}" ${svgStyle(node.style, "#7c3aed", policy, defs, path)} tabindex="0" role="button" aria-label="${escapeHtml(node.label)}" data-rix-drag-target="${escapeHtml(node.targetId)}" data-rix-position="${cx},${cy}"${replaced}/>`;
     }
     if (node.kind === "graphic_action") {
         validateSvgStyle(node.style, SVG_SHAPE_STYLE_KEYS, path);
         const replaced = node.replacesDependencies?.length
             ? ` data-rix-replaces-dependencies="${escapeHtml(node.replacesDependencies.join(","))}"`
             : "";
-        const style = svgStyle(node.style, null, policy);
+        const style = svgStyle(node.style, null, policy, defs, path);
         return `<g class="rix-output-graphic-action"${style ? ` ${style}` : ""} tabindex="0" role="button" aria-label="${escapeHtml(node.label)}" data-rix-graphic-action="${escapeHtml(node.id)}" data-rix-graphic-target="${escapeHtml(node.targetId)}"${replaced}>${node.children.map((child, index) => renderSvgNode(child, format, defs, policy, `${path}.graphic_action[${index + 1}]`)).join("")}</g>`;
     }
     if (node.kind === "text_mark") {
         validateSvgStyle(node.style, SVG_TEXT_STYLE_KEYS, path);
-        return renderSvgText(node, format, policy);
+        return renderSvgText(node, format, defs, policy, path);
     }
     if (node.kind === "group") {
         validateSvgStyle(node.style, SVG_SHAPE_STYLE_KEYS, path);
-        return `<g ${svgStyle(node.style, null, policy)}>${node.children.map((child, index) => renderSvgNode(child, format, defs, policy, `${path}.group[${index + 1}]`)).join("")}</g>`;
+        return `<g ${svgStyle(node.style, null, policy, defs, path)}>${node.children.map((child, index) => renderSvgNode(child, format, defs, policy, `${path}.group[${index + 1}]`)).join("")}</g>`;
     }
     if (node.kind === "transform") {
         validateSvgStyle(node.style, SVG_SHAPE_STYLE_KEYS, path);
         const transform = svgTransform(node, policy);
         const parentGain = policy.gain;
         policy.gain = transform.childGain;
-        const style = svgStyle(node.style, null, policy);
+        const style = svgStyle(node.style, null, policy, defs, path);
         const children = node.children.map((child, index) => renderSvgNode(child, format, defs, policy, `${path}.transform[${index + 1}]`)).join("");
         policy.gain = parentGain;
         return `<g${transform.text ? ` transform="${transform.text}"` : ""}${style ? ` ${style}` : ""}>${children}</g>`;
@@ -2242,7 +2366,7 @@ function renderSvgNode(node, format, defs, policy, path) {
         const [x, y, width, height] = node.bounds.map((value, index) => svgNumber(value, `Clip bounds ${index + 1}`, policy, clipRoles[index]));
         const id = `rix-clip-${defs.length + 1}`;
         defs.push(`<clipPath id="${id}"><rect x="${x}" y="${y}" width="${width}" height="${height}"/></clipPath>`);
-        const style = svgStyle(node.style, null, policy);
+        const style = svgStyle(node.style, null, policy, defs, path);
         return `<g clip-path="url(#${id})"${style ? ` ${style}` : ""}>${node.children.map((child, index) => renderSvgNode(child, format, defs, policy, `${path}.clip[${index + 1}]`)).join("")}</g>`;
     }
     unsupportedSvg(`SVG does not support Graphics node '${node.kind}'`, path, "svg-unsupported-node");
@@ -2303,6 +2427,13 @@ export function lowerGraphicSvg(graphic, format = (item) => String(item ?? ""), 
         code: "svg-certified-outward-enclosure",
         message: `Exact geometry was expanded outward by at most ${enclosureRadius} SVG user units to contain its decimal lowering.`,
     });
+    if (policy.fonts.size && policy.fontPolicy !== "system") diagnostics.push({
+        level: "info",
+        code: "svg-font-policy",
+        message: policy.fontPolicy === "generic"
+            ? `${policy.fonts.size} requested font ${policy.fonts.size === 1 ? "family was" : "families were"} mapped to portable generic families.`
+            : `${policy.fonts.size} requested font ${policy.fonts.size === 1 ? "family was" : "families were"} omitted by policy.`,
+    });
     if (enclosureRadius > 0) {
         const maxGain = Math.max(1, ...policy.entries.map(({ gain }) => gain || 1));
         const translationExtent = policy.entries
@@ -2328,6 +2459,9 @@ export function lowerGraphicSvg(graphic, format = (item) => String(item ?? ""), 
             schema: "rix.svg.coordinate-lowering@1",
             precision: policy.precision,
             rounding: policy.rounding,
+            fontPolicy: policy.fontPolicy,
+            requestedFonts: [...policy.fonts].sort(),
+            definitions: [...policy.definitionIds.values()].sort(),
             guarantee: "outward-exact-enclosure",
             enclosureRadius,
             approximated: approximated.length,

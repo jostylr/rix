@@ -45,6 +45,56 @@ Exhaustion is a normal result. Certified providers preserve it as a certified
 approximation rather than a guessed answer or an exception; uncertified
 providers must not populate that field as though they had an error bound.
 
+## Phase 2 orchestration
+
+`ErrorBudget` combines an absolute limit with a scaled relative limit. If both
+are present, the effective width is their exact rational minimum. The caller
+can supply `reference`, `relativeScale`, or `scale`; a reference uses
+`max(1, abs(reference))`. `PropagateError` derives sufficient operand budgets
+for addition/subtraction and, with explicit magnitude, zero-separation, or
+Lipschitz assumptions, multiplication, reciprocal, and composition.
+
+```rix
+.Plugin.Load("numerics");
+
+target := .numerics.ErrorBudget({=
+  absoluteWidth=1/8,
+  relativeWidth=1/100,
+  reference=10
+});
+inputs := .numerics.PropagateError(:add, target, {= operands=2 });
+
+{: target[:effectiveWidth], inputs[:operandBudgets] };
+```
+
+`RefinementHistory(value)` records immutable requests and results. A later
+request may reuse a certified result only when its achieved width is already
+sufficient. Every newly computed certified interval must nest inside the
+previous applicable certified interval; otherwise the history rejects it.
+Cache entries retain requested and achieved widths, evidence, provenance, and
+work accounting.
+
+The backend-neutral generic surface is:
+
+- `Enclose`, `Refine`, `Compare`, and `Sign` for singleton exact or refinable
+  values;
+- `IsolateRoot`, using exact polynomial root counts when available and clearly
+  labeling a mere callable sign-crossing result as assumption-dependent;
+- `AdaptiveSample` for bounded exploratory sampling, deliberately
+  `evidenceLevel=:observed` rather than certified;
+- `Integrate`, backed by certified quadrature;
+- `Optimize`, which produces a finite Lipschitz bound under an explicit
+  caller-supplied Lipschitz assumption;
+- `Constant(:pi)` and `Constant(:e)`, returning native certified algorithm
+  reals with finite rational-bound verification paths; and
+- `ExplainSelection(value, operation?)`, reporting the selected value
+  protocol, backend, capabilities, and selection reasons.
+
+Exact-polynomial root isolation is certified. Generic callable isolation,
+adaptive sampling, and Lipschitz optimization do not silently acquire proof
+status: their result records state the relevant assumptions or remaining
+obligations.
+
 ## Measurement intervals and certified ranges
 
 A `RationalInterval` passed to the supported elementary functions denotes the

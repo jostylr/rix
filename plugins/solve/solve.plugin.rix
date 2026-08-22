@@ -1,14 +1,14 @@
 /**
 id: solve
-description: Pure-RiX exact Phase 1 linear-system classification and symbolic-spec solving.
+description: Domain-dispatched exact/certified solution objects for linear, optimization, polynomial, and scalar numerical problems.
 kind: rix
 mount: solve
-exports: [Classify, Linear, System]
+exports: [Classify, Linear, System, Polynomial, Numerical, Substitute, Residuals, Check]
 groups: [Solve, Symbolic, Exact]
 permissions: []
-requires: [rix.linear-algebra@1]
-provides: [rix.system-solver@1]
-schemas: [rix.solve.system-result@1]
+requires: [rix.linear-algebra@2, rix.optimization@2, rix.polynomial.algorithms@1, rix.algebraic-real@1, rix.numerics@2]
+provides: [rix.system-solver@2, rix.system-solver@1, rix.solution@1]
+schemas: [rix.solve.system-result@1, rix.solve.solution@1]
 snapshot: false
 deterministic: true
 defaultEnabled: false
@@ -30,6 +30,19 @@ SolveArray(values)->{;
     {@ index=1; index<=@values.Len(); {; @result ~= @result.Push(@values[index]); }; index+=1 };
     result;
 };
+SolveVectorArray(value)->{;
+    shaped=value ? :Shaped;
+    length=shaped ?: value.Size() ?_ value.Len(); result:=[];
+    {@ index=1; index<=@length; {; @result ~= @result.Push(@value[index]); }; index+=1 };
+    result;
+};
+SolveMatrixTensor(rows)->{;
+    flat:=[];
+    {@ row=1; row<=@rows.Len(); {;
+        {@ column=1; column<=@rows[@row].Len(); {; @flat ~= @flat.Push(@rows[@row][column]); }; column+=1 };
+    }; row+=1 };
+    (flat ~!: :Shaped).Reshape([rows.Len(),rows[1].Len()]);
+};
 SolveIndexOf(values,requested)->{;
     found:=_;
     {@ index=1; index<=@values.Len() && @found==_; {;
@@ -38,6 +51,93 @@ SolveIndexOf(values,requested)->{;
     found;
 };
 SolveIncludes(values,requested)->SolveIndexOf(values,requested)!=_;
+
+SolveParameterNames(count,requested ?= _) -> {;
+    requested==_
+      ?: {;
+          names:=[];
+          {@ index=1; index<=@count; {; @names ~= @names.Push(@"t@{index}"); }; index+=1 };
+          names;
+      }
+      ?_ {;
+          @requested ? :Array ?: _ ?_ .Error("Solution parameters must be an Array of names");
+          @requested.Len()==@count ?: @requested ?_ .Error("Solution parameter count must equal null-space dimension");
+      };
+};
+
+SolveNamedValues(names,vectorValue) -> {;
+    vector=SolveVectorArray(vectorValue); result={= };
+    {@ index=1; index<=@names.Len(); {; @result[@names[index]]=@vector[index]; }; index+=1 };
+    result;
+};
+
+SolveSolution(kind,status,fields) -> {;
+    value={=
+        valueKind=:solution,schema="rix.solve.solution@1",kind=kind,status=status,
+        exact=SolveOption(fields,"exact",1),assumptions=SolveOption(fields,"assumptions",[]),
+        provenance=SolveOption(fields,"provenance",{= plugin=:solve,version=2 })
+    }.Merge(fields);
+    value.__type="Solution";
+    value._proto={=
+        Substitute=(self,bindings ?= {= })->SolveSubstitute(self,bindings),
+        Residuals=(self,candidate ?= _)->SolveResiduals(self,candidate),
+        Check=(self,candidate ?= _)->SolveCheck(self,candidate),
+        Record=(self)->self
+    };
+    .ImmutableValue(value);
+};
+
+SolveSubstitute(value,bindings ?= {= }) -> {;
+    value[:kind]==:parametric
+      ?: {;
+          @bindings ? :Map ?: _ ?_ .Error("Parametric substitution bindings must be a map");
+          vector:=SolveVectorArray(@value[:particular]);
+          {@ branch=1; branch<=@value[:directions].Len(); {;
+              name=@value[:parameters][branch]; coefficient=@bindings.Has(name) ?: @bindings[name] ?_ 0;
+              direction=SolveVectorArray(@value[:directions][branch]);
+              {@ index=1; index<=@vector.Len(); {; @vector ~= @vector.Set(index,@vector[index]+@coefficient*@direction[index]); }; index+=1 };
+          }; branch+=1 };
+          SolveNamedValues(@value[:unknowns],vector ~!: :Shaped);
+      }
+      ?_ value[:solution];
+};
+
+SolveCandidateVector(value,candidate) -> {;
+    source=candidate==_ ?: value[:solution] ?_ candidate;
+    isMap=source ? :Map; isShaped=source ? :Shaped;
+    {? isMap ? value[:unknowns].Map((name)->SolveExact(@source[name],@"candidate '@{name}'"));
+       isShaped ? SolveVectorArray(source);
+       SolveArray(source)
+    };
+};
+
+SolveResiduals(value,candidate ?= _) -> {;
+    kind=value[:classification];
+    linear=kind==:linear || kind=="linearEqualities" || kind=="linearMatrix";
+    linear
+      ?: {;
+          vector=SolveCandidateVector(@value,@candidate); matrix=@value[:matrix]; bounds=@value[:bounds];
+          matrix.Map((row,index)->row.Map((entry,column)->entry*@vector[column]).Reduce((sum,entry)->sum+entry,0)-@bounds[index]);
+      }
+      ?_ kind==:optimization
+           ?: value[:program].Evaluate(SolveCandidateVector(value,candidate))[:slacks]
+           ?_ kind==:polynomial
+                ?: [value[:polynomial].Evaluate(value[:branches][1])]
+                ?_ kind==:numerical
+                     ?: [value[:isolation][:interval]]
+                     ?_ [];
+};
+
+SolveCheck(value,candidate ?= _) -> {;
+    kind=value[:classification];
+    kind==:optimization
+      ?: value[:program].Evaluate(SolveCandidateVector(value,candidate))[:feasible]
+      ?_ kind==:numerical
+           ?: value[:isolation][:status]!=:unknown
+           ?_ kind==:polynomial
+                ?: value[:branches].Len()>=1
+                ?_ value[:kind]==:empty ?: 1 ?_ SolveResiduals(value,candidate).All((residual)->SolveIsZero(residual));
+};
 
 SolveForm(coefficients,constant)->{= coefficients=coefficients, constant=constant };
 SolveScalar(form)->form[:coefficients].All((value)->SolveIsZero(value));
@@ -149,7 +249,7 @@ SolveConstants(statements,unknowns,initial)->{;
       ?_ .Error(@"Unresolved symbolic definitions: @{pending.Map((statement)->statement[:target]).Join(", ")}");
 };
 
-SolveSystemResult(spec,roles,outputs,equationCount,linear)->{;
+SolveSystemResult(spec,roles,outputs,equationCount,linear,matrix,bounds,options ?= {= })->{;
     particular=linear[:particular];
     solution=particular==_
       ?: _
@@ -158,14 +258,17 @@ SolveSystemResult(spec,roles,outputs,equationCount,linear)->{;
           {@ index=1; index<=@outputs.Len(); {; @namedSolution[@outputs[index]]=@values[index]; }; index+=1 };
           namedSolution;
       };
-    result={=
-        valueKind=:systemSolution, schema="rix.solve.system-result@1",
-        status=linear[:status], classification="linearEqualities", exact=1,
+    kind=linear[:status]=="inconsistent" ?: :empty ?_ linear[:status]=="underdetermined" ?: :parametric ?_ :finite;
+    parameters=kind==:parametric
+      ?: SolveParameterNames(linear[:nullspace].Len(),SolveOption(options,"parameters",_))
+      ?_ [];
+    SolveSolution(kind,linear[:status],{=
+        legacySchema="rix.solve.system-result@1",classification="linearEqualities", exact=1,
         spec=spec, unknowns=outputs, solution=solution, solutionVector=particular,
-        equations=equationCount, linearResult=linear, roles=roles
-    };
-    result.__type="SystemSolution";
-    result;
+        particular=particular,directions=linear[:nullspace],parameters=parameters,
+        equations=equationCount, linearResult=linear, roles=roles,matrix=matrix,bounds=bounds,
+        provenance={= plugin=:solve,version=2,dispatch=:linearAlgebra }
+    });
 };
 
 SolveClassify(spec)->{;
@@ -187,50 +290,143 @@ SolveDefinitionEquation(statement,outputs,constants)->SolveAddForms(
 );
 SolveConstraintEquation(statement,outputs,constants)->{;
     expression=statement[:expr];
-    expression[:op]=="=="
-      ?: SolveAddForms(
-          SolveLinearForm(expression[:left],outputs,constants),
-          SolveLinearForm(expression[:right],outputs,constants),-1
-      )
-      ?_ .Error(@"Phase 1 solve.System supports exact equalities, not '@{expression[:op]}'");
+    supported=expression[:op]=="==" || expression[:op]=="<=" || expression[:op]==">=";
+    supported ?: _ ?_ .Error(@"solve.System supports closed affine ==, <=, and >= constraints, not '@{expression[:op]}'");
+    form=SolveAddForms(
+        SolveLinearForm(expression[:left],outputs,constants),
+        SolveLinearForm(expression[:right],outputs,constants),-1
+    );
+    relation=expression[:op]=="==" ?: :eq ?_ expression[:op]=="<=" ?: :le ?_ :ge;
+    {= form=form,relation=relation };
 };
 SolveEquation(statement,outputs,constants)->
     (statement[:kind]=="define" && SolveIncludes(outputs,statement[:target]))
-      ?: SolveDefinitionEquation(statement,outputs,constants)
+      ?: {= form=SolveDefinitionEquation(statement,outputs,constants),relation=:eq }
       ?_ ((statement[:kind]=="constraint") ?: SolveConstraintEquation(statement,outputs,constants) ?_ _);
 
-SolveSystem(spec,options ?= {= })->{;
+SolveNamedOptionVector(options,key,outputs,fallback) -> {;
+    source=SolveOption(options,key,_);
+    missing=source==_; mapped=source ? :Map;
+    {? missing ? SolveZeros(outputs.Len()).Map((unused)->@fallback);
+       mapped ? outputs.Map((name)->@source.Has(name) ?: @source[name] ?_ @fallback);
+       {;
+           @source ? :Array ?: _ ?_ .Error(@"solve option '@{@key}' must be a map or Array");
+           @source.Len()==@outputs.Len() ?: @source ?_ .Error(@"solve option '@{@key}' length must match outputs");
+       }
+    };
+};
+
+SolveOptimizationResult(spec,roleInfo,outputs,equations,relations,matrix,bounds,options) -> {;
+    objective=SolveNamedOptionVector(options,"objective",outputs,0).Map((value)->SolveExact(value,"objective coefficient"));
+    lower=SolveNamedOptionVector(options,"lowerbounds",outputs,0);
+    upper=SolveNamedOptionVector(options,"upperbounds",outputs,_);
+    program=.optimize.LinearProgram(objective,SolveMatrixTensor(matrix),bounds,{=
+        relations=relations,lowerBounds=lower,upperBounds=upper,
+        sense=SolveOption(options,"sense",:max),name=SolveOption(options,"name",_)
+    });
+    optimized=program.Solve(SolveOption(options,"work",{= }));
+    kind=optimized[:status]=="infeasible" ?: :empty ?_ optimized[:status]=="unbounded" ?: :unbounded ?_ :finite;
+    named=optimized[:solution]==_ ?: _ ?_ SolveNamedValues(outputs,optimized[:solution]);
+    SolveSolution(kind,optimized[:status],{=
+        classification=:optimization,spec=spec,roles=roleInfo[:roles],unknowns=outputs,
+        solution=named,solutionVector=optimized[:solution],program=program,optimizationResult=optimized,
+        matrix=matrix,bounds=bounds,relations=relations,exact=1,
+        assumptions=[],provenance={= plugin=:solve,version=2,dispatch=:optimization }
+    });
+};
+
+SolveSystemCore(spec,options ?= {= })->{;
     inspected=.InspectSpec(spec);
     inspected[:kind]=="systemSpec" ?: _ ?_ .Error("solve.System expects a symbolic specification");
     roleInfo=SolveRoles(spec,options); outputs=roleInfo[:outputs]; statements=SolveArray(inspected[:statements]);
     constants=SolveConstants(statements,outputs,SolveValues(options));
-    equations:=[];
+    equations:=[]; relations:=[];
     {@ index=1; index<=@statements.Len(); {;
         candidate=SolveEquation(@statements[index],@outputs,@constants);
-        candidate ? :Map ?: {; @equations ~= @equations.Push(@candidate); } ?_ _;
+        candidate ? :Map
+          ?: {; @equations ~= @equations.Push(@candidate[:form]); @relations ~= @relations.Push(@candidate[:relation]); }
+          ?_ _;
     }; index+=1 };
     equations.Len()>0 ?: _ ?_ .Error("solve.System found no equations");
     matrix=equations.Map((equation)->equation[:coefficients]);
     bounds=equations.Map((equation)->-equation[:constant]);
-    linear=.linalg.Solve(matrix,bounds);
-    SolveSystemResult(spec,roleInfo[:roles],outputs,equations.Len(),linear);
+    optimize=relations.Any((relation)->relation!=:eq) || SolveOption(options,"objective",_)!=_;
+    optimize
+      ?: SolveOptimizationResult(spec,roleInfo,outputs,equations,relations,matrix,bounds,options)
+      ?_ {;
+          linear=.linalg.Solve(@matrix,@bounds);
+          SolveSystemResult(@spec,@roleInfo[:roles],@outputs,@equations.Len(),linear,@matrix,@bounds,@options);
+      };
+};
+
+SolveSystem(spec,options ?= {= })->{;
+    polynomial=SolveOption(options,"polynomial",_); numerical=SolveOption(options,"numerical",_);
+    interval=SolveOption(options,"interval",_);
+    polynomial!=_
+      ?: {; @interval!=_ ?: _ ?_ .Error("Polynomial system dispatch needs options.interval"); SolvePolynomial(@polynomial,@interval,@options); }
+      ?_ numerical!=_
+           ?: {; @interval!=_ ?: _ ?_ .Error("Numerical system dispatch needs options.interval"); SolveNumerical(@numerical,@interval,@options); }
+           ?_ SolveSystemCore(spec,options);
 };
 
 SolveLinear(matrix,bounds)->{;
     linear=.linalg.Solve(matrix,bounds);
-    result={=
-        valueKind=:systemSolution, schema="rix.solve.system-result@1",
-        status=linear[:status], classification="linearMatrix", exact=1,
-        solution=linear[:particular], linearResult=linear
-    };
-    result.__type="SystemSolution";
-    result;
+    kind=linear[:status]=="inconsistent" ?: :empty ?_ linear[:status]=="underdetermined" ?: :parametric ?_ :finite;
+    SolveSolution(kind,linear[:status],{=
+        legacySchema="rix.solve.system-result@1",classification="linearMatrix",exact=1,
+        solution=linear[:particular],particular=linear[:particular],directions=linear[:nullspace],
+        parameters=SolveParameterNames(linear[:nullspace].Len()),linearResult=linear,
+        matrix=matrix,bounds=bounds,unknowns=[],provenance={= plugin=:solve,version=2,dispatch=:linearAlgebra }
+    });
+};
+
+SolvePolynomial(polynomialValue,intervalValue,options ?= {= })->{;
+    polynomial=polynomialValue ? :Polynomial ?: polynomialValue ?_ .poly.Polynomial(polynomialValue);
+    interval=intervalValue ~!: :RationalInterval;
+    lowValue=polynomial.Evaluate(interval.Low()); highValue=polynomial.Evaluate(interval.High());
+    endpoint=SolveIsZero(lowValue) ?: interval.Low() ?_ SolveIsZero(highValue) ?: interval.High() ?_ _;
+    endpoint!=_
+      ?: SolveSolution(:branch,:exactRoot,{=
+          classification=:polynomial,polynomial=polynomial,interval=endpoint:endpoint,
+          branches=[endpoint],solution=endpoint,unknowns=[polynomial.Variable()],exact=1,
+          assumptions=[],provenance={= plugin=:solve,version=2,dispatch=:exactRationalPolynomialRoot }
+      })
+      ?_ {;
+          count=@polynomial.RootCount(@interval);
+          count==1 ?: _ ?_ .Error(@"Polynomial solve interval must isolate exactly one root; found @{count}");
+          bound=@polynomial.RootBound()+1; rootIndex=@polynomial.RootCount((0-bound):@interval.Low())+1;
+          root=.ar.Root(@polynomial.AscendingCoefficients(),@interval,rootIndex,{= name=SolveOption(@options,"name",:polynomialRoot) });
+          SolveSolution(:branch,:isolated,{=
+              classification=:polynomial,polynomial=@polynomial,interval=@interval,
+              branches=[root],solution=root,unknowns=[@polynomial.Variable()],exact=1,
+              assumptions=[],provenance={= plugin=:solve,version=2,dispatch=:algebraicReal,rootIndex=rootIndex }
+          });
+      };
+};
+
+SolveNumerical(function,intervalValue,options ?= {= })->{;
+    function ? :Polynomial
+      ?: SolvePolynomial(function,intervalValue,options)
+      ?_ {;
+          isolation=.numerics.IsolateRoot(@function,@intervalValue,@options);
+          SolveSolution(:branch,isolation[:status],{=
+              classification=:numerical,function=@function,interval=@intervalValue,isolation=isolation,
+              branches=[isolation[:interval]],solution=isolation[:interval],unknowns=SolveOption(@options,"unknowns",[:x]),
+              exact=_,certified=isolation[:certified],assumptions=isolation[:obligations],
+              provenance={= plugin=:solve,version=2,dispatch=:numerics }
+          });
+      };
 };
 
 solveNamespace={= };
 solveNamespace._proto={=
     Classify=(self,spec)->SolveClassify(spec),
     Linear=(self,matrix,bounds)->SolveLinear(matrix,bounds),
-    System=(self,spec,options ?= {= })->SolveSystem(spec,options)
+    System=(self,spec,options ?= {= })->SolveSystem(spec,options),
+    Polynomial=(self,polynomial,interval,options ?= {= })->SolvePolynomial(polynomial,interval,options),
+    Numerical=(self,function,interval,options ?= {= })->SolveNumerical(function,interval,options),
+    Substitute=(self,solution,bindings ?= {= })->SolveSubstitute(solution,bindings),
+    Residuals=(self,solution,candidate ?= _)->SolveResiduals(solution,candidate),
+    Check=(self,solution,candidate ?= _)->SolveCheck(solution,candidate)
 };
 .Host.RegisterValue("solve",solveNamespace,"Pure-RiX exact linear-system classification and symbolic-spec solving",["Solve","Symbolic","Exact"]);

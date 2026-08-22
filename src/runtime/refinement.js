@@ -3,6 +3,7 @@ import { CertifiedApproximation, Integer, Rational, RationalInterval } from "@ra
 export const REFINEMENT_REQUEST_SCHEMA = "rix.numerics.refinement-request@1";
 export const REFINEMENT_RESULT_SCHEMA = "rix.numerics.enclosure@1";
 export const REFINEMENT_CAPABILITIES_SCHEMA = "rix.numerics.capabilities@1";
+export const REFINEMENT_ERROR_BUDGET_SCHEMA = "rix.numerics.error-budget@1";
 
 const OPERATIONS = new Set(["enclose", "refine", "sample"]);
 const STATUSES = new Set([
@@ -146,22 +147,31 @@ export function normalizeRefinementRequest(options = null, { operation = null, c
     const source = options?.type === "map" && options.entries instanceof Map ? options : refinementMap();
     const selectedOperation = nameOf(operation, nameOf(option(source, "operation", null), "enclose"));
     if (!OPERATIONS.has(selectedOperation)) throw new RangeError(`Unknown refinement operation '${selectedOperation}'`);
-    const absoluteWidth = asRational(
-        option(source, "absolutewidth", option(source, "width", new Rational(1n, 1000n))),
-        "absoluteWidth",
-        { positive: true },
-    );
+    const absoluteWidthValue = option(source, "absolutewidth", option(source, "width", null));
     const relativeWidthValue = option(source, "relativewidth", null);
     const relativeWidth = relativeWidthValue === null
         ? null
         : asRational(relativeWidthValue, "relativeWidth", { positive: true });
+    const absoluteLimit = absoluteWidthValue === null
+        ? (relativeWidth === null ? new Rational(1n, 1000n) : null)
+        : asRational(absoluteWidthValue, "absoluteWidth", { positive: true });
+    const relativeScale = relativeWidth === null
+        ? null
+        : asRational(option(source, "relativescale", option(source, "scale", Rational.one)), "relativeScale", { positive: true });
+    const relativeLimit = relativeWidth === null ? null : relativeWidth.multiply(relativeScale);
+    const absoluteWidth = absoluteLimit === null
+        ? relativeLimit
+        : relativeLimit === null || absoluteLimit.lessThanOrEqual(relativeLimit) ? absoluteLimit : relativeLimit;
     const work = normalizeWork(source, capabilities);
     const entries = [
         ["valuekind", refinementText("refinementRequest")],
         ["schema", refinementText(REFINEMENT_REQUEST_SCHEMA)],
         ["operation", refinementText(selectedOperation)],
         ["absolutewidth", absoluteWidth],
+        ["absolutelimit", absoluteLimit],
         ["relativewidth", relativeWidth],
+        ["relativescale", relativeScale],
+        ["effectivewidth", absoluteWidth],
         ["evidencerequired", option(source, "evidencerequired", refinementText("any"))],
         ["trace", option(source, "trace", new Integer(1n))],
         ["seed", option(source, "seed", new Integer(1n))],

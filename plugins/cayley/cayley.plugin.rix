@@ -1,0 +1,261 @@
+/**
+id: cayley
+description: Scalar-generic Cayley-Dickson values with certified component enclosures.
+kind: rix
+mount: cayley
+exports: [Provider, Level, Value, BasisValue, BasisProduct, FromComplex, FromExactAlgebra, Components, Conjugate, NormSquared, Inverse, LeftDivide, RightDivide, Enclose, Refine, ZeroStatus, VerifyMultiplication]
+groups: [Exact, Numerics]
+permissions: []
+requires: [rix.numerics@2, rix.complex@1, rix.exact-algebras@1]
+provides: [rix.cayley@2, rix.enclosable-cayley@1]
+schemas: [rix.cayley.provider@1, rix.cayley.level@1, rix.cayley.value@1, rix.cayley.enclosure@1, rix.cayley.zero-status@1]
+snapshot: false
+deterministic: true
+defaultEnabled: false
+**/
+
+CayleyExact(value) -> (value ? :Integer) || (value ? :Rational);
+CayleyCertifiedReal(value) -> {;
+    isCandidate=value ? :Map;
+    isCandidate ?: {;
+        capabilities=@value.NumericsCapabilities();
+        capabilities[:certified] && capabilities[:arbitraryRefinement] && capabilities[:denotation]==:singleton;
+    } ?_ _;
+};
+
+CayleyProvider(options ?= {= }) -> {;
+    name=options[:name] == _ ?: :certifiedReal ?_ options[:name];
+    can=options[:can] == _ ?: ((value)->(CayleyExact(value)||CayleyCertifiedReal(value))) ?_ options[:can];
+    division=options[:division] == _ ?: 1 ?_ options[:division];
+    provider={=
+        valueKind=:cayleyScalarProvider,
+        schema="rix.cayley.provider@1",
+        name=name,
+        central=options[:central] == _ ?: 1 ?_ options[:central],
+        commutative=options[:commutative] == _ ?: 1 ?_ options[:commutative],
+        certifiedSingleton=options[:certifiedSingleton] == _ ?: 1 ?_ options[:certifiedSingleton],
+        division=division,
+        can=can,
+        zero=options[:zero] == _ ?: 0 ?_ options[:zero],
+        one=options[:one] == _ ?: 1 ?_ options[:one]
+    };
+    provider._proto={=
+        Accepts=(self,value)->self[:can](value),
+        Record=(self)->{= schema=self[:schema],name=self[:name],central=self[:central],commutative=self[:commutative],certifiedSingleton=self[:certifiedSingleton],division=self[:division] }
+    };
+    .ImmutableValue(provider);
+};
+
+CayleyDefaultProvider=CayleyProvider();
+CayleyPow2(level) -> {; result:=1; {@ index=1;index<=@level;{; @result*=2; };index+=1}; result; };
+CayleyLevel(level,provider ?= CayleyDefaultProvider) -> {;
+    valid=(level ? :Integer) && level>=1;
+    valid ?: _ ?_ .Error("Cayley level must be a positive Integer");
+    dimension=CayleyPow2(level);
+    canDivide=level<=3 && provider[:central] && provider[:commutative] && provider[:division];
+    value={=
+        valueKind=:cayleyLevel,schema="rix.cayley.level@1",level=level,dimension=dimension,
+        provider=provider,compositionAlgebra=level<=3,associative=level<=2,commutative=level<=1,
+        alternative=level<=3,division=canDivide
+    };
+    value._proto={=
+        Dimension=(self)->self[:dimension],
+        Basis=(self)->[0|+1|^self[:dimension]-1].Map((index)->@"e@{index}"),
+        Capabilities=(self)->{= compositionAlgebra=self[:compositionAlgebra],associative=self[:associative],commutative=self[:commutative],alternative=self[:alternative],inverse=self[:division],division=self[:division],componentEnclosure=self[:provider][:certifiedSingleton] },
+        Value=(self,components)->CayleyValue(self,components),
+        BasisValue=(self,index)->CayleyBasisValue(self,index),
+        Record=(self)->{= schema=self[:schema],level=self[:level],dimension=self[:dimension],provider=self[:provider].Record() }
+    };
+    .ImmutableValue(value);
+};
+
+CayleyIsLevel(value) -> (value ? :Map) && value[:valueKind]==:cayleyLevel;
+CayleyRequireLevel(value) -> CayleyIsLevel(value) ?: value ?_ .Error("Expected a Cayley level");
+CayleyIs(value) -> value ? :CayleyValue;
+CayleyRequire(value) -> CayleyIs(value) ?: value ?_ .Error("Expected a Cayley value");
+CayleyZeros(count,zero ?= 0) -> {; values:=[]; {@ index=1;index<=@count;{; @values~=@values.Push(@zero); };index+=1}; values; };
+CayleyConcat(left,right) -> {; values:=left.Map((x)->x); {@ index=1;index<=@right.Len();{; @values~=@values.Push(@right[index]); };index+=1}; values; };
+CayleyBackend = {>
+    (component) ?- [CayleyExact(component)] -> :Rational,
+    (component) ?- [component ? :float] -> :float,
+    (component) ?- [component ? :Map] -> (component[:schema]==_ ?: :custom ?_ component[:schema]),
+    (component) -> :custom
+};
+
+CayleyValue(levelOrNumber,components,provenance ?= {= constructor=:components }) -> {;
+    level=CayleyIsLevel(levelOrNumber) ?: levelOrNumber ?_ CayleyLevel(levelOrNumber);
+    dimension=level[:dimension];
+    components.Len()<=dimension ?: _ ?_ .Error(@"Cayley level @{level[:level]} accepts at most @{dimension} components");
+    padded=CayleyConcat(components,CayleyZeros(dimension-components.Len(),level[:provider][:zero]));
+    {@ index=1;index<=@padded.Len();{;
+        @level[:provider].Accepts(@padded[index]) ?: _ ?_ .Error(@"Component @{index} is not accepted by scalar provider @{@level[:provider][:name]}");
+    };index+=1};
+    value={=
+        valueKind=:cayleyValue,schema="rix.cayley.value@1",level=level,dimension=dimension,
+        components=padded,componentBackends=padded.Map((component)->CayleyBackend(component)),
+        provenance=provenance,parenthesization=provenance[:parenthesization]
+    };
+    value.__type="CayleyValue"; value._type="cayley_value";
+    value._proto={=
+        Components=(self)->self[:components],
+        Conjugate=(self)->CayleyConjugate(self),
+        NormSquared=(self)->CayleyNormSquared(self),
+        Inverse=(self)->CayleyInverse(self),
+        LeftDivide=(self,divisor)->CayleyLeftDivide(self,divisor),
+        RightDivide=(self,divisor)->CayleyRightDivide(self,divisor),
+        Enclose=(self,request ?= {= })->CayleyEnclose(self,request,:enclose),
+        Refine=(self,request ?= {= })->CayleyEnclose(self,request,:refine),
+        ZeroStatus=(self,request ?= {= })->CayleyZeroStatus(self,request),
+        Parenthesization=(self)->self[:parenthesization],
+        Record=(self)->CayleyRecord(self)
+    };
+    .ImmutableValue(value ~!: :CayleyValue);
+};
+
+CayleyBasisValue(levelOrNumber,index) -> {;
+    level=CayleyIsLevel(levelOrNumber) ?: levelOrNumber ?_ CayleyLevel(levelOrNumber);
+    (index ? :Integer) && index>=0 && index<level[:dimension] ?: _ ?_ .Error("Basis index is outside the Cayley level");
+    values=CayleyZeros(level[:dimension],level[:provider][:zero]);
+    values[index+1]=level[:provider][:one];
+    CayleyValue(level,values,{= constructor=:basis,index=index });
+};
+
+CayleyConjugateComponents(components) -> {;
+    result:=[components[1]];
+    {@ index=2;index<=@components.Len();{; @result~=@result.Push(-@components[index]); };index+=1};
+    result;
+};
+CayleyAddComponents(left,right) -> {; result:=[]; {@ i=1;i<=@left.Len();{; @result~=@result.Push(@left[i]+@right[i]); };i+=1}; result; };
+CayleySubtractComponents(left,right) -> {; result:=[]; {@ i=1;i<=@left.Len();{; @result~=@result.Push(@left[i]-@right[i]); };i+=1}; result; };
+CayleyMultiplyRecursive(left,right) -> left.Len()==1 ?: [left[1]*right[1]] ?_ {;
+    half=@left.Len()//2; a=@left.Slice(1,half+1); b=@left.Slice(half+1); c=@right.Slice(1,half+1); d=@right.Slice(half+1);
+    CayleyConcat(
+        CayleySubtractComponents(CayleyMultiplyRecursive(a,c),CayleyMultiplyRecursive(CayleyConjugateComponents(d),b)),
+        CayleyAddComponents(CayleyMultiplyRecursive(d,a),CayleyMultiplyRecursive(b,CayleyConjugateComponents(c)))
+    );
+};
+
+CayleyMultiply2(a,b) -> [a[1]*b[1]-a[2]*b[2],a[1]*b[2]+a[2]*b[1]];
+CayleyMultiply4(a,b) -> [
+    a[1]*b[1]-a[2]*b[2]-a[3]*b[3]-a[4]*b[4],
+    a[1]*b[2]+a[2]*b[1]+a[3]*b[4]-a[4]*b[3],
+    a[1]*b[3]-a[2]*b[4]+a[3]*b[1]+a[4]*b[2],
+    a[1]*b[4]+a[2]*b[3]-a[3]*b[2]+a[4]*b[1]
+];
+CayleyMultiplySpecial(left,right) -> {;
+    dimension=left.Len();
+    dimension==2 ?: CayleyMultiply2(left,right)
+      ?_ dimension==4 ?: CayleyMultiply4(left,right)
+      ?_ dimension==8 ?: CayleyMultiplyRecursive(left,right)
+      ?_ CayleyMultiplyRecursive(left,right);
+};
+
+CayleyPromote(value,level) -> CayleyIs(value)
+    ?: (value[:level][:level]==level[:level] && value[:level][:provider][:name]==level[:provider][:name] ?: value ?_ .Error("Cayley operands have incompatible levels or scalar providers"))
+    ?_ CayleyValue(level,[value],{= constructor=:scalarEmbedding });
+CayleyPair(left,right) -> {;
+    source=CayleyIs(left) ?: left ?_ (CayleyIs(right) ?: right ?_ .Error("A Cayley operation needs a Cayley operand"));
+    {= left=CayleyPromote(left,source[:level]),right=CayleyPromote(right,source[:level]),level=source[:level] };
+};
+CayleyAdd(left,right) -> {; pair=CayleyPair(left,right); CayleyValue(pair[:level],CayleyAddComponents(pair[:left][:components],pair[:right][:components]),{= operation=:add,left=pair[:left],right=pair[:right],parenthesization=[:add,pair[:left][:parenthesization],pair[:right][:parenthesization]] }); };
+CayleySubtract(left,right) -> {; pair=CayleyPair(left,right); CayleyValue(pair[:level],CayleySubtractComponents(pair[:left][:components],pair[:right][:components]),{= operation=:subtract,left=pair[:left],right=pair[:right],parenthesization=[:subtract,pair[:left][:parenthesization],pair[:right][:parenthesization]] }); };
+CayleyMultiply(left,right) -> {; pair=CayleyPair(left,right); CayleyValue(pair[:level],CayleyMultiplySpecial(pair[:left][:components],pair[:right][:components]),{= operation=:multiply,left=pair[:left],right=pair[:right],parenthesization=[:multiply,pair[:left][:parenthesization],pair[:right][:parenthesization]] }); };
+CayleyNegate(value) -> {; exact=CayleyRequire(value); CayleyValue(exact[:level],exact[:components].Map((x)->-x),{= operation=:negate,source=exact }); };
+CayleyConjugate(value) -> {; exact=CayleyRequire(value); CayleyValue(exact[:level],CayleyConjugateComponents(exact[:components]),{= operation=:conjugate,source=exact }); };
+CayleyNormSquared(value) -> {; exact=CayleyRequire(value); total:=0; {@ i=1;i<=@exact[:dimension];{; @total+=@exact[:components][i]*@exact[:components][i]; };i+=1}; total; };
+CayleyInverse(value) -> {;
+    exact=CayleyRequire(value); exact[:level][:division] ?: _ ?_ .Error("This Cayley level/provider does not advertise total inversion");
+    status=CayleyZeroStatus(exact); status[:status]==:nonzero ?: _ ?_ .Error("Inverse requires certified nonzero evidence");
+    norm=CayleyNormSquared(exact); scaled=CayleyScaleComponents(CayleyConjugateComponents(exact[:components]),norm); CayleyValue(exact[:level],scaled,{= operation=:inverse,source=exact,evidence=status });
+};
+CayleyScaleComponents(components,divisor) -> components.Map((x)->x/divisor);
+CayleyLeftDivide(value,divisor) -> CayleyMultiply(CayleyInverse(divisor),value);
+CayleyRightDivide(value,divisor) -> CayleyMultiply(value,CayleyInverse(divisor));
+CayleyEqual(left,right) -> {; pair=CayleyPair(left,right); equal:=1; {@ i=1;i<=@pair[:level][:dimension]&&@equal;{; @pair[:left][:components][i]==@pair[:right][:components][i] ?: _ ?_ {; @equal=_; }; };i+=1}; equal; };
+
+CayleyComponentEnclose(component,request) -> {;
+    exact=component ~: :Rational;
+    exact!=_ ?: {= interval=exact:exact,certified=1,goalMet=1,status=:enclosed,work={= calls=0,iterations=0 } }
+      ?_ .numerics.Refine(component,request);
+};
+CayleyEnclose(value,rawRequest ?= {= },operation ?= :refine) -> {;
+    exact=CayleyRequire(value); request=.numerics.Request(rawRequest,operation); intervals:=[]; results:=[]; certified:=1; goalMet:=1; calls:=0; iterations:=0;
+    perWork=.Max(1,request[:work][:maxCalls]//exact[:dimension]);
+    {@ i=1;i<=@exact[:dimension];{;
+        result=CayleyComponentEnclose(@exact[:components][i],{= absoluteWidth=@request[:absoluteWidth],relativeWidth=@request[:relativeWidth],evidenceRequired=@request[:evidenceRequired],maxWork=@perWork,maxCalls=@perWork,maxIterations=@perWork,trace=@request[:trace] });
+        @results~=@results.Push(result); @intervals~=@intervals.Push(result[:interval]);
+        @certified~=@certified&&result[:certified]; @goalMet~=@goalMet&&result[:goalMet];
+        @calls+=result[:work][:calls]; @iterations+=result[:work][:iterations];
+    };i+=1};
+    {=
+        valueKind=:cayleyEnclosure,schema="rix.cayley.enclosure@1",status=goalMet?: :enclosed ?_ :budgetExhausted,
+        geometry=:componentBox,componentIntervals=intervals,componentResults=results,certified=certified,goalMet=goalMet,
+        level=exact[:level][:level],dimension=exact[:dimension],work={= calls=calls,iterations=iterations,maxCalls=request[:work][:maxCalls] },source=exact
+    };
+};
+CayleyZeroStatus(value,request ?= {= absoluteWidth=1/1000000,maxWork=1000 }) -> {;
+    exact=CayleyRequire(value); allExact:=1; anyNonzero:=_; allZero:=1;
+    {@ i=1;i<=@exact[:dimension];{; component=@exact[:components][i] ~: :Rational; component==_ ?:{; @allExact~=_; } ?_ (component!=0 ?:{; @anyNonzero~=1; @allZero~=_; } ?_ _); };i+=1};
+    status=anyNonzero ?: :nonzero ?_ (allExact&&allZero ?: :zero ?_ {;
+        box=CayleyEnclose(@exact,@request,:refine); separated:=_;
+        {@ i=1;i<=@box[:componentIntervals].Len()&&!@separated;{; interval=@box[:componentIntervals][i]; (interval.Lo()>0||interval.Hi()<0) ?:{; @separated~=1; } ?_ _; };i+=1};
+        separated ?: :nonzero ?_ :unknown;
+    });
+    {= valueKind=:cayleyZeroStatus,schema="rix.cayley.zero-status@1",status=status,certified=status!=:unknown,property=:originSeparation,source=exact };
+};
+
+CayleyBasisProduct(levelOrNumber,leftIndex,rightIndex) -> {;
+    level=CayleyIsLevel(levelOrNumber) ?: levelOrNumber ?_ CayleyLevel(levelOrNumber);
+    product=CayleyMultiply(CayleyBasisValue(level,leftIndex),CayleyBasisValue(level,rightIndex));
+    index:=0; coefficient:=0;
+    {@ i=1;i<=@product[:dimension];{; @product[:components][i]!=0 ?:{; @index=@i-1; @coefficient=@product[:components][@i]; } ?_ _; };i+=1};
+    {= left=leftIndex,right=rightIndex,index=index,coefficient=coefficient,dimension=level[:dimension] };
+};
+CayleyComponentsEqual(left,right) -> {; equal:=left.Len()==right.Len(); {@ i=1;i<=@left.Len()&&@equal;{; @left[i]==@right[i] ?: _ ?_ {; @equal~=_; }; };i+=1}; equal; };
+CayleyVerifyMultiplication(left,right) -> {; pair=CayleyPair(left,right); fast=CayleyMultiplySpecial(pair[:left][:components],pair[:right][:components]); recursive=CayleyMultiplyRecursive(pair[:left][:components],pair[:right][:components]); CayleyComponentsEqual(fast,recursive); };
+
+CayleyFromComplex(value,provider ?= CayleyDefaultProvider) -> {;
+    value ? :ComplexReal
+      ?: CayleyValue(CayleyLevel(1,provider),[value.Real(),value.Imaginary()],{= adapter=:rixComplex,source=value })
+      ?_ CayleyValue(CayleyLevel(1,provider),[value.Re(),value.Im()],{= adapter=:coreComplex,source=value });
+};
+CayleyFromExactAlgebra(value,provider ?= CayleyDefaultProvider) -> {;
+    value ? :ExactAlgebra ?: _ ?_ .Error("Expected an exact-algebras Quaternion or Octonion");
+    components=value.Components(); level=components.Len()==4 ?: 2 ?_ 3;
+    CayleyValue(CayleyLevel(level,provider),components,{= adapter=:exactAlgebras,source=value });
+};
+CayleyRecord(value) -> {; exact=CayleyRequire(value); {= schema=exact[:schema],level=exact[:level].Record(),components=exact[:components],componentBackends=exact[:componentBackends],provenance=exact[:provenance],parenthesization=exact[:parenthesization] }; };
+
+.TypeKnown(:CayleyValue) ?: _ ?_ .TypeRegister({=
+    name=:CayleyValue,nativeType=:map,defaultTraits=[:number],convertFrom={= map=(x) ?- [x[:valueKind]==:cayleyValue] -> x },validate=(value)->value[:schema]=="rix.cayley.value@1",proto={=
+        Components=(self)->self[:components],Conjugate=(self)->CayleyConjugate(self),NormSquared=(self)->CayleyNormSquared(self),
+        Inverse=(self)->CayleyInverse(self),LeftDivide=(self,divisor)->CayleyLeftDivide(self,divisor),RightDivide=(self,divisor)->CayleyRightDivide(self,divisor),
+        Enclose=(self,request ?= {= })->CayleyEnclose(self,request,:enclose),Refine=(self,request ?= {= })->CayleyEnclose(self,request,:refine),
+        ZeroStatus=(self,request ?= {= })->CayleyZeroStatus(self,request),Parenthesization=(self)->self[:parenthesization],Record=(self)->CayleyRecord(self)
+    },
+    installs={=
+        ADD=[{= name=:CayleyAdd,prep=(left,right)->CayleyIs(left)||CayleyIs(right),impl=CayleyAdd }],
+        SUB=[{= name=:CayleySubtract,prep=(left,right)->CayleyIs(left)||CayleyIs(right),impl=CayleySubtract }],
+        MUL=[{= name=:CayleyMultiply,prep=(left,right)->CayleyIs(left)||CayleyIs(right),impl=CayleyMultiply }],
+        DIV=[{= name=:CayleyRightDivision,prep=(left,right)->CayleyIs(left)&&CayleyIs(right),impl=CayleyRightDivide }],
+        NEG=[{= name=:CayleyNegate,prep=(value)->CayleyIs(value),impl=CayleyNegate }],
+        EQ=[{= name=:CayleyEqual,prep=(left,right)->CayleyIs(left)||CayleyIs(right),impl=(left,right)->(CayleyEqual(left,right) ?: 1 ?_ _) }],
+        NEQ=[{= name=:CayleyNotEqual,prep=(left,right)->CayleyIs(left)||CayleyIs(right),impl=(left,right)->(CayleyEqual(left,right) ?: _ ?_ 1) }]
+    }
+});
+.TypeInstall(:CayleyValue);
+
+cayleyNamespace={= };
+cayleyNamespace._proto={=
+    Provider=(self,options ?= {= })->CayleyProvider(options),Level=(self,level,provider ?= CayleyDefaultProvider)->CayleyLevel(level,provider),
+    Value=(self,level,components,provenance ?= {= constructor=:components })->CayleyValue(level,components,provenance),
+    BasisValue=(self,level,index)->CayleyBasisValue(level,index),BasisProduct=(self,level,left,right)->CayleyBasisProduct(level,left,right),
+    FromComplex=(self,value,provider ?= CayleyDefaultProvider)->CayleyFromComplex(value,provider),
+    FromExactAlgebra=(self,value,provider ?= CayleyDefaultProvider)->CayleyFromExactAlgebra(value,provider),
+    Components=(self,value)->CayleyRequire(value)[:components],Conjugate=(self,value)->CayleyConjugate(value),NormSquared=(self,value)->CayleyNormSquared(value),
+    Inverse=(self,value)->CayleyInverse(value),LeftDivide=(self,value,divisor)->CayleyLeftDivide(value,divisor),RightDivide=(self,value,divisor)->CayleyRightDivide(value,divisor),
+    Enclose=(self,value,request ?= {= })->CayleyEnclose(value,request,:enclose),Refine=(self,value,request ?= {= })->CayleyEnclose(value,request,:refine),
+    ZeroStatus=(self,value,request ?= {= absoluteWidth=1/1000000,maxWork=1000 })->CayleyZeroStatus(value,request),
+    VerifyMultiplication=(self,left,right)->CayleyVerifyMultiplication(left,right)
+};
+.Host.RegisterValue("cayley",cayleyNamespace,"Scalar-generic certified Cayley-Dickson values",["Exact","Numerics"]);

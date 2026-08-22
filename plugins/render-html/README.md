@@ -20,3 +20,9 @@ shortcut metadata, and `.Graphics.Action` renders as an accessible SVG action
 group. The static `.html.Render` result does not execute those interactions;
 generated reactive pages activate them through the shared browser widget
 runtime.
+
+Phase 2 adds `assets="inline"|"svg"|"png"`, external or inline semantic CSS,
+document theme variables, and structured metadata. `stylePolicy` is
+`"inline"`, `"external"`, or `"none"`; external CSS and figures are returned
+as subsidiary assets. Target-specific HTML is inert unless
+`rawMarkup="allow"`.

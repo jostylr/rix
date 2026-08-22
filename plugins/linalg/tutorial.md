@@ -115,3 +115,65 @@ nulls := .linalg.NullSpace(A);
 
 For this matrix the dimensions are `1`, `1`, and `2`. Each result keeps its
 original source matrix and exact pivot evidence.
+
+## Move vectors and covectors through a linear map
+
+```rix
+.Plugin.Load("linalg");
+V := .linalg.VectorSpace("V",2); W := .linalg.VectorSpace("W",3);
+e := .linalg.Frame(V,"e",:defining); g := .linalg.Frame(W,"g",:defining);
+A := .linalg.LinearMap(V,W,{:3x2: 1,0;0,1;1,1},{=
+  sourceFrame=e,targetFrame=g,name="A"
+});
+x := .linalg.Vector([1,2],e);
+alpha := .linalg.Covector([1,1,1],g);
+
+{=
+  pushed=A.Pushforward(x),
+  pulled=A.Pullback(alpha),
+  dual=A.Dual(),
+  verified=A.Verify()
+};
+```
+
+Pushforward uses `A`; pullback uses its exact transpose. `Compose` checks the
+middle abstract space and inserts a Frame change when needed. A square map's
+`Inverse` swaps domain and codomain and exactly inverts the matrix.
+
+## Tensor products and contractions
+
+```rix
+.Plugin.Load("linalg");
+V := .linalg.VectorSpace("V",2);
+e := .linalg.Frame(V,"e",:defining);
+x := .linalg.Vector([1,2],e);
+alpha := .linalg.Covector([3,4],e);
+outer := x.TensorProduct(alpha);
+{: outer.components,outer.Contract(1,2) };
+```
+
+The contraction is `3 + 8 = 11`. It is accepted because one slot is primal,
+one is dual, and both belong to `V`. Incompatible variance or spaces are an
+error instead of an implicit identification.
+
+## Give a Polynomial a linked Vector view
+
+```rix
+.Plugin.Load("linalg");
+P3 := .linalg.PolynomialSpace(3,:x);
+p := .p`x^2+2*x+3`;
+view := P3.Realize(p);
+rebuilt := view.Reconstruct();
+
+{:
+  p.__type,
+  view[:vector].components,
+  rebuilt==p,
+  .linalg.Serialize(view),
+  .linalg.Serialize(view[:vector])
+};
+```
+
+The coefficients are `[3,2,1,0]` in the monomial Frame, but `p` remains a
+callable Polynomial with Polynomial arithmetic. Serialized records contain
+stable IDs and data rather than the cyclic in-memory lineage graph.

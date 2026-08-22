@@ -43,7 +43,7 @@ GeometrySignSymbol(value) -> {;
       ?_ (GeometryIsAlgebraic(value)
            ?: .ar.Sign(value)
            ?_ {;
-               result=.numerics.Sign(value);
+               result=.numerics.Sign(@value);
                (result[:sign]==:negative||result[:sign]==:positive||result[:sign]==:zero) ?: result[:sign] ?_ :undecided;
            });
 };
@@ -977,10 +977,10 @@ GeometryIntersectCertifiedLines(left,right) -> {;
           bc=@left[:b]*@right[:c]-@right[:b]*@left[:c];
           acSign=GeometryCertifiedSign(ac); bcSign=GeometryCertifiedSign(bc);
           (acSign[:sign]==:zero&&bcSign[:sign]==:zero)
-            ?: {; @result~=GeometryIntersectionValue("coincident",[],@left,@right,"Coincident certified lines have infinitely many intersections",{= determinantSign=@determinantSign,acSign=acSign,bcSign=bcSign },0); }
+            ?: {; @result~=GeometryIntersectionValue("coincident",[],@left,@right,"Coincident certified lines have infinitely many intersections",{= determinantSign=@determinantSign,acSign=@acSign,bcSign=@bcSign },0); }
             ?_ (acSign[:sign]==:positive||acSign[:sign]==:negative||bcSign[:sign]==:positive||bcSign[:sign]==:negative)
-                 ?: {; @result~=GeometryIntersectionValue("parallel",[],@left,@right,"Parallel certified lines do not intersect",{= determinantSign=@determinantSign,acSign=acSign,bcSign=bcSign },0); }
-                 ?_ {; @result~=GeometryUndecidedIntersection(@left,@right,"Certified line coincidence is undecided within the current refinement budget",{= determinantSign=@determinantSign,acSign=acSign,bcSign=bcSign }); };
+                 ?: {; @result~=GeometryIntersectionValue("parallel",[],@left,@right,"Parallel certified lines do not intersect",{= determinantSign=@determinantSign,acSign=@acSign,bcSign=@bcSign },0); }
+                 ?_ {; @result~=GeometryUndecidedIntersection(@left,@right,"Certified line coincidence is undecided within the current refinement budget",{= determinantSign=@determinantSign,acSign=@acSign,bcSign=@bcSign }); };
       } ?_ _;
     result!=_ ?: result ?_ GeometryUndecidedIntersection(left,right,"Certified line determinant sign is undecided within the current refinement budget",{= determinantSign=determinantSign });
 };
@@ -1000,7 +1000,7 @@ GeometryIntersectCertifiedLineConic(line,conic,left,right) -> {;
             ?: {;
                 parameter=-@qc/@qb;
                 point=GeometryPointValue(@x+parameter*@dx,@y+parameter*@dy,"CertifiedLineConicIntersection",[@left,@right]);
-                GeometryIntersectionValue("one",[point],@left,@right,_,{= qaSign=@qaSign,qbSign=qbSign },0);
+                GeometryIntersectionValue("one",[point],@left,@right,_,{= qaSign=@qaSign,qbSign=@qbSign },0);
             }
             ?_ qbSign[:sign]==:zero
                  ?: GeometryUndecidedIntersection(@left,@right,"The certified line/conic equation is degenerate or coincident",{= qaSign=@qaSign,qbSign=qbSign })
@@ -1016,7 +1016,7 @@ GeometryIntersectCertifiedLineConic(line,conic,left,right) -> {;
                       ?: {;
                           parameter=-@qb/(2*@qa);
                           point=GeometryPointValue(@x+parameter*@dx,@y+parameter*@dy,"CertifiedTangentIntersection",[@left,@right]);
-                          GeometryIntersectionValue("one",[point],@left,@right,_,{= discriminantSign=discriminantSign },0);
+                          GeometryIntersectionValue("one",[point],@left,@right,_,{= discriminantSign=@discriminantSign },0);
                       }
                       ?_ discriminantSign[:sign]==:positive
                            ?: {;
@@ -1024,7 +1024,7 @@ GeometryIntersectCertifiedLineConic(line,conic,left,right) -> {;
                                first=(-@qb-root)/(2*@qa); second=(-@qb+root)/(2*@qa);
                                firstPoint=GeometryPointValue(@x+first*@dx,@y+first*@dy,"CertifiedLineConicIntersection",[@left,@right]);
                                secondPoint=GeometryPointValue(@x+second*@dx,@y+second*@dy,"CertifiedLineConicIntersection",[@left,@right]);
-                               GeometryIntersectionValue("two",[firstPoint,secondPoint],@left,@right,_,{= discriminantSign=discriminantSign },0);
+                               GeometryIntersectionValue("two",[firstPoint,secondPoint],@left,@right,_,{= discriminantSign=@discriminantSign },0);
                            }
                            ?_ GeometryUndecidedIntersection(@left,@right,"Certified conic discriminant sign is undecided within the current refinement budget",{= discriminantSign=discriminantSign });
            }

@@ -27,9 +27,9 @@ points into a portable Graphic.
 ```rix
 .Plugin.Load("fractals");
 data := .fractals.LogisticBifurcation([5/2,4], {=
-    parameterSamples=81,
-    discard=60,
-    keep=30
+    parameterSamples=11,
+    discard=6,
+    keep=8
 });
 .fractals.BifurcationGraphic(data, {= size=[640,360], stateDomain=[0,1] });
 ```
@@ -38,7 +38,7 @@ data := .fractals.LogisticBifurcation([5/2,4], {=
 
 ```rix
 .Plugin.Load("fractals");
-data := .fractals.Cobweb(.fractals.Logistic(7/2), [0,1], 1/5, 24);
+data := .fractals.Cobweb(.fractals.Logistic(7/2), [0,1], 1/5, 10);
 .fractals.CobwebGraphic(data, {= size=[480,480] });
 ```
 
@@ -52,8 +52,8 @@ grid.
 .Plugin.Load("fractals");
 grid := .fractals.Mandelbrot({=
     domain={= re=[-2,1], im=[-3/2,3/2] },
-    resolution=[48,48],
-    maxIterations=48
+    resolution=[16,16],
+    maxIterations=12
 });
 .fractals.EscapeGraphic(grid, {= size=[480,480] });
 ```

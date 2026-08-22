@@ -28,8 +28,7 @@ scene := .nd.ToScene3D(projected, {=
 ```
 
 Calling `ToScene3D` on the original 4D value fails and asks for an explicit
-projection. Slicing and projection are kept as separate concepts; phase 1
-implements the affine projection path.
+projection. Slicing and projection remain separate concepts.
 
 The projective endpoint of a Cayley parameter is also ordinary RiX code:
 
@@ -37,3 +36,49 @@ The projective endpoint of a Cayley parameter is also ordinary RiX code:
 halfTurn := .nd.CayleyRotation(4, 1, 4, .Complex[:infinity]);
 halfTurn["matrix"][1];
 ```
+
+## Parameterize an affine slice and take an exact section
+
+```rix
+.Plugin.Load("nd");
+plane := .nd.AffineSlice([0,0,1],[[1,0,0],[0,1,0]]);
+square2d := .nd.Polyline([[-1,-1],[1,-1],[1,1],[-1,1]],{= closed=1 });
+embedded := plane.Parameterize(square2d);
+section := .nd.Section(.nd.Hypercube(3,2),.nd.Hyperplane([0,0,1],0));
+{: plane.Parameterize([2,3]),embedded[:dimension],section[:points] };
+```
+
+`Section` uses only the supplied vertices and edges. The four returned points
+are exact; no unrecorded face connectivity is inferred.
+
+## Evaluate fields and inspect fibers
+
+```rix
+.Plugin.Load("nd");
+sum := .nd.Field(2,1,(p)->[p[1]+p[2]],{= name="sum" });
+domain := .nd.Polyline([[-1,1],[0,0],[1,-1],[1,1]]);
+fiber := sum.Fiber([0],domain);
+samples := sum.Sample([[-1,-1],[-1,1],[1,-1],[1,1]]);
+scene := .nd.ToScene3D(samples);
+{: sum.Evaluate([2,3]),fiber[:points],scene };
+```
+
+Omit the finite domain to get an explicit implicit-preimage record rather than
+an unbounded hidden search.
+
+## Explore a projection family
+
+```rix
+.Plugin.Load("nd");
+family := .nd.ProjectionFamily(3,2,
+  (t)->.nd.Compose(
+    .nd.CoordinateProjection(3,[1,2]),
+    .nd.CayleyRotation(3,1,2,t)
+  ),
+  (-1):1
+);
+{: family.At(0)[:matrix],family.At(1/3)[:matrix],family[:parameterDomain] };
+```
+
+Every selected projection is dimension-checked and retains the family and
+parameter in its provenance.

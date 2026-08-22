@@ -35,6 +35,7 @@ exact rationals, and measurement bounds become rational intervals. The locale
 policy is part of the call, not hidden machine configuration.
 
 ```rix
+.Plugin.Load("csv");
 .Plugin.Load("data");
 schema := [
     {= id="sample", type=:String, nullable=0 },
@@ -71,6 +72,17 @@ should avoid constructing a second full Relation. Typed conversion happens as
 each row is pulled.
 
 ```rix
+.Plugin.Load("csv");
+.Plugin.Load("data");
+schema := [
+    {= id="sample", type=:String, nullable=0 },
+    {= id="mass", type=:Rational },
+    {= id="bounds", type=:Interval }
+];
+source := """sample;mass;bounds
+A;1,25;1,2:1,3
+B;;2:2
+""";
 stream := .csv.ParseStream(source, schema, {=
     delimiter=:semicolon,
     decimal=:locale,
@@ -87,6 +99,7 @@ finite decimal would not equal the known exact value. Canonical mode remains
 the lossless fallback.
 
 ```rix
+.Plugin.Load("csv");
 .csv.Render(.Table(["value"], [[3/2], [10005]]), {=
     delimiter=:semicolon,
     decimal=:locale,
@@ -95,7 +108,8 @@ the lossless fallback.
 }).Get("content");
 ```
 
-```rix
+```text
+.Plugin.Load("csv");
 .csv.Render(.Table(["value"], [[1/3]]), {= decimal=:locale });
 ```
 
@@ -106,6 +120,7 @@ expects JSON-in-CSV, opt in; exact nested numbers receive lossless tags and the
 RenderResult records a diagnostic.
 
 ```rix
+.Plugin.Load("csv");
 flattened := .csv.Render(
     .Table(["payload"], [[{= estimate=1/3, flags=["exact", "reviewed"] }]]),
     {=
