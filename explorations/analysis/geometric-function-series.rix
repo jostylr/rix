@@ -12,6 +12,13 @@ $$view := {;
     epsilon := 1/(10^$accuracyPower);
     series := .analysis.GeometricSeries(radius);
     uniform := series.Check(:uniform,{= epsilon=epsilon,maxWork=160 });
+    functionLimit := .analysis.Limit(series,_,{= mode=:uniform })
+      .Check({= epsilon=epsilon,maxWork=160 });
+    continuity := .analysis.Exchange(:continuity,functionLimit).Check();
+    differentiation := .analysis.Exchange(:differentiation,functionLimit).Check();
+    scalar := .analysis.GeometricScalarSeries(1,radius);
+    scalarLimit := scalar.Check({= epsilon=epsilon,maxWork=160 });
+    scalarCauchy := scalar.Cauchy({= epsilon=epsilon,maxWork=160 });
     selected := [0,1,2,3,uniform[:witness][:index]];
     termRows := selected.Map((index)->[
         index,
@@ -59,11 +66,32 @@ $$view := {;
         .Table(
             ["mode","status","reason","may exchange limit and evaluation"],
             modeRows,
-            {= caption="Phase 1 certifies only the supported uniform theorem; other modes stay explicit and unknown" }
+            {= caption="The supported kernel certifies uniform convergence; other modes stay explicit and unknown" }
+        ),
+        .Heading(2,"The scalar series and its Cauchy witness"),
+        .Table(
+            ["quantity","exact value"],
+            [
+                ["sum",scalar.Sum()],
+                ["effective index",scalarLimit[:witness][:index]],
+                ["tail bound",scalarLimit[:witness][:tailBound]],
+                ["Cauchy pair bound",scalarCauchy[:witness][:pairBound]],
+                ["limsup",scalar.Limsup({= epsilon=epsilon,maxWork=160 })[:value]],
+                ["liminf",scalar.Liminf({= epsilon=epsilon,maxWork=160 })[:value]]
+            ],
+            {= caption="Phase 2 derives scalar limit and Cauchy records from the same exact remainder identity" }
+        ),
+        .Heading(2,"A theorem must discharge every exchange hypothesis"),
+        .Table(
+            ["operation","status","remaining obligations"],
+            [
+                [:continuity,continuity[:status],continuity[:obligations]],
+                [:differentiation,differentiation[:status],differentiation[:obligations]]
+            ],
+            {= caption="Uniform limits of the polynomial terms are continuous; differentiating the limit needs additional evidence" }
         ),
         .Paragraph(@"The certified witness is N=@{uniform[:witness][:index]} with tail @{uniform[:witness][:tailBound]} <= @{epsilon}.")
     ])
 };
 
 $view
-

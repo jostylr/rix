@@ -39,7 +39,7 @@ The implementation order and per-plugin phased work are tracked in
 | `fracfun/` | host | `fracfun` | Form-preserving FractionFunctions; aliases `.fractionFunction` and `.ff`. See the migration boundary below. |
 | `symbolic/` | RiX | `symbolic` | Pure-RiX meta-plugin loading the formal fraction/function workspace. |
 | `calculus/` | RiX | `calculus` | Portable abstract functions, semantic-ID rules, exact differentiation, expression/spec bridging, and explicit implementation links. |
-| `analysis/` | RiX | `analysis` | Function sequences, five explicit convergence modes, cloneable lazy term streams, and certified geometric uniform tails. |
+| `analysis/` | RiX | `analysis` | Phase 2 scalar/function limits, exact infinite series, effective moduli and Cauchy criteria, plus obligation-bearing limit exchanges and optional Cauchy/Numerics adapters. |
 | `geometry/` | RiX | `geometry` | Pure-RiX exact ruler-and-compass constructions, intersections, and Graphics snapshots. |
 | `data/` | host | `data` | Immutable typed relations, deterministic transformations, and portable Table views. |
 | `stats/` | RiX | `stats` | Exact descriptive statistics, summary Tables, histograms, and box plots; alias `.statistics`. |

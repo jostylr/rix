@@ -20,8 +20,8 @@ before beginning broad Phase 2 work.
 
 All Phase 1 milestones catalogued before the Calculus/Analysis work are
 implemented. Calculus Phase 1 and its listed Phase 2 milestones are implemented;
-Analysis Phase 1 remains a planned dependency-aware slice. Unchecked work below is Phase 2 or later unless
-a section explicitly says otherwise.
+Analysis is implemented through Phase 2. Unchecked work below is Phase 2 or
+later unless a section explicitly says otherwise.
 
 ## Basic order of implementation
 
@@ -715,12 +715,12 @@ tracked in
    - [x] Add README documentation, a runnable tutorial, and focused tests that
      prevent exchanging limits with evaluation solely from finite samples.
 2. **Phase 2 — Limits, series, and justified exchanges**
-   - [ ] Add scalar/function limits, limsup/liminf, infinite series, Cauchy
+   - [x] Add scalar/function limits, limsup/liminf, infinite series, Cauchy
      criteria, and effective moduli where available.
-   - [ ] Encode hypotheses for exchanging limits with continuity, integration,
+   - [x] Encode hypotheses for exchanging limits with continuity, integration,
      differentiation, summation, and expectation; unresolved hypotheses remain
      visible obligations.
-   - [ ] Interoperate with `.cauchy`, `.numerics`, and Calculus definite
+   - [x] Interoperate with `.cauchy`, `.numerics`, and Calculus definite
      integrals without making any one real-number representation mandatory.
 3. **Phase 3 — Function spaces and operator analysis**
    - [ ] Add explicit metric, normed, Banach, Hilbert, and selected `L^p`

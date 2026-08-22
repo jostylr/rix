@@ -1,12 +1,12 @@
 # `analysis`
 
-`analysis` is an opt-in, pure-RiX package for sequences of mathematical
-functions and explicit convergence claims. It consumes
+`analysis` is an opt-in, pure-RiX package for effective scalar and function
+limits, infinite series, Cauchy criteria, and explicit limit-exchange claims. It consumes
 `rix.abstract-function@1`, supplied by `.calculus`, and uses RiX's native
 cloneable lazy sequences for term streams. It does not create a competing
-function or stream representation.
+function, stream, or real-number representation.
 
-Phase 1 deliberately separates three things:
+The package deliberately separates three things:
 
 - a sequence of Calculus `MathematicalFunction` values;
 - a claim naming one precise mode of convergence and a candidate limit; and
@@ -115,10 +115,87 @@ claim into a theorem. This prevents an apparently convincing grid from
 justifying `lim f_n(x) = f(x)`, or an exchange of limit and evaluation, on an
 uncounted domain.
 
-Phase 1 therefore grants `allows.evaluation=1` only for the checked geometric
-uniform result. Integration, differentiation, and expectation remain unset;
-their exchange hypotheses belong to Phase 2.
+## Scalar sequences, series, and effective limits
+
+`ScalarSequence` represents exact Rational terms. `InfiniteSeries` adds exact
+partial sums, while `GeometricScalarSeries` supplies the Phase 2 checked
+kernel:
+
+```rix
+.Plugin.Load("analysis");
+series := .analysis.GeometricScalarSeries(1,1/2);
+series.Term(3);                         ## 1/8
+series.PartialSum(3);                   ## 15/8
+series.Sum();                           ## 2
+limit := series.Check({= epsilon=1/1000,maxWork=20 });
+```
+
+The exact absolute remainder is
+`|a| |r|^(n+1)/(1-|r|)`. `Modulus(epsilon)` returns an index and its checked
+bound; `Cauchy(...)` uses two such tails to bound every later pair. For a
+checked convergent sequence, `Limsup` and `Liminf` both return the effective
+limit. They remain `:unknown` for general bounded or oscillating sequences;
+Phase 2 does not infer extrema from a finite prefix.
+
+The generic `ScalarTailEvidence` constructor is useful for recording a
+proposed bound and modulus, but its authority is `:declared`. It can be
+queried and locally checked without being promoted into a convergence proof.
+
+## Optional real-number adapters
+
+Analysis has no hard dependency on a particular exact-real backend. When the
+optional plugins are loaded:
+
+```rix
+.Plugin.Load("cauchy");
+.Plugin.Load("analysis");
+.Plugin.Load("numerics");
+series := .analysis.GeometricScalarSeries(1,1/2);
+real := series.ToCauchy();
+sequence := .analysis.FromCauchy(real);
+checked := sequence.Check({= epsilon=1/1000 });
+enclosure := .analysis.RefineLimit(checked,{= targetWidth=1/100 });
+```
+
+`ToCauchy` is limited to the checked geometric-series kernel.
+`FromCauchy` accepts effective `rix.cauchy.real@1` values and preserves their
+tail/modulus evidence. `RefineLimit` returns a point enclosure for an exact
+Rational limit or delegates a refinable candidate to `.numerics`.
+
+## Limit exchanges expose their hypotheses
+
+`Exchange(operation, checkedLimit)` produces a claim with named hypotheses.
+Its result is `:justified` only when every hypothesis has proof authority;
+truthy options supplied by a caller are recorded as `:assumed`, not `:proved`.
+
+| Operation | Required hypotheses |
+| --- | --- |
+| evaluation | uniform convergence; point in domain |
+| continuity | uniform convergence; continuous terms |
+| integration | uniform convergence; integrable terms and limit; finite measure |
+| differentiation | differentiable terms; uniform derivative convergence; anchor convergence |
+| summation | row convergence; absolute summability |
+| expectation | almost-everywhere convergence; dominating integrable bound |
+
+The geometric function-series kernel discharges continuity. Its dedicated
+`IntegralExchange(sequence, lower, upper)` also discharges uniform integration
+on an exact Rational subinterval and returns portable Calculus definite-integral
+specifications for every term and the limit:
+
+```rix
+.Plugin.Load("analysis");
+.Plugin.Load("numerics");
+series := .analysis.GeometricSeries(1/2);
+exchange := .analysis.IntegralExchange(series,-1/2,1/2);
+termSpec := exchange.TermIntegral(3);
+limitSpec := exchange.LimitIntegral();
+quadrature := exchange.Numerical({= secondDerivativeBound=16 });
+```
+
+Numerical quadrature remains owned by `.numerics`; the derivative-bound option
+is an explicit certified input to that provider. General differentiation,
+summation, and expectation exchanges retain their unresolved theorem
+obligations for later providers.
 
 See [tutorial.md](tutorial.md) and the browser-safe
 [geometric-function-series exploration](../../explorations/analysis/geometric-function-series.md).
-

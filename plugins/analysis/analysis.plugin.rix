@@ -1,14 +1,14 @@
 /**
 id: analysis
-description: Function sequences and explicit convergence claims over Calculus abstract functions and effective lazy sequences.
+description: Effective scalar and function limits, infinite series, Cauchy criteria, and justified limit exchanges over portable Calculus functions.
 kind: rix
 mount: analysis
-exports: [FunctionSequence, TailEvidence, ConvergenceClaim, CheckConvergence, GeometricSeries, Term, Terms, TailBound, Modulus, Record, IsFunctionSequence, IsConvergenceClaim, IsConvergenceResult]
+exports: [FunctionSequence, TailEvidence, ConvergenceClaim, CheckConvergence, GeometricSeries, ScalarSequence, ScalarTailEvidence, InfiniteSeries, GeometricScalarSeries, FromCauchy, ToCauchy, Limit, CheckLimit, LimitSuperior, LimitInferior, CauchyCriterion, EffectiveModulus, Exchange, CheckExchange, IntegralExchange, RefineLimit, NumericalIntegral, Term, Terms, TailBound, Modulus, Record, IsFunctionSequence, IsScalarSequence, IsSeries, IsConvergenceClaim, IsConvergenceResult, IsLimitClaim, IsLimitResult, IsExchangeResult]
 groups: [Analysis, Calculus, Exact]
 permissions: []
 requires: [rix.abstract-function@1]
-provides: [rix.analysis@1, rix.analysis.function-sequence@1]
-schemas: [rix.analysis.function-sequence@1, rix.analysis.function-term-stream@1, rix.analysis.tail-evidence@1, rix.analysis.convergence-claim@1, rix.analysis.convergence-result@1]
+provides: [rix.analysis@1, rix.analysis@2, rix.analysis.function-sequence@1, rix.analysis.effective-limit@1, rix.analysis.limit-exchange@1]
+schemas: [rix.analysis.function-sequence@1, rix.analysis.function-term-stream@1, rix.analysis.tail-evidence@1, rix.analysis.convergence-claim@1, rix.analysis.convergence-result@1, rix.analysis.scalar-sequence@1, rix.analysis.scalar-term-stream@1, rix.analysis.scalar-tail-evidence@1, rix.analysis.infinite-series@1, rix.analysis.limit-claim@1, rix.analysis.limit-result@1, rix.analysis.extremal-limit-result@1, rix.analysis.cauchy-result@1, rix.analysis.exchange-claim@1, rix.analysis.exchange-result@1, rix.analysis.integral-exchange@1]
 snapshot: false
 deterministic: true
 defaultEnabled: false
@@ -316,6 +316,7 @@ AnalysisUnknownResult(claim, epsilon, reason, details ?= {= }) -> .ImmutableValu
     certified=_,
     mode=claim[:mode],
     sequenceName=claim[:sequenceName],
+    sourceKind=claim[:sequence][:kind],
     limitSemanticId=claim[:limitSemanticId],
     requestedEpsilon=epsilon,
     witness=_,
@@ -339,6 +340,8 @@ AnalysisCheckedGeometricResult(claim, epsilon, maxWork) -> {;
           certified=1,
           mode=:uniform,
           sequenceName=claim[:sequenceName],
+          sourceKind=sequence[:kind],
+          radius=sequence[:radius],
           limitSemanticId=claim[:limitSemanticId],
           requestedEpsilon=epsilon,
           witness={=
@@ -476,6 +479,876 @@ AnalysisGeometricSeries(radiusValue, options ?= {= }) -> {;
     AnalysisAttachSequenceProtocol(sequence);
 };
 
+## Phase 2: scalar sequences and infinite series use the same native lazy
+## sequence boundary as function sequences. Public evidence is always
+## normalized to a caller declaration; only checked kernels and adapters may
+## attach stronger authority.
+
+AnalysisIsScalarSequenceValue(value) ->
+    (value ? :Map) && value[:schema] == "rix.analysis.scalar-sequence@1";
+
+AnalysisIsSeriesValue(value) ->
+    (value ? :Map) && value[:schema] == "rix.analysis.infinite-series@1";
+
+AnalysisScalarSubject(value) ->
+    AnalysisIsScalarSequenceValue(value) || AnalysisIsSeriesValue(value);
+
+AnalysisRequireScalarSubject(value) ->
+    AnalysisScalarSubject(value) ?: value ?_ .Error("Analysis expected a ScalarSequence or InfiniteSeries");
+
+AnalysisRequireScalarTerm(value, label) -> value ~!: :Rational;
+
+AnalysisDeclaredScalarTailEvidence(boundFunction, modulusFunction, options ?= {= }) -> {;
+    options = AnalysisRequireOptions(options,"Analysis ScalarTailEvidence options");
+    .ImmutableValue({=
+        valueKind=:analysisScalarTailEvidence,
+        schema="rix.analysis.scalar-tail-evidence@1",
+        boundFunction=boundFunction,
+        modulusFunction=modulusFunction,
+        authority=:declared,
+        evidenceLevel=:assumed,
+        property=AnalysisOption(options,"property",:scalarAbsoluteTailBound),
+        source=AnalysisOption(options,"source",:callerDeclaration)
+    });
+};
+
+AnalysisNormalizeScalarTailEvidence(value) -> {;
+    value ? :Map ?: _ ?_ .Error("Scalar tail evidence must be a map");
+    value[:schema] == "rix.analysis.scalar-tail-evidence@1"
+      ?: .ImmutableValue({=
+          valueKind=:analysisScalarTailEvidence,
+          schema="rix.analysis.scalar-tail-evidence@1",
+          boundFunction=value[:boundFunction],
+          modulusFunction=value[:modulusFunction],
+          authority=:declared,
+          evidenceLevel=:assumed,
+          property=value[:property],
+          source=value[:source]
+      })
+      ?_ .Error("Scalar tail evidence must use rix.analysis.scalar-tail-evidence@1");
+};
+
+AnalysisScalarTermAt(subjectValue, indexValue) -> {;
+    subject = AnalysisRequireScalarSubject(subjectValue);
+    index = AnalysisRequireIndex(indexValue,"Scalar-sequence term index");
+    index >= subject[:indexDomain][:lower]
+      ?: AnalysisRequireScalarTerm(index |> subject[:termConstructor],@"Scalar-sequence term @{index}")
+      ?_ .Error(@"Scalar-sequence term index must be at least @{subject[:indexDomain][:lower]}");
+};
+
+AnalysisScalarTerms(subjectValue, startValue ?= _, countValue ?= _) -> {;
+    subject = AnalysisRequireScalarSubject(subjectValue);
+    first = startValue == _ ?: subject[:indexDomain][:lower] ?_ AnalysisRequireIndex(startValue,"Scalar Terms start");
+    first >= subject[:indexDomain][:lower]
+      ?: _
+      ?_ .Error(@"Scalar Terms start must be at least @{subject[:indexDomain][:lower]}");
+    count = countValue == _ ?: _ ?_ AnalysisRequireCount(countValue,"Scalar Terms count");
+    indices = count == _ ?: [first |+ 1] ?_ [first |+ 1 |^ count];
+    terms = indices |>> (index)->AnalysisScalarTermAt(@subject,index);
+    terms .= {=
+        valueKind=:analysisScalarTermStream,
+        schema="rix.analysis.scalar-term-stream@1",
+        subjectSchema=subject[:schema],
+        start=first,
+        count=count,
+        bounded=count == _ ?: _ ?_ 1,
+        clonePolicy=:cachedIndependent,
+        deepClonePolicy=:restart
+    };
+    terms;
+};
+
+AnalysisScalarGeometricTail(first, ratio, indexValue) -> {;
+    index = AnalysisRequireIndex(indexValue,"Scalar geometric tail index");
+    magnitude = ratio.Abs();
+    first.Abs()*magnitude^(index+1)/(1-magnitude);
+};
+
+AnalysisScalarTailBoundAt(subjectValue, indexValue) -> {;
+    subject = AnalysisRequireScalarSubject(subjectValue);
+    evidence = subject[:tailEvidence];
+    evidence != _ ?: _ ?_ .Error("Scalar sequence has no effective tail evidence");
+    index = AnalysisRequireIndex(indexValue,"Scalar tail-bound index");
+    bound = {? evidence[:authority] == :analysisScalarGeometricKernel ?
+                 AnalysisScalarGeometricTail(subject[:first],subject[:ratio],index);
+              evidence[:authority] == :analysisCauchyAdapter ?
+                 subject[:source].TailBound(index);
+              AnalysisRequireNonnegativeRational(index |> evidence[:boundFunction],@"Scalar tail bound @{index}")
+            };
+    AnalysisRequireNonnegativeRational(bound,@"Scalar tail bound @{index}");
+};
+
+AnalysisScalarGeometricModulus(first, ratio, epsilonValue, maxWorkValue) -> {;
+    epsilon = AnalysisRequirePositiveRational(epsilonValue,"Scalar geometric modulus epsilon");
+    maxWork = AnalysisRequirePositiveWork(maxWorkValue,"Scalar geometric modulus maxWork");
+    index := 0;
+    bound := AnalysisScalarGeometricTail(first,ratio,index);
+    work := 0;
+    {@ step=1; @bound > @epsilon && @work < @maxWork; {;
+        @index += 1;
+        @bound = AnalysisScalarGeometricTail(@first,@ratio,@index);
+        @work += 1;
+    }; step+=1 };
+    .ImmutableValue({=
+        valueKind=:analysisModulusResult,
+        status=bound <= epsilon ?: :complete ?_ :budgetExhausted,
+        index=index,
+        bound=bound,
+        epsilon=epsilon,
+        work={= iterations=work,maxWork=maxWork,exhausted=bound > epsilon }
+    });
+};
+
+AnalysisScalarModulusAt(subjectValue, epsilonValue, options ?= {= }) -> {;
+    subject = AnalysisRequireScalarSubject(subjectValue);
+    options = AnalysisRequireOptions(options,"Scalar effective-modulus options");
+    epsilon = AnalysisRequirePositiveRational(epsilonValue,"Scalar effective-modulus epsilon");
+    evidence = subject[:tailEvidence];
+    evidence != _ ?: _ ?_ .Error("Scalar sequence has no effective tail evidence");
+    {? evidence[:authority] == :analysisScalarGeometricKernel ?
+         AnalysisScalarGeometricModulus(subject[:first],subject[:ratio],epsilon,AnalysisOption(options,"maxwork",10000));
+       evidence[:authority] == :analysisCauchyAdapter ? {;
+         index = @subject[:source].Modulus(@epsilon);
+         bound = @subject[:source].TailBound(index);
+         .ImmutableValue({=
+             valueKind=:analysisModulusResult,status=:complete,index=index,bound=bound,epsilon=@epsilon,
+             work={= iterations=1,maxWork=1,exhausted=_ },source=:cauchyEffectiveModulus
+         });
+       };
+       {;
+         index = AnalysisRequireIndex(@epsilon |> @evidence[:modulusFunction],"Scalar modulus result");
+         bound = AnalysisScalarTailBoundAt(@subject,index);
+         bound <= @epsilon
+           ?: .ImmutableValue({=
+               valueKind=:analysisModulusResult,status=:complete,index=index,bound=bound,epsilon=@epsilon,
+               work={= iterations=1,maxWork=1,exhausted=_ },source=:declaredEffectiveModulus
+           })
+           ?_ .Error(@"Scalar modulus certificate failed: tail bound @{bound} exceeds @{epsilon} at index @{index}");
+       }
+    };
+};
+
+AnalysisScalarRecord(subjectValue) -> {;
+    subject = AnalysisRequireScalarSubject(subjectValue);
+    evidence = subject[:tailEvidence];
+    .ImmutableValue({=
+        valueKind=:scalarSequenceRecord,
+        schema=subject[:schema],
+        name=subject[:name],
+        kind=subject[:kind],
+        indexDomain=subject[:indexDomain],
+        candidate=subject[:limit],
+        effective=evidence == _ ?: _ ?_ 1,
+        evidenceLevel=evidence == _ ?: :none ?_ evidence[:evidenceLevel],
+        authority=evidence == _ ?: _ ?_ evidence[:authority],
+        provenance=subject[:provenance]
+    });
+};
+
+AnalysisAttachScalarProtocol(subject) -> {;
+    subject._proto = {=
+        Term=(self,index)->AnalysisScalarTermAt(self,index),
+        Terms=(self,start ?= _,count ?= _)->AnalysisScalarTerms(self,start,count),
+        TailBound=(self,index)->AnalysisScalarTailBoundAt(self,index),
+        Modulus=(self,epsilon,options ?= {= })->AnalysisScalarModulusAt(self,epsilon,options),
+        EffectiveModulus=(self,epsilon,options ?= {= })->AnalysisScalarModulusAt(self,epsilon,options),
+        Limit=(self,candidate ?= _,options ?= {= })->AnalysisLimitClaim(self,candidate,options),
+        Check=(self,request ?= {= })->AnalysisCheckLimit(AnalysisLimitClaim(self,_,{= }),request),
+        Cauchy=(self,request ?= {= })->AnalysisCauchyCriterion(self,request),
+        Limsup=(self,request ?= {= })->AnalysisExtremalLimit(self,:limsup,request),
+        Liminf=(self,request ?= {= })->AnalysisExtremalLimit(self,:liminf,request),
+        Record=(self)->AnalysisScalarRecord(self)
+    };
+    .ImmutableValue(subject);
+};
+
+AnalysisScalarSequence(termConstructor, options ?= {= }) -> {;
+    options = AnalysisRequireOptions(options,"Analysis ScalarSequence options");
+    start = AnalysisRequireIndex(AnalysisOption(options,"start",0),"ScalarSequence start");
+    firstTerm = AnalysisRequireScalarTerm(start |> termConstructor,@"ScalarSequence term @{start}");
+    evidenceValue = AnalysisOption(options,"tailevidence");
+    evidence = evidenceValue == _ ?: _ ?_ AnalysisNormalizeScalarTailEvidence(evidenceValue);
+    subject = {=
+        valueKind=:scalarSequence,
+        schema="rix.analysis.scalar-sequence@1",
+        kind=AnalysisOption(options,"kind",:scalarSequence),
+        name=AnalysisOption(options,"name",:scalarSequence),
+        indexDomain={= kind=:integerRay,lower=start,upper=_ },
+        termConstructor=termConstructor,
+        firstTerm=firstTerm,
+        limit=AnalysisOption(options,"limit"),
+        tailEvidence=evidence,
+        source=_,
+        provenance=AnalysisOption(options,"provenance",{= plugin=:analysis,version=2,source=:scalarSequence })
+    };
+    AnalysisAttachScalarProtocol(subject);
+};
+
+AnalysisSeriesPartialSum(seriesValue, indexValue) -> {;
+    series = AnalysisIsSeriesValue(seriesValue) ?: seriesValue ?_ .Error("Analysis expected an InfiniteSeries");
+    index = AnalysisRequireIndex(indexValue,"InfiniteSeries partial-sum index");
+    start = series[:indexDomain][:lower];
+    index >= start ?: _ ?_ .Error(@"InfiniteSeries partial-sum index must be at least @{start}");
+    {? series[:kind] == :geometricScalarSeries ?
+         series[:first]*(1-series[:ratio]^(index-start+1))/(1-series[:ratio]);
+       {;
+         total := 0;
+         {@ count=@start; count<=@index; {;
+             @total += AnalysisScalarTermAt(@series,count);
+         }; count+=1 };
+         total;
+       }
+    };
+};
+
+AnalysisAttachSeriesProtocol(series) -> {;
+    series._proto = {=
+        Term=(self,index)->AnalysisScalarTermAt(self,index),
+        Terms=(self,start ?= _,count ?= _)->AnalysisScalarTerms(self,start,count),
+        PartialSum=(self,index)->AnalysisSeriesPartialSum(self,index),
+        TailBound=(self,index)->AnalysisScalarTailBoundAt(self,index),
+        Modulus=(self,epsilon,options ?= {= })->AnalysisScalarModulusAt(self,epsilon,options),
+        EffectiveModulus=(self,epsilon,options ?= {= })->AnalysisScalarModulusAt(self,epsilon,options),
+        Sum=(self)->self[:limit],
+        Limit=(self,candidate ?= _,options ?= {= })->AnalysisLimitClaim(self,candidate,options),
+        Check=(self,request ?= {= })->AnalysisCheckLimit(AnalysisLimitClaim(self,_,{= }),request),
+        Cauchy=(self,request ?= {= })->AnalysisCauchyCriterion(self,request),
+        Limsup=(self,request ?= {= })->AnalysisExtremalLimit(self,:limsup,request),
+        Liminf=(self,request ?= {= })->AnalysisExtremalLimit(self,:liminf,request),
+        ToCauchy=(self,options ?= {= })->AnalysisToCauchy(self,options),
+        Record=(self)->AnalysisScalarRecord(self)
+    };
+    .ImmutableValue(series);
+};
+
+AnalysisInfiniteSeries(termConstructor, options ?= {= }) -> {;
+    options = AnalysisRequireOptions(options,"Analysis InfiniteSeries options");
+    start = AnalysisRequireIndex(AnalysisOption(options,"start",0),"InfiniteSeries start");
+    firstTerm = AnalysisRequireScalarTerm(start |> termConstructor,@"InfiniteSeries term @{start}");
+    evidenceValue = AnalysisOption(options,"tailevidence");
+    evidence = evidenceValue == _ ?: _ ?_ AnalysisNormalizeScalarTailEvidence(evidenceValue);
+    series = {=
+        valueKind=:infiniteSeries,
+        schema="rix.analysis.infinite-series@1",
+        kind=:infiniteSeries,
+        name=AnalysisOption(options,"name",:infiniteSeries),
+        indexDomain={= kind=:integerRay,lower=start,upper=_ },
+        termConstructor=termConstructor,
+        firstTerm=firstTerm,
+        limit=AnalysisOption(options,"sum"),
+        tailEvidence=evidence,
+        source=_,
+        provenance=AnalysisOption(options,"provenance",{= plugin=:analysis,version=2,source=:infiniteSeries })
+    };
+    AnalysisAttachSeriesProtocol(series);
+};
+
+AnalysisGeometricScalarSeries(firstValue, ratioValue, options ?= {= }) -> {;
+    options = AnalysisRequireOptions(options,"Analysis GeometricScalarSeries options");
+    first = firstValue ~!: :Rational;
+    ratio = ratioValue ~!: :Rational;
+    ratio.Abs() < 1 ?: _ ?_ .Error("GeometricScalarSeries ratio must have absolute value less than one");
+    termConstructor = (index)->@first*@ratio^index;
+    evidence = .ImmutableValue({=
+        valueKind=:analysisScalarTailEvidence,
+        schema="rix.analysis.scalar-tail-evidence@1",
+        authority=:analysisScalarGeometricKernel,
+        evidenceLevel=:proof,
+        property=:absoluteGeometricRemainderBound,
+        formula="|a| |r|^(n+1)/(1-|r|)",
+        first=first,
+        ratio=ratio,
+        source=:finiteGeometricRemainderIdentity
+    });
+    series = {=
+        valueKind=:infiniteSeries,
+        schema="rix.analysis.infinite-series@1",
+        kind=:geometricScalarSeries,
+        name=AnalysisOption(options,"name",:geometricScalarSeries),
+        indexDomain={= kind=:integerRay,lower=0,upper=_ },
+        termConstructor=termConstructor,
+        firstTerm=first,
+        first=first,
+        ratio=ratio,
+        limit=first/(1-ratio),
+        tailEvidence=evidence,
+        source=_,
+        provenance={= plugin=:analysis,version=2,source=:geometricScalarSeries,first=first,ratio=ratio }
+    };
+    AnalysisAttachSeriesProtocol(series);
+};
+
+AnalysisFromCauchy(source, options ?= {= }) -> {;
+    options = AnalysisRequireOptions(options,"Analysis FromCauchy options");
+    validSchema = (source ? :Map) && source[:schema] == "rix.cauchy.real@1";
+    validSchema ?: _ ?_ .Error("FromCauchy requires a certified effective rix.cauchy.real@1 value");
+    kind = source[:kind];
+    effective = kind == :geometric || kind == :computed || kind == :declared;
+    effective ?: _ ?_ .Error("FromCauchy does not accept a bare or recipe-only Cauchy value");
+    level = kind == :geometric ?: :proof ?_ (kind == :computed ?: source[:evidenceLevel] ?_ :constructorGuarantee);
+    termConstructor = (index)->@source.Term(index);
+    evidence = .ImmutableValue({=
+        valueKind=:analysisScalarTailEvidence,
+        schema="rix.analysis.scalar-tail-evidence@1",
+        authority=:analysisCauchyAdapter,
+        evidenceLevel=level,
+        property=:limitWithinTermPlusOrMinusTailBound,
+        sourceSchema=source[:schema],
+        sourceKind=kind,
+        source=:cauchyEffectiveSequence
+    });
+    subject = {=
+        valueKind=:scalarSequence,
+        schema="rix.analysis.scalar-sequence@1",
+        kind=:cauchyAdapter,
+        name=AnalysisOption(options,"name",:cauchyLimitSequence),
+        indexDomain={= kind=:integerRay,lower=0,upper=_ },
+        termConstructor=termConstructor,
+        firstTerm=source.Term(0),
+        limit=source,
+        tailEvidence=evidence,
+        source=source,
+        provenance={= plugin=:analysis,version=2,source=:cauchyAdapter,sourceKind=kind }
+    };
+    AnalysisAttachScalarProtocol(subject);
+};
+
+AnalysisToCauchy(seriesValue, options ?= {= }) -> {;
+    series = AnalysisIsSeriesValue(seriesValue) ?: seriesValue ?_ .Error("ToCauchy requires an InfiniteSeries");
+    options = AnalysisRequireOptions(options,"Analysis ToCauchy options");
+    evidence = series[:tailEvidence];
+    evidence != _ && evidence[:authority] == :analysisScalarGeometricKernel
+      ?: _
+      ?_ .Error("ToCauchy Phase 2 requires a checked geometric-series tail");
+    .cauchy.Certified(
+        (index)->AnalysisSeriesPartialSum(@series,index),
+        (index)->AnalysisScalarTailBoundAt(@series,index),
+        (epsilon)->AnalysisScalarModulusAt(@series,epsilon,{= })[:index],
+        {=
+            name=AnalysisOption(options,"name",:analysisSeriesCauchy),
+            evidence={=
+                authority=:analysisScalarGeometricKernel,
+                theorem=:finiteGeometricRemainder,
+                source=series[:provenance]
+            }
+        }
+    );
+};
+
+AnalysisIsLimitClaimValue(value) ->
+    (value ? :Map) && value[:schema] == "rix.analysis.limit-claim@1";
+
+AnalysisIsLimitResultValue(value) ->
+    (value ? :Map) && value[:schema] == "rix.analysis.limit-result@1";
+
+AnalysisRequireLimitClaim(value) ->
+    AnalysisIsLimitClaimValue(value) ?: value ?_ .Error("Analysis expected a LimitClaim");
+
+AnalysisLimitClaim(subjectValue, candidateValue ?= _, options ?= {= }) -> {;
+    options = AnalysisRequireOptions(options,"Analysis Limit options");
+    functionSubject = AnalysisIsFunctionSequenceValue(subjectValue);
+    scalarSubject = AnalysisScalarSubject(subjectValue);
+    functionSubject || scalarSubject ?: _ ?_ .Error("Limit requires a FunctionSequence, ScalarSequence, or InfiniteSeries");
+    canonical = candidateValue == _;
+    candidate = canonical ?: subjectValue[:limit] ?_ candidateValue;
+    mode = functionSubject ?: AnalysisRequireMode(AnalysisOption(options,"mode",:pointwise)) ?_ :scalar;
+    functionClaim = functionSubject
+      ?: AnalysisConvergenceClaim(subjectValue,mode,candidate,options)
+      ?_ _;
+    claim = {=
+        valueKind=:analysisLimitClaim,
+        schema="rix.analysis.limit-claim@1",
+        kind=functionSubject ?: :functionLimit ?_ (AnalysisIsSeriesValue(subjectValue) ?: :seriesSum ?_ :scalarLimit),
+        subject=subjectValue,
+        subjectSchema=subjectValue[:schema],
+        subjectName=subjectValue[:name],
+        candidate=candidate,
+        canonicalCandidate=canonical,
+        mode=mode,
+        functionClaim=functionClaim,
+        direction=AnalysisOption(options,"direction",:atInfinity),
+        point=AnalysisOption(options,"point"),
+        samples=AnalysisOption(options,"samples")
+    };
+    claim._proto = {=
+        Check=(self,request ?= {= })->AnalysisCheckLimit(self,request),
+        Record=(self)->.ImmutableValue({=
+            valueKind=self[:valueKind],schema=self[:schema],kind=self[:kind],subjectSchema=self[:subjectSchema],
+            subjectName=self[:subjectName],candidate=self[:candidate],canonicalCandidate=self[:canonicalCandidate],
+            mode=self[:mode],direction=self[:direction],point=self[:point]
+        })
+    };
+    .ImmutableValue(claim);
+};
+
+AnalysisLimitUnknown(claim, epsilon, reason, details ?= {= }) -> .ImmutableValue({=
+    valueKind=:analysisLimitResult,
+    schema="rix.analysis.limit-result@1",
+    status=:unknown,
+    conclusion=:unknown,
+    goalMet=_,
+    certified=_,
+    kind=claim[:kind],
+    mode=claim[:mode],
+    subjectName=claim[:subjectName],
+    subjectKind=claim[:subject][:kind],
+    candidate=claim[:candidate],
+    requestedEpsilon=epsilon,
+    witness=_,
+    evidenceLevel=:none,
+    reason=reason,
+    obligations=[reason],
+    diagnostics=(claim[:samples] == _ ?: [] ?_ [{= code=:finiteSamplesIgnored }]).Push({= code=reason,details=details }),
+    allows={= evaluation=_,continuity=_,integration=_,differentiation=_,summation=_,expectation=_ }
+});
+
+AnalysisScalarModulusLimit(claim, epsilon, maxWork, geometric) -> {;
+    subject = claim[:subject];
+    evidence = subject[:tailEvidence];
+    authority = evidence[:authority];
+    modulus = AnalysisScalarModulusAt(subject,epsilon,{= maxWork=maxWork });
+    modulus[:status] == :complete
+      ?: .ImmutableValue({=
+          valueKind=:analysisLimitResult,
+          schema="rix.analysis.limit-result@1",
+          status=:converged,
+          conclusion=AnalysisIsSeriesValue(subject) ?: :seriesConverges ?_ :scalarConvergence,
+          goalMet=1,
+          certified=1,
+          kind=claim[:kind],
+          mode=:scalar,
+          subjectName=claim[:subjectName],
+          subjectKind=subject[:kind],
+          candidate=claim[:candidate],
+          requestedEpsilon=epsilon,
+          witness={= index=modulus[:index],tailBound=modulus[:bound],epsilon=epsilon },
+          evidenceLevel=evidence[:evidenceLevel],
+          reason=geometric ?: :checkedGeometricTail ?_ :effectiveCauchyAdapter,
+          obligations=[],
+          diagnostics=claim[:samples] == _ ?: [] ?_ [{= code=:finiteSamplesIgnored }],
+          work=modulus[:work],
+          evidence={= authority=authority,property=evidence[:property],source=evidence[:source] },
+          allows={= evaluation=1,continuity=_,integration=_,differentiation=_,summation=1,expectation=_ }
+      })
+      ?_ AnalysisLimitUnknown(claim,epsilon,:workBudgetReached,modulus[:work]);
+};
+
+AnalysisScalarAuthorizedLimit(claim, epsilon, maxWork, geometric) -> {;
+    subject = claim[:subject];
+    candidateMatches = geometric
+      ?: (claim[:candidate] == subject[:limit])
+      ?_ claim[:canonicalCandidate];
+    candidateMatches
+      ?: AnalysisScalarModulusLimit(claim,epsilon,maxWork,geometric)
+      ?_ AnalysisLimitUnknown(claim,epsilon,:limitIdentityMismatch);
+};
+
+AnalysisScalarCheckedLimit(claim, epsilon, maxWork) -> {;
+    authority = claim[:subject][:tailEvidence][:authority];
+    geometric = authority == :analysisScalarGeometricKernel;
+    supported = geometric || authority == :analysisCauchyAdapter;
+    supported
+      ?: AnalysisScalarAuthorizedLimit(claim,epsilon,maxWork,geometric)
+      ?_ AnalysisLimitUnknown(claim,epsilon,:unverifiedTailProperty,{= authority=authority });
+};
+
+AnalysisFunctionLimitResult(claim, request) -> {;
+    convergence = AnalysisCheckConvergence(claim[:functionClaim],request);
+    convergence[:status] == :converged
+      ?: .ImmutableValue({=
+          valueKind=:analysisLimitResult,
+          schema="rix.analysis.limit-result@1",
+          status=:converged,
+          conclusion=:functionConvergence,
+          goalMet=convergence[:goalMet],
+          certified=convergence[:certified],
+          kind=:functionLimit,
+          mode=convergence[:mode],
+          subjectName=claim[:subjectName],
+          subjectKind=convergence[:sourceKind],
+          candidate=claim[:candidate],
+          requestedEpsilon=convergence[:requestedEpsilon],
+          witness=convergence[:witness],
+          evidenceLevel=convergence[:evidenceLevel],
+          reason=convergence[:reason],
+          obligations=convergence[:obligations],
+          diagnostics=convergence[:diagnostics],
+          work=convergence[:work],
+          evidence=convergence[:evidence],
+          convergenceResult=convergence,
+          allows={=
+              evaluation=convergence[:allows][:evaluation],continuity=_,integration=_,differentiation=_,summation=_,expectation=_
+          }
+      })
+      ?_ AnalysisLimitUnknown(claim,convergence[:requestedEpsilon],convergence[:reason],{= convergenceResult=convergence });
+};
+
+AnalysisCheckLimit(claimValue, request ?= {= }) -> {;
+    claim = AnalysisRequireLimitClaim(claimValue);
+    request = AnalysisRequireOptions(request,"Analysis CheckLimit request");
+    epsilon = AnalysisRequirePositiveRational(AnalysisOption(request,"epsilon",1/1000),"Analysis limit epsilon");
+    maxWork = AnalysisRequirePositiveWork(AnalysisOption(request,"maxwork",10000),"Analysis limit maxWork");
+    claim[:kind] == :functionLimit
+      ?: AnalysisFunctionLimitResult(claim,request)
+      ?_ (claim[:candidate] == _
+           ?: AnalysisLimitUnknown(claim,epsilon,:missingCandidateLimit)
+           ?_ (claim[:subject][:tailEvidence] == _
+                ?: AnalysisLimitUnknown(claim,epsilon,:missingEffectiveTailEvidence)
+                ?_ AnalysisScalarCheckedLimit(claim,epsilon,maxWork)));
+};
+
+AnalysisExtremalLimit(subjectValue, operation, request ?= {= }) -> {;
+    operation == :limsup || operation == :liminf
+      ?: _
+      ?_ .Error("Extremal limit operation must be :limsup or :liminf");
+    claim = AnalysisLimitClaim(subjectValue,_,{= });
+    result = AnalysisCheckLimit(claim,request);
+    result[:status] == :converged
+      ?: .ImmutableValue({=
+          valueKind=:analysisExtremalLimitResult,
+          schema="rix.analysis.extremal-limit-result@1",
+          status=:determined,
+          operation=operation,
+          value=result[:candidate],
+          relation=:equalsEffectiveLimit,
+          certified=result[:certified],
+          evidenceLevel=result[:evidenceLevel],
+          witness=result[:witness],
+          obligations=[],
+          sourceLimit=result
+      })
+      ?_ .ImmutableValue({=
+          valueKind=:analysisExtremalLimitResult,
+          schema="rix.analysis.extremal-limit-result@1",
+          status=:unknown,
+          operation=operation,
+          value=_,
+          relation=:unknown,
+          certified=_,
+          evidenceLevel=:none,
+          witness=_,
+          obligations=result[:obligations],
+          sourceLimit=result
+      });
+};
+
+AnalysisCauchyUnknown(subject, epsilon, reason) -> .ImmutableValue({=
+    valueKind=:analysisCauchyResult,
+    schema="rix.analysis.cauchy-result@1",
+    status=:unknown,
+    conclusion=:unknown,
+    certified=_,
+    subjectName=subject[:name],
+    subjectKind=subject[:kind],
+    requestedEpsilon=epsilon,
+    witness=_,
+    evidenceLevel=:none,
+    reason=reason,
+    obligations=[reason]
+});
+
+AnalysisCauchyComplete(subject, epsilon, evidence, functionSubject, modulus) ->
+    .ImmutableValue({=
+        valueKind=:analysisCauchyResult,
+        schema="rix.analysis.cauchy-result@1",
+        status=:satisfied,
+        conclusion=functionSubject ?: :uniformCauchyCriterion ?_ :scalarCauchyCriterion,
+        certified=1,
+        subjectName=subject[:name],
+        subjectKind=subject[:kind],
+        requestedEpsilon=epsilon,
+        witness={=
+            index=modulus[:index],singleTailBound=modulus[:bound],pairBound=2*modulus[:bound],epsilon=epsilon
+        },
+        evidenceLevel=evidence[:evidenceLevel],
+        reason=:effectiveLimitImpliesCauchy,
+        obligations=[],
+        work=modulus[:work]
+    });
+
+AnalysisCauchySupported(subject, epsilon, maxWork, evidence, functionSubject) -> {;
+    modulus = functionSubject
+      ?: AnalysisModulusAt(subject,epsilon/2,{= maxWork=maxWork })
+      ?_ AnalysisScalarModulusAt(subject,epsilon/2,{= maxWork=maxWork });
+    modulus[:status] == :complete
+      ?: AnalysisCauchyComplete(subject,epsilon,evidence,functionSubject,modulus)
+      ?_ AnalysisCauchyUnknown(subject,epsilon,:workBudgetReached);
+};
+
+AnalysisCauchyWithEvidence(subject, epsilon, maxWork, evidence, functionSubject) -> {;
+    supported = functionSubject
+      ?: evidence[:authority] == :analysisGeometricKernel
+      ?_ (evidence[:authority] == :analysisScalarGeometricKernel || evidence[:authority] == :analysisCauchyAdapter);
+    supported
+      ?: AnalysisCauchySupported(subject,epsilon,maxWork,evidence,functionSubject)
+      ?_ AnalysisCauchyUnknown(subject,epsilon,:unverifiedTailProperty);
+};
+
+AnalysisCauchyCriterion(subjectValue, request ?= {= }) -> {;
+    request = AnalysisRequireOptions(request,"Analysis CauchyCriterion request");
+    epsilon = AnalysisRequirePositiveRational(AnalysisOption(request,"epsilon",1/1000),"CauchyCriterion epsilon");
+    maxWork = AnalysisRequirePositiveWork(AnalysisOption(request,"maxwork",10000),"CauchyCriterion maxWork");
+    functionSubject = AnalysisIsFunctionSequenceValue(subjectValue);
+    scalarSubject = AnalysisScalarSubject(subjectValue);
+    functionSubject || scalarSubject ?: _ ?_ .Error("CauchyCriterion requires a function or scalar sequence");
+    evidence = subjectValue[:tailEvidence];
+    evidence == _
+      ?: AnalysisCauchyUnknown(subjectValue,epsilon,:missingEffectiveTailEvidence)
+      ?_ AnalysisCauchyWithEvidence(subjectValue,epsilon,maxWork,evidence,functionSubject);
+};
+
+AnalysisEffectiveModulus(subjectValue, epsilon, options ?= {= }) ->
+    AnalysisIsFunctionSequenceValue(subjectValue)
+      ?: AnalysisModulusAt(subjectValue,epsilon,options)
+      ?_ AnalysisScalarModulusAt(subjectValue,epsilon,options);
+
+AnalysisRefineLimit(resultValue, request ?= {= }) -> {;
+    AnalysisIsLimitResultValue(resultValue) ?: _ ?_ .Error("RefineLimit requires an Analysis limit result");
+    resultValue[:status] == :converged ?: _ ?_ .Error("RefineLimit requires a converged limit result");
+    candidate = resultValue[:candidate];
+    (candidate ? :Integer) || (candidate ? :Rational)
+      ?: {;
+          exact = @candidate ~!: :Rational;
+          .ImmutableValue({=
+              valueKind=:enclosure,schema="rix.numerics.enclosure@1",status=:enclosed,
+              interval=exact:exact,certified=1,goalMet=1,requestedWidth=0,achievedWidth=0,
+              evidenceLevel=:proof,backend=:analysis,operation=:refine,
+              work={= calls=0,iterations=0,exhausted=_ },diagnostics=[],
+              evidence={= kind=:exactScalar,property=:containment },source=@resultValue[:evidence]
+          });
+      }
+      ?_ .numerics.Refine(candidate,request);
+};
+
+## Limit exchanges are theorem applications with named hypotheses. A truthy
+## user option records an assumption but never a proof. Phase 2 discharges
+## only the geometric uniform-continuity and compact-interval integration
+## kernels; every other route keeps its obligations visible.
+
+AnalysisRequireExchangeOperation(value) -> {;
+    valid = value == :evaluation || value == :continuity || value == :integration ||
+      value == :differentiation || value == :summation || value == :expectation;
+    valid ?: value ?_ .Error("Exchange operation must be :evaluation, :continuity, :integration, :differentiation, :summation, or :expectation");
+};
+
+AnalysisExchangeRequirements(operation) -> {?
+    operation == :evaluation ? [:uniformConvergence,:pointInDomain];
+    operation == :continuity ? [:uniformConvergence,:continuousTerms];
+    operation == :integration ? [:uniformConvergence,:integrableTerms,:integrableLimit,:finiteMeasure];
+    operation == :differentiation ? [:differentiableTerms,:uniformDerivativeConvergence,:anchorConvergence];
+    operation == :summation ? [:rowConvergence,:absoluteSummability];
+    operation == :expectation ? [:almostEverywhereConvergence,:dominatingIntegrableBound];
+};
+
+AnalysisHypothesis(name, status, authority, evidence ?= {= }) -> .ImmutableValue({=
+    valueKind=:analysisHypothesis,
+    schema="rix.analysis.hypothesis@1",
+    name=name,
+    status=status,
+    discharged=status == :proved ?: 1 ?_ _,
+    authority=authority,
+    evidence=evidence
+});
+
+AnalysisOptionHypothesis(options, name) -> {;
+    value = AnalysisOption(options,name.Lower());
+    value == _
+      ?: AnalysisHypothesis(name,:unknown,:none,{= reason=:missingHypothesis })
+      ?_ AnalysisHypothesis(name,:assumed,:caller,{= declaration=value });
+};
+
+AnalysisConvergenceHypothesis(result, name) -> {;
+    checked = AnalysisIsLimitResultValue(result) && result[:status] == :converged && result[:certified] == 1;
+    matches = {? name == :uniformConvergence ? result[:mode] == :uniform;
+               name == :almostEverywhereConvergence ? result[:mode] == :almostEverywhere;
+               name == :rowConvergence ? result[:kind] == :seriesSum;
+               _
+    };
+    proved = checked && matches;
+    proved
+      ?: AnalysisHypothesis(name,:proved,:analysisCheckedLimit,{=
+          mode=result[:mode],subjectKind=result[:subjectKind],witness=result[:witness],evidence=result[:evidence]
+      })
+      ?_ AnalysisHypothesis(name,:unknown,:none,{= reason=:missingCheckedConvergence });
+};
+
+AnalysisUnresolvedHypotheses(hypotheses) ->
+    hypotheses.Reduce(
+        (obligations,hypothesis)->hypothesis[:status] != :proved
+          ?: obligations.Push(hypothesis[:name])
+          ?_ obligations,
+        []
+    );
+
+AnalysisExchangeClaim(operationValue, limitResult, options ?= {= }) -> {;
+    operation = AnalysisRequireExchangeOperation(operationValue);
+    options = AnalysisRequireOptions(options,"Analysis Exchange options");
+    AnalysisIsLimitResultValue(limitResult) ?: _ ?_ .Error("Exchange requires an Analysis limit result");
+    requirements = AnalysisExchangeRequirements(operation);
+    hypotheses = requirements.Map((name)->{;
+        convergenceName = name == :uniformConvergence || name == :almostEverywhereConvergence || name == :rowConvergence;
+        convergenceName
+          ?: AnalysisConvergenceHypothesis(@limitResult,name)
+          ?_ AnalysisOptionHypothesis(@options,name);
+    });
+    geometric = limitResult[:subjectKind] == :geometricPartialSums;
+    hypotheses = (operation == :continuity && geometric)
+      ?: hypotheses.Map((hypothesis)->
+          hypothesis[:name] == :continuousTerms
+            ?: AnalysisHypothesis(:continuousTerms,:proved,:analysisGeometricKernel,{= theorem=:polynomialsAreContinuous })
+            ?_ hypothesis
+      )
+      ?_ hypotheses;
+    obligations = AnalysisUnresolvedHypotheses(hypotheses);
+    claim = {=
+        valueKind=:analysisExchangeClaim,
+        schema="rix.analysis.exchange-claim@1",
+        operation=operation,
+        limitResult=limitResult,
+        requirements=requirements,
+        hypotheses=hypotheses,
+        obligations=obligations,
+        target=AnalysisOption(options,"target"),
+        theorem=AnalysisOption(options,"theorem",:unspecifiedExchangeTheorem),
+        provenance={= plugin=:analysis,version=2,source=:exchangeClaim }
+    };
+    claim._proto = {=
+        Check=(self)->AnalysisCheckExchange(self),
+        Record=(self)->.ImmutableValue({=
+            valueKind=self[:valueKind],schema=self[:schema],operation=self[:operation],requirements=self[:requirements],
+            hypotheses=self[:hypotheses],target=self[:target],theorem=self[:theorem]
+        })
+    };
+    .ImmutableValue(claim);
+};
+
+AnalysisIsExchangeClaimValue(value) ->
+    (value ? :Map) && value[:schema] == "rix.analysis.exchange-claim@1";
+
+AnalysisIsExchangeResultValue(value) ->
+    (value ? :Map) && (value[:schema] == "rix.analysis.exchange-result@1" || value[:schema] == "rix.analysis.integral-exchange@1");
+
+AnalysisCheckExchange(claimValue) -> {;
+    claim = AnalysisIsExchangeClaimValue(claimValue) ?: claimValue ?_ .Error("CheckExchange requires an ExchangeClaim");
+    justified = claim[:obligations].Len() == 0;
+    .ImmutableValue({=
+        valueKind=:analysisExchangeResult,
+        schema="rix.analysis.exchange-result@1",
+        status=justified ?: :justified ?_ :unknown,
+        conclusion=justified ?: :exchangeJustified ?_ :unknown,
+        certified=justified ?: 1 ?_ _,
+        operation=claim[:operation],
+        theorem=claim[:theorem],
+        target=claim[:target],
+        hypotheses=claim[:hypotheses],
+        obligations=claim[:obligations],
+        diagnostics=justified ?: [] ?_ [{= code=:unresolvedExchangeHypotheses,count=claim[:obligations].Len() }],
+        evidenceLevel=justified ?: :proof ?_ :none,
+        sourceLimit=claim[:limitResult],
+        allows={=
+            evaluation=justified && claim[:operation] == :evaluation ?: 1 ?_ _,
+            continuity=justified && claim[:operation] == :continuity ?: 1 ?_ _,
+            integration=justified && claim[:operation] == :integration ?: 1 ?_ _,
+            differentiation=justified && claim[:operation] == :differentiation ?: 1 ?_ _,
+            summation=justified && claim[:operation] == :summation ?: 1 ?_ _,
+            expectation=justified && claim[:operation] == :expectation ?: 1 ?_ _
+        }
+    });
+};
+
+AnalysisIntegralTerm(sequence, variable, lower, upper, index) -> {;
+    x = .calculus.Variable(variable);
+    .calculus.DefiniteIntegral(AnalysisTermAt(sequence,index)(x),variable,lower,upper,{=
+        evidence=[:finitePolynomialIntegral],
+        obligations=[]
+    });
+};
+
+AnalysisIntegralExchange(sequenceValue, lowerValue, upperValue, options ?= {= }) -> {;
+    sequence = AnalysisRequireSequence(sequenceValue);
+    options = AnalysisRequireOptions(options,"Analysis IntegralExchange options");
+    lower = lowerValue ~!: :Rational;
+    upper = upperValue ~!: :Rational;
+    variable = AnalysisOption(options,"variable",:x);
+    variable ? :String ?: _ ?_ .Error("IntegralExchange variable must be a string or colon-string");
+    domain = sequence[:domain];
+    inside = (domain ? :RationalInterval) && domain.ContainsValue(lower) && domain.ContainsValue(upper);
+    inside ?: _ ?_ .Error("IntegralExchange endpoints must lie in the function-sequence domain");
+    limitResult = AnalysisCheckLimit(
+        AnalysisLimitClaim(sequence,_,{= mode=:uniform }),
+        {= epsilon=AnalysisOption(options,"epsilon",1/1000),maxWork=AnalysisOption(options,"maxwork",10000) }
+    );
+    geometric = sequence[:kind] == :geometricPartialSums && limitResult[:status] == :converged;
+    x = .calculus.Variable(variable);
+    limitIntegral = .calculus.DefiniteIntegral(sequence[:limit](x),variable,lower,upper,{=
+        evidence=geometric ?: [:uniformLimitIntegration] ?_ [],
+        obligations=geometric ?: [] ?_ [:uniformConvergence,:integrableTerms,:integrableLimit]
+    });
+    termConstructor = (index)->AnalysisIntegralTerm(@sequence,@variable,@lower,@upper,index);
+    hypotheses = [
+        AnalysisConvergenceHypothesis(limitResult,:uniformConvergence),
+        geometric
+          ?: AnalysisHypothesis(:integrableTerms,:proved,:analysisGeometricKernel,{= theorem=:finitePolynomialsIntegrable })
+          ?_ AnalysisHypothesis(:integrableTerms,:unknown,:none),
+        geometric
+          ?: AnalysisHypothesis(:integrableLimit,:proved,:analysisGeometricKernel,{= theorem=:rationalLimitContinuousOffPole })
+          ?_ AnalysisHypothesis(:integrableLimit,:unknown,:none),
+        AnalysisHypothesis(:finiteMeasure,:proved,:analysisExactInterval,{= interval=lower:upper,length=(upper-lower).Abs() })
+    ];
+    obligations = AnalysisUnresolvedHypotheses(hypotheses);
+    justified = obligations.Len() == 0;
+    result = {=
+        valueKind=:analysisIntegralExchange,
+        schema="rix.analysis.integral-exchange@1",
+        status=justified ?: :justified ?_ :unknown,
+        conclusion=justified ?: :limitOfIntegralsEqualsIntegralOfLimit ?_ :unknown,
+        certified=justified ?: 1 ?_ _,
+        operation=:integration,
+        theorem=:uniformLimitIntegrationOnFiniteInterval,
+        sequence=sequence,
+        sourceLimit=limitResult,
+        variable=variable,
+        lower=lower,
+        upper=upper,
+        termIntegralConstructor=termConstructor,
+        limitIntegral=limitIntegral,
+        limitFunction=sequence[:limit],
+        hypotheses=hypotheses,
+        obligations=obligations,
+        diagnostics=justified ?: [] ?_ [{= code=:unresolvedExchangeHypotheses,count=obligations.Len() }],
+        evidenceLevel=justified ?: :proof ?_ :none,
+        allows={= integration=justified ?: 1 ?_ _ },
+        provenance={= plugin=:analysis,version=2,source=:integralExchange }
+    };
+    result._proto = {=
+        TermIntegral=(self,index)->AnalysisIntegralTerm(self[:sequence],self[:variable],self[:lower],self[:upper],index),
+        LimitIntegral=(self)->self[:limitIntegral],
+        Numerical=(self,numericsOptions ?= {= })->AnalysisNumericalIntegral(self,numericsOptions),
+        Record=(self)->.ImmutableValue({=
+            valueKind=self[:valueKind],schema=self[:schema],status=self[:status],conclusion=self[:conclusion],
+            theorem=self[:theorem],variable=self[:variable],lower=self[:lower],upper=self[:upper],
+            hypotheses=self[:hypotheses],obligations=self[:obligations],limitIntegral=self[:limitIntegral]
+        })
+    };
+    .ImmutableValue(result);
+};
+
+AnalysisNumericalIntegral(exchangeValue, options ?= {= }) -> {;
+    AnalysisIsExchangeResultValue(exchangeValue) && exchangeValue[:schema] == "rix.analysis.integral-exchange@1"
+      ?: _
+      ?_ .Error("NumericalIntegral requires an IntegralExchange result");
+    exchangeValue[:status] == :justified
+      ?: _
+      ?_ .Error("NumericalIntegral requires discharged integration hypotheses");
+    options = AnalysisRequireOptions(options,"Analysis NumericalIntegral options");
+    .numerics.Quadrature(
+        exchangeValue[:limitFunction],
+        exchangeValue[:lower],
+        exchangeValue[:upper],
+        options
+    );
+};
+
 .TypeKnown(:FunctionSequence) ?: _ ?_ .TypeRegister({=
     name=:FunctionSequence,
     nativeType=:map,
@@ -506,6 +1379,46 @@ AnalysisGeometricSeries(radiusValue, options ?= {= }) -> {;
 });
 .TypeInstall(:ConvergenceResult);
 
+.TypeKnown(:ScalarSequence) ?: _ ?_ .TypeRegister({=
+    name=:ScalarSequence,
+    nativeType=:map,
+    defaultTraits=[],
+    validate=(value)->AnalysisIsScalarSequenceValue(value),
+    proto={= },
+    installs={= }
+});
+.TypeInstall(:ScalarSequence);
+
+.TypeKnown(:InfiniteSeries) ?: _ ?_ .TypeRegister({=
+    name=:InfiniteSeries,
+    nativeType=:map,
+    defaultTraits=[],
+    validate=(value)->AnalysisIsSeriesValue(value),
+    proto={= },
+    installs={= }
+});
+.TypeInstall(:InfiniteSeries);
+
+.TypeKnown(:LimitClaim) ?: _ ?_ .TypeRegister({=
+    name=:LimitClaim,
+    nativeType=:map,
+    defaultTraits=[],
+    validate=(value)->AnalysisIsLimitClaimValue(value),
+    proto={= },
+    installs={= }
+});
+.TypeInstall(:LimitClaim);
+
+.TypeKnown(:LimitResult) ?: _ ?_ .TypeRegister({=
+    name=:LimitResult,
+    nativeType=:map,
+    defaultTraits=[],
+    validate=(value)->AnalysisIsLimitResultValue(value),
+    proto={= },
+    installs={= }
+});
+.TypeInstall(:LimitResult);
+
 analysisNamespace = {= };
 analysisNamespace._proto = {=
     FunctionSequence=(self,termConstructor,options ?= {= })->AnalysisFunctionSequence(termConstructor,options),
@@ -513,19 +1426,41 @@ analysisNamespace._proto = {=
     ConvergenceClaim=(self,sequence,mode,limit ?= _,options ?= {= })->AnalysisConvergenceClaim(sequence,mode,limit,options),
     CheckConvergence=(self,claim,request ?= {= })->AnalysisCheckConvergence(claim,request),
     GeometricSeries=(self,radius,options ?= {= })->AnalysisGeometricSeries(radius,options),
-    Term=(self,sequence,index)->AnalysisTermAt(sequence,index),
-    Terms=(self,sequence,start ?= _,count ?= _)->AnalysisTerms(sequence,start,count),
-    TailBound=(self,sequence,index)->AnalysisTailBoundAt(sequence,index),
-    Modulus=(self,sequence,epsilon,options ?= {= })->AnalysisModulusAt(sequence,epsilon,options),
-    Record=(self,sequence)->AnalysisSequenceRecord(sequence),
+    ScalarSequence=(self,termConstructor,options ?= {= })->AnalysisScalarSequence(termConstructor,options),
+    ScalarTailEvidence=(self,boundFunction,modulusFunction,options ?= {= })->AnalysisDeclaredScalarTailEvidence(boundFunction,modulusFunction,options),
+    InfiniteSeries=(self,termConstructor,options ?= {= })->AnalysisInfiniteSeries(termConstructor,options),
+    GeometricScalarSeries=(self,first,ratio,options ?= {= })->AnalysisGeometricScalarSeries(first,ratio,options),
+    FromCauchy=(self,source,options ?= {= })->AnalysisFromCauchy(source,options),
+    ToCauchy=(self,series,options ?= {= })->AnalysisToCauchy(series,options),
+    Limit=(self,subject,candidate ?= _,options ?= {= })->AnalysisLimitClaim(subject,candidate,options),
+    CheckLimit=(self,claim,request ?= {= })->AnalysisCheckLimit(claim,request),
+    LimitSuperior=(self,subject,request ?= {= })->AnalysisExtremalLimit(subject,:limsup,request),
+    LimitInferior=(self,subject,request ?= {= })->AnalysisExtremalLimit(subject,:liminf,request),
+    CauchyCriterion=(self,subject,request ?= {= })->AnalysisCauchyCriterion(subject,request),
+    EffectiveModulus=(self,subject,epsilon,options ?= {= })->AnalysisEffectiveModulus(subject,epsilon,options),
+    Exchange=(self,operation,result,options ?= {= })->AnalysisExchangeClaim(operation,result,options),
+    CheckExchange=(self,claim)->AnalysisCheckExchange(claim),
+    IntegralExchange=(self,sequence,lower,upper,options ?= {= })->AnalysisIntegralExchange(sequence,lower,upper,options),
+    RefineLimit=(self,result,request ?= {= })->AnalysisRefineLimit(result,request),
+    NumericalIntegral=(self,exchange,options ?= {= })->AnalysisNumericalIntegral(exchange,options),
+    Term=(self,subject,index)->AnalysisIsFunctionSequenceValue(subject) ?: AnalysisTermAt(subject,index) ?_ AnalysisScalarTermAt(subject,index),
+    Terms=(self,subject,start ?= _,count ?= _)->AnalysisIsFunctionSequenceValue(subject) ?: AnalysisTerms(subject,start,count) ?_ AnalysisScalarTerms(subject,start,count),
+    TailBound=(self,subject,index)->AnalysisIsFunctionSequenceValue(subject) ?: AnalysisTailBoundAt(subject,index) ?_ AnalysisScalarTailBoundAt(subject,index),
+    Modulus=(self,subject,epsilon,options ?= {= })->AnalysisEffectiveModulus(subject,epsilon,options),
+    Record=(self,subject)->AnalysisIsFunctionSequenceValue(subject) ?: AnalysisSequenceRecord(subject) ?_ AnalysisScalarRecord(subject),
     IsFunctionSequence=(self,value)->AnalysisIsFunctionSequenceValue(value) ?: 1 ?_ _,
+    IsScalarSequence=(self,value)->AnalysisIsScalarSequenceValue(value) ?: 1 ?_ _,
+    IsSeries=(self,value)->AnalysisIsSeriesValue(value) ?: 1 ?_ _,
     IsConvergenceClaim=(self,value)->AnalysisIsClaimValue(value) ?: 1 ?_ _,
-    IsConvergenceResult=(self,value)->AnalysisIsResultValue(value) ?: 1 ?_ _
+    IsConvergenceResult=(self,value)->AnalysisIsResultValue(value) ?: 1 ?_ _,
+    IsLimitClaim=(self,value)->AnalysisIsLimitClaimValue(value) ?: 1 ?_ _,
+    IsLimitResult=(self,value)->AnalysisIsLimitResultValue(value) ?: 1 ?_ _,
+    IsExchangeResult=(self,value)->AnalysisIsExchangeResultValue(value) ?: 1 ?_ _
 };
 
 .Host.RegisterValue(
     "analysis",
     analysisNamespace,
-    "Function sequences and explicit convergence claims over Calculus abstract functions and effective lazy sequences",
+    "Effective scalar and function limits, infinite series, Cauchy criteria, and justified limit exchanges",
     ["Analysis","Calculus","Exact"]
 );

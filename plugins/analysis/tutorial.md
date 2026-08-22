@@ -1,6 +1,6 @@
 ---
-title: Function sequences and certified uniform convergence in RiX
-description: Build function sequences, state precise convergence claims, and inspect an exact geometric tail certificate.
+title: Effective limits, series, and justified exchanges in RiX
+description: Build scalar and function sequences, inspect exact convergence witnesses, and keep limit-exchange hypotheses visible.
 theme: Analysis
 status: implemented
 ---
@@ -150,3 +150,107 @@ Run
 to change the exact radius and requested error, compare partial sums, and see
 the certified remainder decrease without confusing the graph with the proof.
 
+## Sum an infinite series with an exact tail
+
+The scalar geometric kernel keeps the term, partial sum, infinite sum, and
+remainder in exact Rational arithmetic.
+
+```rix
+.Plugin.Load("analysis");
+series := .analysis.GeometricScalarSeries(1,1/2,{= name=:binarySeries });
+limit := series.Check({= epsilon=1/1000,maxWork=20 });
+cauchy := series.Cauchy({= epsilon=1/1000,maxWork=20 });
+.Table({=
+  columns=["quantity","exact value"],
+  rows=[
+    ["term a_3",series.Term(3)],
+    ["partial sum S_3",series.PartialSum(3)],
+    ["infinite sum",series.Sum()],
+    ["effective index",limit[:witness][:index]],
+    ["tail at that index",limit[:witness][:tailBound]],
+    ["Cauchy pair bound",cauchy[:witness][:pairBound]],
+    ["limsup",series.Limsup()[:value]],
+    ["liminf",series.Liminf()[:value]]
+  ]
+});
+```
+
+`Limsup` and `Liminf` agree here because an effective convergence proof is
+available. An arbitrary sampled sequence does not get that conclusion.
+
+## Move through the Cauchy and Numerics protocols
+
+The adapters are optional. Loading `.analysis` alone does not select a real
+representation.
+
+```rix
+.Plugin.Load("cauchy");
+.Plugin.Load("analysis");
+.Plugin.Load("numerics");
+series := .analysis.GeometricScalarSeries(1,1/2);
+real := series.ToCauchy({= name=:twoByGeometricSeries });
+sequence := .analysis.FromCauchy(real);
+checked := sequence.Check({= epsilon=1/1000 });
+enclosure := .analysis.RefineLimit(checked,{= targetWidth=1/100 });
+{:
+  .cauchy.Term(real,3),
+  .cauchy.TailBound(real,3),
+  checked[:status],
+  enclosure[:interval]
+};
+```
+
+The checked limit points to the Cauchy real rather than copying it. Numerics
+then negotiates refinement with that value's own protocol.
+
+## Ask whether a limit exchange is justified
+
+The continuity theorem for a uniform limit needs continuous terms. The
+geometric partial sums are polynomials, so the plugin can discharge both
+hypotheses. The differentiation theorem needs different evidence and remains
+unknown.
+
+```rix
+.Plugin.Load("analysis");
+series := .analysis.GeometricSeries(1/2);
+limit := .analysis.Limit(series,_,{= mode=:uniform })
+  .Check({= epsilon=1/1000,maxWork=20 });
+continuity := .analysis.Exchange(:continuity,limit).Check();
+differentiation := .analysis.Exchange(:differentiation,limit).Check();
+.Table({=
+  columns=["operation","status","remaining obligations"],
+  rows=[
+    [:continuity,continuity[:status],continuity[:obligations]],
+    [:differentiation,differentiation[:status],differentiation[:obligations]]
+  ]
+});
+```
+
+Passing an option such as `differentiableTerms=1` records a caller assumption.
+It does not silently turn that assumption into proof authority.
+
+## Build exact integral specifications, then refine numerically
+
+On a closed subinterval of its certified domain, the uniform geometric limit
+can be exchanged with integration. Analysis owns the theorem record; Calculus
+owns the inert integrals; Numerics owns quadrature.
+
+```rix
+.Plugin.Load("analysis");
+.Plugin.Load("numerics");
+series := .analysis.GeometricSeries(1/2);
+exchange := .analysis.IntegralExchange(series,-1/2,1/2,{= epsilon=1/1000 });
+termIntegral := exchange.TermIntegral(2);
+limitIntegral := exchange.LimitIntegral();
+enclosure := exchange.Numerical({= secondDerivativeBound=16 })
+  .Refine({= targetWidth=1/1000,maxIterations=10000 });
+{:
+  exchange[:status],
+  termIntegral[:schema],
+  limitIntegral[:schema],
+  enclosure[:interval]
+};
+```
+
+The second-derivative bound is deliberately explicit. Analysis does not infer
+a certified global bound from a few evaluations.

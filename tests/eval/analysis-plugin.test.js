@@ -29,7 +29,10 @@ describe("pure RiX Analysis plugin", () => {
         expect(entry(info, "requires").values.map(text)).toEqual(["rix.abstract-function@1"]);
         expect(entry(info, "provides").values.map(text)).toEqual([
             "rix.analysis@1",
+            "rix.analysis@2",
             "rix.analysis.function-sequence@1",
+            "rix.analysis.effective-limit@1",
+            "rix.analysis.limit-exchange@1",
         ]);
         expect(entry(info, "schemas").values.map(text)).toEqual([
             "rix.analysis.function-sequence@1",
@@ -37,6 +40,17 @@ describe("pure RiX Analysis plugin", () => {
             "rix.analysis.tail-evidence@1",
             "rix.analysis.convergence-claim@1",
             "rix.analysis.convergence-result@1",
+            "rix.analysis.scalar-sequence@1",
+            "rix.analysis.scalar-term-stream@1",
+            "rix.analysis.scalar-tail-evidence@1",
+            "rix.analysis.infinite-series@1",
+            "rix.analysis.limit-claim@1",
+            "rix.analysis.limit-result@1",
+            "rix.analysis.extremal-limit-result@1",
+            "rix.analysis.cauchy-result@1",
+            "rix.analysis.exchange-claim@1",
+            "rix.analysis.exchange-result@1",
+            "rix.analysis.integral-exchange@1",
         ]);
     });
 
@@ -189,5 +203,144 @@ describe("pure RiX Analysis plugin", () => {
         expect(text(entry(result, "reason"))).toBe("limitIdentityMismatch");
         expect(entry(result, "diagnostics").values.map((item) => text(entry(item, "code"))))
             .toEqual(["finiteSamplesIgnored", "limitIdentityMismatch"]);
+    });
+
+    test("computes exact geometric scalar series, effective limits, limsup, liminf, and Cauchy witnesses", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("analysis");
+            series := .analysis.GeometricScalarSeries(1,1/2);
+            limit := series.Check({= epsilon=1/1000,maxWork=20 });
+            modulus := series.Modulus(1/1000,{= maxWork=20 });
+            cauchy := series.Cauchy({= epsilon=1/1000,maxWork=20 });
+            enclosure := .analysis.RefineLimit(limit);
+            {:
+                series.Term(3),series.PartialSum(3),series.Sum(),series.TailBound(3),
+                modulus,limit,series.Limsup({= epsilon=1/1000,maxWork=20 }),
+                series.Liminf({= epsilon=1/1000,maxWork=20 }),cauchy,enclosure
+            };
+        `, runtime());
+
+        expect(result.values[0].toString()).toBe("1/8");
+        expect(result.values[1].toString()).toBe("15/8");
+        expect(result.values[2].toString()).toBe("2");
+        expect(result.values[3].toString()).toBe("1/8");
+        expect(text(entry(result.values[4], "status"))).toBe("complete");
+        expect(entry(result.values[4], "index").value).toBe(10n);
+        expect(text(entry(result.values[5], "status"))).toBe("converged");
+        expect(text(entry(result.values[5], "conclusion"))).toBe("seriesConverges");
+        expect(text(entry(result.values[6], "status"))).toBe("determined");
+        expect(entry(result.values[6], "value").toString()).toBe("2");
+        expect(text(entry(result.values[7], "status"))).toBe("determined");
+        expect(text(entry(result.values[8], "status"))).toBe("satisfied");
+        expect(entry(entry(result.values[8], "witness"), "index").value).toBe(11n);
+        expect(entry(entry(result.values[8], "witness"), "pairBound").toString()).toBe("1/1024");
+        expect(entry(result.values[9], "interval").low.toString()).toBe("2");
+        expect(entry(result.values[9], "interval").high.toString()).toBe("2");
+    });
+
+    test("keeps caller-declared scalar tails observational and never infers extrema", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("analysis");
+            evidence := .analysis.ScalarTailEvidence(
+                (n)->1/(n+1),(epsilon)->1000,{= limit=0,property=:claimedTail }
+            );
+            sequence := .analysis.ScalarSequence((n)->1/(n+1),{=
+                limit=0,tailEvidence=evidence,name=:declaredSequence
+            });
+            {: sequence.Check(),sequence.Limsup(),sequence.Liminf(),sequence.Cauchy() };
+        `, runtime());
+
+        expect(result.values.map((value) => text(entry(value, "status"))))
+            .toEqual(["unknown", "unknown", "unknown", "unknown"]);
+        expect(text(entry(result.values[0], "reason"))).toBe("unverifiedTailProperty");
+        expect(text(entry(result.values[3], "reason"))).toBe("unverifiedTailProperty");
+    });
+
+    test("adapts exact series to Cauchy reals and effective Cauchy reals back to scalar limits", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("cauchy");
+            .Plugin.Load("analysis");
+            .Plugin.Load("numerics");
+            series := .analysis.GeometricScalarSeries(1,1/2);
+            real := series.ToCauchy({= name=:binarySum });
+            sequence := .analysis.FromCauchy(real);
+            checked := sequence.Check({= epsilon=1/1000 });
+            refined := .analysis.RefineLimit(checked,{= targetWidth=1/100 });
+            {:
+                .cauchy.Term(real,3),.cauchy.TailBound(real,3),
+                sequence.Term(3),checked,refined
+            };
+        `, runtime());
+
+        expect(result.values[0].toString()).toBe("15/8");
+        expect(result.values[1].toString()).toBe("1/8");
+        expect(result.values[2].toString()).toBe("15/8");
+        expect(text(entry(result.values[3], "status"))).toBe("converged");
+        expect(text(entry(result.values[3], "reason"))).toBe("effectiveCauchyAdapter");
+        expect(text(entry(result.values[4], "status"))).toBe("enclosed");
+        expect(entry(result.values[4], "interval").low.toString()).toBe("2047/1024");
+        expect(entry(result.values[4], "interval").high.toString()).toBe("2");
+    });
+
+    test("wraps function convergence as a limit and exposes exchange obligations", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("analysis");
+            series := .analysis.GeometricSeries(1/2);
+            limit := .analysis.Limit(series,_,{= mode=:uniform })
+              .Check({= epsilon=1/1000,maxWork=20 });
+            continuity := .analysis.Exchange(:continuity,limit).Check();
+            operations := [:evaluation,:integration,:differentiation,:summation,:expectation];
+            unresolved := operations.Map((operation)->.analysis.Exchange(operation,limit).Check());
+            forged := {= schema="rix.analysis.hypothesis@1",status=:proved,authority=:caller };
+            attempted := .analysis.Exchange(:differentiation,limit,{=
+                differentiableTerms=forged,
+                uniformDerivativeConvergence=forged,
+                anchorConvergence=forged
+            }).Check();
+            {: limit,continuity,unresolved,attempted };
+        `, runtime());
+
+        expect(text(entry(result.values[0], "status"))).toBe("converged");
+        expect(text(entry(result.values[0], "conclusion"))).toBe("functionConvergence");
+        expect(text(entry(result.values[1], "status"))).toBe("justified");
+        expect(entry(entry(result.values[1], "allows"), "continuity").value).toBe(1n);
+        expect(result.values[2].values.map((value) => text(entry(value, "status"))))
+            .toEqual(["unknown", "unknown", "unknown", "unknown", "unknown"]);
+        expect(entry(result.values[2].values[0], "obligations").values.map(text)).toEqual(["pointInDomain"]);
+        expect(entry(result.values[2].values[2], "obligations").values.map(text)).toEqual([
+            "differentiableTerms", "uniformDerivativeConvergence", "anchorConvergence",
+        ]);
+        expect(entry(result.values[2].values[4], "obligations").values.map(text)).toEqual([
+            "almostEverywhereConvergence", "dominatingIntegrableBound",
+        ]);
+        expect(text(entry(result.values[3], "status"))).toBe("unknown");
+        expect(entry(result.values[3], "hypotheses").values
+            .map((hypothesis) => text(entry(hypothesis, "status"))))
+            .toEqual(["assumed", "assumed", "assumed"]);
+        expect(entry(result.values[3], "obligations").values.map(text)).toEqual([
+            "differentiableTerms", "uniformDerivativeConvergence", "anchorConvergence",
+        ]);
+    });
+
+    test("builds Calculus definite-integral exchange specs and delegates certified quadrature to Numerics", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("analysis");
+            .Plugin.Load("numerics");
+            series := .analysis.GeometricSeries(1/2);
+            exchange := .analysis.IntegralExchange(series,-1/2,1/2,{= epsilon=1/1000 });
+            approximation := exchange.Numerical({= secondDerivativeBound=16 })
+              .Refine({= targetWidth=1/1000,maxIterations=10000 });
+            {:
+                exchange,exchange.TermIntegral(2),exchange.LimitIntegral(),approximation
+            };
+        `, runtime());
+
+        expect(text(entry(result.values[0], "status"))).toBe("justified");
+        expect(entry(result.values[0], "obligations").values).toHaveLength(0);
+        expect(entry(entry(result.values[0], "allows"), "integration").value).toBe(1n);
+        expect(text(entry(result.values[1], "schema"))).toBe("rix.calculus.integral@1");
+        expect(text(entry(result.values[2], "schema"))).toBe("rix.calculus.integral@1");
+        expect(text(entry(result.values[3], "status"))).toBe("enclosed");
+        expect(entry(result.values[3], "goalMet").value).toBe(1n);
     });
 });

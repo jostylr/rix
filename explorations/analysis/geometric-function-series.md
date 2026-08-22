@@ -51,10 +51,35 @@ helps show how the rate slows as `r` approaches one, but the line segments do
 not establish convergence. A graph samples finitely many indices and cannot
 inspect every point of an interval.
 
-The second table makes this boundary visible. The same function sequence is
+The convergence-mode table makes this boundary visible. The same function sequence is
 placed in pointwise, uniform, almost-everywhere, in-measure, and norm claims.
-Phase 1 recognizes only its checked uniform certificate. Unsupported modes
+The checked kernel recognizes only its uniform certificate. Unsupported modes
 return `status=:unknown`; they are not guessed from the displayed rows.
+
+## Scalar limits and the Cauchy criterion
+
+The companion also builds the scalar series
+
+```text
+1 + r + r^2 + ... = 1/(1-r).
+```
+
+Its exact tail formula supplies an effective modulus: for a requested epsilon,
+RiX finds an `N` after which the remainder is at most epsilon. Applying the
+triangle inequality to two remainders gives a Cauchy witness. The scalar table
+shows that pair bound explicitly, rather than merely reporting a Boolean.
+
+Because this series has an effective limit, its limsup and liminf both equal
+the sum. This does not claim a general algorithm for arbitrary bounded
+sequences: without effective evidence those records remain unknown.
+
+## Exchanges are separate theorem applications
+
+Uniform convergence plus continuity of every polynomial partial sum justifies
+continuity of the limit on the exact closed interval. Differentiating a limit
+requires different hypotheses—differentiability of the terms, uniform
+convergence of their derivatives, and convergence at an anchor point. The
+exchange table keeps those unmet obligations visible.
 
 ## Wider domains cost more
 
@@ -83,4 +108,5 @@ at `x=1` needed by this certificate.
 5. Construct a caller-declared `.analysis.TailEvidence` for another sequence.
    Inspect the `:unverifiedTailProperty` result and list what a future theorem
    provider would need to check.
-
+6. Compare the continuity and differentiation exchange records. Supply caller
+   assumptions and confirm that their status is `:assumed`, not `:proved`.
