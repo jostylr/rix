@@ -202,7 +202,20 @@ PlotPolynomial(coefficientsValue, domain, options ?= {= }) -> {;
         @children ~= @children.Push(.Graphics.Text([@margin + 24, y], entry[:label], {= size=13 }));
     }; index += 1 };
 
-    .Graphics.Graphic([width, height], children, {= kind="polynomial_plot", schema="rix.plot@1" });
+    .Graphics.Graphic([width, height], children, {=
+        kind="polynomial_plot",
+        schema="rix.plot@1",
+        plot={=
+            kind=:polynomial,
+            view={= xmin=xMin, xmax=xMax, ymin=yMin, ymax=yMax },
+            series=series,
+            ticks=ticks,
+            marks=marks,
+            title=PlotOption(options,"title"),
+            xLabel=PlotOption(options,"xlabel"),
+            yLabel=PlotOption(options,"ylabel")
+        }
+    });
 };
 
 PlotResolveNumber(value, label, settings) -> {;
@@ -417,7 +430,21 @@ PlotGeneral(data, settings, kind) -> {;
         unresolved=unresolved,
         xScale=read[:xScale],
         yScale=read[:yScale],
-        view={= xmin=bounds[:xmin], xmax=bounds[:xmax], ymin=bounds[:ymin], ymax=bounds[:ymax] }
+        view={= xmin=bounds[:xmin], xmax=bounds[:xmax], ymin=bounds[:ymin], ymax=bounds[:ymax] },
+        plot={=
+            kind=kind,
+            view={= xmin=bounds[:xmin], xmax=bounds[:xmax], ymin=bounds[:ymin], ymax=bounds[:ymax] },
+            series=[{=
+                kind=kind,
+                data=samples.Map((sample)->sample[:point]),
+                style=style,
+                label=PlotOption(settings,"label")
+            }],
+            tickCount=tickCount,
+            title=PlotOption(settings,"title"),
+            xLabel=PlotOption(settings,"xlabel"),
+            yLabel=PlotOption(settings,"ylabel")
+        }
     });
 };
 

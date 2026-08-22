@@ -6,7 +6,8 @@ mount: tikz
 exports: [Render]
 groups: [Renderers]
 permissions: []
-provides: [rix.renderer.tikz@1]
+provides: [rix.renderer.tikz@1, rix.tikz.dependencies@1]
+schemas: [rix.tikz.dependencies@1]
 targets: [tikz, text/x-tikz]
 snapshot: true
 deterministic: true
@@ -27,7 +28,10 @@ export const definition = {
     render({ value, options, format }) {
         const { value: graphic } = unwrapFigure(value);
         requireOutput(graphic, ["graphic"], "tikz");
-        return renderGraphicTikz(graphic, format, { standalone: boolOption(option(options, "standalone", false)) });
+        return renderGraphicTikz(graphic, format, {
+            standalone: boolOption(option(options, "standalone", false)),
+            preamble: boolOption(option(options, "preamble", false)),
+        });
     },
 };
 

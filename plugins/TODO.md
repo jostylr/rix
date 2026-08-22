@@ -1254,7 +1254,7 @@ The RiX/host extraction sequence is specified in
    - [x] Add README, tutorial, source fixtures, and a compilation smoke test when
      TeX is available.
 2. **Phase 2 — PGFPlots and styles**
-   - [ ] Add axes/plot lowering, reusable styles, markers, gradients, and
+   - [x] Add axes/plot lowering, reusable styles, markers, gradients, and
      package declarations.
 3. **Phase 3 — Advanced diagrams**
    - [ ] Add Scene3D snapshot support, animation-frame source, and exact

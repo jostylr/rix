@@ -1,4 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { Rational, RationalInterval } from "@ratmath/core";
 import {
     Context,
@@ -11,6 +14,7 @@ import {
 import { createDefinition as createPngDefinition } from "../../plugins/render-png/png.plugin.rix.js";
 import { definition as quartoDefinition } from "../../plugins/render-quarto/quarto.plugin.rix.js";
 import { definition as svgDefinition } from "../../plugins/render-svg/svg.plugin.rix.js";
+import { renderGraphicTikz } from "../../plugins/render-tikz/tikz-renderer.js";
 import { createWebGLPlan, paintWebGLPlan } from "../../plugins/render-webgl/webgl-plan.js";
 import { lowerGraphicSvg } from "../../src/runtime/output.js";
 
@@ -87,6 +91,70 @@ describe("renderer registry", () => {
         expect(plan.commands.map(([command]) => command)).toEqual(["path2d", "rectangle", "circle", "text"]);
         expect(result.values[2].value).toContain("\\begin{tikzpicture}");
         expect(result.values[2].value).toContain("rectangle");
+    });
+
+    test("TikZ Phase 2 emits native PGFPlots, reusable styles, markers, gradients, and dependencies", () => {
+        const plot = parseAndEvaluate(`
+            .Plugin.Load("plot");
+            .plot.Line([[0,0],[1,1/2],[2,3/2]], {=
+                title="Exact data", xLabel="time", yLabel="distance", label="measurements",
+                stroke="#2563eb", style={= marker="square", markerSize=3 }
+            })
+        `, runtime());
+        const renderedPlot = renderGraphicTikz(plot, (value) => value?.value ?? String(value), { standalone: true });
+        expect(renderedPlot.content).toContain("\\usepackage{pgfplots}");
+        expect(renderedPlot.content).toContain("\\pgfplotsset{compat=1.18}");
+        expect(renderedPlot.content).toContain("\\begin{axis}[");
+        expect(renderedPlot.content).toContain("\\addplot[rixStyle1]");
+        expect(renderedPlot.content).toContain("coordinates {(0,0) (1,0.5) (2,1.5)}");
+        expect(renderedPlot.content).toContain("\\addlegendentry{measurements}");
+        expect(renderedPlot.metadata).toMatchObject({
+            schema: "rix.tikz.dependencies@1",
+            packages: ["pgfplots", "tikz", "xcolor"],
+            pgfplotsCompat: "1.18",
+            lowering: "pgfplots",
+        });
+        expect(renderedPlot.metadata.tikzLibraries).toEqual(["plotmarks"]);
+        expect(renderedPlot.diagnostics.map(({ code }) => code)).toContain("tikz-pgfplots-lowering");
+
+        if (spawnSync("pdflatex", ["--version"], { encoding: "utf8" }).status === 0) {
+            const temporaryRoot = path.join(process.cwd(), "tmp");
+            mkdirSync(temporaryRoot, { recursive: true });
+            const directory = mkdtempSync(path.join(temporaryRoot, "tikz-phase2-"));
+            try {
+                const source = path.join(directory, "plot.tex");
+                writeFileSync(source, renderedPlot.content, "utf8");
+                const compiled = spawnSync("pdflatex", [
+                    "-interaction=nonstopmode", "-halt-on-error", `-output-directory=${directory}`, source,
+                ], { encoding: "utf8" });
+                expect(compiled.status, compiled.stdout + compiled.stderr).toBe(0);
+            } finally {
+                rmSync(directory, { recursive: true, force: true });
+            }
+        }
+
+        const graphic = parseAndEvaluate(`
+            shared := {= stroke="#172033", width=2, fill="none" };
+            .Graphics.Graphic([100,60], [
+                .Graphics.Path([[5,50],[50,5],[95,50]], shared.Merge({= marker="diamond", markerSize=2 })),
+                .Graphics.Rectangle([10,10],[30,20], {=
+                    stroke="#172033", width=2,
+                    gradient={= from="#dbeafe", to="#2563eb", angle=45 }
+                }),
+                .Graphics.Rectangle([55,10],[30,20], {=
+                    stroke="#172033", width=2,
+                    gradient={= from="#dbeafe", to="#2563eb", angle=45 }
+                })
+            ])
+        `, runtime());
+        const renderedGraphic = renderGraphicTikz(graphic, String, { preamble: true });
+        expect(renderedGraphic.content).toContain("\\usepackage{tikz}");
+        expect(renderedGraphic.content).toContain("\\usetikzlibrary{plotmarks}");
+        expect(renderedGraphic.content).toContain("mark=diamond*");
+        expect(renderedGraphic.content).toContain("shade,left color=");
+        expect(renderedGraphic.content.match(/rixStyle2\/.style=/g)).toHaveLength(1);
+        expect(renderedGraphic.content.match(/\\path\[rixStyle2\]/g)).toHaveLength(2);
+        expect(renderedGraphic.metadata.reusableStyles).toBe(2);
     });
 
     test("SVG Phase 2 lowers exact and certified coordinates with outward enclosures", () => {

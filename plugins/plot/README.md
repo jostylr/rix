@@ -37,6 +37,11 @@ labels, legend labels, styles, and a discontinuity threshold. Function and
 parametric plots expose split paths and an `unresolved` metadata count when a
 sample cannot be resolved or a likely jump is detected.
 
+Plot Graphics also retain their resolved view, source-coordinate series, ticks,
+marks, and labels as semantic `rix.plot@1` metadata. Portable renderers may
+ignore it and paint the ordinary Graphics children; `.tikz` uses it to emit
+editable PGFPlots axes and series.
+
 ## Dependencies
 
 It depends on the portable `rix.numerics@1` service and requests no external
