@@ -26,6 +26,38 @@ construction := .geometry.Draw(
 construction;
 ```
 
+## Explore a retained construction interactively
+
+The workbench uses the same construction graph for dependency inspection and
+rendering. A `DragPoint` captures the reactive identity directly and declares
+the mathematical view used to map pointer positions back to exact rational
+coordinates.
+
+```rix
+.Plugin.Load("geometry");
+view := [-2,-2,6,4]; size := [640,480];
+$$a := {: 0,0};
+$$graph := .geometry.ConstructionGraph([
+  {= id=:a,free=1,value=.geometry.Point($a[1],$a[2]) },
+  {= id=:b,dependsOn=[:a],construct=(values)->
+      .geometry.Point(values[:a][:x]+3,values[:a][:y]+1) },
+  {= id=:ab,dependsOn=[:a,:b],construct=(values)->
+      .geometry.Line(values[:a],values[:b]) }
+]);
+handle := .Graphics.DragPoint({=
+  target=$$a,label="Move a",coordinateSystem={= view=view,size=size },
+  style={= fill="#7c3aed",stroke="#ffffff",width=2,hitId="a:handle" }
+});
+$$workbench := .geometry.Workbench($graph,{=
+  view=view,size=size,handles=[{= id=:a,graphic=handle }]
+});
+$workbench;
+```
+
+RiX Web supplies the object tree, property inspector, keyboard traversal,
+session movement history, and export button. The same value still renders as
+ordinary Graphics in static hosts.
+
 ## Keep unresolved intersections visible
 
 Parallel lines return an intersection result whose status is `parallel`.

@@ -3,12 +3,12 @@ id: geometry
 description: Pure-RiX exact geometry, transformations, conics, constraints, and bounded portable Graphics refinement.
 kind: rix
 mount: geometry
-exports: [Point, Line, Segment, Ray, Polygon, Circle, Conic, Ellipse, Parabola, Hyperbola, Locus, Implicit, Affine, Projective, Transform, Constraint, Constraints, SquaredDistance, Distance, Length, Area, CircularAngle, Angle, Centroid, Incenter, Orthocenter, AngleBisector, Perpendicular, ParallelThrough, Midpoint, PerpendicularBisector, Circumcircle, Translate, RotateQuarterTurns, Rotate, ReflectAcross, Intersect, Points, Status, UncertainPoint, UncertainBounds, TransformUncertain, ConstructionGraph, Drag, Refine, Draw]
+exports: [Point, Line, Segment, Ray, Polygon, Circle, Conic, Ellipse, Parabola, Hyperbola, Locus, Implicit, Affine, Projective, Transform, Constraint, Constraints, SquaredDistance, Distance, Length, Area, CircularAngle, Angle, Centroid, Incenter, Orthocenter, AngleBisector, Perpendicular, ParallelThrough, Midpoint, PerpendicularBisector, Circumcircle, Translate, RotateQuarterTurns, Rotate, ReflectAcross, Intersect, Points, Status, UncertainPoint, UncertainBounds, TransformUncertain, ConstructionGraph, ConstructionRecord, ImportConstruction, Drag, Undo, Redo, Refine, Draw, Workbench]
 groups: [Geometry, Graphics, Exact]
 permissions: []
 requires: [rix.numerics@1, rix.polynomial.algorithms@1, rix.algebraic-real@1]
-provides: [rix.geometry@1, rix.geometry.intersection@1, rix.geometry.constraint@1, rix.geometry.refinement@1, rix.geometry.circular-angle@1, rix.geometry.uncertain-point@1, rix.geometry.construction-graph@1]
-schemas: [rix.geometry@1, rix.geometry.intersection@1, rix.geometry.constraint@1, rix.geometry.refinement@1, rix.geometry.circular-angle@1, rix.geometry.uncertain-point@1, rix.geometry.construction-graph@1]
+provides: [rix.geometry@1, rix.geometry.intersection@1, rix.geometry.constraint@1, rix.geometry.refinement@1, rix.geometry.circular-angle@1, rix.geometry.uncertain-point@1, rix.geometry.construction-graph@1, rix.geometry.construction-record@1, rix.geometry.workbench@1]
+schemas: [rix.geometry@1, rix.geometry.intersection@1, rix.geometry.constraint@1, rix.geometry.refinement@1, rix.geometry.circular-angle@1, rix.geometry.uncertain-point@1, rix.geometry.construction-graph@1, rix.geometry.construction-record@1, rix.geometry.workbench@1]
 snapshot: true
 deterministic: true
 defaultEnabled: false
@@ -597,7 +597,7 @@ GeometryIntersectUncertainPoints(left,right) -> {;
            ?_ GeometryUndecidedIntersection(first,second,"The uncertain point sets may overlap; subdivision or constraint solving is required",{= firstBounds=firstBounds,secondBounds=secondBounds });
 };
 
-GeometryBuildConstructionGraph(nodes,history ?= []) -> {;
+GeometryBuildConstructionGraph(nodes,history ?= [],future ?= []) -> {;
     nodes ? :Array ?: _ ?_ .Error("geometry.ConstructionGraph nodes must be an Array");
     values:={= }; resolved:=[]; ids:=[];
     {@ index=1; index<=@nodes.Len(); {;
@@ -613,15 +613,58 @@ GeometryBuildConstructionGraph(nodes,history ?= []) -> {;
     }; index+=1 };
     .DeepMutable({=
         type="geometry_construction_graph",kind=:constructionGraph,schema="rix.geometry.construction-graph@1",
-        nodes=resolved,values=values,history=history,deterministic=1
+        nodes=resolved,values=values,history=history,future=future,deterministic=1
     },_);
 };
 
-GeometryConstructionGraph(nodes,options ?= {= }) -> GeometryBuildConstructionGraph(nodes,GeometryOption(options,"history",[]));
+GeometryConstructionGraph(nodes,options ?= {= }) -> GeometryBuildConstructionGraph(
+    nodes,GeometryOption(options,"history",[]),GeometryOption(options,"future",[]));
+
+GeometryRequireConstructionGraph(graph,label) -> {;
+    valid=(graph ? :Map)&&graph.Has("schema")&&graph[:schema]=="rix.geometry.construction-graph@1";
+    valid ?: graph ?_ .Error(@"@{label} requires a construction graph");
+};
+
+GeometryConstructionRecord(graph) -> {;
+    valid=GeometryRequireConstructionGraph(graph,"geometry.ConstructionRecord");
+    records=valid[:nodes].Map((node)->{;
+        value=node[:value];
+        kind=((value ? :Map)&&value.Has("kind")) ?: value[:kind] ?_ :value;
+        status=((value ? :Map)&&value.Has("status")) ?: value[:status] ?_ _;
+        diagnostic=((value ? :Map)&&value.Has("diagnostic")) ?: value[:diagnostic] ?_ _;
+        {= id=node[:id],free=node[:free],dependsOn=node[:dependsOn],kind=kind,status=status,diagnostic=diagnostic,value=value };
+    });
+    .DeepMutable({=
+        type="geometry_construction_record",kind=:constructionRecord,schema="rix.geometry.construction-record@1",
+        nodes=records,history=valid[:history],future=GeometryOption(valid,"future",[]),
+        replayRequires=records.Filter((node)->!node[:free]).Map((node)->node[:id]),deterministic=1
+    },_);
+};
+
+GeometryImportConstruction(record,constructors ?= {= }) -> {;
+    valid=(record ? :Map)&&record.Has("schema")&&record[:schema]=="rix.geometry.construction-record@1";
+    valid ?: _ ?_ .Error("geometry.ImportConstruction requires a construction record");
+    constructors ? :Map ?: _ ?_ .Error("geometry.ImportConstruction constructors must be a map");
+    nodes=record[:nodes].Map((node)->node[:free]
+      ?: {= id=node[:id],free=1,value=node[:value],dependsOn=node[:dependsOn] }
+      ?_ {;
+          id=@node[:id];
+          @constructors.Has(id) ?: _ ?_ .Error(@"geometry.ImportConstruction requires a constructor for derived node @{id}");
+          {= id=id,free=_,dependsOn=@node[:dependsOn],construct=@constructors[id] };
+      });
+    GeometryBuildConstructionGraph(nodes,GeometryOption(record,"history",[]),GeometryOption(record,"future",[]));
+};
+
+GeometryMoveConstructionNode(graph,id,target,history,future) -> {;
+    found=graph[:nodes].Filter((node)->node[:id]==id);
+    found.Len()==1 ?: _ ?_ .Error(@"geometry construction node @{id} does not exist");
+    found[1][:free] ?: _ ?_ .Error(@"geometry construction node @{id} is derived and cannot be dragged directly");
+    nodes=graph[:nodes].Map((node)->node[:id]==id ?: node.Merge({= value=@target }) ?_ node);
+    GeometryBuildConstructionGraph(nodes,history,future);
+};
 
 GeometryDrag(graph,id,target,options ?= {= }) -> {;
-    valid=(graph ? :Map)&&graph.Has("schema")&&graph[:schema]=="rix.geometry.construction-graph@1";
-    valid ?: _ ?_ .Error("geometry.Drag requires a construction graph");
+    valid=GeometryRequireConstructionGraph(graph,"geometry.Drag");
     supplied=GeometryRequire(target,:point,"geometry.Drag target");
     snap=GeometryOption(options,"snap");
     moved=snap==_
@@ -630,12 +673,33 @@ GeometryDrag(graph,id,target,options ?= {= }) -> {;
           grid=GeometryExact(@snap,"geometry.Drag snap"); grid>0 ?: _ ?_ .Error("geometry.Drag snap must be positive");
           GeometryPoint((@supplied[:x]/grid).Round()*grid,(@supplied[:y]/grid).Round()*grid);
       };
-    found=graph[:nodes].Filter((node)->node[:id]==id);
+    found=valid[:nodes].Filter((node)->node[:id]==id);
     found.Len()==1 ?: _ ?_ .Error(@"geometry.Drag node @{id} does not exist");
     found[1][:free] ?: _ ?_ .Error(@"geometry.Drag node @{id} is derived and cannot be dragged directly");
-    nodes=graph[:nodes].Map((node)->node[:id]==id ?: node.Merge({= value=@moved }) ?_ node);
     event={= operation=:drag,id=id,from=found[1][:value],to=moved,snap=snap };
-    GeometryBuildConstructionGraph(nodes,graph[:history].Push(event));
+    GeometryMoveConstructionNode(valid,id,moved,valid[:history].Push(event),[]);
+};
+
+GeometryUndo(graph) -> {;
+    valid=GeometryRequireConstructionGraph(graph,"geometry.Undo");
+    valid[:history].Len()==0
+      ?: valid
+      ?_ {;
+          event=@valid[:history].Last();
+          event[:operation]==:drag ?: _ ?_ .Error("geometry.Undo encountered an unsupported construction event");
+          GeometryMoveConstructionNode(@valid,event[:id],event[:from],@valid[:history].DropLast(),GeometryOption(@valid,"future",[]).Push(event));
+      };
+};
+
+GeometryRedo(graph) -> {;
+    valid=GeometryRequireConstructionGraph(graph,"geometry.Redo"); future=GeometryOption(valid,"future",[]);
+    future.Len()==0
+      ?: valid
+      ?_ {;
+          event=@future.Last();
+          event[:operation]==:drag ?: _ ?_ .Error("geometry.Redo encountered an unsupported construction event");
+          GeometryMoveConstructionNode(@valid,event[:id],event[:to],@valid[:history].Push(event),@future.DropLast());
+      };
 };
 
 GeometryCircularAngleValue(turns,cosine,sine,radians,domain,operation,inputs,orientation ?= :counterclockwise) -> .DeepMutable({=
@@ -1435,10 +1499,57 @@ GeometryDraw(objects, options ?= {= }) -> {;
                               }
                               ?_ .Error(@"geometry.Draw does not support geometry kind '@{item[:kind]}'");
     }; index += 1 };
-    .Graphics.Graphic(size, children, {=
-        source="rix.geometry@1",
-        projection="uniform-fit",
-        unresolved=unresolved
+    parts={= size=size,children=children,unresolved=unresolved };
+    GeometryOption(settings,"parts",_)
+      ?: parts
+      ?_ .Graphics.Graphic(size, children, {=
+          source="rix.geometry@1",
+          projection="uniform-fit",
+          unresolved=unresolved
+      });
+};
+
+GeometryWorkbench(graph, options ?= {= }) -> {;
+    valid=GeometryRequireConstructionGraph(graph,"geometry.Workbench");
+    size=GeometryNumericSequence(GeometryOption(options,"size",[720,480]),2,"geometry.Workbench size");
+    view=GeometryNumericSequence(GeometryOption(options,"view",[-10,-10,10,10]),4,"geometry.Workbench view");
+    handles=GeometryOption(options,"handles",[]);
+    handles ? :Array ?: _ ?_ .Error("geometry.Workbench handles must be an array of {id, graphic} maps");
+    xmin=view[1]; ymin=view[2]; xmax=view[3]; ymax=view[4];
+    (xmax>xmin&&ymax>ymin) ?: _ ?_ .Error("geometry.Workbench view must satisfy xmin < xmax and ymin < ymax");
+    (size[1]>0&&size[2]>0) ?: _ ?_ .Error("geometry.Workbench size must be positive");
+    scale=.Min(size[1]/(xmax-xmin),size[2]/(ymax-ymin));
+    offsetX=(size[1]-(xmax-xmin)*scale)/2; offsetY=(size[2]-(ymax-ymin)*scale)/2;
+    frame=[offsetX,offsetY,size[1]-offsetX,size[2]-offsetY];
+    children:=[]; unresolved:=0; interactive:=[];
+    {@ index=1; index<=@valid[:nodes].Len(); {;
+        node=@valid[:nodes][index]; value=node[:value]; id=node[:id];
+        schema=((value ? :Map)&&value.Has("schema")) ?: value[:schema] ?_ _;
+        drawable=schema=="rix.geometry@1"||schema=="rix.geometry.intersection@1";
+        drawable
+          ?: {;
+              drawing=GeometryDraw([@value],{= view=@view,size=@size,parts=1 });
+              group=.Graphics.Group({= children=drawing[:children],metadata={= id=@id,geometryNode=1 } });
+              @children ~= @children.Push(group);
+              @unresolved += drawing[:unresolved];
+          }
+          ?_ _;
+    }; index+=1 };
+    {@ index=1; index<=@handles.Len(); {;
+        entry=@handles[index];
+        entry ? :Map ?: _ ?_ .Error("geometry.Workbench handle entries must be maps");
+        entry.Has("id")&&entry.Has("graphic") ?: _ ?_ .Error("geometry.Workbench handle entries require id and graphic");
+        @children ~= @children.Push(entry[:graphic]); @interactive ~= @interactive.Push(entry[:id]);
+    }; index+=1 };
+    record=GeometryConstructionRecord(valid);
+    .Graphics.Graphic(size,children,{=
+        source="rix.geometry.workbench@1",projection="uniform-fit",unresolved=unresolved,
+        workbench={=
+            schema="rix.geometry.workbench@1",construction=record,nodes=record[:nodes],
+            view=view,frame=frame,interactive=interactive,
+            historyCount=valid[:history].Len(),redoCount=GeometryOption(valid,"future",[]).Len(),
+            deterministic=1
+        }
     });
 };
 
@@ -1487,8 +1598,13 @@ geometryNamespace._proto = {=
     UncertainBounds=(self, value)->GeometryUncertainBounds(value),
     TransformUncertain=(self, value, transform)->GeometryTransformUncertain(value,transform),
     ConstructionGraph=(self, nodes, options ?= {= })->GeometryConstructionGraph(nodes,options),
+    ConstructionRecord=(self, graph)->GeometryConstructionRecord(graph),
+    ImportConstruction=(self, record, constructors ?= {= })->GeometryImportConstruction(record,constructors),
     Drag=(self, graph, id, target, options ?= {= })->GeometryDrag(graph,id,target,options),
+    Undo=(self, graph)->GeometryUndo(graph),
+    Redo=(self, graph)->GeometryRedo(graph),
     Refine=(self, value, request ?= {= })->GeometryRefine(value, request),
-    Draw=(self, objects, options ?= {= })->GeometryDraw(objects, options)
+    Draw=(self, objects, options ?= {= })->GeometryDraw(objects, options),
+    Workbench=(self, graph, options ?= {= })->GeometryWorkbench(graph,options)
 };
 .Host.RegisterValue("geometry", geometryNamespace, "Exact geometry, transformations, conics, constraints, and bounded Graphics refinement", ["Geometry", "Graphics", "Exact"]);

@@ -133,10 +133,10 @@ export class WidgetSession {
 function graphicBindings(node, bindings = { targets: new Map(), actions: new Map() }) {
     if (!isOutputValue(node)) return bindings;
     if (node.kind === "drag_point" && isReactiveNode(node.target)) {
-        bindings.targets.set(node.targetId, node.target);
+        bindings.targets.set(node.targetId, { target: node.target, coordinateSystem: node.coordinateSystem });
     }
     if (node.kind === "graphic_action" && isReactiveNode(node.target)) {
-        bindings.targets.set(node.targetId, node.target);
+        bindings.targets.set(node.targetId, { target: node.target, coordinateSystem: null });
         bindings.actions.set(node.id, node);
     }
     for (const child of node.children || []) graphicBindings(child, bindings);
@@ -153,13 +153,22 @@ function exactGraphicCoordinate(value) {
         : new Rational(numerator, scale);
 }
 
-function graphicPoint(position) {
+function graphicPoint(position, coordinateSystem = null) {
     if (!Array.isArray(position) || position.length !== 2) {
         throw new Error("Graphic position must contain x and y coordinates");
     }
+    let resolved = position;
+    if (coordinateSystem) {
+        const [xmin, ymin, xmax, ymax] = coordinateSystem.view;
+        const [left, top, right, bottom] = coordinateSystem.frame;
+        resolved = [
+            xmin + ((Number(position[0]) - left) / (right - left)) * (xmax - xmin),
+            ymax - ((Number(position[1]) - top) / (bottom - top)) * (ymax - ymin),
+        ];
+    }
     return Object.freeze({
         type: "tuple",
-        values: Object.freeze(position.map(exactGraphicCoordinate)),
+        values: Object.freeze(resolved.map(exactGraphicCoordinate)),
     });
 }
 
@@ -179,7 +188,7 @@ export class GraphicWidgetSession {
         this.revision = 0;
         this.onChange = typeof options.onChange === "function" ? options.onChange : null;
         this.disposed = false;
-        this._unsubscribes = [...new Set(this.targets.values())].map((target) =>
+        this._unsubscribes = [...new Set([...this.targets.values()].map(({ target }) => target))].map((target) =>
             target.subscribe((sourceEvent) => {
                 if (this.disposed) return;
                 this.revision += 1;
@@ -217,9 +226,10 @@ export class GraphicWidgetSession {
         if (event?.type !== "graphic:position") {
             throw new Error(`Unsupported Graphic widget event: ${event?.type || "missing type"}`);
         }
-        const target = this.targets.get(String(event.targetId || ""));
-        if (!target) throw new Error(`Unknown Graphic drag target: ${event.targetId || "missing target"}`);
-        const value = graphicPoint(event.position);
+        const binding = this.targets.get(String(event.targetId || ""));
+        if (!binding) throw new Error(`Unknown Graphic drag target: ${event.targetId || "missing target"}`);
+        const { target, coordinateSystem } = binding;
+        const value = graphicPoint(event.position, coordinateSystem);
         const replacedDependencies = Object.freeze([...target.dependencies]);
         target.replaceValue(value, {
             source: "widget",

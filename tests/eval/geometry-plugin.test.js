@@ -323,4 +323,45 @@ describe("geometry plugin", () => {
         expect(result.values[4].values.map(String)).toEqual(["3/2", "0"]);
         expect(result.values[5].value).toBe(1n);
     });
+
+    test("provides a retained workbench record with reversible construction edits", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("geometry");
+            $$a := {: 0,0};
+            graph=.geometry.ConstructionGraph([
+              {= id=:a,free=1,value=.geometry.Point($a[1],$a[2]) },
+              {= id=:b,dependsOn=[:a],construct=(values)->.geometry.Point(values[:a][:x]+1,values[:a][:y]+1) }
+            ]);
+            moved=.geometry.Drag(graph,:a,.geometry.Point(1/2,1/3));
+            undone=.geometry.Undo(moved); redone=.geometry.Redo(undone);
+            record=.geometry.ConstructionRecord(redone);
+            imported=.geometry.ImportConstruction(record,{=
+              b=(values)->.geometry.Point(values[:a][:x]+1,values[:a][:y]+1)
+            });
+            handle=.Graphics.DragPoint({=
+              target=$$a,label="Move a",coordinateSystem={= view=[-2,-2,2,2],size=[400,400] },
+              style={= hitId="a:handle" }
+            });
+            workbench=.geometry.Workbench(graph,{=
+              handles=[{= id=:a,graphic=handle }],view=[-2,-2,2,2],size=[400,400]
+            });
+            {: moved,undone,redone,record,imported,workbench };
+        `);
+        const [moved, undone, redone, record, imported, workbench] = result.values;
+        expect(field(moved, "history").values).toHaveLength(1);
+        expect(field(undone, "history").values).toHaveLength(0);
+        expect(field(undone, "future").values).toHaveLength(1);
+        expect(field(field(redone, "values"), "b").entries.get("coordinates").values.map(String))
+            .toEqual(["3/2", "4/3"]);
+        expect(text(field(record, "schema"))).toBe("rix.geometry.construction-record@1");
+        expect(field(record, "replayrequires").values.map(text)).toEqual(["b"]);
+        expect(field(field(imported, "values"), "b").entries.get("coordinates").values.map(String))
+            .toEqual(["3/2", "4/3"]);
+        expect(workbench.kind).toBe("graphic");
+        expect(workbench.children.map((child) => child.kind)).toEqual(["group", "group", "drag_point"]);
+        expect(workbench.children[2].center).toEqual([200, 200]);
+        const metadata = workbench.metadata.get("workbench");
+        expect(text(field(metadata, "schema"))).toBe("rix.geometry.workbench@1");
+        expect(field(metadata, "nodes").values).toHaveLength(2);
+    });
 });

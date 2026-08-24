@@ -1620,20 +1620,68 @@ export function createCircle(args) {
 }
 
 export function createDragPoint(args) {
-    const entry = spec(args, ["target", "radius", "style", "label"], "DragPoint");
+    const entry = spec(args, ["target", "radius", "style", "label", "coordinateSystem"], "DragPoint");
     const target = get(entry, "target");
     if (!isReactiveNode(target)) {
         throw new Error("DragPoint target must be a ReactiveGraph node");
     }
-    const center = sequence(target.get(), "DragPoint target value");
-    if (center.length !== 2) {
+    const sourceCenter = sequence(target.get(), "DragPoint target value");
+    if (sourceCenter.length !== 2) {
         throw new Error("DragPoint target value must contain x and y coordinates");
+    }
+    const suppliedCoordinates = get(entry, "coordinateSystem");
+    let coordinateSystem = null;
+    let center = sourceCenter;
+    if (suppliedCoordinates !== null && suppliedCoordinates !== undefined) {
+        const coordinates = map(suppliedCoordinates, "DragPoint coordinateSystem");
+        const view = sequence(get(coordinates, "view"), "DragPoint coordinateSystem view");
+        const suppliedFrame = get(coordinates, "frame");
+        const suppliedSize = get(coordinates, "size");
+        if (view.length !== 4 || (suppliedFrame === null && suppliedSize === null)) {
+            throw new Error("DragPoint coordinateSystem requires a four-coordinate view and either frame or size");
+        }
+        const numericView = view.map((value, index) => numericValue(value, `DragPoint view coordinate ${index + 1}`));
+        const [xmin, ymin, xmax, ymax] = numericView;
+        let numericFrame;
+        if (suppliedFrame !== null) {
+            const frame = sequence(suppliedFrame, "DragPoint coordinateSystem frame");
+            if (frame.length !== 4) throw new Error("DragPoint coordinateSystem frame must contain four coordinates");
+            numericFrame = frame.map((value, index) => numericValue(value, `DragPoint frame coordinate ${index + 1}`));
+        } else {
+            const size = sequence(suppliedSize, "DragPoint coordinateSystem size");
+            if (size.length !== 2) throw new Error("DragPoint coordinateSystem size must contain width and height");
+            const [width, height] = size.map((value, index) => numericValue(value, `DragPoint size coordinate ${index + 1}`));
+            if (!(width > 0 && height > 0 && xmax > xmin && ymax > ymin)) {
+                throw new Error("DragPoint coordinateSystem requires positive size and increasing view bounds");
+            }
+            const scale = Math.min(width / (xmax - xmin), height / (ymax - ymin));
+            const offsetX = (width - (xmax - xmin) * scale) / 2;
+            const offsetY = (height - (ymax - ymin) * scale) / 2;
+            numericFrame = [offsetX, offsetY, width - offsetX, height - offsetY];
+        }
+        const [left, top, right, bottom] = numericFrame;
+        if (!(xmax > xmin && ymax > ymin && right > left && bottom > top)) {
+            throw new Error("DragPoint coordinateSystem requires increasing view and frame bounds");
+        }
+        const x = numericValue(sourceCenter[0], "DragPoint target x coordinate");
+        const y = numericValue(sourceCenter[1], "DragPoint target y coordinate");
+        center = Object.freeze([
+            left + ((x - xmin) / (xmax - xmin)) * (right - left),
+            bottom - ((y - ymin) / (ymax - ymin)) * (bottom - top),
+        ]);
+        coordinateSystem = Object.freeze({
+            schema: "rix.graphics.coordinate-system@1",
+            view: Object.freeze([...numericView]),
+            frame: Object.freeze([...numericFrame]),
+        });
     }
     return output("drag_point", {
         center: Object.freeze([...center]),
+        sourceCenter: Object.freeze([...sourceCenter]),
         radius: get(entry, "radius", int(7)),
         style: optionalMap(get(entry, "style"), "DragPoint style"),
         label: asString(get(entry, "label")) || "Draggable point",
+        coordinateSystem,
         target,
         targetId: target.id,
         replacesDependencies: Object.freeze([...target.dependencies]),
@@ -2687,7 +2735,19 @@ export function formatOutputText(value, format) {
     }
     if (value.kind === "sheet") return formatSheetText(value, format);
     if (value.kind === "figure") return [formatOutputText(value.content, format), value.caption].filter(Boolean).join("\n");
-    if (value.kind === "graphic") return formatPlotText(value, format) || `[Graphic: ${cellText(value.size[0], format)} × ${cellText(value.size[1], format)}, ${value.children.length} scene nodes]`;
+    if (value.kind === "graphic") {
+        const workbench = value.metadata instanceof Map ? get(value.metadata, "workbench") : null;
+        if (workbench) {
+            const nodes = sequence(get(map(workbench, "Geometry workbench metadata"), "nodes", []), "Geometry workbench nodes");
+            const free = nodes.filter((node) => Boolean(get(map(node, "Geometry workbench node"), "free"))).length;
+            const constrained = nodes.filter((node) => {
+                const kind = get(map(node, "Geometry workbench node"), "kind");
+                return kind === "constraint" || kind?.value === "constraint";
+            }).length;
+            return `[Geometry workbench: ${nodes.length} objects, ${free} free, ${constrained} constraints, ${value.children.length} scene nodes]`;
+        }
+        return formatPlotText(value, format) || `[Graphic: ${cellText(value.size[0], format)} × ${cellText(value.size[1], format)}, ${value.children.length} scene nodes]`;
+    }
     if (value.kind === "path") return value.commands ? `[Path: ${value.commands.length} commands]` : `[Path: ${value.points.length} points]`;
     if (value.kind === "slide") return [value.title, formatOutputText(value.content, format)].filter(Boolean).join("\n");
     if (value.kind === "slides") return value.slides.map((slide, index) => `Slide ${index + 1}:\n${formatOutputText(slide, format)}`).join("\n\n");

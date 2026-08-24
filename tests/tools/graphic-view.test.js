@@ -7,6 +7,7 @@ import {
     graphicViewBox,
     panGraphicViewport,
     resetGraphicViewport,
+    serializeGeometryConstructionRecord,
     zoomGraphicViewport,
 } from "../../src/tools/graphic-view.js";
 
@@ -70,6 +71,30 @@ describe("shared Graphic viewport and exact inspection", () => {
         expect(describeGraphicNode({ kind: "circle", center: ["1/3", "2/5"], radius: "5/7" }, String))
             .toBe("Circle · exact center (1/3, 2/5) · exact radius 5/7");
     });
+});
+
+test("geometry construction export is deterministic and omits executable callbacks", () => {
+    const record = {
+        type: "map",
+        entries: new Map([
+            ["schema", { type: "string", value: "rix.geometry.construction-record@1" }],
+            ["nodes", { type: "array", values: [{
+                type: "map",
+                entries: new Map([
+                    ["id", { type: "symbol", value: "a" }],
+                    ["dependsOn", { type: "array", values: [] }],
+                    ["construct", () => "not portable"],
+                    ["value", { numerator: 1n, denominator: 3n }],
+                ]),
+            }] }],
+        ]),
+    };
+    const exported = serializeGeometryConstructionRecord(record);
+    expect(JSON.parse(exported)).toEqual({
+        nodes: [{ dependsOn: [], id: "a", value: { type: "rational", numerator: "1", denominator: "3" } }],
+        schema: "rix.geometry.construction-record@1",
+    });
+    expect(JSON.parse(exported).nodes[0]).not.toHaveProperty("construct");
 });
 
 test("Graphic actions emit semantic records for pointer and keyboard activation", () => {

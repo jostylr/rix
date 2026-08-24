@@ -99,8 +99,42 @@ coincident/disjoint uncertain points and otherwise returns `undecided`.
 `ConstructionGraph` evaluates named free and derived nodes in dependency
 order. `Drag` commits a new value only to a free node, optionally snaps to an
 exact rational grid, rebuilds descendants, and records deterministic history.
-It is the exact controller foundation, not a general nonlinear constraint
-solver or pointer UI.
+`Undo` and `Redo` replay that exact event history. `ConstructionRecord` removes
+derived callbacks from the retained graph, and `ImportConstruction` restores a
+record only when the caller explicitly supplies the constructors needed by its
+derived nodes. The record therefore stays portable without serializing code or
+silently freezing dependencies.
+
+`Workbench(graph, options)` lowers every drawable node with a stable object id
+and embeds the portable construction record in `rix.geometry.workbench@1`
+metadata. RiX Web recognizes that metadata and adds an object/dependency tree,
+exact property inspector, keyboard navigation, movement undo/redo, and JSON
+export. Reactive point handles are created directly with `Graphics.DragPoint`
+so the native constructor can retain `$$` identity, then passed as
+`handles=[{= id=:a,graphic=handle }]`. Its `coordinateSystem` maps the exact
+mathematical view into the uniform-fit drawing frame:
+
+```rix
+.Plugin.Load("geometry");
+view := [-2,-2,6,4]; size := [640,480];
+$$a := {: 0,0};
+$$graph := .geometry.ConstructionGraph([
+  {= id=:a,free=1,value=.geometry.Point($a[1],$a[2]) },
+  {= id=:b,dependsOn=[:a],construct=(values)->
+      .geometry.Point(values[:a][:x]+3,values[:a][:y]+1) }
+]);
+handle := .Graphics.DragPoint({=
+  target=$$a,label="Move a",coordinateSystem={= view=view,size=size },
+  style={= fill="#7c3aed",stroke="#ffffff",width=2,hitId="a:handle" }
+});
+$$workbench := .geometry.Workbench($graph,{=
+  view=view,size=size,handles=[{= id=:a,graphic=handle }]
+});
+$workbench;
+```
+
+This baseline is an exact controller and inspection environment, not yet a
+general nonlinear constraint solver or a complete canvas authoring UI.
 
 ## Bounded refinement
 

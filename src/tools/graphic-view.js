@@ -246,6 +246,193 @@ function pointDetail(handle, position, source) {
     });
 }
 
+function geometryWorkbench(graphic) {
+    const workbench = mapField(graphic?.metadata, "workbench");
+    return stringValue(mapField(workbench, "schema")) === "rix.geometry.workbench@1" ? workbench : null;
+}
+
+function geometryHistory(state) {
+    if (!state.geometryHistory) state.geometryHistory = { entries: [], cursor: 0 };
+    return state.geometryHistory;
+}
+
+function recordGeometryEdit(state, targetId, before, after) {
+    if (!Array.isArray(before) || !Array.isArray(after) || before.length !== 2 || after.length !== 2) return;
+    if (before.every((value, index) => Number(value) === Number(after[index]))) return;
+    const history = geometryHistory(state);
+    history.entries.splice(history.cursor);
+    history.entries.push(Object.freeze({
+        targetId: String(targetId),
+        before: Object.freeze(before.map(Number)),
+        after: Object.freeze(after.map(Number)),
+    }));
+    history.cursor = history.entries.length;
+}
+
+function portableGeometryValue(value, format, seen = new Set()) {
+    if (value === null || value === undefined) return null;
+    if (["string", "number", "boolean"].includes(typeof value)) return value;
+    if (typeof value === "bigint") return value.toString();
+    if (seen.has(value)) return "[cycle]";
+    if (Array.isArray(value)) {
+        seen.add(value);
+        const result = value.map((item) => portableGeometryValue(item, format, seen));
+        seen.delete(value);
+        return result;
+    }
+    if (value?.type === "integer") return { type: "integer", value: String(value.value) };
+    if (value?.numerator !== undefined && value?.denominator !== undefined) {
+        return { type: "rational", numerator: String(value.numerator), denominator: String(value.denominator) };
+    }
+    if (value?.type === "string" || value?.type === "symbol") return value.value;
+    if (Array.isArray(value?.values) || Array.isArray(value?.elements)) {
+        return sequenceValue(value).map((item) => portableGeometryValue(item, format, seen));
+    }
+    const entries = value instanceof Map ? value : value?.type === "map" && value.entries instanceof Map ? value.entries : null;
+    if (entries) {
+        seen.add(value);
+        const result = {};
+        for (const [key, item] of [...entries.entries()].sort(([left], [right]) => String(left).localeCompare(String(right)))) {
+            if (typeof item === "function" || item?.type === "function") continue;
+            result[String(key)] = portableGeometryValue(item, format, seen);
+        }
+        seen.delete(value);
+        return result;
+    }
+    try {
+        return String(format(value));
+    } catch {
+        return String(value);
+    }
+}
+
+/** Deterministic JSON projection of a constructor-free geometry record. */
+export function serializeGeometryConstructionRecord(record, format = String) {
+    return JSON.stringify(portableGeometryValue(record, format), null, 2);
+}
+
+function installGeometryWorkbench(graphic, status, options, navigation) {
+    const workbench = geometryWorkbench(options.graphic);
+    const document = graphic.ownerDocument;
+    if (!workbench || !document?.createElement) return;
+    const nodes = sequenceValue(mapField(workbench, "nodes"));
+    const history = geometryHistory(options.state || (options.state = {}));
+    const panel = document.createElement("aside");
+    panel.className = "rix-output-geometry-workbench";
+    panel.setAttribute("aria-label", "Geometry construction workbench");
+
+    const heading = document.createElement("h3");
+    heading.textContent = "Construction";
+    panel.append(heading);
+    const controls = document.createElement("div");
+    controls.className = "rix-output-geometry-controls";
+    const undo = makeButton(document, "geometry-undo", "Undo last point movement", "Undo");
+    const redo = makeButton(document, "geometry-redo", "Redo point movement", "Redo");
+    const exportButton = makeButton(document, "geometry-export", "Export portable construction record", "Export");
+    controls.append(undo, redo, exportButton);
+    panel.append(controls);
+    const exported = document.createElement("pre");
+    exported.className = "rix-output-geometry-export";
+    exported.hidden = true;
+    panel.append(exported);
+
+    const properties = document.createElement("output");
+    properties.className = "rix-output-geometry-properties";
+    properties.setAttribute("aria-live", "polite");
+    properties.textContent = `${nodes.length} construction object${nodes.length === 1 ? "" : "s"}.`;
+    const tree = document.createElement("ol");
+    tree.className = "rix-output-geometry-tree";
+    tree.setAttribute("role", "tree");
+    const treeButtons = [];
+    for (const node of nodes) {
+        const id = stringValue(mapField(node, "id")) || String(mapField(node, "id") ?? "object");
+        const kind = stringValue(mapField(node, "kind")) || "value";
+        const dependencies = sequenceValue(mapField(node, "dependsOn")).map((item) => stringValue(item) || String(item));
+        const free = Boolean(mapField(node, "free"));
+        const item = document.createElement("li");
+        item.setAttribute("role", "treeitem");
+        item.setAttribute("aria-level", "1");
+        const button = document.createElement("button");
+        button.type = "button";
+        button.dataset.rixGeometryObject = id;
+        button.textContent = `${id} · ${kind} · ${free ? "free" : "derived"}`;
+        const choose = (source = "workbench") => {
+            navigation?.selectById(id, source);
+            const statusValue = stringValue(mapField(node, "status"));
+            const diagnostic = stringValue(mapField(node, "diagnostic"));
+            const dependencyText = dependencies.length ? `depends on ${dependencies.join(", ")}` : "no dependencies";
+            const exact = mapField(node, "value");
+            properties.textContent = [id, kind, free ? "free" : "derived", dependencyText, statusValue, diagnostic, exact === null ? null : `exact ${exactText(exact, options.format || String)}`]
+                .filter(Boolean).join(" · ");
+        };
+        button.addEventListener("click", () => choose());
+        button.addEventListener("keydown", (event) => {
+            const current = treeButtons.indexOf(button);
+            let next = null;
+            if (event.key === "ArrowDown") next = treeButtons[(current + 1) % treeButtons.length];
+            else if (event.key === "ArrowUp") next = treeButtons[(current - 1 + treeButtons.length) % treeButtons.length];
+            else if (event.key === "Home") next = treeButtons[0];
+            else if (event.key === "End") next = treeButtons.at(-1);
+            else if (event.key === "Enter" || event.key === " ") choose("keyboard");
+            else return;
+            event.preventDefault?.();
+            next?.focus?.();
+        });
+        treeButtons.push(button);
+        item.append(button);
+        if (dependencies.length) {
+            const dependency = document.createElement("small");
+            dependency.textContent = ` ← ${dependencies.join(", ")}`;
+            item.append(dependency);
+        }
+        tree.append(item);
+    }
+    panel.append(tree, properties);
+    graphic.append(panel);
+
+    const refreshHistory = () => {
+        undo.disabled = history.cursor === 0;
+        redo.disabled = history.cursor >= history.entries.length;
+    };
+    const replay = (direction) => {
+        const entry = direction < 0 ? history.entries[history.cursor - 1] : history.entries[history.cursor];
+        if (!entry || typeof options.onPosition !== "function") return;
+        const nextCursor = history.cursor + direction;
+        const detail = Object.freeze({
+            type: "graphic:position",
+            targetId: entry.targetId,
+            position: direction < 0 ? entry.before : entry.after,
+            source: direction < 0 ? "undo" : "redo",
+        });
+        const previousCursor = history.cursor;
+        history.cursor = nextCursor;
+        let result;
+        try {
+            result = options.onPosition(detail, null, graphic);
+            if (result?.type === "error") throw new Error(result.text);
+        } catch (error) {
+            history.cursor = previousCursor;
+            if (status) status.textContent = error instanceof Error ? error.message : String(error);
+            return;
+        }
+        refreshHistory();
+        if (status) status.textContent = direction < 0 ? "Point movement undone" : "Point movement redone";
+        dispatchGraphicEvent(graphic, "rix-geometry-history", { direction, cursor: history.cursor, targetId: entry.targetId });
+    };
+    undo.addEventListener("click", () => replay(-1));
+    redo.addEventListener("click", () => replay(1));
+    exportButton.addEventListener("click", () => {
+        const record = mapField(workbench, "construction");
+        const text = serializeGeometryConstructionRecord(record, options.format || String);
+        exported.textContent = text;
+        exported.hidden = false;
+        document.defaultView?.navigator?.clipboard?.writeText?.(text).catch?.(() => {});
+        dispatchGraphicEvent(graphic, "rix-geometry-export", { schema: "rix.geometry.construction-record@1", record, text });
+        if (status) status.textContent = "Portable construction record exported";
+    });
+    refreshHistory();
+}
+
 function closestSemantic(element, svg) {
     for (let current = element; current && current !== svg; current = current.parentElement) {
         if (current.dataset?.rixSemanticId) return current;
@@ -271,7 +458,7 @@ function makeButton(document, command, label, text) {
 }
 
 function installNavigation(graphic, svg, status, options) {
-    if (typeof svg.addEventListener !== "function") return;
+    if (typeof svg.addEventListener !== "function") return null;
     const width = finiteNumber(options.graphic?.size?.[0] ?? svg.getAttribute?.("width"), 1);
     const height = finiteNumber(options.graphic?.size?.[1] ?? svg.getAttribute?.("height"), 1);
     const state = createGraphicViewState(width, height, options.state || {});
@@ -354,6 +541,13 @@ function installNavigation(graphic, svg, status, options) {
         const current = selectable.findIndex((element) => element.dataset.rixSemanticId === state.selection.focus);
         const next = current < 0 ? (step > 0 ? 0 : selectable.length - 1) : (current + step + selectable.length) % selectable.length;
         setSelection(selectable[next], "keyboard");
+    };
+    const selectById = (id, source = "workbench") => {
+        const element = semanticElements.find((candidate) => candidate.dataset?.rixSemanticId === String(id));
+        if (!element) return false;
+        setSelection(element, source);
+        element.focus?.();
+        return true;
     };
     for (const element of semanticElements) {
         if (state.selection.ids.includes(element.dataset.rixSemanticId)) element.classList?.add("rix-output-semantic-selected");
@@ -459,6 +653,7 @@ function installNavigation(graphic, svg, status, options) {
         applyViewport();
         announceViewport("keyboard");
     });
+    return Object.freeze({ selectById, cycleSelection });
 }
 
 function enhanceGraphic(graphic, options) {
@@ -478,7 +673,8 @@ function enhanceGraphic(graphic, options) {
     const actions = [...graphic.querySelectorAll("[data-rix-graphic-action]")];
     if (!svg) return;
 
-    installNavigation(graphic, svg, status, options);
+    const navigation = installNavigation(graphic, svg, status, options);
+    installGeometryWorkbench(graphic, status, options, navigation);
 
     for (const action of actions) {
         if (typeof options.onAction !== "function") continue;
@@ -523,6 +719,10 @@ function enhanceGraphic(graphic, options) {
 
     const commit = (handle, position, source, previous) => {
         const detail = pointDetail(handle, position, source);
+        const workbenchEdit = geometryWorkbench(options.graphic) && source !== "undo" && source !== "redo";
+        const history = workbenchEdit ? geometryHistory(options.state || (options.state = {})) : null;
+        const historyBackup = history ? { entries: [...history.entries], cursor: history.cursor } : null;
+        if (workbenchEdit) recordGeometryEdit(options.state, detail.targetId, previous, position);
         try {
             const result = options.onPosition(detail, handle, graphic);
             if (result?.type === "error") throw new Error(result.text);
@@ -530,6 +730,10 @@ function enhanceGraphic(graphic, options) {
             options.onPositionCommitted?.(detail, result, handle, graphic);
             return true;
         } catch (error) {
+            if (history && historyBackup) {
+                history.entries.splice(0, history.entries.length, ...historyBackup.entries);
+                history.cursor = historyBackup.cursor;
+            }
             setPreview(handle, previous);
             if (status) status.textContent = error instanceof Error ? error.message : String(error);
             return false;

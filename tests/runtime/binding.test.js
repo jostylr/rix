@@ -251,6 +251,38 @@ describe("WidgetSession", () => {
         widget.dispose();
     });
 
+    test("maps projected DragPoint movement back into exact mathematical coordinates", () => {
+        const state = session();
+        const graphic = parseAndEvaluate(`
+            $$point := {: 0,0};
+            .Graphics.Graphic([400,100], [
+                .Graphics.DragPoint({=
+                    target=$$point,
+                    coordinateSystem={= view=[-2,-1,2,1],size=[400,100] },
+                    label="Move mathematical point"
+                })
+            ])
+        `, state);
+        const handle = graphic.children[0];
+        expect(handle.center).toEqual([200, 50]);
+        expect(handle.sourceCenter.map(formatValue)).toEqual(["0", "0"]);
+        expect(handle.coordinateSystem).toEqual({
+            schema: "rix.graphics.coordinate-system@1",
+            view: [-2, -1, 2, 1],
+            frame: [100, 0, 300, 100],
+        });
+        const widget = createWidgetSession(graphic);
+        const result = widget.dispatch({
+            type: "graphic:position",
+            targetId: handle.targetId,
+            position: [250, 25],
+            source: "pointer",
+        });
+        expect(formatValue(result)).toBe("( 1, 1/2 )");
+        expect(formatValue(state.context.get("point").peek())).toBe("( 1, 1/2 )");
+        widget.dispose();
+    });
+
     test("routes semantic graphic:action events through a RiX callback", () => {
         const state = session();
         const graphic = parseAndEvaluate(`
