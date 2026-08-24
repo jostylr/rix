@@ -136,7 +136,7 @@ release decision.
 ### Basic Parsing
 
 ```javascript
-import { tokenize, parse } from 'rix/parser';
+import { tokenize, parse } from '@ratmath/rix/parser';
 
 // Tokenize input
 const tokens = tokenize('x := 2 + 3 * y');
@@ -154,7 +154,7 @@ console.log(ast2);
 ### Advanced Features
 
 ```javascript
-import { parse } from 'rix/parser';
+import { parse } from '@ratmath/rix/parser';
 
 // Function definitions
 const funcDef = parse('power(x, n := 2) :-> x^n');

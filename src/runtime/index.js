@@ -2,6 +2,20 @@ export { Context } from "./context.js";
 export { SystemContext } from "./system-context.js";
 export { PluginCatalog, parsePluginYaml, readPluginHeader, readSourceHeader } from "./plugin-catalog.js";
 export {
+    HOST_ADAPTER_ENV,
+    createBrowserHostAdapter,
+    getDefaultHostAdapter,
+    getHostAdapter,
+    setDefaultHostAdapter,
+} from "./host-adapter.js";
+export {
+    EVALUATION_BUDGET_ENV,
+    EvaluationLimitError,
+    createEvaluationBudget,
+    enterEvaluationBudget,
+    evaluationCheckpoint,
+} from "./evaluation-budget.js";
+export {
     RendererRegistry,
     UnsupportedRenderError,
     createRenderResult,

@@ -1,5 +1,14 @@
 import { describe, expect, test } from "bun:test";
-import { enhanceGraphicViews, graphicPointFromClient } from "../../src/tools/graphic-view.js";
+import {
+    createGraphicViewState,
+    describeGraphicNode,
+    enhanceGraphicViews,
+    graphicPointFromClient,
+    graphicViewBox,
+    panGraphicViewport,
+    resetGraphicViewport,
+    zoomGraphicViewport,
+} from "../../src/tools/graphic-view.js";
 
 describe("portable Graphic host interaction helpers", () => {
     test("maps browser pixels into a scaled SVG coordinate space", () => {
@@ -24,6 +33,42 @@ describe("portable Graphic host interaction helpers", () => {
             { x: 0, y: 0, width: 200, height: 100 },
             { x: 1, y: 1 },
         )).toThrow("non-empty bounds");
+    });
+});
+
+describe("shared Graphic viewport and exact inspection", () => {
+    test("zooms around a stable anchor, pans, resets, and publishes shared schemas", () => {
+        const state = createGraphicViewState(200, 100);
+        zoomGraphicViewport(state, 2, [50, 25]);
+        expect(state.viewport).toMatchObject({ schema: "rix.viewport@1", zoom: 2, pan: [-50, -25] });
+        expect(graphicViewBox(state)).toEqual({ x: 25, y: 12.5, width: 100, height: 50 });
+
+        panGraphicViewport(state, 20, 5);
+        expect(graphicViewBox(state)).toEqual({ x: 15, y: 10, width: 100, height: 50 });
+        resetGraphicViewport(state);
+        expect(graphicViewBox(state)).toEqual({ x: 0, y: 0, width: 200, height: 100 });
+        expect(state.selection).toEqual({ schema: "rix.selection@1", ids: [], focus: null });
+    });
+
+    test("retains selection across viewport normalization", () => {
+        const target = { selection: { schema: "rix.selection@1", ids: ["root"], focus: "root" } };
+        createGraphicViewState(100, 60, target);
+        zoomGraphicViewport(target, 4);
+        createGraphicViewState(120, 80, target);
+        expect(target.viewport.zoom).toBe(4);
+        expect(target.selection).toEqual({ schema: "rix.selection@1", ids: ["root"], focus: "root" });
+    });
+
+    test("describes retained exact values rather than lowered pointer decimals", () => {
+        const path = {
+            kind: "path",
+            commands: null,
+            points: [["1/3", "2/5"], ["7/3", "11/5"]],
+        };
+        expect(describeGraphicNode(path, String, [2.2, 2.1]))
+            .toBe("Path · 2 exact points · nearest (7/3, 11/5)");
+        expect(describeGraphicNode({ kind: "circle", center: ["1/3", "2/5"], radius: "5/7" }, String))
+            .toBe("Circle · exact center (1/3, 2/5) · exact radius 5/7");
     });
 });
 

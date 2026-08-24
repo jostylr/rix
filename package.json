@@ -1,9 +1,10 @@
 {
-  "name": "rix",
+  "name": "@ratmath/rix",
   "version": "0.1.0",
   "description": "RiX, the Rational Interval Expression Language",
   "type": "module",
   "files": [
+    "LICENSE",
     "README.md",
     "benchmarks/",
     "bin/",
@@ -25,14 +26,21 @@
     "src/"
   ],
   "exports": {
-    ".": "./src/index.js",
+    ".": {
+      "browser": "./src/index.js",
+      "default": "./src/index-node.js"
+    },
     "./parser": "./src/parser/index.js",
     "./codemirror": "./src/tools/codemirror/index.js",
     "./language-service": "./src/tools/language-service/index.js",
     "./language-service/config-node": "./src/tools/language-service/config-node.js",
     "./schemas/*": "./schemas/*",
-    "./eval": "./src/eval/index.js",
-    "./runtime": "./src/runtime/index.js"
+    "./eval": {
+      "browser": "./src/eval/index.js",
+      "default": "./src/eval/index-node.js"
+    },
+    "./runtime": "./src/runtime/index.js",
+    "./runtime/node": "./src/runtime/host-adapter-node.js"
   },
   "bin": {
     "rix": "./bin/rix.js",
@@ -72,7 +80,7 @@
     "preview:docs:static": "bun run build:demo && bun run docs:reference && bun ./documentation/scripts/run-quarto.js preview --profile static",
     "build:all": "bun run build:docs",
     "check:ci": "bun run test:ci && bun run test:rix && bun run check:editor-policy && bun run test:pack",
-    "check:release": "bun run check:ci && bun run smoke:package",
+    "check:release": "bun run test:coverage && bun run test:rix && bun run docs:verify && bun run check:editor-policy && bun run test:pack && bun run smoke:package",
     "prepublishOnly": "bun run check:release"
   },
   "dependencies": {
@@ -80,7 +88,7 @@
     "@lezer/common": "^1.5.2",
     "@lezer/highlight": "^1.2.3",
     "@lezer/lr": "^1.4.10",
-    "@ratmath/core": "^0.4.0"
+    "@ratmath/core": "^0.5.0"
   },
   "devDependencies": {
     "@lezer/generator": "^1.8.0",

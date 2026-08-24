@@ -42,7 +42,7 @@ specifications is implemented. It:
 3. preserves exact constants, arithmetic nodes, and application semantic IDs;
 4. diagnoses unsupported nodes and incomplete explicit input lists;
 5. lets pure-RiX plugins consume the portable expression records; and
-6. exports the same conversion helpers through the public `rix/eval` module
+6. exports the same conversion helpers through the public `@ratmath/rix/eval` module
    for JavaScript plugins.
 
 Semantic applications remain inert when a core specification is evaluated on

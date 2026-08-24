@@ -14,8 +14,16 @@ import {
     parseAndEvaluateAsync,
 } from "../../src/eval/evaluator.js";
 import { runtimeDefaults } from "../../src/runtime/runtime-config.js";
+import { createNodeHostAdapter } from "../../src/runtime/host-adapter-node.js";
+import { HOST_ADAPTER_ENV } from "../../src/runtime/host-adapter.js";
 
 const TMP_ROOT = path.resolve(process.cwd(), ".test-tmp", `script-import-tests-${Date.now()}`);
+const nodeHostAdapter = createNodeHostAdapter();
+
+function enableNodeHost(context) {
+    context.setEnv(HOST_ADAPTER_ENV, nodeHostAdapter);
+    return context;
+}
 
 function writeScripts(files) {
     fs.mkdirSync(TMP_ROOT, { recursive: true });
@@ -30,6 +38,7 @@ function writeScripts(files) {
 
 function evalRix(code, options = {}) {
     const context = options.context || new Context();
+    enableNodeHost(context);
     if (options.scriptBaseDir) {
         context.setEnv("scriptBaseDir", options.scriptBaseDir);
     }
@@ -277,7 +286,7 @@ describe("script import execution", () => {
         const dir = writeScripts({
             worker: "{$ .wait(41) + 1 }",
         });
-        const context = new Context();
+        const context = enableNodeHost(new Context());
         context.setEnv("scriptBaseDir", dir);
         const systemContext = makeSystemContext({
             async wait([value]) {
@@ -303,7 +312,7 @@ describe("script import execution", () => {
                 return new Promise((resolve) => releases.set(Number(value.value), resolve));
             },
         });
-        const context = new Context();
+        const context = enableNodeHost(new Context());
         context.setEnv("scriptBaseDir", dir);
         context.setEnv("capabilityGroups", {
             ...runtimeDefaults.capabilityGroups,
@@ -335,14 +344,14 @@ describe("script import execution", () => {
             },
         });
 
-        const deniedContext = new Context();
+        const deniedContext = enableNodeHost(new Context());
         deniedContext.setEnv("scriptBaseDir", dir);
         await expect(parseAndEvaluateAsync('<"worker">', {
             context: deniedContext,
             systemContext,
         })).rejects.toThrow("Background tasks are not allowed");
 
-        const allowedContext = new Context();
+        const allowedContext = enableNodeHost(new Context());
         allowedContext.setEnv("scriptBaseDir", dir);
         const result = await parseAndEvaluateAsync('<"worker" /+Background/>', {
             context: allowedContext,

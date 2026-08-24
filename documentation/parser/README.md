@@ -23,7 +23,7 @@ syntax and embedding APIs, start with
 
 ### Getting Started
 ```javascript
-import { tokenize, parse } from 'rix/parser';
+import { tokenize, parse } from '@ratmath/rix/parser';
 
 // Basic usage
 const tokens = tokenize('x := 2 + 3');

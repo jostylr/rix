@@ -1920,7 +1920,7 @@ function svgPolicy(options = {}) {
 }
 
 const SVG_SHAPE_STYLE_KEYS = new Set([
-    "stroke", "fill", "width", "strokewidth", "dash", "opacity", "id", "class",
+    "stroke", "fill", "width", "strokewidth", "dash", "opacity", "id", "hitid", "class",
     "gradient", "pattern", "mask",
 ]);
 const SVG_PATH_STYLE_KEYS = new Set([...SVG_SHAPE_STYLE_KEYS, "closed", "marker", "markerstart", "markerend", "markersize"]);
@@ -2248,6 +2248,20 @@ function svgStyle(style, defaultFill = null, policy, defs = null, path = "graphi
     return attrs.join(" ");
 }
 
+function svgSemanticId(node, path) {
+    const value = styleEntry(node.style, "hitId")
+        ?? styleEntry(node.style, "id")
+        ?? styleEntry(node.metadata, "id")
+        ?? node.id
+        ?? node.targetId;
+    const explicit = asString(value) ?? (typeof value === "string" ? value : null);
+    return explicit || path.replace(/[^A-Za-z0-9:_.-]+/g, "-");
+}
+
+function svgSemanticAttributes(node, path) {
+    return `data-rix-scene-path="${escapeHtml(path)}" data-rix-semantic-id="${escapeHtml(svgSemanticId(node, path))}"`;
+}
+
 function svgTransform(node, policy) {
     const transforms = [];
     const entryStart = policy.entries.length;
@@ -2297,7 +2311,7 @@ function renderSvgText(node, format, defs, policy, path) {
         }
     }
     if (weight) attrs.push(`font-weight="${escapeHtml(weight)}"`);
-    return `<text x="${x}" y="${y}" ${attrs.filter(Boolean).join(" ")}>${escapeHtml(cellText(node.text, format))}</text>`;
+    return `<text x="${x}" y="${y}" ${svgSemanticAttributes(node, path)} ${attrs.filter(Boolean).join(" ")}>${escapeHtml(cellText(node.text, format))}</text>`;
 }
 
 function renderSvgNode(node, format, defs, policy, path) {
@@ -2313,18 +2327,18 @@ function renderSvgNode(node, format, defs, policy, path) {
         const markerAttrs = [];
         if (markerStart !== null) markerAttrs.push(`marker-start="url(#${svgMarkerDefinition(markerStart, size, defs, policy, path)})"`);
         if (markerEnd !== null) markerAttrs.push(`marker-end="url(#${svgMarkerDefinition(markerEnd, size, defs, policy, path)})"`);
-        return `<path d="${d}" ${svgStyle(node.style, "none", policy, defs, path)}${markerAttrs.length ? ` ${markerAttrs.join(" ")}` : ""}/>`;
+        return `<path d="${d}" ${svgSemanticAttributes(node, path)} ${svgStyle(node.style, "none", policy, defs, path)}${markerAttrs.length ? ` ${markerAttrs.join(" ")}` : ""}/>`;
     }
     if (node.kind === "rectangle") {
         validateSvgStyle(node.style, SVG_SHAPE_STYLE_KEYS, path);
         const [x, y] = svgPair(node.origin, "Rectangle origin", policy);
         const [width, height] = svgPair(node.size, "Rectangle size", policy, ["width", "height"]);
-        return `<rect x="${x}" y="${y}" width="${width}" height="${height}" ${svgStyle(node.style, "none", policy, defs, path)}/>`;
+        return `<rect x="${x}" y="${y}" width="${width}" height="${height}" ${svgSemanticAttributes(node, path)} ${svgStyle(node.style, "none", policy, defs, path)}/>`;
     }
     if (node.kind === "circle") {
         validateSvgStyle(node.style, SVG_SHAPE_STYLE_KEYS, path);
         const [cx, cy] = svgPair(node.center, "Circle center", policy);
-        return `<circle cx="${cx}" cy="${cy}" r="${svgNumber(node.radius, "Circle radius", policy, "radius")}" ${svgStyle(node.style, "none", policy, defs, path)}/>`;
+        return `<circle cx="${cx}" cy="${cy}" r="${svgNumber(node.radius, "Circle radius", policy, "radius")}" ${svgSemanticAttributes(node, path)} ${svgStyle(node.style, "none", policy, defs, path)}/>`;
     }
     if (node.kind === "drag_point") {
         validateSvgStyle(node.style, SVG_SHAPE_STYLE_KEYS, path);
@@ -2332,7 +2346,7 @@ function renderSvgNode(node, format, defs, policy, path) {
         const replaced = node.replacesDependencies?.length
             ? ` data-rix-replaces-dependencies="${escapeHtml(node.replacesDependencies.join(","))}"`
             : "";
-        return `<circle class="rix-output-drag-point" cx="${cx}" cy="${cy}" r="${svgNumber(node.radius, "DragPoint radius", policy, "radius")}" ${svgStyle(node.style, "#7c3aed", policy, defs, path)} tabindex="0" role="button" aria-label="${escapeHtml(node.label)}" data-rix-drag-target="${escapeHtml(node.targetId)}" data-rix-position="${cx},${cy}"${replaced}/>`;
+        return `<circle class="rix-output-drag-point" cx="${cx}" cy="${cy}" r="${svgNumber(node.radius, "DragPoint radius", policy, "radius")}" ${svgSemanticAttributes(node, path)} ${svgStyle(node.style, "#7c3aed", policy, defs, path)} tabindex="0" role="button" aria-label="${escapeHtml(node.label)}" data-rix-drag-target="${escapeHtml(node.targetId)}" data-rix-position="${cx},${cy}"${replaced}/>`;
     }
     if (node.kind === "graphic_action") {
         validateSvgStyle(node.style, SVG_SHAPE_STYLE_KEYS, path);
@@ -2340,7 +2354,7 @@ function renderSvgNode(node, format, defs, policy, path) {
             ? ` data-rix-replaces-dependencies="${escapeHtml(node.replacesDependencies.join(","))}"`
             : "";
         const style = svgStyle(node.style, null, policy, defs, path);
-        return `<g class="rix-output-graphic-action"${style ? ` ${style}` : ""} tabindex="0" role="button" aria-label="${escapeHtml(node.label)}" data-rix-graphic-action="${escapeHtml(node.id)}" data-rix-graphic-target="${escapeHtml(node.targetId)}"${replaced}>${node.children.map((child, index) => renderSvgNode(child, format, defs, policy, `${path}.graphic_action[${index + 1}]`)).join("")}</g>`;
+        return `<g class="rix-output-graphic-action" ${svgSemanticAttributes(node, path)}${style ? ` ${style}` : ""} tabindex="0" role="button" aria-label="${escapeHtml(node.label)}" data-rix-graphic-action="${escapeHtml(node.id)}" data-rix-graphic-target="${escapeHtml(node.targetId)}"${replaced}>${node.children.map((child, index) => renderSvgNode(child, format, defs, policy, `${path}.graphic_action[${index + 1}]`)).join("")}</g>`;
     }
     if (node.kind === "text_mark") {
         validateSvgStyle(node.style, SVG_TEXT_STYLE_KEYS, path);
@@ -2348,7 +2362,7 @@ function renderSvgNode(node, format, defs, policy, path) {
     }
     if (node.kind === "group") {
         validateSvgStyle(node.style, SVG_SHAPE_STYLE_KEYS, path);
-        return `<g ${svgStyle(node.style, null, policy, defs, path)}>${node.children.map((child, index) => renderSvgNode(child, format, defs, policy, `${path}.group[${index + 1}]`)).join("")}</g>`;
+        return `<g ${svgSemanticAttributes(node, path)} ${svgStyle(node.style, null, policy, defs, path)}>${node.children.map((child, index) => renderSvgNode(child, format, defs, policy, `${path}.group[${index + 1}]`)).join("")}</g>`;
     }
     if (node.kind === "transform") {
         validateSvgStyle(node.style, SVG_SHAPE_STYLE_KEYS, path);
@@ -2358,7 +2372,7 @@ function renderSvgNode(node, format, defs, policy, path) {
         const style = svgStyle(node.style, null, policy, defs, path);
         const children = node.children.map((child, index) => renderSvgNode(child, format, defs, policy, `${path}.transform[${index + 1}]`)).join("");
         policy.gain = parentGain;
-        return `<g${transform.text ? ` transform="${transform.text}"` : ""}${style ? ` ${style}` : ""}>${children}</g>`;
+        return `<g ${svgSemanticAttributes(node, path)}${transform.text ? ` transform="${transform.text}"` : ""}${style ? ` ${style}` : ""}>${children}</g>`;
     }
     if (node.kind === "clip") {
         validateSvgStyle(node.style, SVG_SHAPE_STYLE_KEYS, path);
@@ -2367,7 +2381,7 @@ function renderSvgNode(node, format, defs, policy, path) {
         const id = `rix-clip-${defs.length + 1}`;
         defs.push(`<clipPath id="${id}"><rect x="${x}" y="${y}" width="${width}" height="${height}"/></clipPath>`);
         const style = svgStyle(node.style, null, policy, defs, path);
-        return `<g clip-path="url(#${id})"${style ? ` ${style}` : ""}>${node.children.map((child, index) => renderSvgNode(child, format, defs, policy, `${path}.clip[${index + 1}]`)).join("")}</g>`;
+        return `<g ${svgSemanticAttributes(node, path)} clip-path="url(#${id})"${style ? ` ${style}` : ""}>${node.children.map((child, index) => renderSvgNode(child, format, defs, policy, `${path}.clip[${index + 1}]`)).join("")}</g>`;
     }
     unsupportedSvg(`SVG does not support Graphics node '${node.kind}'`, path, "svg-unsupported-node");
 }
@@ -2453,7 +2467,7 @@ export function lowerGraphicSvg(graphic, format = (item) => String(item ?? ""), 
         ? `<g class="rix-exact-enclosure" filter="url(#rix-exact-enclosure)">${children}</g>`
         : children;
     return {
-        content: `<svg class="rix-output-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size[0]} ${size[1]}" width="${size[0]}" height="${size[1]}" overflow="visible" role="img">${defs.length ? `<defs>${defs.join("")}</defs>` : ""}${renderedChildren}</svg>`,
+        content: `<svg class="rix-output-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size[0]} ${size[1]}" width="${size[0]}" height="${size[1]}" overflow="visible" role="img" tabindex="0" aria-label="Mathematical graphic. Use arrow keys to pan, plus and minus to zoom, and Home to reset the view.">${defs.length ? `<defs>${defs.join("")}</defs>` : ""}${renderedChildren}</svg>`,
         diagnostics,
         metadata: {
             schema: "rix.svg.coordinate-lowering@1",

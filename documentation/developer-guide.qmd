@@ -54,10 +54,10 @@ import {
   createDefaultRegistry,
   createDefaultSystemContext,
   Context,
-} from "rix";
+} from "@ratmath/rix";
 ```
 
-Use `rix/parser`, `rix/eval`, and `rix/runtime` for narrower imports. The top-level export intentionally covers the common embedding path plus exact-value construction helpers.
+Use `@ratmath/rix/parser`, `@ratmath/rix/eval`, and `@ratmath/rix/runtime` for narrower imports. The top-level export intentionally covers the common embedding path plus exact-value construction helpers.
 
 ## Adding syntax
 

@@ -5,6 +5,10 @@ import { Rational, RationalInterval } from "@ratmath/core";
 import { createDefaultRegistry, createDefaultSystemContext, parseAndEvaluate } from "../../src/eval/evaluator.js";
 import { loadFloatPlugin } from "../../plugins/float/node-installer.js";
 import { NodePluginCatalog } from "../../src/runtime/plugin-catalog-node.js";
+import { createNodeHostAdapter } from "../../src/runtime/host-adapter-node.js";
+import { setDefaultHostAdapter } from "../../src/runtime/host-adapter.js";
+
+setDefaultHostAdapter(createNodeHostAdapter());
 
 const approximatePluginRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "../../plugins/float");
 

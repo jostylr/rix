@@ -176,7 +176,7 @@ import {
     formatLintDiagnostic,
     lintDiagnosticsToSarif,
     lintRix,
-} from "rix";
+} from "@ratmath/rix";
 
 const source = "x=1; {; x; };";
 const diagnostics = lintRix(source, { file: "example.rix", level: "essential" });

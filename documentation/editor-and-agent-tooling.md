@@ -72,6 +72,7 @@ input.
 - The first worker emits scalar/text results and check/log diagnostics. Rich
   preview, artifacts, external renderers, full HTML, and plugin CSS are not
   enabled.
-- Forced timeout restarts the worker; cooperative evaluator cancellation and
-  resource budgets beyond time/capability containment remain future work.
-
+- Execution requests accept cooperative cancellation and are bounded by
+  evaluator step and wall-clock budgets. A host should still terminate and
+  replace the worker when non-cooperative host JavaScript or memory pressure
+  prevents cooperative cancellation from running.

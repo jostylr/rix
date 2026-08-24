@@ -182,7 +182,7 @@ import {
   setRixCelCursor,
   setRixCelDraft,
   materializeRixCelDocument,
-} from "rix";
+} from "@ratmath/rix";
 ```
 
 ## Version 1 migration

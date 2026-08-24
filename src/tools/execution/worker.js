@@ -4,6 +4,7 @@ import { Context } from "../../runtime/context.js";
 import { getDiagnostics } from "../../runtime/diagnostics.js";
 import { analyzeRixDocument } from "../language-service/index.js";
 import { createStandardSystemContext } from "./standard-policy.js";
+import { runtimeDefaults } from "../../runtime/runtime-config.js";
 
 export const RIX_EXECUTION_PROTOCOL = "rix.execution/1";
 
@@ -63,23 +64,34 @@ export function createExecutionSession(options = {}) {
             time: Date.now(),
             payload,
         });
-        active = requestId;
+        const controller = new AbortController();
+        const sessionId = request.sessionId || "default";
+        active = { requestId, sessionId, controller };
         const analysis = analyzeRixDocument(request.source || "", { uri: request.uri, version: request.version });
         emit("run-start", {
             mode: request.mode === "session" ? "session" : "isolated",
             profile: "standard",
             checks: analysis.checks.length,
+            limits: {
+                maxSteps: Math.min(
+                    request.maxSteps || runtimeDefaults.editorMaxEvaluationSteps,
+                    runtimeDefaults.editorMaxEvaluationSteps,
+                ),
+                maxTimeMs: Math.min(
+                    request.maxTimeMs || runtimeDefaults.editorMaxEvaluationTimeMs,
+                    runtimeDefaults.editorMaxEvaluationTimeMs,
+                ),
+            },
         });
 
         if (analysis.diagnostics.some(({ severity }) => severity === "error")) {
             for (const diagnostic of analysis.diagnostics) emit("diagnostic", diagnostic, diagnostic.range);
             emit("run-end", { state: "failed", checks: { total: analysis.checks.length, passed: 0, failed: 0, skipped: analysis.checks.length } });
-            active = null;
+            if (active?.requestId === requestId) active = null;
             return;
         }
 
         const mode = request.mode === "session" ? "session" : "isolated";
-        const sessionId = request.sessionId || "default";
         let state = mode === "session" ? contexts.get(sessionId) : null;
         if (!state) {
             state = {
@@ -95,6 +107,15 @@ export function createExecutionSession(options = {}) {
             const result = await parseAndEvaluateAsync(request.source, {
                 ...state,
                 file: request.filePath || request.uri || "<editor>",
+                signal: controller.signal,
+                maxSteps: Math.min(
+                    request.maxSteps || runtimeDefaults.editorMaxEvaluationSteps,
+                    runtimeDefaults.editorMaxEvaluationSteps,
+                ),
+                maxTimeMs: Math.min(
+                    request.maxTimeMs || runtimeDefaults.editorMaxEvaluationTimeMs,
+                    runtimeDefaults.editorMaxEvaluationTimeMs,
+                ),
             });
             const runtimeEvents = getDiagnostics(state.context).events;
             for (const event of runtimeEvents.slice(state.diagnosticOffset)) emit("log", eventMap(event));
@@ -105,6 +126,13 @@ export function createExecutionSession(options = {}) {
             emit("result", { text: formatValue(result), value: safeValue(result) });
             emit("run-end", { state: "passed", checks: { total: analysis.checks.length, passed: analysis.checks.length, failed: 0, skipped: 0 } });
         } catch (error) {
+            if (controller.signal.aborted) {
+                emit("run-end", {
+                    state: "cancelled",
+                    checks: { total: analysis.checks.length, passed: 0, failed: 0, skipped: analysis.checks.length },
+                });
+                return;
+            }
             const check = runtimeCheckForError(analysis.checks, error);
             if (check) emit("check", {
                 id: check.id, checkKind: check.checkKind, status: "failed", label: check.label, message: error.message,
@@ -112,14 +140,24 @@ export function createExecutionSession(options = {}) {
             emit("diagnostic", { severity: "error", code: "RXR1000", message: error?.message || String(error) }, check?.range || null);
             emit("run-end", { state: "failed", checks: { total: analysis.checks.length, passed: 0, failed: check ? 1 : 0, skipped: Math.max(0, analysis.checks.length - (check ? 1 : 0)) } });
         } finally {
-            active = null;
+            if (active?.requestId === requestId) active = null;
         }
     };
 
     return {
         run,
-        restart(sessionId = "default") { contexts.delete(sessionId); },
-        get activeRequestId() { return active; },
+        cancel(requestId = null) {
+            if (!active || (requestId && active.requestId !== requestId)) return false;
+            const reason = new Error("Evaluation cancelled by host");
+            reason.code = "EVALUATION_CANCELLED";
+            active.controller.abort(reason);
+            return true;
+        },
+        restart(sessionId = "default") {
+            if (active?.sessionId === sessionId) this.cancel(active.requestId);
+            contexts.delete(sessionId);
+        },
+        get activeRequestId() { return active?.requestId || null; },
     };
 }
 
@@ -137,6 +175,7 @@ export function startExecutionWorker(input = process.stdin, output = process.std
             try {
                 const request = JSON.parse(line);
                 if (request.command === "restart") session.restart(request.sessionId);
+                else if (request.command === "cancel") session.cancel(request.requestId);
                 else if (request.command === "run") void session.run(request);
             } catch (error) {
                 output.write(`${JSON.stringify({ protocol: RIX_EXECUTION_PROTOCOL, kind: "worker-error", payload: { message: error.message } })}\n`);

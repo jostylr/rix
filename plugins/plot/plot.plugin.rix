@@ -208,6 +208,7 @@ PlotPolynomial(coefficientsValue, domain, options ?= {= }) -> {;
         plot={=
             kind=:polynomial,
             view={= xmin=xMin, xmax=xMax, ymin=yMin, ymax=yMax },
+            frame={= left=margin, right=width-margin, top=margin, bottom=height-margin },
             series=series,
             ticks=ticks,
             marks=marks,
@@ -434,9 +435,11 @@ PlotGeneral(data, settings, kind) -> {;
         plot={=
             kind=kind,
             view={= xmin=bounds[:xmin], xmax=bounds[:xmax], ymin=bounds[:ymin], ymax=bounds[:ymax] },
+            frame={= left=margin, right=width-margin, top=margin, bottom=height-margin },
             series=[{=
                 kind=kind,
                 data=samples.Map((sample)->sample[:point]),
+                originalData=samples.Map((sample)->sample[:original]),
                 style=style,
                 label=PlotOption(settings,"label")
             }],

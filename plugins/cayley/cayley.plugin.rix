@@ -77,7 +77,7 @@ CayleyZeros(count,zero ?= 0) -> {; values:=[]; {@ index=1;index<=@count;{; @valu
 CayleyConcat(left,right) -> {; values:=left.Map((x)->x); {@ index=1;index<=@right.Len();{; @values~=@values.Push(@right[index]); };index+=1}; values; };
 CayleyBackend = {>
     (component) ?- [CayleyExact(component)] -> :Rational,
-    (component) ?- [component ? :float] -> :float,
+    (component) ?- [(component ? :float) || (component ? :FloatIEEE754)] -> :float,
     (component) ?- [component ? :Map] -> (component[:schema]==_ ?: :custom ?_ component[:schema]),
     (component) -> :custom
 };

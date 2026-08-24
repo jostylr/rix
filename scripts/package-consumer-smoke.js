@@ -39,6 +39,20 @@ function run(command, cwd) {
 }
 
 try {
+    const manifest = await Bun.file(path.join(rixRoot, "package.json")).json();
+    const coreRange = manifest.dependencies?.["@ratmath/core"];
+    if (!coreRange) throw new Error("RiX package manifest must declare @ratmath/core");
+    run([
+        "npm",
+        "view",
+        `@ratmath/core@${coreRange}`,
+        "version",
+        "--fetch-timeout=10000",
+        "--fetch-retries=0",
+        "--cache",
+        cacheDirectory,
+    ], rixRoot);
+
     const packOutput = run([
         "npm",
         "pack",
@@ -64,6 +78,8 @@ try {
         "--ignore-scripts",
         "--no-audit",
         "--no-fund",
+        "--fetch-timeout=10000",
+        "--fetch-retries=0",
         "--cache",
         cacheDirectory,
         tarball,
@@ -85,14 +101,14 @@ if (missingCoreExports.length > 0) {
     );
 }
 
-const rix = await import("rix");
+const rix = await import("@ratmath/rix");
 for (const entry of [
-    "rix/parser",
-    "rix/eval",
-    "rix/runtime",
-    "rix/codemirror",
-    "rix/language-service",
-    "rix/language-service/config-node",
+    "@ratmath/rix/parser",
+    "@ratmath/rix/eval",
+    "@ratmath/rix/runtime",
+    "@ratmath/rix/codemirror",
+    "@ratmath/rix/language-service",
+    "@ratmath/rix/language-service/config-node",
 ]) {
     await import(entry);
 }

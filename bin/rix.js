@@ -39,7 +39,7 @@ import {
     RIX_LINT_RULES,
     analyzeRixDocument,
     formatRix,
-} from "../src/index.js";
+} from "../src/index-node.js";
 import { createExecutionSession } from "../src/tools/execution/worker.js";
 import { NodePluginCatalog } from "../src/runtime/plugin-catalog-node.js";
 import { formatValue as formatResult } from "../src/eval/format.js";

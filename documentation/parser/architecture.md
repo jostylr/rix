@@ -303,7 +303,7 @@ The parser is **stateless** and **thread-safe**:
 
 ```javascript
 // Basic usage pattern
-import { tokenize, parse } from 'rix/parser';
+import { tokenize, parse } from '@ratmath/rix/parser';
 
 const tokens = tokenize(sourceCode);
 const ast = parse(tokens, systemLookupFunction);

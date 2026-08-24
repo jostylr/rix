@@ -131,6 +131,7 @@ export function mountOutputWidgets(root, value, options = {}) {
     let pendingFocusRequest = null;
     let disposed = false;
     let currentValue = value;
+    const graphicViewStates = [];
     disposers.push(enhanceControlShortcuts(root));
 
     function disposeWidgets() {
@@ -265,16 +266,23 @@ export function mountOutputWidgets(root, value, options = {}) {
         const graphicRoots = renderedGraphicRoots(container);
         for (const [index, graphic] of graphicValues.entries()) {
             const graphicRoot = graphicRoots[index];
-            if (!graphicRoot || graphicRoot.dataset.rixInteractive !== "true") continue;
-            let widgetSession;
-            try {
-                widgetSession = createWidgetSession(graphic);
-            } catch {
-                continue;
+            if (!graphicRoot) continue;
+            let widgetSession = null;
+            if (graphicRoot.dataset.rixInteractive === "true") {
+                try {
+                    widgetSession = createWidgetSession(graphic);
+                } catch {
+                    widgetSession = null;
+                }
             }
-            widgetDisposers.push(() => widgetSession.dispose());
+            if (widgetSession) widgetDisposers.push(() => widgetSession.dispose());
             enhanceGraphicViews(graphicRoot, {
-                onPosition(detail) {
+                graphic,
+                format,
+                state: graphicViewStates[index] || (graphicViewStates[index] = {}),
+                onSelection: options.onGraphicSelection,
+                onViewport: options.onGraphicViewport,
+                onPosition: widgetSession ? function onPosition(detail) {
                     const focusRequest = {
                         kind: "graphic",
                         graphicIndex: index,
@@ -297,9 +305,9 @@ export function mountOutputWidgets(root, value, options = {}) {
                     } finally {
                         if (pendingFocusRequest === focusRequest) pendingFocusRequest = null;
                     }
-                },
+                } : null,
                 onPositionCommitted: options.onGraphicPosition,
-                onAction(detail) {
+                onAction: widgetSession ? function onAction(detail) {
                     const focusRequest = {
                         kind: "graphic",
                         graphicIndex: index,
@@ -323,7 +331,7 @@ export function mountOutputWidgets(root, value, options = {}) {
                     } finally {
                         if (pendingFocusRequest === focusRequest) pendingFocusRequest = null;
                     }
-                },
+                } : null,
                 onActionCommitted: options.onGraphicAction,
             });
         }

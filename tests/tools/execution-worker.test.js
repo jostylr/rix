@@ -62,6 +62,39 @@ describe("RiX editor execution worker", () => {
         expect(sessionEvents.at(-1)?.payload.state).toBe("passed");
     });
 
+    test("enforces deterministic evaluation step budgets", async () => {
+        const events = [];
+        const session = createExecutionSession({ emit: (event) => events.push(event) });
+        await session.run({
+            command: "run",
+            requestId: "limited",
+            uri: "file:///limited.rix",
+            source: "{@::@ i=0; 1; i; i+=1 };",
+            maxSteps: 50,
+        });
+
+        expect(events.find(({ kind }) => kind === "diagnostic")?.payload.message)
+            .toContain("50-step limit");
+        expect(events.at(-1)).toMatchObject({ kind: "run-end", payload: { state: "failed" } });
+    });
+
+    test("cooperatively cancels an active evaluation request", async () => {
+        const events = [];
+        const session = createExecutionSession({ emit: (event) => events.push(event) });
+        const running = session.run({
+            command: "run",
+            requestId: "cancel-me",
+            uri: "file:///cancel.rix",
+            source: "{@::@ i=0; 1; i; i+=1 };",
+        });
+        await Promise.resolve();
+        expect(session.cancel("cancel-me")).toBe(true);
+        await running;
+
+        expect(events.at(-1)).toMatchObject({ kind: "run-end", payload: { state: "cancelled" } });
+        expect(session.activeRequestId).toBeNull();
+    });
+
     test("standard profile is explicit and denies host, I/O, and dynamic loading roots", () => {
         const standard = createStandardSystemContext(createDefaultSystemContext);
         expect(standard.getAllEntries()).toHaveLength(STANDARD_CAPABILITY_NAMES.length);

@@ -644,7 +644,7 @@ tracked in
      preserve free variables and semantic application IDs, reject unsupported
      nodes, and never require plugins to mutate evaluator IR. Assumption and
      branch records remain part of the registry/domain work below.
-   - [x] Export the same expression import/build helpers through `rix/eval` for
+   - [x] Export the same expression import/build helpers through `@ratmath/rix/eval` for
      JavaScript plugins; migrate a small existing consumer to prove that pure
      RiX and host plugins share one contract. `.poly` now performs symbolic
      degree analysis through this public expression representation.

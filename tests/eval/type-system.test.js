@@ -20,6 +20,10 @@ import {
 import { loadOracleExampleStartup } from "../../src/eval/startup/oracle-example.js";
 import { loadFloatPluginStartup } from "../../plugins/float/float-loader.js";
 import { loadFloatPlugin } from "../../plugins/float/node-installer.js";
+import { createNodeHostAdapter } from "../../src/runtime/host-adapter-node.js";
+import { setDefaultHostAdapter } from "../../src/runtime/host-adapter.js";
+
+setDefaultHostAdapter(createNodeHostAdapter());
 
 const defaultSystemContext = createDefaultSystemContext();
 

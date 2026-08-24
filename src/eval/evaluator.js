@@ -7,13 +7,13 @@
  * The evaluate function is the core recursive interpreter.
  */
 
-import fs from "node:fs";
-import path from "node:path";
 import { Registry } from "./registry.js";
 import { SystemContext } from "../runtime/system-context.js";
 import { PluginCatalog } from "../runtime/plugin-catalog.js";
 import { createSystemLookup } from "../runtime/system-manifest.js";
 import { Context } from "../runtime/context.js";
+import { getDefaultHostAdapter, HOST_ADAPTER_ENV } from "../runtime/host-adapter.js";
+import { enterEvaluationBudget, evaluationCheckpoint } from "../runtime/evaluation-budget.js";
 import {
     createEvent,
     getCurrentFilePath,
@@ -574,6 +574,7 @@ function getScriptRuntime(context, options = {}) {
             activeImports: [],
             frameStack: [],
             operatorDefinitions: context.getEnv(CUSTOM_OPERATOR_ENV_KEY, new Map()),
+            hostAdapter: options.hostAdapter || context.getEnv(HOST_ADAPTER_ENV, getDefaultHostAdapter()),
         };
         context.setEnv(SCRIPT_RUNTIME_ENV_KEY, runtime);
         return runtime;
@@ -581,6 +582,10 @@ function getScriptRuntime(context, options = {}) {
 
     if (!runtime.systemLookup) {
         runtime.systemLookup = options.systemLookup || defaultSystemLookup;
+    }
+    if (options.hostAdapter) runtime.hostAdapter = options.hostAdapter;
+    if (!runtime.hostAdapter) {
+        runtime.hostAdapter = context.getEnv(HOST_ADAPTER_ENV, getDefaultHostAdapter());
     }
     runtime.operatorDefinitions = context.getEnv(
         CUSTOM_OPERATOR_ENV_KEY,
@@ -719,7 +724,7 @@ function prepareScript(resolvedPath, runtime) {
 
     let source;
     try {
-        source = fs.readFileSync(resolvedPath, "utf8");
+        source = runtime.hostAdapter.readTextSync(resolvedPath);
     } catch (error) {
         throw new Error(`Unable to load script '${resolvedPath}': ${error.message}`);
     }
@@ -733,7 +738,7 @@ function prepareScript(resolvedPath, runtime) {
     attachSourceInfo(bodyIr, source, resolvedPath);
     const prepared = {
         path: resolvedPath,
-        dir: path.dirname(resolvedPath),
+        dir: runtime.hostAdapter.dirname(resolvedPath),
         inputContract,
         exportBindings,
         bodyIr,
@@ -995,9 +1000,8 @@ function applyCallerOutputBindings(context, outputSpecs, bundle) {
 
 function resolveScriptPath(requestedPath, runtime, context) {
     const currentFrame = runtime.frameStack[runtime.frameStack.length - 1];
-    const baseDir = currentFrame?.dir || context.getEnv("scriptBaseDir", process.cwd());
-    const relativePath = requestedPath.endsWith(".rix") ? requestedPath : `${requestedPath}.rix`;
-    return path.resolve(baseDir, relativePath);
+    const baseDir = currentFrame?.dir || context.getEnv("scriptBaseDir", runtime.hostAdapter.cwd());
+    return runtime.hostAdapter.resolveScriptPath(requestedPath, { baseDir });
 }
 
 function evaluateScriptImport(spec, context, registry, systemContext) {
@@ -1168,6 +1172,8 @@ export function evaluate(irNode, context, registry, systemContext) {
     if (!irNode.fn) {
         return irNode;
     }
+
+    evaluationCheckpoint(context);
 
     const { fn, args } = irNode;
 
@@ -3874,6 +3880,7 @@ async function evaluateAsyncInternal(irNode, context, registry, systemContext, s
     }
     if (irNode === null || irNode === undefined) return null;
     if (typeof irNode !== "object" || Array.isArray(irNode) || !irNode.fn) return irNode;
+    evaluationCheckpoint(context);
     const { fn, args } = irNode;
     if (fn === "DEFER") return irNode;
 
@@ -3977,20 +3984,21 @@ async function evaluateAsyncInternal(irNode, context, registry, systemContext, s
         if (fn === "ASYNC_SCOPE") return await evaluateAsyncScope(args, context, registry, systemContext, state);
         if (fn === "DETACH") return startDetachedBlock(args, context, registry, systemContext, state);
         if (ASYNC_COLLECTION_FNS.has(fn)) {
-            const collectionState = state || {
+            const collectionState = state?.scheduler ? state : {
                 scheduler: null,
                 group: null,
-                signal: null,
+                signal: state?.signal || null,
                 limit: 1,
                 name: null,
                 parallelCollections: false,
+                branchPath: [],
             };
             return await evaluateAsyncCollection(irNode, context, registry, systemContext, collectionState);
         }
         if (ASYNC_PIPE_FNS.has(fn)) {
-            return state
+            return state?.scheduler
                 ? await evaluateAsyncPipe(irNode, context, registry, systemContext, state)
-                : await evaluateSequentialAsyncPipe(irNode, context, registry, systemContext, null);
+                : await evaluateSequentialAsyncPipe(irNode, context, registry, systemContext, state);
         }
         if (fn === "PREDUCE" && registry.get(fn)?.impl === functionFunctions.PREDUCE.impl) {
             return await evaluateAsyncReduce(args, context, registry, systemContext, state);
@@ -4409,6 +4417,10 @@ export async function evaluateAsync(irNode, context, registry, systemContext) {
  * @param {Map|Array} [options.operatorDefinitions] - Operator declarations supplied by the host
  * @param {Object} [options.operatorOwner] - Plugin identity used by shorthand method targets
  * @param {Set} [options.reactiveReads] - Receives reactive sources read by the final expression
+ * @param {Object} [options.hostAdapter] - Host-provided script/module loading services
+ * @param {AbortSignal} [options.signal] - Cooperative cancellation signal
+ * @param {number} [options.maxSteps] - Maximum evaluated IR nodes
+ * @param {number} [options.maxTimeMs] - Cooperative wall-clock limit in milliseconds
  * @returns {*} The result of the last expression
  */
 export function parseAndEvaluate(code, options = {}) {
@@ -4423,7 +4435,8 @@ export function parseAndEvaluate(code, options = {}) {
         coreFunctions.NUM_DISPLAY.impl([{ type: "string", value: String(options.numberConfig.display) }], context);
     }
     const systemLookup = createSystemLookup(systemContext, options.systemLookup || defaultSystemLookup);
-    const runtime = getScriptRuntime(context, { systemLookup });
+    if (options.hostAdapter) context.setEnv(HOST_ADAPTER_ENV, options.hostAdapter);
+    const runtime = getScriptRuntime(context, { systemLookup, hostAdapter: options.hostAdapter });
     runtime.operatorDefinitions = mergeOperatorDefinitions(
         context.getEnv(CUSTOM_OPERATOR_ENV_KEY, new Map()),
         options.operatorDefinitions,
@@ -4448,6 +4461,7 @@ export function parseAndEvaluate(code, options = {}) {
                     pluginId: metadata.id,
                     mount: pluginOptions?.as || metadata.mount || null,
                 } : null,
+                hostAdapter: runtime.hostAdapter,
             });
         } finally {
             pluginContext.setEnv(SOURCE_ENV_KEY, previousSource);
@@ -4467,30 +4481,35 @@ export function parseAndEvaluate(code, options = {}) {
     const irNodes = lower(ast);
     attachSourceInfo(irNodes, code, options.file || "<repl>");
 
-    return withFinalizerActivationSync(context, () => {
-        let result = null;
-        for (const irNode of irNodes) {
-            if (!(options.reactiveReads instanceof Set)) {
-                result = evaluate(irNode, context, registry, systemContext);
-                continue;
+    const budgetScope = enterEvaluationBudget(context, options);
+    try {
+        return withFinalizerActivationSync(context, () => {
+            let result = null;
+            for (const irNode of irNodes) {
+                if (!(options.reactiveReads instanceof Set)) {
+                    result = evaluate(irNode, context, registry, systemContext);
+                    continue;
+                }
+                const reads = new Set();
+                const previousObserver = {
+                    has: context.env?.has(REACTIVE_OUTPUT_READ_ENV) === true,
+                    value: context.getEnv(REACTIVE_OUTPUT_READ_ENV, undefined),
+                };
+                context.setEnv(REACTIVE_OUTPUT_READ_ENV, (source) => reads.add(source));
+                try {
+                    result = evaluate(irNode, context, registry, systemContext);
+                } finally {
+                    if (previousObserver.has) context.setEnv(REACTIVE_OUTPUT_READ_ENV, previousObserver.value);
+                    else context.env?.delete(REACTIVE_OUTPUT_READ_ENV);
+                }
+                options.reactiveReads.clear();
+                for (const source of reads) options.reactiveReads.add(source);
             }
-            const reads = new Set();
-            const previousObserver = {
-                has: context.env?.has(REACTIVE_OUTPUT_READ_ENV) === true,
-                value: context.getEnv(REACTIVE_OUTPUT_READ_ENV, undefined),
-            };
-            context.setEnv(REACTIVE_OUTPUT_READ_ENV, (source) => reads.add(source));
-            try {
-                result = evaluate(irNode, context, registry, systemContext);
-            } finally {
-                if (previousObserver.has) context.setEnv(REACTIVE_OUTPUT_READ_ENV, previousObserver.value);
-                else context.env?.delete(REACTIVE_OUTPUT_READ_ENV);
-            }
-            options.reactiveReads.clear();
-            for (const source of reads) options.reactiveReads.add(source);
-        }
-        return materializePipeSkip(result);
-    });
+            return materializePipeSkip(result);
+        });
+    } finally {
+        budgetScope.leave();
+    }
 }
 
 /**
@@ -4509,7 +4528,8 @@ export async function parseAndEvaluateAsync(code, options = {}) {
         coreFunctions.NUM_DISPLAY.impl([{ type: "string", value: String(options.numberConfig.display) }], context);
     }
     const systemLookup = createSystemLookup(systemContext, options.systemLookup || defaultSystemLookup);
-    const runtime = getScriptRuntime(context, { systemLookup });
+    if (options.hostAdapter) context.setEnv(HOST_ADAPTER_ENV, options.hostAdapter);
+    const runtime = getScriptRuntime(context, { systemLookup, hostAdapter: options.hostAdapter });
     runtime.operatorDefinitions = mergeOperatorDefinitions(
         context.getEnv(CUSTOM_OPERATOR_ENV_KEY, new Map()),
         options.operatorDefinitions,
@@ -4532,6 +4552,7 @@ export async function parseAndEvaluateAsync(code, options = {}) {
                     pluginId: metadata.id,
                     mount: pluginOptions?.as || metadata.mount || null,
                 } : null,
+                hostAdapter: runtime.hostAdapter,
             });
         } finally {
             pluginContext.setEnv("__plugin_owner__", previousOwner);
@@ -4549,32 +4570,49 @@ export async function parseAndEvaluateAsync(code, options = {}) {
     const irNodes = lower(ast);
     attachSourceInfo(irNodes, code, options.file || "<repl>");
 
-    return withFinalizerActivationAsync(context, async () => {
-        let result = null;
-        for (const irNode of irNodes) {
-            if (!(options.reactiveReads instanceof Set)) {
-                result = await evaluateAsync(irNode, context, registry, systemContext);
-                continue;
+    const budgetScope = enterEvaluationBudget(context, options);
+    try {
+        return await withFinalizerActivationAsync(context, async () => {
+            let result = null;
+            for (const irNode of irNodes) {
+                if (!(options.reactiveReads instanceof Set)) {
+                    result = await evaluateAsyncInternal(
+                        irNode,
+                        context,
+                        registry,
+                        systemContext,
+                        budgetScope.budget?.signal ? { signal: budgetScope.budget.signal } : null,
+                    );
+                    continue;
+                }
+                const reads = new Set();
+                const previousObserver = {
+                    has: context.env?.has(REACTIVE_OUTPUT_READ_ENV) === true,
+                    value: context.getEnv(REACTIVE_OUTPUT_READ_ENV, undefined),
+                };
+                context.setEnv(REACTIVE_OUTPUT_READ_ENV, (source) => reads.add(source));
+                try {
+                    result = await evaluateAsyncInternal(
+                        irNode,
+                        context,
+                        registry,
+                        systemContext,
+                        budgetScope.budget?.signal ? { signal: budgetScope.budget.signal } : null,
+                    );
+                } finally {
+                    if (previousObserver.has) context.setEnv(REACTIVE_OUTPUT_READ_ENV, previousObserver.value);
+                    else context.env?.delete(REACTIVE_OUTPUT_READ_ENV);
+                }
+                options.reactiveReads.clear();
+                for (const source of reads) options.reactiveReads.add(source);
             }
-            const reads = new Set();
-            const previousObserver = {
-                has: context.env?.has(REACTIVE_OUTPUT_READ_ENV) === true,
-                value: context.getEnv(REACTIVE_OUTPUT_READ_ENV, undefined),
-            };
-            context.setEnv(REACTIVE_OUTPUT_READ_ENV, (source) => reads.add(source));
-            try {
-                result = await evaluateAsync(irNode, context, registry, systemContext);
-            } finally {
-                if (previousObserver.has) context.setEnv(REACTIVE_OUTPUT_READ_ENV, previousObserver.value);
-                else context.env?.delete(REACTIVE_OUTPUT_READ_ENV);
-            }
-            options.reactiveReads.clear();
-            for (const source of reads) options.reactiveReads.add(source);
-        }
-        return materializePipeSkip(result);
-    }, {
-        graceMs: context.getEnv("asyncCleanupGraceMs", runtimeDefaults.asyncCleanupGraceMs),
-    });
+            return materializePipeSkip(result);
+        }, {
+            graceMs: context.getEnv("asyncCleanupGraceMs", runtimeDefaults.asyncCleanupGraceMs),
+        });
+    } finally {
+        budgetScope.leave();
+    }
 }
 
 export { drainBackgroundTasks };

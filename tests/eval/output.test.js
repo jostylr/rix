@@ -877,6 +877,9 @@ describe("portable structured output", () => {
         expect(html).toContain("<circle");
         expect(html).toContain("<rect");
         expect(html).toContain("<text");
+        expect(html).toContain('data-rix-scene-path="graphic[1]"');
+        expect(html).toContain('data-rix-semantic-id="graphic-1-"');
+        expect(html).toContain('tabindex="0" aria-label="Mathematical graphic.');
         expect(html).toContain('transform="translate(80 15) rotate(18 100 85)"');
         expect(html).toContain("RiX</text>");
     });
@@ -1095,6 +1098,12 @@ describe("portable structured output", () => {
             ];
         `);
         expect(result.values.every(({ kind }) => kind === "graphic")).toBe(true);
+        const logPlot = result.values[1].metadata.get("plot");
+        expect([...logPlot.entries.get("frame").entries].map(([key, value]) => [key, formatValue(value)]))
+            .toEqual([["left", "42"], ["right", "598"], ["top", "42"], ["bottom", "318"]]);
+        const logSeries = logPlot.entries.get("series").values[0];
+        expect(logSeries.entries.get("originaldata").values.map((point) => point.values.map(formatValue)))
+            .toEqual([["1", "1"], ["10", "100"], ["100", "10000"]]);
         expect(() => parseAndEvaluate(`
             .Plugin.Load("plot");
             .plot.Line([[-1,1],[10,2]], {= xScale=:log10 });

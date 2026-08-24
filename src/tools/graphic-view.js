@@ -1,4 +1,152 @@
-/** Host-side interaction for portable Graphic drag handles and actions. */
+/** Host-side pan, zoom, inspection, selection, drag, and action support for Graphics. */
+
+const MIN_ZOOM = 1 / 8;
+const MAX_ZOOM = 64;
+
+function finiteNumber(value, fallback = 0) {
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+    if (typeof value === "bigint") return Number(value);
+    if (typeof value?.value === "bigint" || typeof value?.value === "number") return Number(value.value);
+    if (typeof value?.numerator === "bigint" && typeof value?.denominator === "bigint") {
+        return Number(value.numerator) / Number(value.denominator);
+    }
+    if (typeof value === "string" && /^[-+]?\d+\/\d+$/.test(value.trim())) {
+        const [numerator, denominator] = value.split("/").map(Number);
+        return denominator === 0 ? fallback : numerator / denominator;
+    }
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function sequenceValue(value) {
+    if (Array.isArray(value)) return value;
+    if (Array.isArray(value?.values)) return value.values;
+    return [];
+}
+
+function stringValue(value) {
+    if (typeof value === "string") return value;
+    if (value?.type === "string" || value?.type === "symbol") return value.value;
+    return null;
+}
+
+function mapField(value, key) {
+    if (value instanceof Map) return value.get(key) ?? value.get(String(key).toLowerCase()) ?? null;
+    if (value?.type === "map" && value.entries instanceof Map) return mapField(value.entries, key);
+    return value?.[key] ?? value?.[String(key).toLowerCase()] ?? null;
+}
+
+function semanticId(node, path) {
+    return stringValue(mapField(node?.style, "hitId"))
+        || stringValue(mapField(node?.style, "id"))
+        || stringValue(mapField(node?.metadata, "id"))
+        || node?.id
+        || node?.targetId
+        || path.replace(/[^A-Za-z0-9:_.-]+/g, "-");
+}
+
+function exactText(value, format) {
+    try {
+        return String(format(value));
+    } catch {
+        return String(value);
+    }
+}
+
+function exactPoint(value, format) {
+    const point = sequenceValue(value);
+    return point.length >= 2 ? `(${exactText(point[0], format)}, ${exactText(point[1], format)})` : "(unknown)";
+}
+
+function nearestPoint(points, scenePoint) {
+    if (!scenePoint || !points.length) return points[0] || null;
+    let best = null;
+    let bestDistance = Infinity;
+    for (const point of points) {
+        const values = sequenceValue(point);
+        if (values.length < 2) continue;
+        const dx = finiteNumber(values[0], Infinity) - scenePoint[0];
+        const dy = finiteNumber(values[1], Infinity) - scenePoint[1];
+        const distance = dx * dx + dy * dy;
+        if (distance < bestDistance) {
+            best = point;
+            bestDistance = distance;
+        }
+    }
+    return best;
+}
+
+/** A deterministic exact-value description for one renderer-neutral scene node. */
+export function describeGraphicNode(node, format = String, scenePoint = null) {
+    if (!node) return "Graphic background";
+    if (node.kind === "path") {
+        if (node.commands) return `Path · ${node.commands.length} exact command${node.commands.length === 1 ? "" : "s"}`;
+        const points = node.points || [];
+        const nearest = nearestPoint(points, scenePoint);
+        return `Path · ${points.length} exact point${points.length === 1 ? "" : "s"}${nearest ? ` · nearest ${exactPoint(nearest, format)}` : ""}`;
+    }
+    if (node.kind === "rectangle") return `Rectangle · exact origin ${exactPoint(node.origin, format)} · exact size ${exactPoint(node.size, format)}`;
+    if (node.kind === "circle") return `Circle · exact center ${exactPoint(node.center, format)} · exact radius ${exactText(node.radius, format)}`;
+    if (node.kind === "drag_point") return `${node.label || "Draggable point"} · exact position ${exactPoint(node.center, format)} · exact radius ${exactText(node.radius, format)}`;
+    if (node.kind === "text_mark") return `Text “${exactText(node.text, format)}” · exact position ${exactPoint(node.position, format)}`;
+    if (node.kind === "graphic_action") return `${node.label || "Graphic action"} · action ${node.id}`;
+    if (node.kind === "group") return `Group · ${node.children.length} scene node${node.children.length === 1 ? "" : "s"}`;
+    if (node.kind === "transform") return `Transform · ${node.children.length} scene node${node.children.length === 1 ? "" : "s"}`;
+    if (node.kind === "clip") return `Clipped group · exact bounds ${node.bounds.map((value) => exactText(value, format)).join(", ")}`;
+    return `Graphic ${node.kind || "object"}`;
+}
+
+function indexGraphicNodes(graphic) {
+    const nodes = new Map();
+    const visit = (node, path) => {
+        if (!node || node.type !== "output") return;
+        nodes.set(semanticId(node, path), node);
+        for (const [index, child] of (node.children || []).entries()) visit(child, `${path}.${node.kind}[${index + 1}]`);
+    };
+    for (const [index, child] of (graphic?.children || []).entries()) visit(child, `graphic[${index + 1}]`);
+    return nodes;
+}
+
+function plotInspection(graphic, scenePoint, format) {
+    const plot = mapField(graphic?.metadata, "plot");
+    const frame = mapField(plot, "frame");
+    const view = mapField(plot, "view");
+    if (!plot || !frame || !view || !scenePoint) return null;
+    const left = finiteNumber(mapField(frame, "left"));
+    const right = finiteNumber(mapField(frame, "right"));
+    const top = finiteNumber(mapField(frame, "top"));
+    const bottom = finiteNumber(mapField(frame, "bottom"));
+    if (!(right > left && bottom > top)) return null;
+    const xmin = finiteNumber(mapField(view, "xmin"));
+    const xmax = finiteNumber(mapField(view, "xmax"));
+    const ymin = finiteNumber(mapField(view, "ymin"));
+    const ymax = finiteNumber(mapField(view, "ymax"));
+    const x = xmin + ((scenePoint[0] - left) / (right - left)) * (xmax - xmin);
+    const y = ymax - ((scenePoint[1] - top) / (bottom - top)) * (ymax - ymin);
+    const xScale = stringValue(mapField(graphic.metadata, "xScale")) || "linear";
+    const yScale = stringValue(mapField(graphic.metadata, "yScale")) || "linear";
+    const axisLabel = (axis, scale, value) => `${scale === "linear" ? axis : `${scale}(${axis})`} ≈ ${Number(value.toPrecision(7))}`;
+
+    let nearest = null;
+    let nearestDistance = Infinity;
+    for (const series of sequenceValue(mapField(plot, "series"))) {
+        const data = sequenceValue(mapField(series, "data"));
+        const original = sequenceValue(mapField(series, "originalData"));
+        for (let index = 0; index < data.length; index += 1) {
+            const point = sequenceValue(data[index]);
+            if (point.length < 2) continue;
+            const sx = left + ((finiteNumber(point[0]) - xmin) / (xmax - xmin)) * (right - left);
+            const sy = bottom - ((finiteNumber(point[1]) - ymin) / (ymax - ymin)) * (bottom - top);
+            const distance = (sx - scenePoint[0]) ** 2 + (sy - scenePoint[1]) ** 2;
+            if (distance < nearestDistance) {
+                nearestDistance = distance;
+                nearest = { point: original[index] || data[index], label: stringValue(mapField(series, "label")) };
+            }
+        }
+    }
+    const sample = nearest ? ` · nearest stored sample${nearest.label ? ` “${nearest.label}”` : ""} ${exactPoint(nearest.point, format)}` : "";
+    return `${axisLabel("x", xScale, x)}, ${axisLabel("y", yScale, y)}${sample}`;
+}
 
 export function graphicPointFromClient(rect, viewBox, client) {
     const width = Number(rect?.width);
@@ -16,6 +164,63 @@ export function graphicPointFromClient(rect, viewBox, client) {
         Math.min(Math.max(x, Number(viewBox.x || 0)), Number(viewBox.x || 0) + boxWidth),
         Math.min(Math.max(y, Number(viewBox.y || 0)), Number(viewBox.y || 0) + boxHeight),
     ]);
+}
+
+/** Create or normalize mutable host state conforming to rix.viewport@1 and rix.selection@1. */
+export function createGraphicViewState(width, height, target = {}) {
+    const resolvedWidth = finiteNumber(width, 1);
+    const resolvedHeight = finiteNumber(height, 1);
+    if (!(resolvedWidth > 0 && resolvedHeight > 0)) throw new Error("Graphic viewport dimensions must be positive");
+    const previous = target.viewport;
+    target.viewport = {
+        schema: "rix.viewport@1",
+        origin: Array.isArray(previous?.origin) ? [...previous.origin] : [0, 0],
+        pan: Array.isArray(previous?.pan) ? [...previous.pan] : [0, 0],
+        zoom: Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, finiteNumber(previous?.zoom, 1))),
+        width: resolvedWidth,
+        height: resolvedHeight,
+    };
+    const ids = Array.isArray(target.selection?.ids) ? [...new Set(target.selection.ids.map(String))] : [];
+    target.selection = { schema: "rix.selection@1", ids, focus: target.selection?.focus ?? ids[0] ?? null };
+    return target;
+}
+
+export function graphicViewBox(state) {
+    const viewport = state.viewport;
+    return Object.freeze({
+        x: viewport.origin[0] - viewport.pan[0] / viewport.zoom,
+        y: viewport.origin[1] - viewport.pan[1] / viewport.zoom,
+        width: viewport.width / viewport.zoom,
+        height: viewport.height / viewport.zoom,
+    });
+}
+
+/** Pan by logical screen-space pixels. Positive deltas move the content right/down. */
+export function panGraphicViewport(state, deltaX, deltaY) {
+    state.viewport.pan[0] += finiteNumber(deltaX);
+    state.viewport.pan[1] += finiteNumber(deltaY);
+    return state;
+}
+
+/** Zoom while keeping the scene point beneath a logical screen-space anchor fixed. */
+export function zoomGraphicViewport(state, factor, anchor = null) {
+    const viewport = state.viewport;
+    const point = anchor || [viewport.width / 2, viewport.height / 2];
+    const oldZoom = viewport.zoom;
+    const nextZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, oldZoom * finiteNumber(factor, 1)));
+    const sceneX = (point[0] - viewport.pan[0]) / oldZoom + viewport.origin[0];
+    const sceneY = (point[1] - viewport.pan[1]) / oldZoom + viewport.origin[1];
+    viewport.zoom = nextZoom;
+    viewport.pan[0] = point[0] - (sceneX - viewport.origin[0]) * nextZoom;
+    viewport.pan[1] = point[1] - (sceneY - viewport.origin[1]) * nextZoom;
+    return state;
+}
+
+export function resetGraphicViewport(state) {
+    state.viewport.origin = [0, 0];
+    state.viewport.pan = [0, 0];
+    state.viewport.zoom = 1;
+    return state;
 }
 
 function graphicRoots(root) {
@@ -41,14 +246,239 @@ function pointDetail(handle, position, source) {
     });
 }
 
+function closestSemantic(element, svg) {
+    for (let current = element; current && current !== svg; current = current.parentElement) {
+        if (current.dataset?.rixSemanticId) return current;
+    }
+    return null;
+}
+
+function interactiveElement(element, svg) {
+    for (let current = element; current && current !== svg; current = current.parentElement) {
+        if (current.dataset?.rixDragTarget || current.dataset?.rixGraphicAction) return current;
+    }
+    return null;
+}
+
+function makeButton(document, command, label, text) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.dataset.rixGraphicViewCommand = command;
+    button.setAttribute("aria-label", label);
+    button.title = label;
+    button.textContent = text;
+    return button;
+}
+
+function installNavigation(graphic, svg, status, options) {
+    if (typeof svg.addEventListener !== "function") return;
+    const width = finiteNumber(options.graphic?.size?.[0] ?? svg.getAttribute?.("width"), 1);
+    const height = finiteNumber(options.graphic?.size?.[1] ?? svg.getAttribute?.("height"), 1);
+    const state = createGraphicViewState(width, height, options.state || {});
+    if (!options.state) options.state = state;
+    const nodes = indexGraphicNodes(options.graphic);
+    const document = graphic.ownerDocument;
+    let inspector = graphic.querySelector?.(".rix-output-graphic-inspector") || null;
+    let toolbar = graphic.querySelector?.(".rix-output-graphic-toolbar") || null;
+    if (document?.createElement && !toolbar) {
+        toolbar = document.createElement("div");
+        toolbar.className = "rix-output-graphic-toolbar";
+        toolbar.setAttribute("role", "toolbar");
+        toolbar.setAttribute("aria-label", "Graphic view controls");
+        for (const spec of [
+            ["previous", "Select previous mathematical object", "← object"],
+            ["next", "Select next mathematical object", "object →"],
+            ["zoom-out", "Zoom out", "−"],
+            ["zoom-in", "Zoom in", "+"],
+            ["reset", "Reset pan and zoom", "Reset"],
+        ]) toolbar.append(makeButton(document, ...spec));
+        graphic.insertBefore?.(toolbar, svg);
+    }
+    if (document?.createElement && !inspector) {
+        inspector = document.createElement("output");
+        inspector.className = "rix-output-graphic-inspector";
+        inspector.setAttribute("aria-live", "off");
+        inspector.textContent = "Pointer coordinates and exact selected values appear here.";
+        graphic.append?.(inspector);
+    }
+
+    const semanticElements = [...(svg.querySelectorAll?.("[data-rix-semantic-id]") || [])];
+    const selectable = semanticElements.filter((element) => (
+        element.dataset?.rixDragTarget
+        || element.dataset?.rixGraphicAction
+        || !element.querySelector?.("[data-rix-semantic-id]")
+    ));
+    const viewBoxText = () => {
+        const box = graphicViewBox(state);
+        return `${box.x} ${box.y} ${box.width} ${box.height}`;
+    };
+    const applyViewport = () => {
+        svg.setAttribute("viewBox", viewBoxText());
+        graphic.dataset.rixGraphicZoom = String(state.viewport.zoom);
+        if (inspector && !inspector.dataset.rixPointerActive) inspector.textContent = `Zoom ${Math.round(state.viewport.zoom * 100)}%`;
+    };
+    const announceViewport = (source) => {
+        const detail = Object.freeze({ type: "graphic:viewport", viewport: {
+            ...state.viewport,
+            origin: Object.freeze([...state.viewport.origin]),
+            pan: Object.freeze([...state.viewport.pan]),
+        }, source });
+        if (status) status.textContent = `Graphic view at ${Math.round(state.viewport.zoom * 100)}% zoom`;
+        dispatchGraphicEvent(graphic, "rix-graphic-viewport", detail);
+        options.onViewport?.(detail, graphic);
+    };
+    const clearClasses = (name) => semanticElements.forEach((element) => element.classList?.remove(name));
+    const describe = (element, scenePoint = null) => {
+        const node = nodes.get(element?.dataset?.rixSemanticId);
+        return describeGraphicNode(node, options.format || String, scenePoint);
+    };
+    const setSelection = (element, source, scenePoint = null) => {
+        clearClasses("rix-output-semantic-selected");
+        const id = element?.dataset?.rixSemanticId || null;
+        if (element) element.classList?.add("rix-output-semantic-selected");
+        state.selection.ids = id ? [id] : [];
+        state.selection.focus = id;
+        const exact = element ? describe(element, scenePoint) : "Selection cleared";
+        const plot = plotInspection(options.graphic, scenePoint, options.format || String);
+        const message = plot ? `${exact} · ${plot}` : exact;
+        if (inspector) inspector.textContent = message;
+        if (status) status.textContent = message;
+        const detail = Object.freeze({ type: "graphic:selection", selection: {
+            schema: "rix.selection@1", ids: Object.freeze([...state.selection.ids]), focus: state.selection.focus,
+        }, exact: message, source });
+        dispatchGraphicEvent(graphic, "rix-graphic-selection", detail);
+        options.onSelection?.(detail, element, graphic);
+    };
+    const cycleSelection = (step) => {
+        if (!selectable.length) return;
+        const current = selectable.findIndex((element) => element.dataset.rixSemanticId === state.selection.focus);
+        const next = current < 0 ? (step > 0 ? 0 : selectable.length - 1) : (current + step + selectable.length) % selectable.length;
+        setSelection(selectable[next], "keyboard");
+    };
+    for (const element of semanticElements) {
+        if (state.selection.ids.includes(element.dataset.rixSemanticId)) element.classList?.add("rix-output-semantic-selected");
+    }
+    applyViewport();
+
+    toolbar?.addEventListener?.("click", (event) => {
+        const command = event.target?.dataset?.rixGraphicViewCommand;
+        if (!command) return;
+        if (command === "previous") return cycleSelection(-1);
+        if (command === "next") return cycleSelection(1);
+        if (command === "zoom-in") zoomGraphicViewport(state, 1.5);
+        else if (command === "zoom-out") zoomGraphicViewport(state, 1 / 1.5);
+        else if (command === "reset") resetGraphicViewport(state);
+        applyViewport();
+        announceViewport("keyboard");
+    });
+
+    let pointer = null;
+    const pointerPoint = (event) => graphicPointFromClient(svg.getBoundingClientRect(), graphicViewBox(state), { x: event.clientX, y: event.clientY });
+    svg.addEventListener("pointerdown", (event) => {
+        if (interactiveElement(event.target, svg)) return;
+        event.preventDefault?.();
+        pointer = { id: event.pointerId, x: event.clientX, y: event.clientY, moved: false, target: closestSemantic(event.target, svg) };
+        svg.setPointerCapture?.(event.pointerId);
+        svg.classList?.add("rix-output-svg-panning");
+    });
+    svg.addEventListener("pointermove", (event) => {
+        if (pointer?.id === event.pointerId) {
+            const dx = event.clientX - pointer.x;
+            const dy = event.clientY - pointer.y;
+            if (Math.hypot(dx, dy) > 3) pointer.moved = true;
+            if (pointer.moved) {
+                const rect = svg.getBoundingClientRect();
+                panGraphicViewport(state, dx * state.viewport.width / rect.width, dy * state.viewport.height / rect.height);
+                pointer.x = event.clientX;
+                pointer.y = event.clientY;
+                applyViewport();
+                event.preventDefault?.();
+            }
+            return;
+        }
+        const scenePoint = pointerPoint(event);
+        const element = closestSemantic(event.target, svg);
+        clearClasses("rix-output-semantic-hover");
+        element?.classList?.add("rix-output-semantic-hover");
+        if (inspector) {
+            inspector.dataset.rixPointerActive = "true";
+            const object = element ? `${describe(element, scenePoint)} · ` : "";
+            const plot = plotInspection(options.graphic, scenePoint, options.format || String);
+            inspector.textContent = plot || `${object}pointer ≈ (${Number(scenePoint[0].toPrecision(7))}, ${Number(scenePoint[1].toPrecision(7))})`;
+        }
+    });
+    const finishPointer = (event, cancelled = false) => {
+        if (pointer?.id !== event.pointerId) return;
+        const completed = pointer;
+        pointer = null;
+        svg.classList?.remove("rix-output-svg-panning");
+        if (svg.hasPointerCapture?.(event.pointerId)) svg.releasePointerCapture(event.pointerId);
+        if (cancelled) return;
+        if (completed.moved) announceViewport("pointer");
+        else setSelection(completed.target, "pointer", pointerPoint(event));
+    };
+    svg.addEventListener("pointerup", (event) => finishPointer(event));
+    svg.addEventListener("pointercancel", (event) => finishPointer(event, true));
+    svg.addEventListener("pointerleave", () => {
+        if (pointer) return;
+        clearClasses("rix-output-semantic-hover");
+        if (inspector) delete inspector.dataset.rixPointerActive;
+    });
+    let wheelAnnouncement = null;
+    svg.addEventListener("wheel", (event) => {
+        event.preventDefault?.();
+        const rect = svg.getBoundingClientRect();
+        const anchor = [
+            (event.clientX - rect.left) / rect.width * state.viewport.width,
+            (event.clientY - rect.top) / rect.height * state.viewport.height,
+        ];
+        zoomGraphicViewport(state, Math.exp(-finiteNumber(event.deltaY) * 0.002), anchor);
+        applyViewport();
+        clearTimeout(wheelAnnouncement);
+        wheelAnnouncement = setTimeout(() => announceViewport("pointer"), 180);
+    }, { passive: false });
+    svg.addEventListener("dblclick", (event) => {
+        if (interactiveElement(event.target, svg)) return;
+        event.preventDefault?.();
+        resetGraphicViewport(state);
+        applyViewport();
+        announceViewport("pointer");
+    });
+    svg.addEventListener("keydown", (event) => {
+        if (event.defaultPrevented) return;
+        const amount = event.shiftKey ? 0.25 : 0.1;
+        if (event.key === "ArrowLeft") panGraphicViewport(state, state.viewport.width * amount, 0);
+        else if (event.key === "ArrowRight") panGraphicViewport(state, -state.viewport.width * amount, 0);
+        else if (event.key === "ArrowUp") panGraphicViewport(state, 0, state.viewport.height * amount);
+        else if (event.key === "ArrowDown") panGraphicViewport(state, 0, -state.viewport.height * amount);
+        else if (["+", "=", "Add"].includes(event.key)) zoomGraphicViewport(state, 1.5);
+        else if (["-", "_", "Subtract"].includes(event.key)) zoomGraphicViewport(state, 1 / 1.5);
+        else if (event.key === "Home") resetGraphicViewport(state);
+        else return;
+        event.preventDefault?.();
+        applyViewport();
+        announceViewport("keyboard");
+    });
+}
+
 function enhanceGraphic(graphic, options) {
     if (graphic.dataset.rixGraphicEnhanced === "true") return;
     graphic.dataset.rixGraphicEnhanced = "true";
     const svg = graphic.querySelector("svg.rix-output-svg");
-    const status = graphic.querySelector(".rix-output-graphic-status");
+    let status = graphic.querySelector(".rix-output-graphic-status");
+    const document = graphic.ownerDocument;
+    if (!status && document?.createElement) {
+        status = document.createElement("output");
+        status.className = "rix-output-graphic-status";
+        status.setAttribute("aria-live", "polite");
+        status.textContent = "Graphic ready. Drag to pan; use the toolbar or keyboard to explore.";
+        graphic.append?.(status);
+    }
     const handles = [...graphic.querySelectorAll("[data-rix-drag-target]")];
     const actions = [...graphic.querySelectorAll("[data-rix-graphic-action]")];
-    if (!svg || (handles.length === 0 && actions.length === 0)) return;
+    if (!svg) return;
+
+    installNavigation(graphic, svg, status, options);
 
     for (const action of actions) {
         if (typeof options.onAction !== "function") continue;
@@ -63,10 +493,7 @@ function enhanceGraphic(graphic, options) {
                 const result = options.onAction(detail, action, graphic);
                 if (result?.type === "error") throw new Error(result.text);
                 if (status) status.textContent = `${action.getAttribute("aria-label") || "Scene action"} selected`;
-                dispatchGraphicEvent(graphic, "rix-graphic-action", {
-                    ...detail,
-                    revision: result?.revision ?? null,
-                });
+                dispatchGraphicEvent(graphic, "rix-graphic-action", { ...detail, revision: result?.revision ?? null });
                 options.onActionCommitted?.(detail, result, action, graphic);
             } catch (error) {
                 if (status) status.textContent = error instanceof Error ? error.message : String(error);
@@ -99,10 +526,7 @@ function enhanceGraphic(graphic, options) {
         try {
             const result = options.onPosition(detail, handle, graphic);
             if (result?.type === "error") throw new Error(result.text);
-            dispatchGraphicEvent(graphic, "rix-graphic-position", {
-                ...detail,
-                revision: result?.revision ?? null,
-            });
+            dispatchGraphicEvent(graphic, "rix-graphic-position", { ...detail, revision: result?.revision ?? null });
             options.onPositionCommitted?.(detail, result, handle, graphic);
             return true;
         } catch (error) {
@@ -118,12 +542,7 @@ function enhanceGraphic(graphic, options) {
         const current = () => String(handle.dataset.rixPosition || "0,0").split(",").map(Number);
         const fromPointer = (event) => graphicPointFromClient(
             svg.getBoundingClientRect(),
-            svg.viewBox?.baseVal || {
-                x: 0,
-                y: 0,
-                width: Number(svg.getAttribute("width")),
-                height: Number(svg.getAttribute("height")),
-            },
+            svg.viewBox?.baseVal || graphicViewBox(options.state),
             { x: event.clientX, y: event.clientY },
         );
 
@@ -175,7 +594,7 @@ function enhanceGraphic(graphic, options) {
             else return;
             event.preventDefault();
             event.stopPropagation();
-            const box = svg.viewBox?.baseVal || { x: 0, y: 0, width: Number(svg.getAttribute("width")), height: Number(svg.getAttribute("height")) };
+            const box = svg.viewBox?.baseVal || graphicViewBox(options.state);
             const next = [
                 Math.min(Math.max(position[0], box.x), box.x + box.width),
                 Math.min(Math.max(position[1], box.y), box.y + box.height),

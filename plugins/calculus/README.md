@@ -41,7 +41,7 @@ The bridge preserves free variables, exact constants, arithmetic structure,
 and semantic application IDs. Inputs may be supplied explicitly or inferred.
 An omitted free variable or an unsupported core node is diagnosed instead of
 being silently approximated or discarded. The same import/export helpers are
-available to JavaScript plugins from `rix/eval`.
+available to JavaScript plugins from `@ratmath/rix/eval`.
 
 ## Semantic registry
 

@@ -17,6 +17,8 @@ export { UNDECIDED, UndecidedDiagnostic, undecidedDiagnostic, undecidedReason, i
 export { HaloNeighborhood, isHaloNeighborhood } from "./runtime/halo.js";
 export {
     Context, SystemContext, PluginCatalog, parsePluginYaml, readPluginHeader, readSourceHeader,
+    HOST_ADAPTER_ENV, createBrowserHostAdapter, getDefaultHostAdapter, getHostAdapter, setDefaultHostAdapter,
+    EVALUATION_BUDGET_ENV, EvaluationLimitError,
     RendererRegistry, UnsupportedRenderError, createRenderResult, createRendererCollection, createRendererPluginCollection, isRenderResult, renderResultValue,
     Cell, HOLE, isHole, DiagnosticsRegistry,
     createFormulaSheet, isFormulaSheet, createLiveView, isLiveView, isReactiveSource,

@@ -238,14 +238,14 @@ bare `Poly`, `Deriv`, or other symbolic globals.
 
 A RiX-level plugin can consume `.InspectSpec(value)` for the inert statement IR
 and `.SpecRoles(value, optionalRoles)` for direction. A JavaScript plugin can
-use the corresponding public helpers from `rix/eval`:
+use the corresponding public helpers from `@ratmath/rix/eval`:
 
 ```js
 import {
   getAttachedSpec,
   inspectSymbolicSpec,
   resolveSymbolicRoles,
-} from "rix/eval";
+} from "@ratmath/rix/eval";
 
 const spec = getAttachedSpec(value);
 if (!spec) throw new Error("Expected a symbolic spec");

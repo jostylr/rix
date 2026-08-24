@@ -94,7 +94,7 @@ ordered definitions, constraints, and serialized IR are available through
 `.InspectSpec(spec)`.
 
 JavaScript plugins can import `getAttachedSpec` and `resolveSymbolicRoles` from
-`rix/eval`. The latter returns ordinary arrays for `symbols`, `inputs`,
+`@ratmath/rix/eval`. The latter returns ordinary arrays for `symbols`, `inputs`,
 `outputs`, and `unassigned`, defaulting to the attached roles when no override
 is provided. Plugins are responsible for validating supported IR, choosing
 direction and algorithms, reporting approximation/certification, and returning

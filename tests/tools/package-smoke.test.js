@@ -6,7 +6,8 @@ const rixRoot = path.resolve(import.meta.dir, "../..");
 describe("standalone package", () => {
   test("uses released dependencies and Bun for the package worker", async () => {
     const manifest = await Bun.file(path.join(rixRoot, "package.json")).json();
-    expect(manifest.dependencies["@ratmath/core"]).toBe("^0.4.0");
+    expect(manifest.name).toBe("@ratmath/rix");
+    expect(manifest.dependencies["@ratmath/core"]).toBe("^0.5.0");
     expect(manifest.engines).toEqual({ bun: ">=1.2.0" });
 
     const worker = await Bun.file(path.join(rixRoot, "bin/rix-worker.js")).text();
@@ -24,7 +25,7 @@ describe("standalone package", () => {
       expect(required in core, `@ratmath/core must export ${required}`).toBe(true);
     }
 
-    const api = await import("rix");
+    const api = await import("@ratmath/rix");
     expect(typeof api.parse).toBe("function");
     expect(typeof api.parseAndEvaluate).toBe("function");
   });
@@ -47,6 +48,7 @@ describe("standalone package", () => {
     const packed = new Set(report.files.map(({ path: file }) => file));
     for (const required of [
       "README.md",
+      "LICENSE",
       "package.json",
       "bin/rix.js",
       "bin/rix-language-server.js",

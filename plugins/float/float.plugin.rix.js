@@ -11,12 +11,9 @@ permissions: []
 defaultEnabled: false
 **/
 
-import { loadFloatPlugin } from "./node-installer.js";
+import { install as installBrowserSafeFloat } from "./browser-installer.js";
 
-/** Host-approved installer used by the CLI or another embedding host. */
-export function install({ systemContext, registry, metadata, options }) {
-    return loadFloatPlugin(systemContext, registry, {
-        pluginId: metadata?.id || "float",
-        mount: options?.as || metadata?.mount || "float",
-    });
+/** Portable installer used by Node and browser hosts. */
+export function install(options) {
+    return installBrowserSafeFloat(options);
 }

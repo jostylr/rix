@@ -186,10 +186,10 @@ For example, a solver API should allow both calls:
 ```
 
 RiX plugins can call `.SpecRoles`. JavaScript installers can import the public
-helpers from `rix/eval`:
+helpers from `@ratmath/rix/eval`:
 
 ```js
-import { getAttachedSpec, resolveSymbolicRoles } from "rix/eval";
+import { getAttachedSpec, resolveSymbolicRoles } from "@ratmath/rix/eval";
 
 const spec = getAttachedSpec(value);
 if (!spec) throw new Error("Expected a symbolic spec");

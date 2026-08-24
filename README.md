@@ -2,6 +2,11 @@
 
 RiX is the Rational Interval Expression Language: a mathematical language with exact rational and interval arithmetic, a Pratt parser, an AST-to-IR lowering pass, and an evaluator with a configurable capability-based system context.
 
+The 0.1 line is an alpha and makes no source- or API-compatibility commitment.
+RiX core is the portable language and runtime contract. The bundled plugins are
+useful first-party extensions, but they are optional: an implementation can
+support RiX without porting or enabling them.
+
 ## Repository layout
 
 - `src/parser/`: tokenization, parsing, and system identifier configuration.
@@ -22,7 +27,7 @@ RiX is the Rational Interval Expression Language: a mathematical language with e
 
 ## Local development
 
-RiX uses Bun and requires the released `@ratmath/core` 0.4 line. The RatMath
+RiX uses Bun and requires the released `@ratmath/core` 0.5 line. The RatMath
 umbrella workspace links the local Core checkout for coordinated development:
 
 ```sh
@@ -33,8 +38,8 @@ bun --cwd rix test
 ```
 
 A standalone RiX checkout can install the compatible Core release with
-`bun install` and run `bun test`. RiX itself is not currently published under
-the `rix` npm name because that public name belongs to an unrelated package.
+`bun install` and run `bun test`. RiX is published as `@ratmath/rix`; the
+unscoped `rix` npm name belongs to an unrelated package.
 
 Before publishing or cutting a release candidate, run:
 
@@ -42,22 +47,28 @@ Before publishing or cutting a release candidate, run:
 bun run check:release
 ```
 
-That gate runs the Bun suite with coverage, all native `.test.rix` programs,
-shipped-example and plugin-tutorial smoke tests, authored documentation examples,
-the generated editor-policy consistency check, package-content assertions, and
-an npm package dry run. Its final isolated-consumer smoke verifies the published
-Core dependency. Publication is still blocked because the public npm name `rix`
-is owned by an unrelated package.
+That opt-in gate runs the complete Bun suite with coverage, all native
+`.test.rix` programs, authored documentation tests and examples, the generated
+editor-policy consistency check, package-content assertions, an npm package dry
+run, and an isolated-consumer smoke against the published Core dependency. It is
+also available as the manually dispatched **Release verification** GitHub
+Actions workflow; ordinary push and pull-request CI remains the faster gate.
 
 ## API
 
 ```js
-import { parse, tokenize, lower, evaluate, parseAndEvaluate } from "rix";
+import { parse, tokenize, lower, evaluate, parseAndEvaluate } from "@ratmath/rix";
 ```
 
-Use `rix/parser`, `rix/eval`, `rix/runtime`, and `rix/language-service` for
+Use `@ratmath/rix/parser`, `@ratmath/rix/eval`, `@ratmath/rix/runtime`, and
+`@ratmath/rix/language-service` for
 narrower entry points. The command-line tools include `rix`,
 `rix-language-server`, `rix-worker`, and `rix-to-ir` after installation.
+
+The evaluator entry is browser-safe. Browser hosts preload script sources or
+trusted JavaScript modules through `createBrowserHostAdapter`; Node/Bun hosts
+get the filesystem adapter from the package's default export condition, or can
+import `createNodeHostAdapter` from `@ratmath/rix/runtime/node` explicitly.
 
 For deterministic editor/agent feedback:
 

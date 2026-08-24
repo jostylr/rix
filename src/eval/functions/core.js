@@ -2,8 +2,6 @@
  * Core system functions: LITERAL, STRING, NULL, RETRIEVE, ASSIGN, NOP, SYSREF, GLOBAL
  */
 
-import path from "node:path";
-import { createRequire } from "node:module";
 import {
     Integer,
     Rational,
@@ -31,6 +29,7 @@ import { parse } from "../../parser/parser.js";
 import { tokenize } from "../../parser/tokenizer.js";
 import { lower } from "../lower.js";
 import { runtimeDefaults } from "../../runtime/runtime-config.js";
+import { getHostAdapter } from "../../runtime/host-adapter.js";
 import { maybeAutoMarkMultifunction } from "../../runtime/multifunction.js";
 import { isReactiveNode, REACTIVE_READ_ENV } from "../../runtime/reactive-graph.js";
 import { materializePipeSkip } from "../../runtime/expected-error.js";
@@ -53,10 +52,6 @@ import {
 } from "../../runtime/refinement.js";
 
 const BASE_RESERVED_CHARS = new Set([".", "/", "#", "~", "_", "^", "+", "-"]);
-// ImportJS resolves module targets to absolute paths before loading them, so
-// the synthetic base only needs to be a valid Node filename. Avoid import.meta
-// here: browser IIFE exports retain it as invalid classic-script syntax.
-const requireFromHere = createRequire("/rix-runtime/core.js");
 const BASE_MODE_ALIASES = new Map([
     ["mixed", 1], ["..", 1],
     ["repeat", 2], [".", 2], ["#", 2], ["radix", 2],
@@ -113,12 +108,13 @@ function importJSModule(filename, context) {
     if (!spec.endsWith(".js")) {
         throw new Error("ImportJS expects a local .js module path");
     }
-    const baseDir = context.getEnv("jsImportBaseDir", context.getEnv("scriptBaseDir", process.cwd()));
-    const resolved = path.isAbsolute(spec) ? spec : path.resolve(baseDir, spec);
+    const hostAdapter = getHostAdapter(context);
+    const baseDir = context.getEnv("jsImportBaseDir", context.getEnv("scriptBaseDir", hostAdapter.cwd()));
+    const resolved = hostAdapter.resolveModulePath(spec, { baseDir });
     const cache = context.getEnv("__js_import_cache__", new Map());
     context.setEnv("__js_import_cache__", cache);
     if (!cache.has(resolved)) {
-        cache.set(resolved, jsExportToRix(requireFromHere(resolved)));
+        cache.set(resolved, jsExportToRix(hostAdapter.importModuleSync(resolved)));
     }
     return cache.get(resolved);
 }

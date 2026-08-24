@@ -141,7 +141,7 @@ import {
   createDefaultRegistry,
   createDefaultSystemContext,
   parseAndEvaluate,
-} from "rix";
+} from "@ratmath/rix";
 
 const context = new Context();
 const registry = createDefaultRegistry();
@@ -154,7 +154,7 @@ const result = parseAndEvaluate("x := 7; x^2 + 1", {
 });
 ```
 
-The public package also exports narrower entry points from `rix/parser`, `rix/eval`, and `rix/runtime`. See the [developer guide](developer-guide.qmd) for the pipeline and extension boundaries.
+The public package also exports narrower entry points from `@ratmath/rix/parser`, `@ratmath/rix/eval`, and `@ratmath/rix/runtime`. See the [developer guide](developer-guide.qmd) for the pipeline and extension boundaries.
 
 ## Build this documentation
 
