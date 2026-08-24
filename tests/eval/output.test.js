@@ -3,6 +3,7 @@ import {
     Context,
     createControlPanelSnapshot,
     formatValue,
+    formatOutputText,
     parseAndEvaluate,
     renderControlPanelMarkdown,
     renderControlPanelStaticHtml,
@@ -1127,5 +1128,20 @@ describe("portable structured output", () => {
         const html = renderOutputHtml(graphic, formatValue);
         expect(html).toContain('d="M0 0 C10 0 20 20 30 10 A8 6 0 0 1 40 20 Z"');
         expect(formatValue(graphic.children[0])).toBe("[Path: 4 commands]");
+    });
+
+    test("Scene3D outputs expose the generic interactive viewport mount", () => {
+        const scene = parseAndEvaluate(`
+            .Plugin.Load("scene3d");
+            .scene3d.Scene([
+                .scene3d.Mesh([[0,0,0],[1,0,0],[0,1,0]], [[1,2,3]], {= id="face" })
+            ]);
+        `);
+        expect(formatOutputText(scene, formatValue)).toBe("[Scene3D: 1 retained primitive]");
+        const html = renderOutputHtml(scene, formatValue);
+        expect(html).toContain('class="rix-output-scene3d"');
+        expect(html).toContain("data-rix-scene3d-canvas");
+        expect(html).toContain('data-rix-scene3d-action="projection"');
+        expect(html).toContain("Shift-drag to truck");
     });
 });

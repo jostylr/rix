@@ -270,8 +270,17 @@ function normalizeColumns(value) {
     });
 }
 
+/** Read the renderer-facing kind from host outputs and selected pure-RiX output maps. */
+export function outputValueKind(value) {
+    if (value?.type === "output" && typeof value.kind === "string") return value.kind;
+    if (value?.type !== "map" || !(value.entries instanceof Map)) return null;
+    const type = asString(get(value.entries, "type"));
+    const kind = asString(get(value.entries, "kind"));
+    return type === "output" && kind === "scene3d" ? kind : null;
+}
+
 export function isOutputValue(value) {
-    return Boolean(value && value.type === "output" && typeof value.kind === "string");
+    return outputValueKind(value) !== null;
 }
 
 const INLINE_OUTPUT_KINDS = new Set([
@@ -2553,6 +2562,14 @@ function formatBlockChildren(children, format) {
 
 export function formatOutputText(value, format) {
     if (!isOutputValue(value)) return format(value);
+    if (outputValueKind(value) === "scene3d") {
+        const entries = value?.entries instanceof Map ? value.entries : null;
+        const realized = entries ? get(entries, "realized") : value.realized;
+        const realizedEntries = realized?.entries instanceof Map ? realized.entries : null;
+        const primitives = realizedEntries ? get(realizedEntries, "primitives") : realized?.primitives;
+        const primitiveCount = sequence(primitives || [], "Scene3D realized primitives").length;
+        return `[Scene3D: ${primitiveCount} retained primitive${primitiveCount === 1 ? "" : "s"}]`;
+    }
     if (value.kind === "live_view") return formatOutputText(value.current, format);
     if (value.kind === "text") return cellText(value.value, format);
     if (value.kind === "emphasis" || value.kind === "strong" || value.kind === "code" || value.kind === "math" || value.kind === "link" || value.kind === "line_break") return formatInlineText(value, format);
@@ -2694,6 +2711,10 @@ function mediaDimensions(value) {
 export function renderOutputHtml(value, format = (item) => String(item ?? "")) {
     const text = (item) => escapeHtml(isOutputValue(item) ? formatOutputText(item, format) : cellText(item, format));
     if (!isOutputValue(value)) return `<pre>${text(value)}</pre>`;
+    if (outputValueKind(value) === "scene3d") {
+        const schema = value?.entries instanceof Map ? asString(get(value.entries, "schema")) : value.schema;
+        return `<section class="rix-output-scene3d" data-rix-scene3d-schema="${escapeHtml(schema || "rix.scene3d@1")}"><div class="rix-output-scene3d-toolbar" role="toolbar" aria-label="3D scene controls"><button type="button" data-rix-scene3d-action="previous" title="Previous selectable object">Previous</button><button type="button" data-rix-scene3d-action="next" title="Next selectable object">Next</button><span class="rix-output-scene3d-toolbar-group" aria-label="Orbit"><button type="button" data-rix-scene3d-action="orbit-left" aria-label="Orbit left">←</button><button type="button" data-rix-scene3d-action="orbit-up" aria-label="Orbit up">↑</button><button type="button" data-rix-scene3d-action="orbit-down" aria-label="Orbit down">↓</button><button type="button" data-rix-scene3d-action="orbit-right" aria-label="Orbit right">→</button></span><button type="button" data-rix-scene3d-action="dolly-in" aria-label="Dolly in">+</button><button type="button" data-rix-scene3d-action="dolly-out" aria-label="Dolly out">−</button><button type="button" data-rix-scene3d-action="projection">Projection</button><button type="button" data-rix-scene3d-action="reset">Reset camera</button></div><div class="rix-output-scene3d-surface"><canvas data-rix-scene3d-canvas width="640" height="480" tabindex="0" role="img" aria-label="Interactive 3D mathematical scene. Drag to orbit, Shift-drag to truck, use the wheel to dolly, arrows to orbit, Shift-arrows to truck, plus or minus to dolly, P to switch projection, brackets to select objects, and Home to reset.">Interactive 3D scene. WebGL or the SVG fallback is required.</canvas><div class="rix-output-scene3d-annotations" aria-label="3D scene annotations"></div></div><output class="rix-output-scene3d-inspector" aria-live="polite">Scene3D background</output><output class="rix-output-scene3d-status" aria-live="polite">Preparing 3D viewport…</output></section>`;
+    }
     if (value.kind === "live_view") {
         return `<section class="rix-output-live-view" data-rix-live-view="${escapeHtml(value.id)}" data-rix-live-revision="${value.revision}">${renderOutputHtml(value.current, format)}</section>`;
     }

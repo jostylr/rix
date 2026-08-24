@@ -45,4 +45,4 @@ export function install(api) {
     return installRendererPlugin({ ...api, definition });
 }
 
-export { createWebGLPlan, paintWebGLPlan } from "./webgl-plan.js";
+export { createWebGLPlan, paintWebGLPlan, webGLPlanMatrix } from "./webgl-plan.js";

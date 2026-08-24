@@ -5,9 +5,10 @@
  * observable/widget mechanics between RiX Web and the notebook.
  */
 
-import { isOutputValue, renderOutputHtml } from "../runtime/output.js";
+import { isOutputValue, outputValueKind, renderOutputHtml } from "../runtime/output.js";
 import { enhanceSheetViews } from "./sheet-view.js";
 import { enhanceGraphicViews } from "./graphic-view.js";
+import { enhanceScene3DViews } from "./scene3d-view.js";
 import { enhanceControlPanelViews, enhanceControlShortcuts } from "./control-panel-view.js";
 import { createWidgetSession } from "./widget-session.js";
 
@@ -35,6 +36,13 @@ function collectGraphics(value, graphics = []) {
     return graphics;
 }
 
+function collectScene3D(value, scenes = []) {
+    if (!isOutputValue(value)) return scenes;
+    if (outputValueKind(value) === "scene3d") scenes.push(value);
+    else for (const child of childOutputs(value)) collectScene3D(child, scenes);
+    return scenes;
+}
+
 function collectControlPanels(value, panels = []) {
     if (!isOutputValue(value)) return panels;
     if (value.kind === "control_panel") panels.push(value);
@@ -53,6 +61,13 @@ function renderedGraphicRoots(root) {
     const roots = [];
     if (root?.matches?.(".rix-output-graphic")) roots.push(root);
     if (root?.querySelectorAll) roots.push(...root.querySelectorAll(".rix-output-graphic"));
+    return roots;
+}
+
+function renderedScene3DRoots(root) {
+    const roots = [];
+    if (root?.matches?.(".rix-output-scene3d")) roots.push(root);
+    if (root?.querySelectorAll) roots.push(...root.querySelectorAll(".rix-output-scene3d"));
     return roots;
 }
 
@@ -132,6 +147,7 @@ export function mountOutputWidgets(root, value, options = {}) {
     let disposed = false;
     let currentValue = value;
     const graphicViewStates = [];
+    const scene3DViewStates = [];
     disposers.push(enhanceControlShortcuts(root));
 
     function disposeWidgets() {
@@ -334,6 +350,20 @@ export function mountOutputWidgets(root, value, options = {}) {
                 } : null,
                 onActionCommitted: options.onGraphicAction,
             });
+        }
+        const sceneValues = collectScene3D(outputValue);
+        const sceneRoots = renderedScene3DRoots(container);
+        for (const [index, scene] of sceneValues.entries()) {
+            const sceneRoot = sceneRoots[index];
+            if (!sceneRoot) continue;
+            const dispose = enhanceScene3DViews(sceneRoot, {
+                scene,
+                format,
+                state: scene3DViewStates[index] || (scene3DViewStates[index] = {}),
+                onSelection: options.onScene3DSelection,
+                onViewport: options.onScene3DViewport,
+            });
+            widgetDisposers.push(dispose);
         }
         const panelValues = collectControlPanels(outputValue);
         const panelRoots = renderedControlPanelRoots(container);

@@ -80,7 +80,7 @@ export {
     createCayley, cayleyFromCartesian, cayleyCartesian, addCayley,
     subtractCayley, multiplyCayley, divideCayley, powCayley,
     negateCayley, conjugateCayley, inverseCayley, equalCayley,
-    isOutputValue, isInlineOutput, isBlockOutput, formatOutputText, renderOutputHtml, renderGraphicSvg, createSheet, createSheetSnapshot,
+    isOutputValue, outputValueKind, isInlineOutput, isBlockOutput, formatOutputText, renderOutputHtml, renderGraphicSvg, createSheet, createSheetSnapshot,
     createEmphasis, createStrong, createCode, createMath, createLink, createLineBreak,
     createSection, createList, createListItem, createQuote, createCallout, createCodeBlock, createMathBlock,
     createAsset, createImage, createAudio, createVideo,
@@ -102,6 +102,12 @@ export {
 } from "./tools/sheet-view.js";
 export { WidgetSession, GraphicWidgetSession, ControlPanelWidgetSession, createWidgetSession } from "./tools/widget-session.js";
 export { enhanceGraphicViews, graphicPointFromClient } from "./tools/graphic-view.js";
+export {
+    createScene3DViewState, describeScene3DSelection, dollyScene3DCamera,
+    enhanceScene3DViews, orbitScene3DCamera, pickScene3DPlan,
+    projectScene3DPoint, renderScene3DSvgFallback, resetScene3DCamera,
+    toggleScene3DProjection, truckScene3DCamera,
+} from "./tools/scene3d-view.js";
 export { enhanceControlPanelViews, enhanceControlShortcuts } from "./tools/control-panel-view.js";
 export { mountOutputWidgets, restoreGraphicFocus, restoreControlPanelFocus } from "./tools/output-widgets.js";
 export {

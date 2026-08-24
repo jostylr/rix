@@ -23,3 +23,10 @@ or Canvas labels and apply the retained collision/occlusion policy.
 WebGL converts exact coordinates to `Float32`. The renderer reports that
 boundary, implementation-dependent line widths, and its portable flat-material
 baseline as structured diagnostics.
+
+Hosts using `mountOutputWidgets` do not need to call the executor directly.
+A retained `scene3d.Scene` result is recognized as a semantic output and mounted
+with orbit, truck, dolly, projection, reset, keyboard navigation, stable-id
+picking, and exact world-coordinate inspection. The mount uses device-pixel
+resolution and replaces a missing or lost WebGL context with a deterministic
+SVG projection of the same plan.

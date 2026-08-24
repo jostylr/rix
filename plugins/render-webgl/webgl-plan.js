@@ -252,6 +252,15 @@ function projection(camera, aspect, drawCalls) {
     ];
 }
 
+/** Return the deterministic clip-space matrix used by the portable executor. */
+export function webGLPlanMatrix(plan) {
+    if (plan?.schema !== "rix.webgl-plan@1") throw new Error("Unsupported WebGL plan schema");
+    const { width, height } = plan.viewport;
+    if (!(width > 0 && height > 0)) throw new Error("WebGL plan viewport dimensions must be positive");
+    const view = lookAt(plan.camera.position, plan.camera.target, plan.camera.up);
+    return multiply4(projection(plan.camera, width / height, plan.drawCalls), view);
+}
+
 function shader(gl, type, source) {
     const value = gl.createShader(type);
     gl.shaderSource(value, source);
@@ -288,8 +297,7 @@ export function paintWebGLPlan(gl, plan) {
     const colorLocation = gl.getUniformLocation(program, "u_color");
     const pointSizeLocation = gl.getUniformLocation(program, "u_point_size");
     const { width, height } = plan.viewport;
-    const view = lookAt(plan.camera.position, plan.camera.target, plan.camera.up);
-    const matrix = multiply4(projection(plan.camera, width / height, plan.drawCalls), view);
+    const matrix = webGLPlanMatrix(plan);
     gl.viewport(0, 0, width, height);
     gl.enable(gl.DEPTH_TEST); gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
     gl.clearColor(...plan.background, 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -317,5 +325,10 @@ export function paintWebGLPlan(gl, plan) {
             depth: clip[3] === 0 ? null : clip[2] / clip[3],
         };
     });
+    if (gl.deleteProgram) gl.deleteProgram(program);
+    if (gl.deleteShader) {
+        gl.deleteShader(vertex);
+        gl.deleteShader(fragment);
+    }
     return { context: gl, picking: plan.picking, annotations, matrix };
 }

@@ -162,6 +162,7 @@ export {
 } from "./range-set-interchange.js";
 export {
     isOutputValue,
+    outputValueKind,
     isInlineOutput,
     isBlockOutput,
     formatOutputText,
