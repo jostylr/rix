@@ -101,7 +101,10 @@ export {
     sheetPlaneKey,
 } from "./tools/sheet-view.js";
 export { WidgetSession, GraphicWidgetSession, ControlPanelWidgetSession, createWidgetSession } from "./tools/widget-session.js";
-export { enhanceGraphicViews, graphicPointFromClient } from "./tools/graphic-view.js";
+export {
+    enhanceGraphicViews, graphicPointFromClient, graphicSelectionCatalog,
+    updateGraphicGesture,
+} from "./tools/graphic-view.js";
 export {
     createAudioTracePlan, createGraphicsTextPlan, graphicValueExactness,
     renderGraphicAccessibilityHtml,

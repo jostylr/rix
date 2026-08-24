@@ -4,10 +4,12 @@ import {
     describeGraphicNode,
     enhanceGraphicViews,
     graphicPointFromClient,
+    graphicSelectionCatalog,
     graphicViewBox,
     panGraphicViewport,
     resetGraphicViewport,
     serializeGeometryConstructionRecord,
+    updateGraphicGesture,
     zoomGraphicViewport,
 } from "../../src/tools/graphic-view.js";
 
@@ -70,6 +72,53 @@ describe("shared Graphic viewport and exact inspection", () => {
             .toBe("Path · 2 exact points · nearest (7/3, 11/5)");
         expect(describeGraphicNode({ kind: "circle", center: ["1/3", "2/5"], radius: "5/7" }, String))
             .toBe("Circle · exact center (1/3, 2/5) · exact radius 5/7");
+    });
+
+    test("one-pointer and two-pointer gestures share the bounded viewport model", () => {
+        const state = createGraphicViewState(200, 100);
+        expect(updateGraphicGesture(
+            state,
+            [{ id: 1, x: 20, y: 20 }],
+            [{ id: 1, x: 40, y: 30 }],
+            { left: 0, top: 0, width: 200, height: 100 },
+        )).toEqual({ type: "pan", changed: true });
+        expect(state.viewport.pan).toEqual([20, 10]);
+
+        expect(updateGraphicGesture(
+            state,
+            [{ id: 1, x: 50, y: 50 }, { id: 2, x: 150, y: 50 }],
+            [{ id: 1, x: 40, y: 50 }, { id: 2, x: 160, y: 50 }],
+            { left: 0, top: 0, width: 200, height: 100 },
+        )).toEqual({ type: "pinch", changed: true });
+        expect(state.viewport.zoom).toBeCloseTo(1.2);
+        expect(graphicViewBox(state).width).toBeCloseTo(200 / 1.2);
+    });
+
+    test("gesture updates require real layout bounds and ignore unrelated pointer ids", () => {
+        const state = createGraphicViewState(100, 50);
+        expect(updateGraphicGesture(
+            state,
+            [{ id: 1, x: 0, y: 0 }],
+            [{ id: 2, x: 10, y: 10 }],
+            { width: 100, height: 50 },
+        )).toEqual({ type: "none", changed: false });
+        expect(() => updateGraphicGesture(state, [], [], { width: 0, height: 50 })).toThrow("non-empty bounds");
+    });
+
+    test("builds a direct semantic catalog without making container groups noisy", () => {
+        const graphic = {
+            children: [{
+                type: "output",
+                kind: "group",
+                children: [
+                    { type: "output", kind: "circle", center: [1, 2], radius: 3, children: [] },
+                    { type: "output", kind: "text_mark", position: [4, 5], text: "A", children: [] },
+                ],
+            }],
+        };
+        const catalog = graphicSelectionCatalog(graphic);
+        expect(catalog.map(({ role }) => role)).toEqual(["circle", "text_mark"]);
+        expect(catalog[0].label).toContain("exact center (1, 2)");
     });
 });
 
