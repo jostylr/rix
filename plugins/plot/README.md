@@ -26,6 +26,12 @@ to SVG by a web or notebook host.
 | `.plot.Line(data, options?)` | Connected data rows. |
 | `.plot.Bar(data, options?)` | Bars with a zero baseline. |
 | `.plot.Step(data, options?)` | Horizontal-then-vertical step path. |
+| `.plot.Polar(fn, angleDomain, options?)` | Polar curve whose function returns a radius. |
+| `.plot.Implicit(fn, xDomain, yDomain, options?)` | Sample the boundary `fn(x,y) = level` with marching squares. |
+| `.plot.Inequality(fn, xDomain, yDomain, options?)` | Classify and fill cells using `:le`, `:lt`, `:ge`, or `:gt`. |
+| `.plot.Contour(fn, xDomain, yDomain, options?)` | Draw one or more scalar-field levels. |
+| `.plot.HeatMap(fn, xDomain, yDomain, options?)` | Color scalar-field cells with a discrete color scale. |
+| `.plot.VectorField(fn, xDomain, yDomain, options?)` | Draw normalized vectors returned as `[u,v]`. |
 
 Coefficients are in descending-power order. The options map controls output
 size, sample count, margin, fixed or fitted vertical domain, additional series,
@@ -41,6 +47,23 @@ Plot Graphics also retain their resolved view, source-coordinate series, ticks,
 marks, and labels as semantic `rix.plot@1` metadata. Portable renderers may
 ignore it and paint the ordinary Graphics children; `.tikz` uses it to emit
 editable PGFPlots axes and series.
+
+Field functions receive two arguments, `(x,y)`. Their common `grid=[columns,rows]`
+option describes cells, so the sampler evaluates `(columns+1) × (rows+1)`
+vertices. The semantic metadata records the domain, sampling method and budget,
+exact/enclosed/approximate/unresolved evidence counts, stable cell or vector
+identities, unresolved and ambiguous regions, legends, and color scales. The
+current implicit/contour and inequality boundaries are explicitly described as
+sampled-sign classifications; they are not presented as certified enclosures of
+the function between grid vertices.
+
+`Implicit` accepts `level` (default `0`); `Contour` accepts `levels`; `Inequality`
+accepts `relation` and `level`; `HeatMap` accepts `colors` and `colorDomain`;
+and `VectorField` accepts `vectorScale`. All field families lower to ordinary
+rectangles and paths with `hitId` values, so SVG, Canvas, and TikZ share the same
+scene and selection identities. Text-only renderers return a deterministic plot
+summary including domain, grid, unresolved regions, ambiguous sampled boundary
+regions, and evidence status.
 
 ## Dependencies
 

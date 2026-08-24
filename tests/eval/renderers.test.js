@@ -17,7 +17,7 @@ import { definition as quartoDefinition } from "../../plugins/render-quarto/quar
 import { definition as svgDefinition } from "../../plugins/render-svg/svg.plugin.rix.js";
 import { renderGraphicTikz } from "../../plugins/render-tikz/tikz-renderer.js";
 import { createWebGLPlan, paintWebGLPlan } from "../../plugins/render-webgl/webgl-plan.js";
-import { hitTestCanvasPlan, invertCanvasPoint } from "../../plugins/render-canvas/canvas-plan.js";
+import { createCanvasPlan, hitTestCanvasPlan, invertCanvasPoint } from "../../plugins/render-canvas/canvas-plan.js";
 import { lowerGraphicSvg } from "../../src/runtime/output.js";
 
 function runtime() {
@@ -215,6 +215,27 @@ describe("renderer registry", () => {
         expect(renderedGraphic.content.match(/rixStyle2\/.style=/g)).toHaveLength(1);
         expect(renderedGraphic.content.match(/\\path\[rixStyle2\]/g)).toHaveLength(2);
         expect(renderedGraphic.metadata.reusableStyles).toBe(2);
+    });
+
+    test("field plots traverse SVG, Canvas, and TikZ through portable Graphics", () => {
+        const options = runtime();
+        const heatMap = parseAndEvaluate(`
+            .Plugin.Load("plot");
+            .plot.HeatMap((x,y)->x-y, [-1,1], [-1,1], {= grid=[2,2] });
+        `, options);
+        const svg = lowerGraphicSvg(heatMap, (value) => value?.value ?? String(value));
+        expect(svg.content).toContain('data-rix-semantic-id="heatmap-cell-1-1"');
+        expect(svg.content.match(/<rect /g)?.length).toBeGreaterThanOrEqual(4);
+
+        const canvas = createCanvasPlan(heatMap, (value) => value?.value ?? String(value));
+        expect(canvas.commands.filter(([kind]) => kind === "rectangle").length).toBeGreaterThanOrEqual(4);
+        expect(canvas.hitRegions.some(({ semanticId }) => semanticId === "heatmap-cell-1-1")).toBe(true);
+
+        const tikz = renderGraphicTikz(heatMap, (value) => value?.value ?? String(value));
+        expect(tikz.content).toContain(" rectangle ");
+        expect(tikz.content).not.toContain("\\begin{axis}");
+        expect(tikz.metadata.lowering).toBe("graphics");
+        expect(tikz.diagnostics.map(({ code }) => code)).toContain("tikz-plot-graphics-lowering");
     });
 
     test("SVG Phase 2 lowers exact and certified coordinates with outward enclosures", () => {

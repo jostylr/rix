@@ -339,10 +339,14 @@ export function renderGraphicTikz(graphic, format, { standalone = false, preambl
     };
     const schema = rixString(field(graphic.metadata, "schema"));
     const plot = field(graphic.metadata, "plot");
+    const plotRendering = rixString(field(plot, "rendering"));
+    const nativePlot = schema === "rix.plot@1" && plot && plotRendering !== "graphics";
     let body;
-    if (schema === "rix.plot@1" && plot) body = renderPlot(graphic, plot, state, format);
+    if (nativePlot) body = renderPlot(graphic, plot, state, format);
     else {
-        if (schema === "rix.plot@1") {
+        if (schema === "rix.plot@1" && plotRendering === "graphics") {
+            state.diagnostics.push(diagnostic("tikz-plot-graphics-lowering", "Field plot was exported through its portable Graphics scene", "info"));
+        } else if (schema === "rix.plot@1") {
             state.diagnostics.push(diagnostic("tikz-plot-graphics-fallback", "Plot has no semantic series metadata; exported its portable Graphics paths", "warning"));
         }
         const nodes = graphic.children.map((child, index) => renderNode(child, state, format, `graphic[${index + 1}]`));
@@ -372,7 +376,7 @@ export function renderGraphicTikz(graphic, format, { standalone = false, preambl
             tikzLibraries: [...state.libraries].sort(),
             pgfplotsCompat: state.packages.has("pgfplots") ? "1.18" : null,
             reusableStyles: state.styles.size,
-            lowering: plot ? "pgfplots" : "graphics",
+            lowering: nativePlot ? "pgfplots" : "graphics",
         },
     };
 }

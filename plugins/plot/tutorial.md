@@ -50,3 +50,38 @@ observations := [[1,2],[2,5/2],[3,7/4],[4,3]];
   .Figure(.plot.Step(observations,{= stroke="#b45309" }),"A step presentation")
 ]);
 ```
+
+## Polar and field plots
+
+Polar curves use radians and retain their angle/radius source samples:
+
+```rix
+.Plugin.Load("plot");
+.plot.Polar(t -> 2, [0,6], {= samples=81,title="A sampled polar circle" });
+```
+
+Scalar and vector fields share exact domains and a bounded cell grid:
+
+```rix
+.Plugin.Load("plot");
+.Fragment([
+  .Figure(
+    .plot.Implicit((x,y) -> x^2+y^2-1, [-2,2], [-2,2], {= grid=[24,16] }),
+    "The sampled zero level of x² + y² − 1"
+  ),
+  .Figure(
+    .plot.HeatMap((x,y) -> x-y, [-2,2], [-2,2], {= grid=[24,16] }),
+    "A discrete exact-sample heat map"
+  ),
+  .Figure(
+    .plot.VectorField((x,y) -> [-y,x], [-2,2], [-2,2], {= grid=[12,8] }),
+    "A normalized rotational vector field"
+  )
+]);
+```
+
+`Contour` adds multiple `levels`; `Inequality` uses `relation=:le` by default.
+Inspect the returned Graphic's `metadata.plot` record through a renderer or host
+to find the sampling record, evidence counts, stable hit identities, ambiguous
+cells, and unresolved regions.
+These records distinguish sampled boundary evidence from a certified enclosure.

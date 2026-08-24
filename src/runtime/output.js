@@ -2476,7 +2476,7 @@ export function lowerGraphicSvg(graphic, format = (item) => String(item ?? ""), 
         ? `<g class="rix-exact-enclosure" filter="url(#rix-exact-enclosure)">${children}</g>`
         : children;
     return {
-        content: `<svg class="rix-output-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size[0]} ${size[1]}" width="${size[0]}" height="${size[1]}" overflow="visible" role="img" tabindex="0" aria-label="Mathematical graphic. Use arrow keys to pan, plus and minus to zoom, and Home to reset the view.">${defs.length ? `<defs>${defs.join("")}</defs>` : ""}${renderedChildren}</svg>`,
+        content: `<svg class="rix-output-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size[0]} ${size[1]}" width="${size[0]}" height="${size[1]}" overflow="visible" role="img" tabindex="0" aria-label="Mathematical graphic. ${escapeHtml(formatOutputText(graphic, format))}. Use arrow keys to pan, plus and minus to zoom, and Home to reset the view.">${defs.length ? `<defs>${defs.join("")}</defs>` : ""}${renderedChildren}</svg>`,
         diagnostics,
         metadata: {
             schema: "rix.svg.coordinate-lowering@1",
@@ -2558,6 +2558,38 @@ function indentText(text, prefix = "  ") {
 
 function formatBlockChildren(children, format) {
     return children.map((child) => formatOutputText(child, format)).join("\n\n");
+}
+
+function formatPlotText(graphic, format) {
+    if (!(graphic?.metadata instanceof Map)) return null;
+    const plotValue = get(graphic.metadata, "plot");
+    const plot = plotValue?.entries instanceof Map ? plotValue.entries : null;
+    if (!plot) return null;
+    const kind = (asString(get(plot, "kind")) || "mathematical").replaceAll("_", " ");
+    const parts = [`Plot: ${kind}`];
+    const title = get(plot, "title");
+    if (title !== null && title !== undefined) parts.push(cellText(title, format));
+    const viewValue = get(plot, "view", get(plot, "bounds"));
+    const view = viewValue?.entries instanceof Map ? viewValue.entries : null;
+    if (view) {
+        parts.push(`domain x ${cellText(get(view, "xmin"), format)} … ${cellText(get(view, "xmax"), format)}, y ${cellText(get(view, "ymin"), format)} … ${cellText(get(view, "ymax"), format)}`);
+    }
+    const gridValue = get(plot, "grid");
+    const grid = gridValue?.entries instanceof Map ? gridValue.entries : null;
+    if (grid) parts.push(`grid ${cellText(get(grid, "columns"), format)} × ${cellText(get(grid, "rows"), format)}`);
+    const unresolvedValue = get(plot, "unresolvedRegions");
+    const unresolved = unresolvedValue && isSequence(unresolvedValue)
+        ? sequence(unresolvedValue, "plot unresolved regions").length
+        : graphic.metadata.has("unresolved") ? cellText(graphic.metadata.get("unresolved"), format) : 0;
+    parts.push(`${unresolved} unresolved region${String(unresolved) === "1" ? "" : "s"}`);
+    const ambiguousValue = get(plot, "ambiguousRegions");
+    if (ambiguousValue && isSequence(ambiguousValue)) {
+        const ambiguous = sequence(ambiguousValue, "plot ambiguous regions").length;
+        if (ambiguous) parts.push(`${ambiguous} sampled boundary region${ambiguous === 1 ? "" : "s"}`);
+    }
+    const status = asString(get(plot, "status"));
+    if (status) parts.push(`${status.replaceAll("_", " ")} evidence`);
+    return `[${parts.join("; ")}]`;
 }
 
 export function formatOutputText(value, format) {
@@ -2655,7 +2687,7 @@ export function formatOutputText(value, format) {
     }
     if (value.kind === "sheet") return formatSheetText(value, format);
     if (value.kind === "figure") return [formatOutputText(value.content, format), value.caption].filter(Boolean).join("\n");
-    if (value.kind === "graphic") return `[Graphic: ${cellText(value.size[0], format)} × ${cellText(value.size[1], format)}, ${value.children.length} scene nodes]`;
+    if (value.kind === "graphic") return formatPlotText(value, format) || `[Graphic: ${cellText(value.size[0], format)} × ${cellText(value.size[1], format)}, ${value.children.length} scene nodes]`;
     if (value.kind === "path") return value.commands ? `[Path: ${value.commands.length} commands]` : `[Path: ${value.points.length} points]`;
     if (value.kind === "slide") return [value.title, formatOutputText(value.content, format)].filter(Boolean).join("\n");
     if (value.kind === "slides") return value.slides.map((slide, index) => `Slide ${index + 1}:\n${formatOutputText(slide, format)}`).join("\n\n");

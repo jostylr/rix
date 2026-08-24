@@ -1111,6 +1111,60 @@ describe("portable structured output", () => {
         `)).toThrow("positive for a logarithmic scale");
     });
 
+    test("plot Phase 3 adds polar curves and semantic scalar/vector field families", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("plot");
+            [
+                .plot.Polar(t -> 2, [0,6], {= samples=9 }),
+                .plot.Implicit((x,y) -> x^2+y^2-1, [-2,2], [-2,2], {= grid=[4,4] }),
+                .plot.Inequality((x,y) -> x+y, [-2,2], [-2,2], {= grid=[4,4], relation=:le }),
+                .plot.Contour((x,y) -> x*y, [-2,2], [-2,2], {= grid=[4,4], levels=[-1,0,1] }),
+                .plot.HeatMap((x,y) -> x+y, [-2,2], [-2,2], {= grid=[4,4] }),
+                .plot.VectorField((x,y) -> [-y,x], [-2,2], [-2,2], {= grid=[4,4] })
+            ];
+        `);
+        const [polar, implicit, inequality, contour, heatMap, vectorField] = result.values;
+        const plotMetadata = (graphic) => graphic.metadata.get("plot").entries;
+        const text = (value) => value?.value ?? String(value);
+
+        expect(result.values.every(({ kind }) => kind === "graphic")).toBe(true);
+        expect(result.values.map((graphic) => text(plotMetadata(graphic).get("kind"))))
+            .toEqual(["polar", "implicit", "inequality", "contour", "heatmap", "vector_field"]);
+        expect(polar.children.some(({ kind }) => kind === "path")).toBe(true);
+        expect(plotMetadata(implicit).get("series").values.length).toBeGreaterThan(0);
+        expect(inequality.children.some(({ kind }) => kind === "rectangle")).toBe(true);
+        expect(plotMetadata(contour).get("legend").values).toHaveLength(3);
+        expect(heatMap.children.filter(({ kind }) => kind === "rectangle").length).toBeGreaterThanOrEqual(16);
+        expect(plotMetadata(heatMap).get("colorscale").entries.get("colors").values).toHaveLength(7);
+        expect(plotMetadata(vectorField).get("records").values).toHaveLength(25);
+
+        const heatText = formatOutputText(heatMap, formatValue);
+        expect(heatText).toContain("[Plot: heatmap");
+        expect(heatText).toContain("grid 4 × 4");
+        expect(heatText).toContain("0 unresolved regions");
+        expect(renderOutputHtml(heatMap, formatValue)).toContain("[Plot: heatmap");
+        expect(renderOutputHtml(vectorField, formatValue)).toContain('data-rix-semantic-id="vector-1-1"');
+    });
+
+    test("plot Phase 3 validates field grids, domains, relations, and vector results", () => {
+        expect(() => parseAndEvaluate(`
+            .Plugin.Load("plot");
+            .plot.HeatMap((x,y)->x+y, [1,1], [-1,1]);
+        `)).toThrow("field plot domains must increase");
+        expect(() => parseAndEvaluate(`
+            .Plugin.Load("plot");
+            .plot.Implicit((x,y)->x+y, [-1,1], [-1,1], {= grid=[1,4] });
+        `)).toThrow("grid columns must be between 2 and 100");
+        expect(() => parseAndEvaluate(`
+            .Plugin.Load("plot");
+            .plot.Inequality((x,y)->x+y, [-1,1], [-1,1], {= grid=[2,2], relation=:equal });
+        `)).toThrow("inequality relation must be");
+        expect(() => parseAndEvaluate(`
+            .Plugin.Load("plot");
+            .plot.VectorField((x,y)->x+y, [-1,1], [-1,1], {= grid=[2,2] });
+        `)).toThrow("must be an Array");
+    });
+
     test("Graphics.Path preserves renderer-independent curve and arc commands", () => {
         const graphic = parseAndEvaluate(`
             .Graphics.Graphic([100, 100], [
