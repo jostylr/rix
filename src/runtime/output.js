@@ -101,6 +101,50 @@ function exactNumber(value, label) {
     throw new Error(`${label} must be an exact integer or rational`);
 }
 
+function positiveExactNumber(value, label) {
+    const exact = exactNumber(value, label);
+    const numerator = exact instanceof Integer ? exact.value : exact.numerator;
+    if (numerator <= 0n) throw new Error(`${label} must be positive`);
+    return exact;
+}
+
+function timelineTransition(value) {
+    const fallback = Object.freeze({
+        schema: "rix.timeline-transition@1",
+        mode: "discrete",
+        duration: null,
+        properties: Object.freeze([]),
+    });
+    if (value === null || value === undefined) return fallback;
+    const fields = value?.type === "map" ? map(value, "Timeline.Sequence transition") : null;
+    const mode = (asString(fields ? get(fields, "mode") : value) || "discrete").toLowerCase();
+    if (!new Set(["discrete", "crossfade"]).has(mode)) {
+        throw new Error("Timeline.Sequence transition mode must be discrete or crossfade");
+    }
+    const propertiesValue = fields ? get(fields, "properties") : null;
+    const properties = propertiesValue === null || propertiesValue === undefined
+        ? (mode === "crossfade" ? ["opacity"] : [])
+        : sequence(propertiesValue, "Timeline.Sequence transition properties").map((entry) => {
+            const name = (asString(entry) || "").toLowerCase();
+            if (name !== "opacity") {
+                throw new Error(`Timeline.Sequence transition property '${name || String(entry)}' is not declared safe by rix.timeline-transition@1`);
+            }
+            return name;
+        });
+    if (mode === "discrete" && properties.length > 0) {
+        throw new Error("Timeline.Sequence discrete transitions cannot declare interpolated properties");
+    }
+    const durationValue = fields ? get(fields, "duration") : null;
+    return Object.freeze({
+        schema: "rix.timeline-transition@1",
+        mode,
+        duration: durationValue === null || durationValue === undefined
+            ? null
+            : positiveExactNumber(durationValue, "Timeline.Sequence transition duration"),
+        properties: Object.freeze([...new Set(properties)]),
+    });
+}
+
 function exactRational(value, label) {
     if (value instanceof Rational) return value;
     if (value instanceof Integer) return new Rational(value);
@@ -421,8 +465,9 @@ export function createTimelineSequence(args, runtime = null) {
     const duration = get(entry, "duration");
     return output("timeline", {
         frames,
-        duration: duration === null || duration === undefined ? null : exactNumber(duration, "Timeline.Sequence duration"),
+        duration: duration === null || duration === undefined ? null : positiveExactNumber(duration, "Timeline.Sequence duration"),
         easing: asString(get(entry, "easing")) || "linear",
+        transition: timelineTransition(get(entry, "transition")),
         title: asString(get(entry, "title")),
     });
 }
@@ -2683,7 +2728,11 @@ export function formatOutputText(value, format) {
         return [value.title, ...value.snapshots.map((snapshot) => formatOutputText(snapshot.content, format))]
             .filter(Boolean).join("\n\n");
     }
-    if (value.kind === "timeline") return `[Timeline: ${value.frames.length} frames]`;
+    if (value.kind === "timeline") {
+        return [value.title || `Timeline: ${value.frames.length} frames`, ...value.frames.map((frame, index) =>
+            `Frame ${index + 1} of ${value.frames.length} · exact state ${cellText(frame.state, format)}\n${formatOutputText(frame.content, format)}`)]
+            .join("\n\n");
+    }
     if (value.kind === "timeline_render") return [value.title, formatOutputText(value.content, format)].filter(Boolean).join("\n\n");
     if (value.kind === "control_slider") {
         return `${value.label}: ${cellText(controlField(value, "value"), format)} (${cellText(controlField(value, "low"), format)} … ${cellText(controlField(value, "high"), format)}; step ${cellText(controlField(value, "step"), format)})`;
@@ -2855,7 +2904,20 @@ export function renderOutputHtml(value, format = (item) => String(item ?? "")) {
             return `<article class="rix-output-snapshot" data-rix-snapshot-entry="${exactInteger(origin.get("entry"), "Snapshot origin entry")}" data-rix-snapshot-state="${exactInteger(origin.get("state"), "Snapshot origin state")}" data-rix-snapshot-ordinal="${exactInteger(origin.get("ordinal"), "Snapshot origin ordinal")}">${renderOutputHtml(snapshot.content, format)}</article>`;
         }).join("")}</div>${value.caption ? `<p class="rix-output-snapshots-caption">${escapeHtml(value.caption)}</p>` : ""}</section>`;
     }
-    if (value.kind === "timeline") return `<section class="rix-output-timeline"><p>${escapeHtml(value.title || "Timeline")} · ${value.frames.length} frames</p></section>`;
+    if (value.kind === "timeline") {
+        const transition = value.transition || { schema: "rix.timeline-transition@1", mode: "discrete", properties: [] };
+        const frameArticles = value.frames.map((frame, index) => {
+            const origin = frame.origin.entries;
+            const entry = exactInteger(origin.get("entry"), "Timeline origin entry");
+            const state = exactInteger(origin.get("state"), "Timeline origin state");
+            const ordinal = exactInteger(origin.get("ordinal"), "Timeline origin ordinal");
+            return `<article class="rix-output-timeline-frame" data-rix-timeline-frame="${index + 1}" data-rix-timeline-entry="${entry}" data-rix-timeline-state="${state}" data-rix-timeline-ordinal="${ordinal}" aria-label="Frame ${index + 1} of ${value.frames.length}"${index === 0 ? ' data-rix-timeline-current="true"' : ' hidden aria-hidden="true"'}>${renderOutputHtml(frame.content, format)}</article>`;
+        }).join("");
+        const textTrack = value.frames.map((frame, index) =>
+            `<li data-rix-timeline-text-frame="${index + 1}"${index === 0 ? ' aria-current="true"' : ""}><b>Frame ${index + 1} · exact state ${escapeHtml(cellText(frame.state, format))}</b><pre>${escapeHtml(formatOutputText(frame.content, format))}</pre></li>`).join("");
+        const duration = value.duration === null ? "host default" : `${escapeHtml(cellText(value.duration, format))} seconds total`;
+        return `<section class="rix-output-timeline" data-rix-timeline-length="${value.frames.length}" data-rix-timeline-transition="${escapeHtml(transition.mode)}" data-rix-timeline-transition-schema="${escapeHtml(transition.schema)}" tabindex="0" role="region" aria-label="${escapeHtml(value.title || "Mathematical timeline")}">${value.title ? `<h2>${escapeHtml(value.title)}</h2>` : ""}<p class="rix-output-timeline-meta">${value.frames.length} exact frames · ${duration} · ${escapeHtml(value.easing)} easing · ${escapeHtml(transition.mode)} changes</p><div class="rix-output-timeline-toolbar" role="toolbar" aria-label="Timeline playback controls"><button type="button" data-rix-timeline-action="previous" aria-label="Previous frame">←</button><button type="button" data-rix-timeline-action="play" aria-pressed="false">Play</button><button type="button" data-rix-timeline-action="next" aria-label="Next frame">→</button><label>Frame <input type="range" min="1" max="${value.frames.length}" step="1" value="1" data-rix-timeline-scrubber aria-label="Timeline frame"></label><label>Speed <select data-rix-timeline-speed aria-label="Playback speed"><option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option></select></label><label><input type="checkbox" data-rix-timeline-loop> Loop</label><label>Start <input type="number" min="1" max="${value.frames.length}" step="1" value="1" data-rix-timeline-range-start></label><label>End <input type="number" min="1" max="${value.frames.length}" step="1" value="${value.frames.length}" data-rix-timeline-range-end></label><label><input type="checkbox" data-rix-timeline-compare> Compare previous</label></div><div class="rix-output-timeline-stage" data-rix-timeline-stage>${frameArticles}</div><output class="rix-output-timeline-status" data-rix-timeline-status aria-live="polite">Frame 1 of ${value.frames.length} · exact state ${escapeHtml(cellText(value.frames[0].state, format))}</output><details class="rix-output-timeline-inspector"><summary>Exact current frame</summary><dl><dt>State</dt><dd data-rix-timeline-exact-state>${escapeHtml(cellText(value.frames[0].state, format))}</dd><dt>Origin</dt><dd data-rix-timeline-exact-origin>entry ${exactInteger(value.frames[0].origin.entries.get("entry"), "Timeline origin entry")}, state ${exactInteger(value.frames[0].origin.entries.get("state"), "Timeline origin state")}, ordinal ${exactInteger(value.frames[0].origin.entries.get("ordinal"), "Timeline origin ordinal")}</dd></dl><pre data-rix-timeline-exact-text>${escapeHtml(formatOutputText(value.frames[0].content, format))}</pre></details><details class="rix-output-timeline-text-track"><summary>Complete text track (${value.frames.length} frames)</summary><ol>${textTrack}</ol></details><p class="rix-output-timeline-help">Keyboard: Space play/pause; Left/Right step; Home/End jump; L loop.</p></section>`;
+    }
     if (value.kind === "timeline_render") return `<section class="rix-output-timeline-render" data-rix-timeline-frame="${value.frame}" data-rix-timeline-length="${value.timeline.frames.length}">${value.title ? `<h2>${escapeHtml(value.title)}</h2>` : ""}${renderOutputHtml(value.content, format)}<p class="rix-output-timeline-caption">Frame ${value.frame} of ${value.timeline.frames.length}</p></section>`;
     if (value.kind === "control_slider") {
         const dependencies = value.replacesDependencies.length > 0

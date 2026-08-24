@@ -109,6 +109,10 @@ export {
     toggleScene3DProjection, truckScene3DCamera,
 } from "./tools/scene3d-view.js";
 export { enhanceControlPanelViews, enhanceControlShortcuts } from "./tools/control-panel-view.js";
+export {
+    createTimelineViewState, enhanceTimelineView, enhanceTimelineViews,
+    setTimelineFrame, stepTimelineFrame, timelineFrameInterval,
+} from "./tools/timeline-view.js";
 export { mountOutputWidgets, restoreGraphicFocus, restoreControlPanelFocus } from "./tools/output-widgets.js";
 export {
     RIX_LANGUAGE_SERVICE_VERSION,

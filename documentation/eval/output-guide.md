@@ -178,7 +178,9 @@ scene = (state, origin) -> .Paragraph(@"snapshot @{origin[:ordinal]}: state @{st
 `.Timeline.Sequence` accepts the same entries and records ordered frames.
 Each timeline frame uses the same `state`, `origin`, and `content` record.
 `.Timeline.Render(timeline, frame?)` selects one one-based frame for a static
-renderer. A grid or comic-strip renderer can group the flat list later by
+renderer. Browser hosts expose the retained timeline directly with transport,
+range, comparison, exact inspection, and complete text-track controls. A grid
+or comic-strip renderer can group the flat list later by
 `origin["entry"]` and `origin["state"]`. See the [RiX Web reactive scenes tutorial](https://rix.ratmath.com/tutorial/reactive-scenes-and-snapshots.html)
 for the full workflow and the [plugin contract](../design/interactive-output-plugins.md)
 for renderer-extension boundaries.

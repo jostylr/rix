@@ -282,6 +282,38 @@ describe("portable structured output", () => {
         expect(html).toContain('data-rix-timeline-frame="2"');
         expect(html).toContain("Frame 2 of 3");
 
+        const interactive = parseAndEvaluate(`
+            scene = state -> .Paragraph(@"exact @{state}");
+            .Timeline.Sequence({=
+                title="Exact motion",
+                duration=3/2,
+                easing="ease-in-out",
+                transition={= mode=:crossfade, duration=1/5, properties=[:opacity] },
+                entries=[{: scene, [1/3, 2/3, 1]}]
+            })
+        `);
+        expect(interactive.transition).toMatchObject({
+            schema: "rix.timeline-transition@1",
+            mode: "crossfade",
+            properties: ["opacity"],
+        });
+        const interactiveHtml = renderOutputHtml(interactive, formatValue);
+        expect(interactiveHtml).toContain('class="rix-output-timeline-toolbar"');
+        expect(interactiveHtml).toContain('data-rix-timeline-action="play"');
+        expect(interactiveHtml).toContain('data-rix-timeline-scrubber');
+        expect(interactiveHtml).toContain('data-rix-timeline-transition="crossfade"');
+        expect(interactiveHtml).toContain('data-rix-timeline-frame="3"');
+        expect(interactiveHtml).toContain("Complete text track (3 frames)");
+        expect(formatValue(interactive)).toContain("Frame 1 of 3 · exact state 1/3");
+        expect(formatValue(interactive)).toContain("Frame 3 of 3 · exact state 1");
+        expect(() => parseAndEvaluate(`
+            scene = state -> .Paragraph(@"frame @{state}");
+            .Timeline.Sequence({=
+                transition={= mode=:crossfade, properties=[:position] },
+                entries=[{: scene, [0, 1]}]
+            })
+        `)).toThrow("not declared safe by rix.timeline-transition@1");
+
         const graphicsSnapshots = parseAndEvaluate(`
             scene = state -> .Paragraph(@"graphic state @{state}");
             .Graphics.Snapshots([{: scene, [1, 2]}])

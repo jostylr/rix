@@ -118,21 +118,32 @@ ordered data as `comic.html`.
 
 `.Timeline.Sequence` accepts the same scene tuples and materializes the same
 provenance-carrying ordered frame records. `.Timeline.Render(timeline, frame)`
-selects a one-based frame for static renderers. `duration`, `easing`, and
-`title` remain part of the portable timeline descriptor.
+selects a one-based frame for static renderers. `duration`, `easing`,
+`transition`, and `title` remain part of the portable timeline descriptor.
 
 ```rix
 motion := .Timeline.Sequence({=
     duration=2,
-    easing="linear",
+    easing="ease-in-out",
+    transition={= mode=:crossfade, duration=1/5, properties=[:opacity] },
     entries=[{: scene, [{= center=-3}, {= center=0}, {= center=3}]}]
 });
 .Timeline.Render(motion, 2)
 ```
 
-The bundled HTML renderer intentionally displays the selected frame; it does
-not yet play or scrub. A browser animation plugin can consume `timeline`
-values to add a transport bar or frame recording, while a Manim-style plugin
-can lower the same exact frames to video. A future `.Out("name.pdf", value)`
-backend should handle `snapshots` and `timeline_render` as static print
-layout; it is not implemented by the CLI yet.
+The bundled HTML host turns a `timeline` value into a keyboard-accessible
+transport with play/pause, stepping, scrubbing, speed, loop, playback-range,
+and previous-frame comparison controls. The current-frame inspector and
+complete text track always report the retained exact state and exact frame
+output. Stable `data-rix-semantic-id` values are matched between adjacent
+frames for host inspection.
+
+The `rix.timeline-transition@1` contract defaults to discrete changes and
+currently declares only frame opacity safe for an explicit `crossfade`.
+Unrecognized properties are rejected instead of being silently interpolated.
+A reduced-motion preference disables the visual crossfade while leaving
+user-directed discrete playback available. Static renderers continue to use
+`.Timeline.Render`; recording and video plugins can consume the same exact
+frames. A future `.Out("name.pdf", value)` backend should handle `snapshots`
+and `timeline_render` as static print layout; it is not implemented by the CLI
+yet.

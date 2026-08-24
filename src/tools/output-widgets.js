@@ -9,6 +9,7 @@ import { isOutputValue, outputValueKind, renderOutputHtml } from "../runtime/out
 import { enhanceSheetViews } from "./sheet-view.js";
 import { enhanceGraphicViews } from "./graphic-view.js";
 import { enhanceScene3DViews } from "./scene3d-view.js";
+import { enhanceTimelineView } from "./timeline-view.js";
 import { enhanceControlPanelViews, enhanceControlShortcuts } from "./control-panel-view.js";
 import { createWidgetSession } from "./widget-session.js";
 
@@ -16,6 +17,7 @@ function childOutputs(value) {
     if (!isOutputValue(value)) return [];
     if (value.kind === "fragment") return value.children;
     if (value.kind === "snapshots") return value.snapshots.map((snapshot) => snapshot.content);
+    if (value.kind === "timeline") return value.frames.map((frame) => frame.content);
     if (value.kind === "timeline_render") return [value.content];
     if (value.kind === "figure" || value.kind === "slide") return [value.content];
     if (value.kind === "slides") return value.slides;
@@ -50,6 +52,13 @@ function collectControlPanels(value, panels = []) {
     return panels;
 }
 
+function collectTimelines(value, timelines = []) {
+    if (!isOutputValue(value)) return timelines;
+    if (value.kind === "timeline") timelines.push(value);
+    for (const child of childOutputs(value)) collectTimelines(child, timelines);
+    return timelines;
+}
+
 function renderedSheetRoots(root) {
     const roots = [];
     if (root?.matches?.(".rix-output-sheet")) roots.push(root);
@@ -75,6 +84,13 @@ function renderedControlPanelRoots(root) {
     const roots = [];
     if (root?.matches?.(".rix-output-control-panel")) roots.push(root);
     if (root?.querySelectorAll) roots.push(...root.querySelectorAll(".rix-output-control-panel"));
+    return roots;
+}
+
+function renderedTimelineRoots(root) {
+    const roots = [];
+    if (root?.matches?.(".rix-output-timeline")) roots.push(root);
+    if (root?.querySelectorAll) roots.push(...root.querySelectorAll(".rix-output-timeline"));
     return roots;
 }
 
@@ -148,6 +164,7 @@ export function mountOutputWidgets(root, value, options = {}) {
     let currentValue = value;
     const graphicViewStates = [];
     const scene3DViewStates = [];
+    const timelineViewStates = [];
     disposers.push(enhanceControlShortcuts(root));
 
     function disposeWidgets() {
@@ -156,6 +173,19 @@ export function mountOutputWidgets(root, value, options = {}) {
 
     function mountWidgets(container, outputValue) {
         disposeWidgets();
+        const timelineValues = collectTimelines(outputValue);
+        const timelineRoots = renderedTimelineRoots(container);
+        for (const [index, timeline] of timelineValues.entries()) {
+            const timelineRoot = timelineRoots[index];
+            if (!timelineRoot) continue;
+            const dispose = enhanceTimelineView(timelineRoot, {
+                timeline,
+                format,
+                state: timelineViewStates[index] || (timelineViewStates[index] = {}),
+                onFrame: options.onTimelineFrame,
+            });
+            widgetDisposers.push(dispose);
+        }
         const sheetValues = collectSheets(outputValue);
         const roots = renderedSheetRoots(container);
         for (const [index, sheet] of sheetValues.entries()) {
