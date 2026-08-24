@@ -103,6 +103,13 @@ export {
 export { WidgetSession, GraphicWidgetSession, ControlPanelWidgetSession, createWidgetSession } from "./tools/widget-session.js";
 export { enhanceGraphicViews, graphicPointFromClient } from "./tools/graphic-view.js";
 export {
+    createAudioTracePlan, createGraphicsTextPlan, graphicValueExactness,
+    renderGraphicAccessibilityHtml,
+} from "./tools/graphic-accessibility.js";
+export {
+    audioTraceFrequency, createAudioTraceState, enhanceAudioTraceView, stepAudioTrace,
+} from "./tools/audio-trace-view.js";
+export {
     createScene3DViewState, describeScene3DSelection, dollyScene3DCamera,
     enhanceScene3DViews, orbitScene3DCamera, pickScene3DPlan,
     projectScene3DPoint, renderScene3DSvgFallback, resetScene3DCamera,

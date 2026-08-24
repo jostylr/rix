@@ -8,6 +8,7 @@ import { FORMULA_SHEET_ASSIGNMENT_MODES, isFormulaSheet } from "./formula-sheet.
 import { coordinateTuple, resolveLabeledCoordinate } from "./sheet-labels.js";
 import { isReactiveNode } from "./reactive-graph.js";
 import { UnsupportedRenderError } from "./renderer-registry.js";
+import { createGraphicsTextPlan, renderGraphicAccessibilityHtml } from "../tools/graphic-accessibility.js";
 
 const int = (value) => new Integer(BigInt(value));
 const isSequence = (value) => value && ["sequence", "tuple", "set", "array"].includes(value.type);
@@ -2568,8 +2569,9 @@ export function lowerGraphicSvg(graphic, format = (item) => String(item ?? ""), 
     const renderedChildren = enclosureRadius > 0
         ? `<g class="rix-exact-enclosure" filter="url(#rix-exact-enclosure)">${children}</g>`
         : children;
+    const accessibleSummary = createGraphicsTextPlan(graphic, format).summary;
     return {
-        content: `<svg class="rix-output-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size[0]} ${size[1]}" width="${size[0]}" height="${size[1]}" overflow="visible" role="img" tabindex="0" aria-label="Mathematical graphic. ${escapeHtml(formatOutputText(graphic, format))}. Use arrow keys to pan, plus and minus to zoom, and Home to reset the view.">${defs.length ? `<defs>${defs.join("")}</defs>` : ""}${renderedChildren}</svg>`,
+        content: `<svg class="rix-output-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size[0]} ${size[1]}" width="${size[0]}" height="${size[1]}" overflow="visible" role="img" data-rix-graphic-summary="${escapeHtml(formatOutputText(graphic, format))}" tabindex="0" aria-label="${escapeHtml(accessibleSummary)} Use arrow keys to pan, plus and minus to zoom, and Home to reset the view.">${defs.length ? `<defs>${defs.join("")}</defs>` : ""}${renderedChildren}</svg>`,
         diagnostics,
         metadata: {
             schema: "rix.svg.coordinate-lowering@1",
@@ -3047,7 +3049,7 @@ export function renderOutputHtml(value, format = (item) => String(item ?? "")) {
             : hasDragPoint
                 ? "Drag the highlighted point or use its arrow keys."
                 : "Choose a highlighted scene node to navigate.";
-        return `<div class="rix-output-graphic"${interactive ? ' data-rix-interactive="true"' : ""}>${renderGraphicSvg(value, format)}${interactive ? `<output class="rix-output-graphic-status" aria-live="polite">${interactionStatus}</output>` : ""}</div>`;
+        return `<div class="rix-output-graphic"${interactive ? ' data-rix-interactive="true"' : ""}>${renderGraphicSvg(value, format)}${interactive ? `<output class="rix-output-graphic-status" aria-live="polite">${interactionStatus}</output>` : ""}${renderGraphicAccessibilityHtml(value, format)}</div>`;
     }
     if (value.kind === "slide") return `<section class="rix-output-slide">${value.title ? `<h2>${escapeHtml(value.title)}</h2>` : ""}${renderOutputHtml(value.content, format)}</section>`;
     if (value.kind === "slides") return `<section class="rix-output-slides">${value.slides.map((slide) => renderOutputHtml(slide, format)).join("")}</section>`;

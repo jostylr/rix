@@ -8,6 +8,8 @@
 import { isOutputValue, outputValueKind, renderOutputHtml } from "../runtime/output.js";
 import { enhanceSheetViews } from "./sheet-view.js";
 import { enhanceGraphicViews } from "./graphic-view.js";
+import { createAudioTracePlan } from "./graphic-accessibility.js";
+import { enhanceAudioTraceView } from "./audio-trace-view.js";
 import { enhanceScene3DViews } from "./scene3d-view.js";
 import { enhanceTimelineView } from "./timeline-view.js";
 import { enhanceControlPanelViews, enhanceControlShortcuts } from "./control-panel-view.js";
@@ -163,6 +165,7 @@ export function mountOutputWidgets(root, value, options = {}) {
     let disposed = false;
     let currentValue = value;
     const graphicViewStates = [];
+    const audioTraceStates = [];
     const scene3DViewStates = [];
     const timelineViewStates = [];
     disposers.push(enhanceControlShortcuts(root));
@@ -380,6 +383,11 @@ export function mountOutputWidgets(root, value, options = {}) {
                 } : null,
                 onActionCommitted: options.onGraphicAction,
             });
+            widgetDisposers.push(enhanceAudioTraceView(graphicRoot, {
+                plan: createAudioTracePlan(graphic, format),
+                state: audioTraceStates[index] || (audioTraceStates[index] = {}),
+                audioContextFactory: options.audioContextFactory,
+            }));
         }
         const sceneValues = collectScene3D(outputValue);
         const sceneRoots = renderedScene3DRoots(container);
