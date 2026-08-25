@@ -288,20 +288,22 @@ describe("portable structured output", () => {
                 title="Exact motion",
                 duration=3/2,
                 easing="ease-in-out",
-                transition={= mode=:crossfade, duration=1/5, properties=[:opacity] },
+                transition={= mode=:crossfade, duration=1/5, properties=[:opacity, :position, :fill, :stroke] },
                 entries=[{: scene, [1/3, 2/3, 1]}]
             })
         `);
         expect(interactive.transition).toMatchObject({
             schema: "rix.timeline-transition@1",
             mode: "crossfade",
-            properties: ["opacity"],
+            properties: ["opacity", "position", "fill", "stroke"],
         });
         const interactiveHtml = renderOutputHtml(interactive, formatValue);
         expect(interactiveHtml).toContain('class="rix-output-timeline-toolbar"');
         expect(interactiveHtml).toContain('data-rix-timeline-action="play"');
         expect(interactiveHtml).toContain('data-rix-timeline-scrubber');
         expect(interactiveHtml).toContain('data-rix-timeline-transition="crossfade"');
+        expect(interactiveHtml).toContain('data-rix-timeline-compare');
+        expect(interactiveHtml).toContain('data-rix-timeline-action="record"');
         expect(interactiveHtml).toContain('data-rix-timeline-frame="3"');
         expect(interactiveHtml).toContain("Complete text track (3 frames)");
         expect(formatValue(interactive)).toContain("Frame 1 of 3 · exact state 1/3");
@@ -309,10 +311,39 @@ describe("portable structured output", () => {
         expect(() => parseAndEvaluate(`
             scene = state -> .Paragraph(@"frame @{state}");
             .Timeline.Sequence({=
-                transition={= mode=:crossfade, properties=[:position] },
+                transition={= mode=:crossfade, properties=[:scale] },
                 entries=[{: scene, [0, 1]}]
             })
         `)).toThrow("not declared safe by rix.timeline-transition@1");
+
+        const timed = parseAndEvaluate(`
+            scene = state -> .Paragraph(@"timed @{state}");
+            .Timeline.Sequence({=
+                frameDurations=[1/4, 1/2, 3/4],
+                markers=[{= frame=1, label="start"}, {= frame=3, label="finish"}],
+                preferencesKey="quadratic-demo",
+                entries=[{: scene, [0, 1, 4]}]
+            })
+        `);
+        expect(timed.frameDurations).toHaveLength(3);
+        expect(timed.markers).toEqual([{ frame: 1, label: "start" }, { frame: 3, label: "finish" }]);
+        expect(timed.preferencesKey).toBe("quadratic-demo");
+        const timedHtml = renderOutputHtml(timed, formatValue);
+        expect(timedHtml).toContain("variable exact frame timing");
+        expect(timedHtml).toContain('data-rix-timeline-marker="start"');
+        expect(timedHtml).toContain('data-rix-timeline-preferences-key="quadratic-demo"');
+        expect(() => parseAndEvaluate(`
+            scene = state -> .Paragraph(@"frame @{state}");
+            .Timeline.Sequence({= duration=1, frameDurations=[1/2, 1/2], entries=[{: scene, [0, 1]}] })
+        `)).toThrow("either duration or frameDurations");
+        expect(() => parseAndEvaluate(`
+            scene = state -> .Paragraph(@"frame @{state}");
+            .Timeline.Sequence({= frameDurations=[1/2], entries=[{: scene, [0, 1]}] })
+        `)).toThrow("exactly 2 entries");
+        expect(() => parseAndEvaluate(`
+            scene = state -> .Paragraph(@"frame @{state}");
+            .Timeline.Sequence({= markers=[{= frame=3, label="late"}], entries=[{: scene, [0, 1]}] })
+        `)).toThrow("outside 1…2");
 
         const graphicsSnapshots = parseAndEvaluate(`
             scene = state -> .Paragraph(@"graphic state @{state}");
@@ -1272,6 +1303,46 @@ describe("portable structured output", () => {
             .Plugin.Load("plot");
             .plot.Implicit((x,y)->x+y, [-1,1], [-1,1], {= grid=[4,4], refinementBudget=8 });
         `)).toThrow("refinementBudget must be at least the base grid cell count (16)");
+    });
+
+    test("plot post-baseline refinement shares samples, labels contours, and separates IVT existence from located geometry", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("plot");
+            [
+                .plot.Contour((x,y)->x+y, [-2,2], [-2,2], {=
+                    grid=[3,3], levels=[-1,0,1], refineDepth=1, continuity=:continuous,
+                    labelContours=1, contourLabelLimit=2
+                }),
+                .plot.Implicit((x,y)->x*100, [-1,1], [-1,1], {=
+                    grid=[2,2], refineDepth=1, discontinuityThreshold=10
+                }),
+                .plot.HeatMap((x,y)->x+y, [-1,1], [-1,1], {=
+                    grid=[2,2], colorMode=:continuous, hueRange=[240,0]
+                })
+            ];
+        `);
+        const [contour, discontinuous, heatMap] = result.values;
+        const plot = (graphic) => graphic.metadata.get("plot").entries;
+        const text = (value) => value?.value ?? String(value);
+        const contourPlot = plot(contour);
+        const refinements = contourPlot.get("refinement").values.map((entry) => entry.entries);
+        expect(refinements.slice(1).some((entry) => entry.get("cachehits").value > 0n)).toBe(true);
+        expect(contourPlot.get("evidence").entries.get("contourlabels").value).toBe(2n);
+        expect(contour.children.filter(({ kind }) => kind === "text_mark")).toHaveLength(2);
+        const records = contourPlot.get("records").values;
+        expect(records.some((record) => text(record.entries.get("edgeexistenceevidence")) === "proof")).toBe(true);
+        expect(records.every((record) => text(record.entries.get("locatedsegmentevidence")) === "sample")).toBe(true);
+        expect(formatOutputText(contour, formatValue)).toContain("shared-cache hits");
+        expect(formatOutputText(contour, formatValue)).toContain("edge-existence proof; segment locations remain sampled");
+
+        const discontinuityRefinement = plot(discontinuous).get("refinement").values[0].entries;
+        expect(discontinuityRefinement.get("suspecteddiscontinuitycells").value).toBeGreaterThan(0n);
+        expect(formatOutputText(discontinuous, formatValue)).toContain("possible discontinuities (heuristic evidence)");
+        expect(plot(discontinuous).get("ambiguousregions").values
+            .some((region) => text(region.entries.get("status")) === "suspected_discontinuity")).toBe(true);
+        expect(text(plot(heatMap).get("colorscale").entries.get("kind"))).toBe("continuous");
+        expect(plot(heatMap).get("records").values.some((record) =>
+            record.entries.get("color").value.startsWith("hsl("))).toBe(true);
     });
 
     test("Graphics.Path preserves renderer-independent curve and arc commands", () => {

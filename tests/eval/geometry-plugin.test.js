@@ -385,4 +385,44 @@ describe("geometry plugin", () => {
         expect(text(field(field(redone, "history").values[1], "operation"))).toBe("create");
         expect(text(field(field(record, "history").values[1], "tool"))).toBe("point");
     });
+
+    test("authors derived tools, atomic multi-drags, constrained motion, and non-destructive repair advice", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("geometry");
+            graph=.geometry.ConstructionGraph([
+                {= id=:a,free=1,value=.geometry.Point(0,0) },
+                {= id=:b,free=1,value=.geometry.Point(2,0) },
+                {= id=:p,free=1,value=.geometry.Point(1,2) },
+                {= id=:c,free=1,value=.geometry.Point(0,1) },
+                {= id=:d,free=1,value=.geometry.Point(2,1) }
+            ]);
+            graph=.geometry.AddLine(graph,:a,:b);
+            graph=.geometry.AddCircle(graph,:a,:b);
+            graph=.geometry.AddIntersection(graph,:l1,:c1);
+            graph=.geometry.AddMeasurement(graph,:a,:b);
+            constrained=.geometry.ConstrainedDrag(graph,:p,.geometry.Point(1,3),{= constraint=:l1 });
+            moved=.geometry.DragMany(constrained,[
+                {= id=:a,target=.geometry.Point(0,-1) },
+                {= id=:b,target=.geometry.Point(2,-1) }
+            ]);
+            undone=.geometry.Undo(moved); redone=.geometry.Redo(undone);
+            parallel=.geometry.AddLine(redone,:c,:d);
+            parallel=.geometry.AddIntersection(parallel,:l1,:l2);
+            {: graph,constrained,moved,undone,redone,parallel,.geometry.RepairSuggestions(parallel) };
+        `);
+        const [graph, constrained, moved, undone, redone, parallel, repairs] = result.values;
+        expect(field(graph, "nodes").values.map((node) => text(field(node, "id"))).slice(-4))
+            .toEqual(["l1", "c1", "i1", "m1"]);
+        expect(text(field(field(graph, "values"), "i1").entries.get("status"))).toBe("two");
+        expect(field(field(constrained, "values"), "p").entries.get("coordinates").values.map(String))
+            .toEqual(["1", "0"]);
+        expect(text(field(field(moved, "history").values.at(-1), "operation"))).toBe("drag_many");
+        expect(field(field(moved, "values"), "l1").entries.get("c").toString()).toBe("2");
+        expect(field(field(undone, "values"), "l1").entries.get("c").toString()).toBe("0");
+        expect(field(field(redone, "values"), "l1").entries.get("c").toString()).toBe("2");
+        expect(text(field(field(parallel, "values"), "i2").entries.get("status"))).toBe("parallel");
+        expect(text(field(repairs, "schema"))).toBe("rix.geometry.repair-suggestions@1");
+        expect(field(repairs, "suggestions").values).toHaveLength(1);
+        expect(field(repairs, "automatic")).toBeNull();
+    });
 });

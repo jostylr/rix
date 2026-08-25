@@ -4,6 +4,7 @@ import {
     setTimelineFrame,
     stepTimelineFrame,
     timelineFrameInterval,
+    timelineTransitionDiagnostics,
 } from "../../src/tools/timeline-view.js";
 import { parseAndEvaluate } from "../../src/index.js";
 
@@ -57,4 +58,41 @@ test("Timeline defaults to one second per retained frame when duration is omitte
     `);
     const state = createTimelineViewState(value, {}, { reducedMotion: false });
     expect(timelineFrameInterval(state, value)).toBe(1000);
+});
+
+test("Timeline uses exact per-frame timing and normalizes comparison state", () => {
+    const value = parseAndEvaluate(`
+        scene = state -> .Paragraph(@"frame @{state}");
+        .Timeline.Sequence({= frameDurations=[1/4, 3/2], entries=[{: scene, [0, 1]}] })
+    `);
+    const state = createTimelineViewState(value, {
+        frame: 2,
+        speed: 2,
+        compareMode: "onion",
+        compareFrame: 9,
+        recording: [2, 99],
+    }, { reducedMotion: false });
+    expect(state.compareMode).toBe("onion");
+    expect(state.compareFrame).toBe(2);
+    expect(state.recording).toEqual([2]);
+    expect(timelineFrameInterval(state, value)).toBe(750);
+    state.frame = 1;
+    expect(timelineFrameInterval(state, value)).toBe(125);
+});
+
+test("Timeline transition diagnostics distinguish identity and SVG-kind changes", () => {
+    const element = (id, tagName) => ({ dataset: { rixSemanticId: id }, tagName });
+    const root = (elements) => ({ querySelectorAll: () => elements });
+    const diagnostics = timelineTransitionDiagnostics(
+        root([element("fixed", "CIRCLE"), element("gone", "PATH"), element("changed", "RECT")]),
+        root([element("fixed", "CIRCLE"), element("new", "TEXT"), element("changed", "PATH")]),
+        ["position", "fill"],
+    );
+    expect(diagnostics.map(({ id, status }) => [id, status])).toEqual([
+        ["fixed", "matched"],
+        ["gone", "disappeared"],
+        ["changed", "kind_changed"],
+        ["new", "appeared"],
+    ]);
+    expect(diagnostics[0].properties).toEqual(["position", "fill"]);
 });

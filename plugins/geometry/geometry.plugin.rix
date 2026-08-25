@@ -3,7 +3,7 @@ id: geometry
 description: Pure-RiX exact geometry, transformations, conics, constraints, and bounded portable Graphics refinement.
 kind: rix
 mount: geometry
-exports: [Point, Line, Segment, Ray, Polygon, Circle, Conic, Ellipse, Parabola, Hyperbola, Locus, Implicit, Affine, Projective, Transform, Constraint, Constraints, SquaredDistance, Distance, Length, Area, CircularAngle, Angle, Centroid, Incenter, Orthocenter, AngleBisector, Perpendicular, ParallelThrough, Midpoint, PerpendicularBisector, Circumcircle, Translate, RotateQuarterTurns, Rotate, ReflectAcross, Intersect, Points, Status, UncertainPoint, UncertainBounds, TransformUncertain, ConstructionGraph, ConstructionRecord, ImportConstruction, AddPoint, Drag, Undo, Redo, Refine, Draw, Workbench, AuthoringWorkbench]
+exports: [Point, Line, Segment, Ray, Polygon, Circle, Conic, Ellipse, Parabola, Hyperbola, Locus, Implicit, Affine, Projective, Transform, Constraint, Constraints, SquaredDistance, Distance, Length, Area, CircularAngle, Angle, Centroid, Incenter, Orthocenter, AngleBisector, Perpendicular, ParallelThrough, Midpoint, PerpendicularBisector, Circumcircle, Translate, RotateQuarterTurns, Rotate, ReflectAcross, Intersect, Points, Status, UncertainPoint, UncertainBounds, TransformUncertain, ConstructionGraph, ConstructionRecord, ImportConstruction, AddPoint, AddLine, AddCircle, AddIntersection, AddTransform, AddMeasurement, Drag, DragMany, ConstrainedDrag, RepairSuggestions, Undo, Redo, Refine, Draw, Workbench, AuthoringWorkbench]
 groups: [Geometry, Graphics, Exact]
 permissions: []
 requires: [rix.numerics@1, rix.polynomial.algorithms@1, rix.algebraic-real@1]
@@ -630,8 +630,9 @@ GeometryConstructionRecord(graph) -> {;
     records=valid[:nodes].Map((node)->{;
         value=node[:value];
         kind=((value ? :Map)&&value.Has("kind")) ?: value[:kind] ?_ :value;
-        status=((value ? :Map)&&value.Has("status")) ?: value[:status] ?_ _;
-        diagnostic=((value ? :Map)&&value.Has("diagnostic")) ?: value[:diagnostic] ?_ _;
+        structured=value ? :Map;
+        status=structured ?: (value.Has("status") ?: value[:status] ?_ _) ?_ _;
+        diagnostic=structured ?: (value.Has("diagnostic") ?: value[:diagnostic] ?_ _) ?_ _;
         {= id=node[:id],free=node[:free],dependsOn=node[:dependsOn],kind=kind,status=status,diagnostic=diagnostic,value=value };
     });
     .DeepMutable({=
@@ -689,6 +690,59 @@ GeometryAuthoringPoint(graph,target,options ?= {= }) -> {;
 
 GeometryAddPoint(graph,target,options ?= {= }) -> GeometryAuthoringPoint(graph,target,options);
 
+GeometryAllocateConstructionId(graph,options,prefix,label) -> {;
+    limit=GeometryAuthoringLimit(options); graph[:nodes].Len()<limit ?: _ ?_ .Error(@"@{label} reached its maxNodes limit of @{limit}");
+    id:=GeometryOption(options,"id");
+    {@ candidate=1; candidate<=@limit&&@id==_; {;
+        proposed=@"@{@prefix}@{candidate}";
+        @graph[:nodes].Any((node)->node[:id]==@proposed) ?: _ ?_ {; @id~=@proposed; };
+    }; candidate+=1 };
+    id!=_ ?: _ ?_ .Error(@"@{label} could not allocate a stable id");
+    graph[:nodes].Any((node)->node[:id]==@id) ?: .Error(@"@{label} duplicate node id @{id}") ?_ _;
+    id;
+};
+
+GeometryAddDerived(graph,dependencies,tool,Build,options ?= {= }) -> {;
+    valid=GeometryRequireConstructionGraph(graph,@"geometry.Add@{tool}");
+    options ? :Map ?: _ ?_ .Error(@"geometry.Add@{tool} options must be a map");
+    dependencies ? :Array ?: _ ?_ .Error(@"geometry.Add@{tool} dependencies must be an Array");
+    dependencies.Len()>0 ?: _ ?_ .Error(@"geometry.Add@{tool} requires dependencies");
+    dependencies.Distinct().Len()==dependencies.Len() ?: _ ?_ .Error(@"geometry.Add@{tool} dependencies must be distinct");
+    dependencies.All((dependency)->@valid[:nodes].Any((node)->node[:id]==dependency))
+      ?: _ ?_ .Error(@"geometry.Add@{tool} has a missing dependency");
+    prefix=GeometryOption(options,"idprefix",tool==:line ?: "l" ?_ tool==:circle ?: "c" ?_ tool==:intersection ?: "i" ?_ tool==:transform ?: "t" ?_ "m");
+    prefix ? :String ?: _ ?_ .Error(@"geometry.Add@{tool} idPrefix must be a String");
+    id=GeometryAllocateConstructionId(valid,options,prefix,@"geometry.Add@{tool}");
+    node={= id=id,free=_,dependson=dependencies,construct=Build,tool=tool };
+    event={= operation=:create,tool=tool,id=id,node=node,dependsOn=dependencies };
+    GeometryBuildConstructionGraph(valid[:nodes].Push(node),valid[:history].Push(event),[]);
+};
+
+GeometryAddLine(graph,firstId,secondId,options ?= {= }) -> {;
+    Build=(values)->GeometryLine(values[@firstId],values[@secondId]);
+    GeometryAddDerived(graph,[firstId,secondId],:line,Build,options);
+};
+
+GeometryAddCircle(graph,centerId,throughId,options ?= {= }) -> {;
+    Build=(values)->GeometryCircle(values[@centerId],values[@throughId]);
+    GeometryAddDerived(graph,[centerId,throughId],:circle,Build,options);
+};
+
+GeometryAddIntersection(graph,leftId,rightId,options ?= {= }) -> {;
+    Build=(values)->GeometryIntersect(values[@leftId],values[@rightId]);
+    GeometryAddDerived(graph,[leftId,rightId],:intersection,Build,options);
+};
+
+GeometryAddTransform(graph,sourceId,transform,options ?= {= }) -> {;
+    Build=(values)->GeometryTransform(values[@sourceId],@transform);
+    GeometryAddDerived(graph,[sourceId],:transform,Build,options);
+};
+
+GeometryAddMeasurement(graph,firstId,secondId,options ?= {= }) -> {;
+    Build=(values)->GeometryDistance(values[@firstId],values[@secondId]);
+    GeometryAddDerived(graph,[firstId,secondId],:measurement,Build,options);
+};
+
 GeometryMoveConstructionNode(graph,id,target,history,future) -> {;
     found=graph[:nodes].Filter((node)->node[:id]==id);
     found.Len()==1 ?: _ ?_ .Error(@"geometry construction node @{id} does not exist");
@@ -714,6 +768,73 @@ GeometryDrag(graph,id,target,options ?= {= }) -> {;
     GeometryMoveConstructionNode(valid,id,moved,valid[:history].Push(event),[]);
 };
 
+GeometryDragMany(graph,moves,options ?= {= }) -> {;
+    valid=GeometryRequireConstructionGraph(graph,"geometry.DragMany");
+    moves ? :Array ?: _ ?_ .Error("geometry.DragMany moves must be an Array of {id, target} maps");
+    moves.Len()>0 ?: _ ?_ .Error("geometry.DragMany requires at least one move");
+    ids=moves.Map((move)->move[:id]); ids.Distinct().Len()==ids.Len() ?: _ ?_ .Error("geometry.DragMany node ids must be distinct");
+    replacements:={= }; records:=[];
+    {@ index=1; index<=@moves.Len(); {;
+        move=@moves[index]; move ? :Map ?: _ ?_ .Error("geometry.DragMany move entries must be maps");
+        found=@valid[:nodes].Filter((node)->node[:id]==move[:id]);
+        found.Len()==1 ?: _ ?_ .Error(@"geometry.DragMany node @{move[:id]} does not exist");
+        found[1][:free] ?: _ ?_ .Error(@"geometry.DragMany node @{move[:id]} is derived and cannot be dragged directly");
+        target=GeometryRequire(move[:target],:point,@"geometry.DragMany target for @{move[:id]}");
+        @replacements ~= @replacements.Set(move[:id],target);
+        @records ~= @records.Push({= id=move[:id],from=found[1][:value],to=target });
+    }; index+=1 };
+    nodes=valid[:nodes].Map((node)->@replacements.Has(node[:id]) ?: node.Merge({= value=@replacements[node[:id]] }) ?_ node);
+    event={= operation=:drag_many,moves=records };
+    GeometryBuildConstructionGraph(nodes,valid[:history].Push(event),[]);
+};
+
+GeometryConstrainedDrag(graph,id,target,options ?= {= }) -> {;
+    valid=GeometryRequireConstructionGraph(graph,"geometry.ConstrainedDrag");
+    supplied=GeometryRequire(target,:point,"geometry.ConstrainedDrag target");
+    constraintId=GeometryOption(options,"constraint");
+    constraintId!=_ ?: _ ?_ .Error("geometry.ConstrainedDrag requires a constraint node id");
+    found=valid[:nodes].Filter((node)->node[:id]==constraintId);
+    found.Len()==1 ?: _ ?_ .Error(@"geometry.ConstrainedDrag constraint node @{constraintId} does not exist");
+    line=GeometryRequire(found[1][:value],:line,"geometry.ConstrainedDrag constraint");
+    residual=line[:a]*supplied[:x]+line[:b]*supplied[:y]+line[:c]; denominator=line[:a]^2+line[:b]^2;
+    mode=GeometryOption(options,"mode",:project);
+    (mode==:project||mode==:reject) ?: _ ?_ .Error("geometry.ConstrainedDrag mode must be :project or :reject");
+    moved=mode==:reject
+      ?: (GeometryIsZero(residual) ?: supplied ?_ .Error("geometry.ConstrainedDrag target violates the line constraint"))
+      ?_ GeometryPoint(supplied[:x]-line[:a]*residual/denominator,supplied[:y]-line[:b]*residual/denominator);
+    GeometryDrag(valid,id,moved,options);
+};
+
+GeometryRepairSuggestions(graph) -> {;
+    valid=GeometryRequireConstructionGraph(graph,"geometry.RepairSuggestions"); suggestions:=[];
+    {@ index=1; index<=@valid[:nodes].Len(); {;
+        node=@valid[:nodes][index]; value=node[:value]; status:=_; diagnostic:=_;
+        GeometryOption(node,"tool")==:intersection ?: {;
+            @status ~= @value[:status]; @diagnostic ~= GeometryOption(@value,"diagnostic");
+        } ?_ _;
+        problematic=status=="none"||status=="parallel"||status=="coincident"||status=="undecided"||status=="unsupported";
+        problematic ?: {; @suggestions ~= @suggestions.Push({=
+            node=@node[:id],status=@status,diagnostic=@diagnostic,automatic=_,
+            actions=[
+                {= kind=:inspect_dependencies,dependsOn=@node[:dependsOn] },
+                {= kind=:move_free_dependency,label="Move a free dependency and recompute" },
+                {= kind=:undo,label="Undo the most recent construction edit" }
+            ]
+        }); } ?_ _;
+    }; index+=1 };
+    {= schema="rix.geometry.repair-suggestions@1",suggestions=suggestions,automatic=_,deterministic=1 };
+};
+
+GeometryApplyMoveRecords(graph,moves,direction,history,future) -> {;
+    replacements:={= };
+    {@ index=1; index<=@moves.Len(); {;
+        move=@moves[index]; value=@direction==:undo ?: move[:from] ?_ move[:to];
+        @replacements ~= @replacements.Set(move[:id],value);
+    }; index+=1 };
+    nodes=graph[:nodes].Map((node)->@replacements.Has(node[:id]) ?: node.Merge({= value=@replacements[node[:id]] }) ?_ node);
+    GeometryBuildConstructionGraph(nodes,history,future);
+};
+
 GeometryUndo(graph) -> {;
     valid=GeometryRequireConstructionGraph(graph,"geometry.Undo");
     valid[:history].Len()==0
@@ -723,6 +844,8 @@ GeometryUndo(graph) -> {;
           operation=event[:operation]; future=GeometryOption(@valid,"future",[]).Push(event); history=@valid[:history].DropLast();
           operation==:drag
             ?: GeometryMoveConstructionNode(@valid,event[:id],event[:from],history,future)
+            ?_ operation==:drag_many
+                 ?: GeometryApplyMoveRecords(@valid,event[:moves],:undo,history,future)
             ?_ operation==:create
                  ?: {;
                      @valid[:nodes].Last()[:id]==@event[:id] ?: _ ?_ .Error("geometry.Undo can only remove the most recently created construction node");
@@ -741,6 +864,8 @@ GeometryRedo(graph) -> {;
           operation=event[:operation]; history=@valid[:history].Push(event); remaining=@future.DropLast();
           operation==:drag
             ?: GeometryMoveConstructionNode(@valid,event[:id],event[:to],history,remaining)
+            ?_ operation==:drag_many
+                 ?: GeometryApplyMoveRecords(@valid,event[:moves],:redo,history,remaining)
             ?_ operation==:create
                  ?: GeometryBuildConstructionGraph(@valid[:nodes].Push(event[:node]),history,remaining)
                  ?_ .Error("geometry.Redo encountered an unsupported construction event");
@@ -1682,7 +1807,15 @@ geometryNamespace._proto = {=
     ConstructionRecord=(self, graph)->GeometryConstructionRecord(graph),
     ImportConstruction=(self, record, constructors ?= {= })->GeometryImportConstruction(record,constructors),
     AddPoint=(self, graph, target, options ?= {= })->GeometryAddPoint(graph,target,options),
+    AddLine=(self, graph, firstId, secondId, options ?= {= })->GeometryAddLine(graph,firstId,secondId,options),
+    AddCircle=(self, graph, centerId, throughId, options ?= {= })->GeometryAddCircle(graph,centerId,throughId,options),
+    AddIntersection=(self, graph, leftId, rightId, options ?= {= })->GeometryAddIntersection(graph,leftId,rightId,options),
+    AddTransform=(self, graph, sourceId, transform, options ?= {= })->GeometryAddTransform(graph,sourceId,transform,options),
+    AddMeasurement=(self, graph, firstId, secondId, options ?= {= })->GeometryAddMeasurement(graph,firstId,secondId,options),
     Drag=(self, graph, id, target, options ?= {= })->GeometryDrag(graph,id,target,options),
+    DragMany=(self, graph, moves, options ?= {= })->GeometryDragMany(graph,moves,options),
+    ConstrainedDrag=(self, graph, id, target, options ?= {= })->GeometryConstrainedDrag(graph,id,target,options),
+    RepairSuggestions=(self, graph)->GeometryRepairSuggestions(graph),
     Undo=(self, graph)->GeometryUndo(graph),
     Redo=(self, graph)->GeometryRedo(graph),
     Refine=(self, value, request ?= {= })->GeometryRefine(value, request),

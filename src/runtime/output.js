@@ -123,11 +123,12 @@ function timelineTransition(value) {
         throw new Error("Timeline.Sequence transition mode must be discrete or crossfade");
     }
     const propertiesValue = fields ? get(fields, "properties") : null;
+    const safeProperties = new Set(["opacity", "position", "fill", "stroke"]);
     const properties = propertiesValue === null || propertiesValue === undefined
         ? (mode === "crossfade" ? ["opacity"] : [])
         : sequence(propertiesValue, "Timeline.Sequence transition properties").map((entry) => {
             const name = (asString(entry) || "").toLowerCase();
-            if (name !== "opacity") {
+            if (!safeProperties.has(name)) {
                 throw new Error(`Timeline.Sequence transition property '${name || String(entry)}' is not declared safe by rix.timeline-transition@1`);
             }
             return name;
@@ -144,6 +145,30 @@ function timelineTransition(value) {
             : positiveExactNumber(durationValue, "Timeline.Sequence transition duration"),
         properties: Object.freeze([...new Set(properties)]),
     });
+}
+
+function timelineFrameDurations(value, count) {
+    if (value === null || value === undefined) return null;
+    const durations = sequence(value, "Timeline.Sequence frameDurations");
+    if (durations.length !== count) {
+        throw new Error(`Timeline.Sequence frameDurations must contain exactly ${count} entries`);
+    }
+    return Object.freeze(durations.map((duration, index) =>
+        positiveExactNumber(duration, `Timeline.Sequence frameDurations entry ${index + 1}`)));
+}
+
+function timelineMarkers(value, count) {
+    if (value === null || value === undefined) return Object.freeze([]);
+    const labels = new Set();
+    return Object.freeze(sequence(value, "Timeline.Sequence markers").map((marker, index) => {
+        const fields = map(marker, `Timeline.Sequence marker ${index + 1}`);
+        const frame = exactPositiveIndex(get(fields, "frame"), `Timeline.Sequence marker ${index + 1} frame`);
+        if (frame > count) throw new Error(`Timeline.Sequence marker ${index + 1} frame is outside 1…${count}`);
+        const label = requiredString(get(fields, "label"), `Timeline.Sequence marker ${index + 1} label`);
+        if (labels.has(label)) throw new Error(`Timeline.Sequence marker label '${label}' is duplicated`);
+        labels.add(label);
+        return Object.freeze({ frame, label });
+    }));
 }
 
 function exactRational(value, label) {
@@ -464,9 +489,16 @@ export function createTimelineSequence(args, runtime = null) {
     const frames = Object.freeze(sceneEntries(get(entry, "entries"), runtime, "Timeline.Sequence"));
     if (frames.length === 0) throw new Error("Timeline.Sequence requires at least one rendered frame");
     const duration = get(entry, "duration");
+    const frameDurations = timelineFrameDurations(get(entry, "frameDurations"), frames.length);
+    if (frameDurations && duration !== null && duration !== undefined) {
+        throw new Error("Timeline.Sequence accepts either duration or frameDurations, not both");
+    }
     return output("timeline", {
         frames,
         duration: duration === null || duration === undefined ? null : positiveExactNumber(duration, "Timeline.Sequence duration"),
+        frameDurations,
+        markers: timelineMarkers(get(entry, "markers"), frames.length),
+        preferencesKey: asString(get(entry, "preferencesKey")),
         easing: asString(get(entry, "easing")) || "linear",
         transition: timelineTransition(get(entry, "transition")),
         title: asString(get(entry, "title")),
@@ -2712,7 +2744,13 @@ function formatPlotText(graphic, format) {
                 + number(get(entry, "certifiedOutsideCells")), 0);
             const candidates = records.reduce((total, entry) => total + number(get(entry, "enclosureCandidateCells")), 0);
             const stops = records.reduce((total, entry) => total + number(get(entry, "budgetStops")), 0);
+            const evaluations = records.reduce((total, entry) => total + number(get(entry, "pointEvaluations")), 0);
+            const cacheHits = records.reduce((total, entry) => total + number(get(entry, "cacheHits")), 0);
+            const uniquePoints = Math.max(...records.map((entry) => number(get(entry, "uniquePointSamples"))));
+            const discontinuitySuspicions = records.reduce((total, entry) => total + number(get(entry, "suspectedDiscontinuityCells")), 0);
             parts.push(`adaptive depth ${reached}/${maximum}, ${refined} subdivisions, ${leaves} leaf cells, ${stops} budget stops`);
+            parts.push(`${evaluations} new point evaluations, ${cacheHits} shared-cache hits, ${uniquePoints} unique retained points`);
+            if (discontinuitySuspicions) parts.push(`${discontinuitySuspicions} steep sampled cells flagged as possible discontinuities (heuristic evidence)`);
             if (intervals) parts.push(`${intervals} certified interval enclosures, ${classifications} whole-cell classifications, ${candidates} enclosure candidates; crossings remain sampled`);
         }
     }
@@ -2725,6 +2763,12 @@ function formatPlotText(graphic, format) {
     if (ambiguousValue && isSequence(ambiguousValue)) {
         const ambiguous = sequence(ambiguousValue, "plot ambiguous regions").length;
         if (ambiguous) parts.push(`${ambiguous} sampled boundary region${ambiguous === 1 ? "" : "s"}`);
+    }
+    const plotRecords = get(plot, "records");
+    if (plotRecords && isSequence(plotRecords)) {
+        const edgeProofs = sequence(plotRecords, "plot records").filter((record) =>
+            asString(get(record?.entries instanceof Map ? record.entries : record, "edgeExistenceEvidence")) === "proof").length;
+        if (edgeProofs) parts.push(`${edgeProofs} sampled contour segments have continuity-based edge-existence proof; segment locations remain sampled`);
     }
     const status = asString(get(plot, "status"));
     if (status) parts.push(`${status.replaceAll("_", " ")} evidence`);
@@ -2957,12 +3001,15 @@ export function renderOutputHtml(value, format = (item) => String(item ?? "")) {
             const entry = exactInteger(origin.get("entry"), "Timeline origin entry");
             const state = exactInteger(origin.get("state"), "Timeline origin state");
             const ordinal = exactInteger(origin.get("ordinal"), "Timeline origin ordinal");
-            return `<article class="rix-output-timeline-frame" data-rix-timeline-frame="${index + 1}" data-rix-timeline-entry="${entry}" data-rix-timeline-state="${state}" data-rix-timeline-ordinal="${ordinal}" aria-label="Frame ${index + 1} of ${value.frames.length}"${index === 0 ? ' data-rix-timeline-current="true"' : ' hidden aria-hidden="true"'}>${renderOutputHtml(frame.content, format)}</article>`;
+            const marker = value.markers?.find((candidate) => candidate.frame === index + 1);
+            const frameDuration = value.frameDurations?.[index];
+            return `<article class="rix-output-timeline-frame" data-rix-timeline-frame="${index + 1}" data-rix-timeline-entry="${entry}" data-rix-timeline-state="${state}" data-rix-timeline-ordinal="${ordinal}"${marker ? ` data-rix-timeline-marker="${escapeHtml(marker.label)}"` : ""}${frameDuration ? ` data-rix-timeline-duration="${escapeHtml(cellText(frameDuration, format))}"` : ""} aria-label="Frame ${index + 1} of ${value.frames.length}${marker ? `, marker ${escapeHtml(marker.label)}` : ""}"${index === 0 ? ' data-rix-timeline-current="true"' : ' hidden aria-hidden="true"'}>${renderOutputHtml(frame.content, format)}</article>`;
         }).join("");
         const textTrack = value.frames.map((frame, index) =>
-            `<li data-rix-timeline-text-frame="${index + 1}"${index === 0 ? ' aria-current="true"' : ""}><b>Frame ${index + 1} · exact state ${escapeHtml(cellText(frame.state, format))}</b><pre>${escapeHtml(formatOutputText(frame.content, format))}</pre></li>`).join("");
-        const duration = value.duration === null ? "host default" : `${escapeHtml(cellText(value.duration, format))} seconds total`;
-        return `<section class="rix-output-timeline" data-rix-timeline-length="${value.frames.length}" data-rix-timeline-transition="${escapeHtml(transition.mode)}" data-rix-timeline-transition-schema="${escapeHtml(transition.schema)}" tabindex="0" role="region" aria-label="${escapeHtml(value.title || "Mathematical timeline")}">${value.title ? `<h2>${escapeHtml(value.title)}</h2>` : ""}<p class="rix-output-timeline-meta">${value.frames.length} exact frames · ${duration} · ${escapeHtml(value.easing)} easing · ${escapeHtml(transition.mode)} changes</p><div class="rix-output-timeline-toolbar" role="toolbar" aria-label="Timeline playback controls"><button type="button" data-rix-timeline-action="previous" aria-label="Previous frame">←</button><button type="button" data-rix-timeline-action="play" aria-pressed="false">Play</button><button type="button" data-rix-timeline-action="next" aria-label="Next frame">→</button><label>Frame <input type="range" min="1" max="${value.frames.length}" step="1" value="1" data-rix-timeline-scrubber aria-label="Timeline frame"></label><label>Speed <select data-rix-timeline-speed aria-label="Playback speed"><option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option></select></label><label><input type="checkbox" data-rix-timeline-loop> Loop</label><label>Start <input type="number" min="1" max="${value.frames.length}" step="1" value="1" data-rix-timeline-range-start></label><label>End <input type="number" min="1" max="${value.frames.length}" step="1" value="${value.frames.length}" data-rix-timeline-range-end></label><label><input type="checkbox" data-rix-timeline-compare> Compare previous</label></div><div class="rix-output-timeline-stage" data-rix-timeline-stage>${frameArticles}</div><output class="rix-output-timeline-status" data-rix-timeline-status aria-live="polite">Frame 1 of ${value.frames.length} · exact state ${escapeHtml(cellText(value.frames[0].state, format))}</output><details class="rix-output-timeline-inspector"><summary>Exact current frame</summary><dl><dt>State</dt><dd data-rix-timeline-exact-state>${escapeHtml(cellText(value.frames[0].state, format))}</dd><dt>Origin</dt><dd data-rix-timeline-exact-origin>entry ${exactInteger(value.frames[0].origin.entries.get("entry"), "Timeline origin entry")}, state ${exactInteger(value.frames[0].origin.entries.get("state"), "Timeline origin state")}, ordinal ${exactInteger(value.frames[0].origin.entries.get("ordinal"), "Timeline origin ordinal")}</dd></dl><pre data-rix-timeline-exact-text>${escapeHtml(formatOutputText(value.frames[0].content, format))}</pre></details><details class="rix-output-timeline-text-track"><summary>Complete text track (${value.frames.length} frames)</summary><ol>${textTrack}</ol></details><p class="rix-output-timeline-help">Keyboard: Space play/pause; Left/Right step; Home/End jump; L loop.</p></section>`;
+            `<li data-rix-timeline-text-frame="${index + 1}"${index === 0 ? ' aria-current="true"' : ""}><b>Frame ${index + 1}${value.markers?.find((marker) => marker.frame === index + 1) ? ` · marker ${escapeHtml(value.markers.find((marker) => marker.frame === index + 1).label)}` : ""} · exact state ${escapeHtml(cellText(frame.state, format))}</b><pre>${escapeHtml(formatOutputText(frame.content, format))}</pre></li>`).join("");
+        const duration = value.frameDurations ? "variable exact frame timing" : value.duration === null ? "host default" : `${escapeHtml(cellText(value.duration, format))} seconds total`;
+        const markerOptions = (value.markers || []).map((marker) => `<option value="${marker.frame}">${escapeHtml(marker.label)} · frame ${marker.frame}</option>`).join("");
+        return `<section class="rix-output-timeline" data-rix-timeline-length="${value.frames.length}" data-rix-timeline-transition="${escapeHtml(transition.mode)}" data-rix-timeline-transition-schema="${escapeHtml(transition.schema)}"${value.preferencesKey ? ` data-rix-timeline-preferences-key="${escapeHtml(value.preferencesKey)}"` : ""} tabindex="0" role="region" aria-label="${escapeHtml(value.title || "Mathematical timeline")}">${value.title ? `<h2>${escapeHtml(value.title)}</h2>` : ""}<p class="rix-output-timeline-meta">${value.frames.length} exact frames · ${duration} · ${escapeHtml(value.easing)} easing · ${escapeHtml(transition.mode)} changes</p><div class="rix-output-timeline-toolbar" role="toolbar" aria-label="Timeline playback controls"><button type="button" data-rix-timeline-action="previous" aria-label="Previous frame">←</button><button type="button" data-rix-timeline-action="play" aria-pressed="false">Play</button><button type="button" data-rix-timeline-action="next" aria-label="Next frame">→</button><label>Frame <input type="range" min="1" max="${value.frames.length}" step="1" value="1" data-rix-timeline-scrubber aria-label="Timeline frame"></label><label>Speed <select data-rix-timeline-speed aria-label="Playback speed"><option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option></select></label><label><input type="checkbox" data-rix-timeline-loop> Loop</label><label>Start <input type="number" min="1" max="${value.frames.length}" step="1" value="1" data-rix-timeline-range-start></label><label>End <input type="number" min="1" max="${value.frames.length}" step="1" value="${value.frames.length}" data-rix-timeline-range-end></label><label>Compare <select data-rix-timeline-compare><option value="none">None</option><option value="previous">Previous</option><option value="frame">Chosen frame</option><option value="onion">Onion skin</option></select></label><label>Comparison frame <input type="number" min="1" max="${value.frames.length}" step="1" value="1" data-rix-timeline-compare-frame></label>${markerOptions ? `<label>Marker <select data-rix-timeline-marker><option value="">Choose…</option>${markerOptions}</select></label>` : ""}<button type="button" data-rix-timeline-action="record">Record frame</button><button type="button" data-rix-timeline-action="export">Export recording</button><button type="button" data-rix-timeline-action="clear-recording">Clear recording</button></div><div class="rix-output-timeline-stage" data-rix-timeline-stage>${frameArticles}</div><output class="rix-output-timeline-status" data-rix-timeline-status aria-live="polite">Frame 1 of ${value.frames.length} · exact state ${escapeHtml(cellText(value.frames[0].state, format))}</output><pre class="rix-output-timeline-export" data-rix-timeline-export hidden></pre><details class="rix-output-timeline-diagnostics"><summary>Transition diagnostics</summary><ul data-rix-timeline-diagnostics></ul></details><details class="rix-output-timeline-inspector"><summary>Exact current frame</summary><dl><dt>State</dt><dd data-rix-timeline-exact-state>${escapeHtml(cellText(value.frames[0].state, format))}</dd><dt>Origin</dt><dd data-rix-timeline-exact-origin>entry ${exactInteger(value.frames[0].origin.entries.get("entry"), "Timeline origin entry")}, state ${exactInteger(value.frames[0].origin.entries.get("state"), "Timeline origin state")}, ordinal ${exactInteger(value.frames[0].origin.entries.get("ordinal"), "Timeline origin ordinal")}</dd></dl><pre data-rix-timeline-exact-text>${escapeHtml(formatOutputText(value.frames[0].content, format))}</pre></details><details class="rix-output-timeline-text-track"><summary>Complete text track (${value.frames.length} frames)</summary><ol>${textTrack}</ol></details><p class="rix-output-timeline-help">Keyboard: Space play/pause; Left/Right step; Home/End jump; L loop; M next marker; R record exact frame.</p></section>`;
     }
     if (value.kind === "timeline_render") return `<section class="rix-output-timeline-render" data-rix-timeline-frame="${value.frame}" data-rix-timeline-length="${value.timeline.frames.length}">${value.title ? `<h2>${escapeHtml(value.title)}</h2>` : ""}${renderOutputHtml(value.content, format)}<p class="rix-output-timeline-caption">Frame ${value.frame} of ${value.timeline.frames.length}</p></section>`;
     if (value.kind === "control_slider") {

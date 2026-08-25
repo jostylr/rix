@@ -66,10 +66,22 @@ The default depth is zero, preserving uniform-grid cost. Setting
 Its interval image can certify whole-cell exclusion for implicit levels or
 whole-cell inside/outside status for inequalities; drawn edge intersections
 remain sampled evidence. The retained refinement policy reports processed and
-leaf cells, subdivision count, depth, budget stops, and evaluation counts.
+leaf cells, subdivision count, depth, budget stops, evaluation counts, shared
+cache hits, unique sampled points, and the largest sampled cell range. Sibling
+cells and successive contour levels reuse the same exact point cache.
+
+`continuity=:continuous` is an explicit caller contract. When exact endpoint
+values straddle a contour level, RiX records intermediate-value-theorem proof
+that a boundary point exists on that edge, while the interpolated point and
+drawn segment remain sample evidence. `discontinuityThreshold` marks steep
+sampled cells as `:suspected_discontinuity` and prioritizes them for refinement;
+this is a heuristic warning, not proof that the function is discontinuous.
+`labelContours=1` places at most one deterministic midpoint label per level,
+bounded by `contourLabelLimit`.
 
 `Implicit` accepts `level` (default `0`); `Contour` accepts `levels`; `Inequality`
-accepts `relation` and `level`; `HeatMap` accepts `colors` and `colorDomain`;
+accepts `relation` and `level`; `HeatMap` accepts `colors` and `colorDomain`, or
+`colorMode=:continuous` with a two-value `hueRange` (one-degree HSL quantization);
 and `VectorField` accepts `vectorScale`. All field families lower to ordinary
 rectangles and paths with `hitId` values, so SVG, Canvas, and TikZ share the same
 scene and selection identities. Text-only renderers return a deterministic plot

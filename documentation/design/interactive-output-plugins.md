@@ -118,14 +118,17 @@ ordered data as `comic.html`.
 
 `.Timeline.Sequence` accepts the same scene tuples and materializes the same
 provenance-carrying ordered frame records. `.Timeline.Render(timeline, frame)`
-selects a one-based frame for static renderers. `duration`, `easing`,
-`transition`, and `title` remain part of the portable timeline descriptor.
+selects a one-based frame for static renderers. `duration` or exact
+`frameDurations`, `markers`, `preferencesKey`, `easing`, `transition`, and
+`title` remain part of the portable timeline descriptor.
 
 ```rix
 motion := .Timeline.Sequence({=
-    duration=2,
+    frameDurations=[1/2,1,1/2],
+    markers=[{= frame=1,label="start" },{= frame=2,label="center" }],
+    preferencesKey="center-motion",
     easing="ease-in-out",
-    transition={= mode=:crossfade, duration=1/5, properties=[:opacity] },
+    transition={= mode=:crossfade, duration=1/5, properties=[:opacity,:position,:fill,:stroke] },
     entries=[{: scene, [{= center=-3}, {= center=0}, {= center=3}]}]
 });
 .Timeline.Render(motion, 2)
@@ -133,14 +136,18 @@ motion := .Timeline.Sequence({=
 
 The bundled HTML host turns a `timeline` value into a keyboard-accessible
 transport with play/pause, stepping, scrubbing, speed, loop, playback-range,
-and previous-frame comparison controls. The current-frame inspector and
+previous/chosen/onion comparison, marker navigation, exact-frame recording,
+deterministic JSON export, and keyed preference persistence. The current-frame inspector and
 complete text track always report the retained exact state and exact frame
 output. Stable `data-rix-semantic-id` values are matched between adjacent
 frames for host inspection.
 
 The `rix.timeline-transition@1` contract defaults to discrete changes and
-currently declares only frame opacity safe for an explicit `crossfade`.
+declares opacity, position, fill, and stroke safe for presentation-only
+`crossfade` animation between same-kind objects with a matching semantic id.
 Unrecognized properties are rejected instead of being silently interpolated.
+A diagnostic track reports semantic objects that appear, disappear, or change
+kind. Exact values and the text track always change discretely.
 A reduced-motion preference disables the visual crossfade while leaving
 user-directed discrete playback available. Static renderers continue to use
 `.Timeline.Render`; recording and video plugins can consume the same exact

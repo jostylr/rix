@@ -175,8 +175,25 @@ $workbench;
 RiX Web exposes the Point tool, keeps focus on the authoring surface across
 reactive redraws, supports arrow-key cursor movement plus Enter/Space placement,
 and routes its Undo/Redo buttons through the retained construction history.
-This first authoring pass intentionally creates free points only; dependent
-line/circle tools and constraint-solving drag remain follow-up work.
+
+The kernel also provides dependency-bearing authoring operations:
+
+- `AddLine`, `AddCircle`, `AddIntersection`, `AddTransform`, and
+  `AddMeasurement` allocate stable tool-specific ids and reversible create
+  events.
+- `ConstrainedDrag(...,{= constraint=:lineId,mode=:project })` uses exact
+  orthogonal projection onto a retained line; `mode=:reject` refuses an
+  off-constraint target.
+- `DragMany` applies an array of `{= id=...,target=... }` moves atomically and
+  stores one undo/redo event.
+- `RepairSuggestions` returns deterministic, non-mutating advice for parallel,
+  coincident, undecided, or unsupported intersection nodes.
+
+Derived construction records remain deliberately explicit: importing one still
+requires a constructor map for every id in `replayRequires`. This avoids
+pretending executable construction callbacks are portable JSON. The current
+browser authoring toolbar exposes point placement; hosts can bind the additional
+kernel tools to their own selection UI through the same retained graph.
 
 ## Bounded refinement
 
