@@ -114,9 +114,10 @@ export {
 } from "./tools/audio-trace-view.js";
 export {
     createScene3DViewState, describeScene3DSelection, dollyScene3DCamera,
-    enhanceScene3DViews, orbitScene3DCamera, pickScene3DPlan,
-    projectScene3DPoint, renderScene3DSvgFallback, resetScene3DCamera,
-    toggleScene3DProjection, truckScene3DCamera,
+    enhanceScene3DViews, layoutScene3DAnnotations, orbitScene3DCamera,
+    pickScene3DPlan, projectScene3DPoint, renderScene3DSvgFallback,
+    resetScene3DCamera, scene3DSelectionCatalog, toggleScene3DProjection,
+    truckScene3DCamera, updateScene3DGesture,
 } from "./tools/scene3d-view.js";
 export { enhanceControlPanelViews, enhanceControlShortcuts } from "./tools/control-panel-view.js";
 export {

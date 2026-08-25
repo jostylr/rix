@@ -1229,5 +1229,6 @@ describe("portable structured output", () => {
         expect(html).toContain("data-rix-scene3d-canvas");
         expect(html).toContain('data-rix-scene3d-action="projection"');
         expect(html).toContain("Shift-drag to truck");
+        expect(html).toContain("pinch to dolly and truck");
     });
 });

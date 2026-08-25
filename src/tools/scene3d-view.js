@@ -8,6 +8,7 @@ import {
 
 const MIN_PITCH = -Math.PI / 2 + 0.015;
 const MAX_PITCH = Math.PI / 2 - 0.015;
+let scene3DViewSequence = 0;
 
 function sequenceValue(value) {
     if (Array.isArray(value)) return value;
@@ -89,6 +90,15 @@ function sceneBounds(plan) {
     };
 }
 
+function realizedScenePrimitives(scene) {
+    return sequenceValue(mapField(mapField(scene, "realized"), "primitives"));
+}
+
+function scenePrimitiveByPickId(scene, pickId) {
+    return realizedScenePrimitives(scene)
+        .find((candidate) => stringValue(mapField(candidate, "pickid")) === String(pickId));
+}
+
 /** Create or normalize persistent host state for a retained Scene3D scene. */
 export function createScene3DViewState(plan, target = {}) {
     if (plan?.schema !== "rix.webgl-plan@1") throw new Error("Scene3D view requires a rix.webgl-plan@1 plan");
@@ -106,6 +116,10 @@ export function createScene3DViewState(plan, target = {}) {
         ? [...new Set(target.selection.ids.map(String))].filter((id) => selectable.has(id))
         : [];
     target.selection = { schema: "rix.selection@1", ids, focus: target.selection?.focus ?? ids[0] ?? null };
+    target.navigation = {
+        schema: "rix.scene3d-navigation@1",
+        scope: typeof target.navigation?.scope === "string" ? target.navigation.scope : "all",
+    };
     target.viewport = {
         schema: "rix.viewport3d@1",
         width: plan.viewport.width,
@@ -169,6 +183,66 @@ export function toggleScene3DProjection(state) {
     }
     state.viewport.projection = state.camera.projection;
     return state;
+}
+
+function gesturePointer(pointers, id) {
+    return pointers.find((pointer) => String(pointer.id) === String(id));
+}
+
+function scene3DCameraStep(state) {
+    return Math.max(state.bounds.radius, Math.hypot(...subtract(state.camera.position, state.camera.target))) * 0.06;
+}
+
+/**
+ * Apply one retained Scene3D pointer update. A single pointer orbits (or trucks
+ * when marked); two pointers truck their centroid and pinch-dolly the camera.
+ */
+export function updateScene3DGesture(state, previousPointers, nextPointers, rect) {
+    const previous = Array.from(previousPointers || []);
+    const next = Array.from(nextPointers || []);
+    const width = Number(rect?.width);
+    const height = Number(rect?.height);
+    if (!(width > 0) || !(height > 0)) throw new Error("Scene3D gesture requires non-empty bounds");
+    const common = previous.filter((pointer) => gesturePointer(next, pointer.id));
+    if (!common.length) return Object.freeze({ type: "none", changed: false });
+    if (common.length >= 2) {
+        const before = common.slice(0, 2);
+        const after = before.map((pointer) => gesturePointer(next, pointer.id));
+        const midpoint = (points) => [
+            (Number(points[0].x) + Number(points[1].x)) / 2,
+            (Number(points[0].y) + Number(points[1].y)) / 2,
+        ];
+        const distance = (points) => Math.hypot(
+            Number(points[1].x) - Number(points[0].x),
+            Number(points[1].y) - Number(points[0].y),
+        );
+        const oldMidpoint = midpoint(before);
+        const newMidpoint = midpoint(after);
+        const oldDistance = distance(before);
+        const newDistance = distance(after);
+        if (oldDistance > 0 && newDistance > 0) dollyScene3DCamera(state, oldDistance / newDistance);
+        const step = scene3DCameraStep(state) * 2 / Math.max(1, Math.min(width, height));
+        truckScene3DCamera(
+            state,
+            -(newMidpoint[0] - oldMidpoint[0]) * step,
+            (newMidpoint[1] - oldMidpoint[1]) * step,
+        );
+        return Object.freeze({
+            type: "pinch",
+            changed: oldDistance !== newDistance || oldMidpoint[0] !== newMidpoint[0] || oldMidpoint[1] !== newMidpoint[1],
+        });
+    }
+    const before = common[0];
+    const after = gesturePointer(next, before.id);
+    const deltaX = Number(after.x) - Number(before.x);
+    const deltaY = Number(after.y) - Number(before.y);
+    if (before.truck || after.truck) {
+        const step = scene3DCameraStep(state) * 0.01;
+        truckScene3DCamera(state, -deltaX * step, deltaY * step);
+        return Object.freeze({ type: "truck", changed: deltaX !== 0 || deltaY !== 0 });
+    }
+    orbitScene3DCamera(state, -deltaX * 0.008, -deltaY * 0.008);
+    return Object.freeze({ type: "orbit", changed: deltaX !== 0 || deltaY !== 0 });
 }
 
 /** Project a world point through a WebGL plan matrix into viewport pixels. */
@@ -262,8 +336,7 @@ function exactPoint(value, format) {
 
 /** Describe one picked primitive from exact, retained world coordinates. */
 export function describeScene3DSelection(scene, pickId, format = String) {
-    const primitives = sequenceValue(mapField(mapField(scene, "realized"), "primitives"));
-    const primitive = primitives.find((candidate) => stringValue(mapField(candidate, "pickid")) === pickId);
+    const primitive = scenePrimitiveByPickId(scene, pickId);
     if (!primitive) return pickId ? `Scene3D object ${pickId}` : "Scene3D background";
     const kind = stringValue(mapField(primitive, "kind")) || "object";
     const label = stringValue(mapField(primitive, "label")) || pickId;
@@ -272,6 +345,77 @@ export function describeScene3DSelection(scene, pickId, format = String) {
         ? points.map((point) => exactPoint(point, format)).join("; ")
         : `${points.slice(0, 3).map((point) => exactPoint(point, format)).join("; ")}; …`;
     return `${label} · ${kind} · ${points.length} exact world point${points.length === 1 ? "" : "s"}${coordinates ? ` · ${coordinates}` : ""}`;
+}
+
+/** Direct, exact semantic-object navigation records for a retained 3D scene. */
+export function scene3DSelectionCatalog(scene, plan, format = String) {
+    return Object.freeze(Object.keys(plan?.picking || {}).map((id) => {
+        const primitive = scenePrimitiveByPickId(scene, id);
+        const role = stringValue(mapField(primitive, "kind")) || plan.picking[id]?.kind || "object";
+        return Object.freeze({
+            id,
+            role,
+            label: describeScene3DSelection(scene, id, format),
+        });
+    }));
+}
+
+function annotationRectangle(screen, text, options) {
+    const width = Math.min(options.maxWidth, Math.max(options.minWidth, String(text || "").length * options.characterWidth + 12));
+    const height = options.height;
+    return {
+        left: screen[0] - width / 2,
+        right: screen[0] + width / 2,
+        top: screen[1] - height / 2,
+        bottom: screen[1] + height / 2,
+    };
+}
+
+function rectanglesOverlap(left, right, gap) {
+    return !(
+        left.right + gap <= right.left
+        || right.right + gap <= left.left
+        || left.bottom + gap <= right.top
+        || right.bottom + gap <= left.top
+    );
+}
+
+/** Deterministically displace projected annotations to reduce label overlap. */
+export function layoutScene3DAnnotations(annotations, viewport, settings = {}) {
+    const options = {
+        characterWidth: Number(settings.characterWidth || 7),
+        gap: Number(settings.gap || 4),
+        height: Number(settings.height || 22),
+        maxWidth: Number(settings.maxWidth || 160),
+        minWidth: Number(settings.minWidth || 42),
+        offset: Number(settings.offset || 30),
+    };
+    const width = Math.max(1, Number(viewport?.width) || 1);
+    const height = Math.max(1, Number(viewport?.height) || 1);
+    const candidates = [[0, 0], [0, -1], [0, 1], [1, 0], [-1, 0], [1, -1], [-1, -1], [1, 1], [-1, 1]];
+    const occupied = [];
+    return annotations.map((annotation) => {
+        if (!annotation.visible || !annotation.screen) return Object.freeze({ ...annotation, displaced: false, crowded: false });
+        const text = annotation.text || annotation.label || annotation.pickId || "annotation";
+        let placement = null;
+        for (const [horizontal, vertical] of candidates) {
+            const screen = [
+                Math.min(width, Math.max(0, annotation.screen[0] + horizontal * options.offset)),
+                Math.min(height, Math.max(0, annotation.screen[1] + vertical * options.offset)),
+            ];
+            const rectangle = annotationRectangle(screen, text, options);
+            if (!occupied.some((item) => rectanglesOverlap(rectangle, item, options.gap))) {
+                placement = { screen, rectangle, displaced: horizontal !== 0 || vertical !== 0, crowded: false };
+                break;
+            }
+        }
+        if (!placement) {
+            const screen = [...annotation.screen];
+            placement = { screen, rectangle: annotationRectangle(screen, text, options), displaced: false, crowded: true };
+        }
+        occupied.push(placement.rectangle);
+        return Object.freeze({ ...annotation, screen: placement.screen, displaced: placement.displaced, crowded: placement.crowded });
+    });
 }
 
 function escapeHtml(value) {
@@ -338,12 +482,72 @@ export function enhanceScene3DViews(root, options = {}) {
         const overlay = container.querySelector?.(".rix-output-scene3d-annotations");
         const inspector = container.querySelector?.(".rix-output-scene3d-inspector");
         const status = container.querySelector?.(".rix-output-scene3d-status");
+        const toolbar = container.querySelector?.(".rix-output-scene3d-toolbar");
         if (!canvas || !surface) return () => {};
         const plan = createWebGLPlan(scene, { width: 640, height: 480 });
         const state = createScene3DViewState(plan, options.state || {});
+        const catalog = scene3DSelectionCatalog(scene, plan, format);
+        const catalogById = new Map(catalog.map((entry) => [entry.id, entry]));
+        const document = container.ownerDocument;
+        const makeSelect = (labelText, dataName) => {
+            if (!document?.createElement) return null;
+            const label = document.createElement("label");
+            label.className = "rix-output-scene3d-toolbar-select";
+            const text = document.createElement("span");
+            text.textContent = labelText;
+            const select = document.createElement("select");
+            select.dataset[dataName] = "true";
+            select.setAttribute("aria-label", labelText);
+            label.append(text, select);
+            toolbar?.append(label);
+            return select;
+        };
+        const scopeSelect = toolbar?.querySelector?.("[data-rix-scene3d-selection-scope]")
+            || makeSelect("Object type", "rixScene3dSelectionScope");
+        const objectSelect = toolbar?.querySelector?.("[data-rix-scene3d-object-select]")
+            || makeSelect("3D object", "rixScene3dObjectSelect");
+        const appendOption = (select, value, text) => {
+            if (!select || !document?.createElement) return;
+            const option = document.createElement("option");
+            option.value = value;
+            option.textContent = text;
+            select.append(option);
+        };
+        if (scopeSelect) {
+            scopeSelect.replaceChildren?.();
+            appendOption(scopeSelect, "all", `All objects (${catalog.length})`);
+            const roles = new Map();
+            for (const entry of catalog) roles.set(entry.role, (roles.get(entry.role) || 0) + 1);
+            for (const [role, count] of [...roles.entries()].sort(([left], [right]) => left.localeCompare(right))) {
+                appendOption(scopeSelect, role, `${role.replaceAll("_", " ")} (${count})`);
+            }
+            if (![...roles.keys(), "all"].includes(state.navigation.scope)) state.navigation.scope = "all";
+            scopeSelect.value = state.navigation.scope;
+        }
+        const scopedCatalog = () => catalog.filter((entry) => state.navigation.scope === "all" || entry.role === state.navigation.scope);
+        const refreshObjectOptions = () => {
+            if (!objectSelect) return;
+            objectSelect.replaceChildren?.();
+            const entries = scopedCatalog();
+            if (!entries.length) appendOption(objectSelect, "", "No objects in this type");
+            for (const [index, entry] of entries.entries()) appendOption(objectSelect, entry.id, `${index + 1}. ${entry.label}`);
+            objectSelect.disabled = entries.length === 0;
+            if (entries.some((entry) => entry.id === state.selection.focus)) objectSelect.value = state.selection.focus;
+        };
+        refreshObjectOptions();
+        const viewId = canvas.id || `rix-scene3d-${++scene3DViewSequence}`;
+        canvas.id = viewId;
+        if (inspector) inspector.id ||= `${viewId}-inspector`;
+        if (status) status.id ||= `${viewId}-status`;
+        inspector?.setAttribute?.("aria-live", "off");
+        const descriptions = [inspector?.id, status?.id].filter(Boolean).join(" ");
+        if (descriptions) canvas.setAttribute("aria-describedby", descriptions);
+        canvas.setAttribute("aria-keyshortcuts", "ArrowLeft ArrowRight ArrowUp ArrowDown + - Home P [ ]");
+        toolbar?.setAttribute?.("aria-controls", viewId);
         let gl = null;
         let matrix = null;
-        let pointer = null;
+        const pointers = new Map();
+        let gestureChanged = false;
         let fallback = null;
         let disposed = false;
         const listeners = [];
@@ -386,6 +590,11 @@ export function enhanceScene3DViews(root, options = {}) {
             state.selection.focus = pickId || null;
             const exact = describeScene3DSelection(scene, pickId, format);
             if (inspector) inspector.textContent = exact;
+            setStatus(exact);
+            if (objectSelect && scopedCatalog().some((entry) => entry.id === pickId)) objectSelect.value = pickId;
+            for (const annotation of overlay?.querySelectorAll?.("[data-rix-semantic-id]") || []) {
+                annotation.toggleAttribute?.("aria-current", annotation.dataset.rixSemanticId === pickId);
+            }
             const interaction = pickId ? plan.picking[pickId]?.interaction ?? null : null;
             const detail = Object.freeze({ type: "scene3d:selection", selection: { ...state.selection, ids: [...state.selection.ids] }, pickId, exact, interaction, source });
             options.onSelection?.(detail);
@@ -395,16 +604,27 @@ export function enhanceScene3DViews(root, options = {}) {
             if (!overlay) return;
             overlay.hidden = false;
             overlay.replaceChildren?.();
-            for (const annotation of annotations) {
+            const logical = annotations.map((annotation) => ({
+                ...annotation,
+                screen: annotation.screen ? annotation.screen.map((coordinate) => coordinate / ratio) : null,
+            }));
+            for (const annotation of layoutScene3DAnnotations(logical, {
+                width: plan.viewport.width / ratio,
+                height: plan.viewport.height / ratio,
+            })) {
                 if (!annotation.visible || !annotation.screen) continue;
                 const label = container.ownerDocument.createElement("button");
                 label.type = "button";
                 label.className = "rix-output-scene3d-annotation";
                 label.textContent = annotation.text || annotation.label || annotation.pickId || "annotation";
-                label.style.left = `${annotation.screen[0] / ratio}px`;
-                label.style.top = `${annotation.screen[1] / ratio}px`;
+                label.style.left = `${annotation.screen[0]}px`;
+                label.style.top = `${annotation.screen[1]}px`;
+                label.toggleAttribute("data-rix-annotation-displaced", annotation.displaced);
+                label.toggleAttribute("data-rix-annotation-crowded", annotation.crowded);
                 if (annotation.pickId) {
                     label.dataset.rixSemanticId = annotation.pickId;
+                    label.setAttribute("aria-label", catalogById.get(annotation.pickId)?.label || label.textContent);
+                    label.toggleAttribute("aria-current", state.selection.focus === annotation.pickId);
                     label.addEventListener("click", (event) => {
                         event.stopPropagation();
                         select(annotation.pickId, "annotation");
@@ -430,7 +650,7 @@ export function enhanceScene3DViews(root, options = {}) {
             const result = paintWebGLPlan(gl, plan);
             matrix = result.matrix;
             renderAnnotations(result.annotations, ratio);
-            setStatus(`${state.camera.projection} projection · drag to orbit · Shift-drag to truck · wheel to dolly`);
+            setStatus(`${state.camera.projection} projection · drag to orbit · pinch to dolly and truck · Shift-drag to truck · wheel to dolly`);
             options.onViewport?.({ type: "scene3d:viewport", viewport: { ...state.viewport }, camera: cloneCamera(state.camera) });
         };
         const logicalPoint = (event) => {
@@ -439,7 +659,7 @@ export function enhanceScene3DViews(root, options = {}) {
             const ratioY = plan.viewport.height / Math.max(1, rect.height);
             return [(event.clientX - rect.left) * ratioX, (event.clientY - rect.top) * ratioY];
         };
-        const cameraStep = () => Math.max(state.bounds.radius, Math.hypot(...subtract(state.camera.position, state.camera.target))) * 0.06;
+        const cameraStep = () => scene3DCameraStep(state);
         const action = (name, source = "toolbar") => {
             if (name === "orbit-left") orbitScene3DCamera(state, -0.12, 0);
             else if (name === "orbit-right") orbitScene3DCamera(state, 0.12, 0);
@@ -450,7 +670,7 @@ export function enhanceScene3DViews(root, options = {}) {
             else if (name === "projection") toggleScene3DProjection(state);
             else if (name === "reset") resetScene3DCamera(state);
             else if (name === "previous" || name === "next") {
-                const ids = Object.keys(plan.picking);
+                const ids = scopedCatalog().map((entry) => entry.id);
                 if (ids.length) {
                     const current = ids.indexOf(state.selection.focus);
                     const delta = name === "next" ? 1 : -1;
@@ -460,6 +680,13 @@ export function enhanceScene3DViews(root, options = {}) {
             }
             repaint();
         };
+        listen(scopeSelect, "change", () => {
+            state.navigation.scope = scopeSelect.value || "all";
+            refreshObjectOptions();
+            const count = scopedCatalog().length;
+            setStatus(`${count} ${state.navigation.scope === "all" ? "selectable" : state.navigation.scope.replaceAll("_", " ")} object${count === 1 ? "" : "s"} available`);
+        });
+        listen(objectSelect, "change", () => select(objectSelect.value || null, "keyboard"));
         for (const button of container.querySelectorAll?.("[data-rix-scene3d-action]") || []) {
             listen(button, "click", (event) => {
                 event.stopPropagation();
@@ -469,29 +696,49 @@ export function enhanceScene3DViews(root, options = {}) {
         listen(canvas, "contextmenu", (event) => event.preventDefault());
         listen(canvas, "click", (event) => event.stopPropagation());
         listen(canvas, "pointerdown", (event) => {
-            pointer = { id: event.pointerId, x: event.clientX, y: event.clientY, lastX: event.clientX, lastY: event.clientY, moved: false, truck: event.shiftKey || event.button === 2 };
+            pointers.set(event.pointerId, {
+                id: event.pointerId,
+                x: event.clientX,
+                y: event.clientY,
+                startX: event.clientX,
+                startY: event.clientY,
+                moved: false,
+                truck: event.shiftKey || event.button === 2,
+            });
+            if (pointers.size > 1) {
+                gestureChanged = true;
+                for (const pointer of pointers.values()) pointer.moved = true;
+            }
             canvas.setPointerCapture?.(event.pointerId);
             event.preventDefault();
         });
         listen(canvas, "pointermove", (event) => {
-            if (!pointer || event.pointerId !== pointer.id) return;
-            const dx = event.clientX - pointer.lastX;
-            const dy = event.clientY - pointer.lastY;
-            pointer.lastX = event.clientX; pointer.lastY = event.clientY;
-            pointer.moved ||= Math.hypot(event.clientX - pointer.x, event.clientY - pointer.y) > 4;
-            if (pointer.truck) {
-                const step = cameraStep() * 0.01;
-                truckScene3DCamera(state, -dx * step, dy * step);
-            } else orbitScene3DCamera(state, -dx * 0.008, -dy * 0.008);
+            if (!pointers.has(event.pointerId)) return;
+            const previous = [...pointers.values()].map((pointer) => ({ ...pointer }));
+            const pointer = pointers.get(event.pointerId);
+            pointer.x = event.clientX;
+            pointer.y = event.clientY;
+            pointer.moved ||= Math.hypot(event.clientX - pointer.startX, event.clientY - pointer.startY) > 4 || pointers.size > 1;
+            const result = updateScene3DGesture(state, previous, [...pointers.values()], canvas.getBoundingClientRect());
+            gestureChanged ||= result.changed;
             repaint();
+            event.preventDefault();
         });
         listen(canvas, "pointerup", (event) => {
-            if (!pointer || event.pointerId !== pointer.id) return;
-            if (!pointer.moved && matrix) select(pickScene3DPlan(plan, matrix, logicalPoint(event))?.pickId || null, "pointer");
-            canvas.releasePointerCapture?.(event.pointerId);
-            pointer = null;
+            if (!pointers.has(event.pointerId)) return;
+            const completed = pointers.get(event.pointerId);
+            const wasOnlyPointer = pointers.size === 1;
+            pointers.delete(event.pointerId);
+            if (wasOnlyPointer && !gestureChanged && !completed.moved && matrix) {
+                select(pickScene3DPlan(plan, matrix, logicalPoint(event))?.pickId || null, "pointer");
+            }
+            if (canvas.hasPointerCapture?.(event.pointerId)) canvas.releasePointerCapture?.(event.pointerId);
+            if (!pointers.size) gestureChanged = false;
         });
-        listen(canvas, "pointercancel", () => { pointer = null; });
+        listen(canvas, "pointercancel", (event) => {
+            pointers.delete(event.pointerId);
+            if (!pointers.size) gestureChanged = false;
+        });
         listen(canvas, "wheel", (event) => {
             event.preventDefault();
             dollyScene3DCamera(state, Math.exp(Math.max(-500, Math.min(500, event.deltaY)) * 0.0015));

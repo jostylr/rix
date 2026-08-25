@@ -4,13 +4,16 @@ import {
     createScene3DViewState,
     describeScene3DSelection,
     dollyScene3DCamera,
+    layoutScene3DAnnotations,
     orbitScene3DCamera,
     pickScene3DPlan,
     projectScene3DPoint,
     renderScene3DSvgFallback,
     resetScene3DCamera,
+    scene3DSelectionCatalog,
     toggleScene3DProjection,
     truckScene3DCamera,
+    updateScene3DGesture,
 } from "../../src/tools/scene3d-view.js";
 
 function trianglePlan() {
@@ -69,6 +72,50 @@ describe("Scene3D camera navigation", () => {
         expect(state.camera.position).toEqual(initial);
         expect(state.camera.projection).toBe("perspective");
         expect(state.selection).toEqual({ schema: "rix.selection@1", ids: [], focus: null });
+        expect(state.navigation).toEqual({ schema: "rix.scene3d-navigation@1", scope: "all" });
+    });
+
+    test("one- and two-pointer gestures orbit, truck, and pinch-dolly through shared camera policy", () => {
+        const orbitState = createScene3DViewState(trianglePlan());
+        const initial = [...orbitState.camera.position];
+        expect(updateScene3DGesture(
+            orbitState,
+            [{ id: 1, x: 40, y: 40 }],
+            [{ id: 1, x: 60, y: 50 }],
+            { width: 200, height: 120 },
+        )).toEqual({ type: "orbit", changed: true });
+        expect(orbitState.camera.position).not.toEqual(initial);
+
+        const truckState = createScene3DViewState(trianglePlan());
+        expect(updateScene3DGesture(
+            truckState,
+            [{ id: 1, x: 40, y: 40, truck: true }],
+            [{ id: 1, x: 60, y: 50, truck: true }],
+            { width: 200, height: 120 },
+        )).toEqual({ type: "truck", changed: true });
+        expect(truckState.camera.target).not.toEqual([0, 0, 0]);
+
+        const pinchState = createScene3DViewState(trianglePlan());
+        expect(updateScene3DGesture(
+            pinchState,
+            [{ id: 1, x: 50, y: 50 }, { id: 2, x: 150, y: 50 }],
+            [{ id: 1, x: 20, y: 60 }, { id: 2, x: 220, y: 60 }],
+            { width: 240, height: 120 },
+        )).toEqual({ type: "pinch", changed: true });
+        expect(Math.hypot(...pinchState.camera.position.map((value, index) => value - pinchState.camera.target[index])))
+            .toBeCloseTo(2);
+        expect(pinchState.camera.target).not.toEqual([0, 0, 0]);
+    });
+
+    test("gestures reject empty layout bounds and unrelated pointer updates", () => {
+        const state = createScene3DViewState(trianglePlan());
+        expect(updateScene3DGesture(
+            state,
+            [{ id: 1, x: 0, y: 0 }],
+            [{ id: 2, x: 10, y: 10 }],
+            { width: 200, height: 120 },
+        )).toEqual({ type: "none", changed: false });
+        expect(() => updateScene3DGesture(state, [], [], { width: 0, height: 120 })).toThrow("non-empty bounds");
     });
 });
 
@@ -104,5 +151,33 @@ describe("Scene3D plan picking and fallbacks", () => {
         expect(svg).toContain('class="rix-output-scene3d-fallback"');
         expect(svg).toContain('data-rix-semantic-id="face"');
         expect(svg).toContain("<polygon");
+    });
+
+    test("catalogs exact objects and deterministically separates colliding annotations", () => {
+        const scene = {
+            realized: {
+                primitives: [{
+                    kind: { type: "symbol", value: "mesh" },
+                    pickid: { type: "string", value: "face" },
+                    label: { type: "string", value: "Exact face" },
+                    points: [["-1/3", "-1/5", "0"], ["1/3", "-1/5", "0"], ["0", "2/5", "0"]],
+                }],
+            },
+        };
+        const catalog = scene3DSelectionCatalog(scene, trianglePlan());
+        expect(catalog).toHaveLength(1);
+        expect(catalog[0]).toMatchObject({ id: "face", role: "mesh" });
+        expect(catalog[0].label).toContain("3 exact world points");
+
+        const annotations = [
+            { pickId: "a", text: "first", visible: true, screen: [100, 60], depth: 0 },
+            { pickId: "b", text: "second", visible: true, screen: [100, 60], depth: 0.1 },
+        ];
+        const first = layoutScene3DAnnotations(annotations, { width: 200, height: 120 });
+        const second = layoutScene3DAnnotations(annotations, { width: 200, height: 120 });
+        expect(first).toEqual(second);
+        expect(first[0].displaced).toBe(false);
+        expect(first[1].displaced).toBe(true);
+        expect(first[1].screen).not.toEqual(first[0].screen);
     });
 });
