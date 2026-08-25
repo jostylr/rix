@@ -1665,6 +1665,57 @@ export function createCircle(args) {
     return output("circle", { center, radius, style: optionalMap(get(entry, "style"), "Circle style") });
 }
 
+function normalizeGraphicCoordinateSystem(suppliedCoordinates, name) {
+    if (suppliedCoordinates === null || suppliedCoordinates === undefined) return null;
+    const coordinates = map(suppliedCoordinates, `${name} coordinateSystem`);
+    const view = sequence(get(coordinates, "view"), `${name} coordinateSystem view`);
+    const suppliedFrame = get(coordinates, "frame");
+    const suppliedSize = get(coordinates, "size");
+    if (view.length !== 4 || (suppliedFrame === null && suppliedSize === null)) {
+        throw new Error(`${name} coordinateSystem requires a four-coordinate view and either frame or size`);
+    }
+    const numericView = view.map((value, index) => numericValue(value, `${name} view coordinate ${index + 1}`));
+    const [xmin, ymin, xmax, ymax] = numericView;
+    let numericFrame;
+    if (suppliedFrame !== null) {
+        const frame = sequence(suppliedFrame, `${name} coordinateSystem frame`);
+        if (frame.length !== 4) throw new Error(`${name} coordinateSystem frame must contain four coordinates`);
+        numericFrame = frame.map((value, index) => numericValue(value, `${name} frame coordinate ${index + 1}`));
+    } else {
+        const size = sequence(suppliedSize, `${name} coordinateSystem size`);
+        if (size.length !== 2) throw new Error(`${name} coordinateSystem size must contain width and height`);
+        const [width, height] = size.map((value, index) => numericValue(value, `${name} size coordinate ${index + 1}`));
+        if (!(width > 0 && height > 0 && xmax > xmin && ymax > ymin)) {
+            throw new Error(`${name} coordinateSystem requires positive size and increasing view bounds`);
+        }
+        const scale = Math.min(width / (xmax - xmin), height / (ymax - ymin));
+        const offsetX = (width - (xmax - xmin) * scale) / 2;
+        const offsetY = (height - (ymax - ymin) * scale) / 2;
+        numericFrame = [offsetX, offsetY, width - offsetX, height - offsetY];
+    }
+    const [left, top, right, bottom] = numericFrame;
+    if (!(xmax > xmin && ymax > ymin && right > left && bottom > top)) {
+        throw new Error(`${name} coordinateSystem requires increasing view and frame bounds`);
+    }
+    return Object.freeze({
+        schema: "rix.graphics.coordinate-system@1",
+        view: Object.freeze([...numericView]),
+        frame: Object.freeze([...numericFrame]),
+    });
+}
+
+function coordinateSystemPoint(sourceCenter, coordinateSystem, name) {
+    if (!coordinateSystem) return sourceCenter;
+    const [xmin, ymin, xmax, ymax] = coordinateSystem.view;
+    const [left, top, right, bottom] = coordinateSystem.frame;
+    const x = numericValue(sourceCenter[0], `${name} target x coordinate`);
+    const y = numericValue(sourceCenter[1], `${name} target y coordinate`);
+    return Object.freeze([
+        left + ((x - xmin) / (xmax - xmin)) * (right - left),
+        bottom - ((y - ymin) / (ymax - ymin)) * (bottom - top),
+    ]);
+}
+
 export function createDragPoint(args) {
     const entry = spec(args, ["target", "radius", "style", "label", "coordinateSystem"], "DragPoint");
     const target = get(entry, "target");
@@ -1675,52 +1726,8 @@ export function createDragPoint(args) {
     if (sourceCenter.length !== 2) {
         throw new Error("DragPoint target value must contain x and y coordinates");
     }
-    const suppliedCoordinates = get(entry, "coordinateSystem");
-    let coordinateSystem = null;
-    let center = sourceCenter;
-    if (suppliedCoordinates !== null && suppliedCoordinates !== undefined) {
-        const coordinates = map(suppliedCoordinates, "DragPoint coordinateSystem");
-        const view = sequence(get(coordinates, "view"), "DragPoint coordinateSystem view");
-        const suppliedFrame = get(coordinates, "frame");
-        const suppliedSize = get(coordinates, "size");
-        if (view.length !== 4 || (suppliedFrame === null && suppliedSize === null)) {
-            throw new Error("DragPoint coordinateSystem requires a four-coordinate view and either frame or size");
-        }
-        const numericView = view.map((value, index) => numericValue(value, `DragPoint view coordinate ${index + 1}`));
-        const [xmin, ymin, xmax, ymax] = numericView;
-        let numericFrame;
-        if (suppliedFrame !== null) {
-            const frame = sequence(suppliedFrame, "DragPoint coordinateSystem frame");
-            if (frame.length !== 4) throw new Error("DragPoint coordinateSystem frame must contain four coordinates");
-            numericFrame = frame.map((value, index) => numericValue(value, `DragPoint frame coordinate ${index + 1}`));
-        } else {
-            const size = sequence(suppliedSize, "DragPoint coordinateSystem size");
-            if (size.length !== 2) throw new Error("DragPoint coordinateSystem size must contain width and height");
-            const [width, height] = size.map((value, index) => numericValue(value, `DragPoint size coordinate ${index + 1}`));
-            if (!(width > 0 && height > 0 && xmax > xmin && ymax > ymin)) {
-                throw new Error("DragPoint coordinateSystem requires positive size and increasing view bounds");
-            }
-            const scale = Math.min(width / (xmax - xmin), height / (ymax - ymin));
-            const offsetX = (width - (xmax - xmin) * scale) / 2;
-            const offsetY = (height - (ymax - ymin) * scale) / 2;
-            numericFrame = [offsetX, offsetY, width - offsetX, height - offsetY];
-        }
-        const [left, top, right, bottom] = numericFrame;
-        if (!(xmax > xmin && ymax > ymin && right > left && bottom > top)) {
-            throw new Error("DragPoint coordinateSystem requires increasing view and frame bounds");
-        }
-        const x = numericValue(sourceCenter[0], "DragPoint target x coordinate");
-        const y = numericValue(sourceCenter[1], "DragPoint target y coordinate");
-        center = Object.freeze([
-            left + ((x - xmin) / (xmax - xmin)) * (right - left),
-            bottom - ((y - ymin) / (ymax - ymin)) * (bottom - top),
-        ]);
-        coordinateSystem = Object.freeze({
-            schema: "rix.graphics.coordinate-system@1",
-            view: Object.freeze([...numericView]),
-            frame: Object.freeze([...numericFrame]),
-        });
-    }
+    const coordinateSystem = normalizeGraphicCoordinateSystem(get(entry, "coordinateSystem"), "DragPoint");
+    const center = coordinateSystemPoint(sourceCenter, coordinateSystem, "DragPoint");
     return output("drag_point", {
         center: Object.freeze([...center]),
         sourceCenter: Object.freeze([...sourceCenter]),
@@ -1736,10 +1743,11 @@ export function createDragPoint(args) {
 
 /** A focusable scene subtree whose RiX callback replaces a reactive target. */
 export function createGraphicAction(args, runtime = null) {
-    const entry = spec(args, ["target", "action", "children", "label"], "Graphics.Action");
+    const entry = spec(args, ["target", "action", "children", "label", "coordinateSystem"], "Graphics.Action");
     const target = reactiveTarget(entry, "Graphics.Action");
     const action = get(entry, "action");
     if (action === null || action === undefined) throw new Error("Graphics.Action requires an action callable");
+    const coordinateSystem = normalizeGraphicCoordinateSystem(get(entry, "coordinateSystem"), "Graphics.Action");
     return output("graphic_action", {
         id: asString(get(entry, "id")) || `${target.id}:graphic-action`,
         label: asString(get(entry, "label")) || "Graphic action",
@@ -1748,7 +1756,13 @@ export function createGraphicAction(args, runtime = null) {
         target,
         targetId: target.id,
         action,
-        run: () => invokeControlCallable(action, [target.get()], runtime, "Graphics.Action action"),
+        coordinateSystem,
+        run: (position = null) => invokeControlCallable(
+            action,
+            coordinateSystem ? [target.get(), position] : [target.get()],
+            runtime,
+            "Graphics.Action action",
+        ),
         replacesDependencies: Object.freeze([...target.dependencies]),
     });
 }
@@ -2456,8 +2470,11 @@ function renderSvgNode(node, format, defs, policy, path) {
         const replaced = node.replacesDependencies?.length
             ? ` data-rix-replaces-dependencies="${escapeHtml(node.replacesDependencies.join(","))}"`
             : "";
+        const positioned = node.coordinateSystem
+            ? ` data-rix-graphic-positioned="true" data-rix-position="${(node.coordinateSystem.frame[0] + node.coordinateSystem.frame[2]) / 2},${(node.coordinateSystem.frame[1] + node.coordinateSystem.frame[3]) / 2}" aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Enter Space"`
+            : "";
         const style = svgStyle(node.style, null, policy, defs, path);
-        return `<g class="rix-output-graphic-action" ${svgSemanticAttributes(node, path)}${style ? ` ${style}` : ""} tabindex="0" role="button" aria-label="${escapeHtml(node.label)}" data-rix-graphic-action="${escapeHtml(node.id)}" data-rix-graphic-target="${escapeHtml(node.targetId)}"${replaced}>${node.children.map((child, index) => renderSvgNode(child, format, defs, policy, `${path}.graphic_action[${index + 1}]`)).join("")}</g>`;
+        return `<g class="rix-output-graphic-action" ${svgSemanticAttributes(node, path)}${style ? ` ${style}` : ""} tabindex="0" role="button" aria-label="${escapeHtml(node.label)}" data-rix-graphic-action="${escapeHtml(node.id)}" data-rix-graphic-target="${escapeHtml(node.targetId)}"${positioned}${replaced}>${node.children.map((child, index) => renderSvgNode(child, format, defs, policy, `${path}.graphic_action[${index + 1}]`)).join("")}</g>`;
     }
     if (node.kind === "text_mark") {
         validateSvgStyle(node.style, SVG_TEXT_STYLE_KEYS, path);

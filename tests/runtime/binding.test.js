@@ -315,6 +315,98 @@ describe("WidgetSession", () => {
         widget.dispose();
     });
 
+    test("passes positioned Graphic actions exact mathematical coordinates", () => {
+        const state = session();
+        const graphic = parseAndEvaluate(`
+            $$points := [];
+            .Graphics.Graphic([400,100], [
+                .Graphics.Action({=
+                    id="place-point",
+                    target=$$points,
+                    action=(current,point)->current.Push(point),
+                    label="Place point",
+                    coordinateSystem={= view=[-2,-1,2,1],size=[400,100] },
+                    children=[.Graphics.Rectangle([100,0],[200,100],{= fill="transparent" })]
+                })
+            ])
+        `, state);
+        const action = graphic.children[0];
+        expect(action.coordinateSystem).toEqual({
+            schema: "rix.graphics.coordinate-system@1",
+            view: [-2, -1, 2, 1],
+            frame: [100, 0, 300, 100],
+        });
+        const widget = createWidgetSession(graphic);
+        const result = widget.dispatch({
+            type: "graphic:action",
+            actionId: action.id,
+            targetId: action.targetId,
+            position: [250, 25],
+            source: "pointer",
+        });
+        expect(formatValue(result)).toBe("[( 1, 1/2 )]");
+        expect(formatValue(state.context.get("points").peek())).toBe("[( 1, 1/2 )]");
+        expect(() => widget.dispatch({
+            type: "graphic:action",
+            actionId: action.id,
+            targetId: action.targetId,
+        })).toThrow("Graphic position must contain x and y coordinates");
+        widget.dispose();
+    });
+
+    test("authors and reverses retained geometry nodes through positioned actions", () => {
+        const state = session();
+        const graphic = parseAndEvaluate(`
+            .Plugin.Load("geometry");
+            $$graph := .geometry.ConstructionGraph([]);
+            PointAction() -> .Graphics.Action({=
+                id="geometry-author-point",target=$$graph,
+                action=(current,position)->.geometry.AddPoint(
+                    current,.geometry.Point(position[1],position[2]),{= snap=1/4,maxNodes=4 }
+                ),
+                label="Add an exact free point",
+                coordinateSystem={= view=[-2,-1,2,1],size=[400,100] },
+                children=[.Graphics.Rectangle([100,0],[200,100],{= fill="transparent" })]
+            });
+            UndoAction() -> .Graphics.Action({=
+                id="geometry-author-undo",target=$$graph,action=current->.geometry.Undo(current),children=[]
+            });
+            RedoAction() -> .Graphics.Action({=
+                id="geometry-author-redo",target=$$graph,action=current->.geometry.Redo(current),children=[]
+            });
+            $$view := .geometry.AuthoringWorkbench($graph,[PointAction(),UndoAction(),RedoAction()],{=
+                view=[-2,-1,2,1],size=[400,100],snap=1/4,maxNodes=4
+            });
+            $view
+        `, state);
+        const surface = graphic.children.find((child) => child.id === "geometry-author-point");
+        const undo = graphic.children.find((child) => child.id === "geometry-author-undo");
+        const redo = graphic.children.find((child) => child.id === "geometry-author-redo");
+        expect(surface?.kind).toBe("graphic_action");
+        expect(graphic.metadata.get("workbench").entries.get("authoring").entries.get("schema").value)
+            .toBe("rix.geometry.authoring-policy@1");
+        const widget = createWidgetSession(graphic);
+        widget.dispatch({
+            type: "graphic:action",
+            actionId: surface.id,
+            targetId: surface.targetId,
+            position: [250,25],
+            source: "pointer",
+        });
+        let graph = state.context.get("graph").peek();
+        expect(graph.entries.get("nodes").values).toHaveLength(1);
+        expect(graph.entries.get("values").entries.get("p1").entries.get("coordinates").values.map(formatValue))
+            .toEqual(["1", "1/2"]);
+        widget.dispatch({ type: "graphic:action", actionId: undo.id, targetId: undo.targetId, source: "keyboard" });
+        graph = state.context.get("graph").peek();
+        expect(graph.entries.get("nodes").values).toHaveLength(0);
+        expect(graph.entries.get("future").values).toHaveLength(1);
+        widget.dispatch({ type: "graphic:action", actionId: redo.id, targetId: redo.targetId, source: "keyboard" });
+        graph = state.context.get("graph").peek();
+        expect(graph.entries.get("nodes").values).toHaveLength(1);
+        widget.dispose();
+    });
+
     test("routes semantic control:set events like $name := an exact value", () => {
         const state = session();
         const panel = parseAndEvaluate(`

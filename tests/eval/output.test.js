@@ -951,8 +951,9 @@ describe("portable structured output", () => {
                 .Graphics.Action({=
                     id="next-node",
                     target=$$current,
-                    action=value -> value + 1,
+                    action=(value,point) -> value + point[1],
                     label="Go to next node",
+                    coordinateSystem={= view=[-2,-1,2,1],size=[160,100] },
                     children=[.Graphics.Circle([80,50], 24, {= fill="#ddd6fe" })]
                 })
             ])
@@ -965,6 +966,8 @@ describe("portable structured output", () => {
         expect(html).toContain('data-rix-graphic-action="next-node"');
         expect(html).toContain(`data-rix-graphic-target="${action.targetId}"`);
         expect(html).toContain('tabindex="0" role="button" aria-label="Go to next node"');
+        expect(html).toContain('data-rix-graphic-positioned="true"');
+        expect(html).toContain('aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Enter Space"');
         expect(html).toContain("Choose a highlighted scene node to navigate.");
     });
 

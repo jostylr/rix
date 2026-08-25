@@ -58,6 +58,42 @@ RiX Web supplies the object tree, property inspector, keyboard traversal,
 session movement history, and export button. The same value still renders as
 ordinary Graphics in static hosts.
 
+## Add exact free points from the canvas
+
+Positioned `Graphics.Action` nodes translate a pointer or keyboard cursor
+through the declared mathematical coordinate system before invoking their RiX
+callback. The point tool below appends a retained free node; its companion
+actions replay the same exact create history.
+
+```rix
+.Plugin.Load("geometry");
+view := [-4,-3,4,3]; size := [640,480];
+$$graph := .geometry.ConstructionGraph([]);
+actions := [
+  .Graphics.Action({=
+    id="geometry-author-point",target=$$graph,
+    action=(current,position)->.geometry.AddPoint(
+      current,.geometry.Point(position[1],position[2]),{= snap=1/4,maxNodes=32 }
+    ),
+    label="Add an exact free point",coordinateSystem={= view=view,size=size },
+    children=[.Graphics.Rectangle([0,0],size,{= fill="transparent",stroke="none" })]
+  }),
+  .Graphics.Action({= id="geometry-author-undo",target=$$graph,
+    action=current->.geometry.Undo(current),children=[] }),
+  .Graphics.Action({= id="geometry-author-redo",target=$$graph,
+    action=current->.geometry.Redo(current),children=[] })
+];
+$$workbench := .geometry.AuthoringWorkbench($graph,actions,{=
+  view=view,size=size,snap=1/4,maxNodes=32
+});
+$workbench;
+```
+
+Click empty canvas space to place `p1`, `p2`, and so on. Select **Point tool**
+to focus its surface; arrows move the cursor, Shift-arrows move ten pixels, and
+Enter or Space places the point. `snap` is applied in mathematical coordinates,
+and `maxNodes` is a strict construction bound.
+
 ## Keep unresolved intersections visible
 
 Parallel lines return an intersection result whose status is `parallel`.

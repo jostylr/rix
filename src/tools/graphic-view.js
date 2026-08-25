@@ -382,12 +382,14 @@ export function serializeGeometryConstructionRecord(record, format = String) {
     return JSON.stringify(portableGeometryValue(record, format), null, 2);
 }
 
-function installGeometryWorkbench(graphic, status, options, navigation) {
+function installGeometryWorkbench(graphic, status, options, navigation, actionActivators = new Map()) {
     const workbench = geometryWorkbench(options.graphic);
     const document = graphic.ownerDocument;
     if (!workbench || !document?.createElement) return;
     const nodes = sequenceValue(mapField(workbench, "nodes"));
     const history = geometryHistory(options.state || (options.state = {}));
+    const authoring = mapField(workbench, "authoring");
+    const authoringEnabled = stringValue(mapField(authoring, "schema")) === "rix.geometry.authoring-policy@1";
     const panel = document.createElement("aside");
     panel.className = "rix-output-geometry-workbench";
     panel.setAttribute("aria-label", "Geometry construction workbench");
@@ -401,6 +403,18 @@ function installGeometryWorkbench(graphic, status, options, navigation) {
     const redo = makeButton(document, "geometry-redo", "Redo point movement", "Redo");
     const exportButton = makeButton(document, "geometry-export", "Export portable construction record", "Export");
     controls.append(undo, redo, exportButton);
+    if (authoringEnabled) {
+        const pointTool = makeButton(document, "geometry-point-tool", "Focus the exact free-point authoring surface", "Point tool");
+        pointTool.setAttribute("aria-pressed", "true");
+        pointTool.addEventListener("click", () => {
+            const actionId = stringValue(mapField(authoring, "surfaceActionId"));
+            const surface = [...graphic.querySelectorAll("[data-rix-graphic-action]")]
+                .find((candidate) => candidate.dataset.rixGraphicAction === actionId);
+            surface?.focus?.();
+            if (status) status.textContent = "Point tool active. Click empty canvas space, or move the keyboard cursor with arrows and press Enter.";
+        });
+        controls.prepend(pointTool);
+    }
     panel.append(controls);
     const exported = document.createElement("pre");
     exported.className = "rix-output-geometry-export";
@@ -462,10 +476,20 @@ function installGeometryWorkbench(graphic, status, options, navigation) {
     graphic.append(panel);
 
     const refreshHistory = () => {
-        undo.disabled = history.cursor === 0;
-        redo.disabled = history.cursor >= history.entries.length;
+        undo.disabled = authoringEnabled
+            ? finiteNumber(mapField(workbench, "historyCount"), 0) === 0
+            : history.cursor === 0;
+        redo.disabled = authoringEnabled
+            ? finiteNumber(mapField(workbench, "redoCount"), 0) === 0
+            : history.cursor >= history.entries.length;
     };
     const replay = (direction) => {
+        if (authoringEnabled) {
+            const key = direction < 0 ? "undoActionId" : "redoActionId";
+            const actionId = stringValue(mapField(authoring, key));
+            actionActivators.get(actionId)?.(direction < 0 ? "undo" : "redo");
+            return;
+        }
         const entry = direction < 0 ? history.entries[history.cursor - 1] : history.entries[history.cursor];
         if (!entry || typeof options.onPosition !== "function") return;
         const nextCursor = history.cursor + direction;
@@ -852,16 +876,19 @@ function enhanceGraphic(graphic, options) {
     if (!svg) return;
 
     const navigation = installNavigation(graphic, svg, status, options);
-    installGeometryWorkbench(graphic, status, options, navigation);
+    const actionActivators = new Map();
 
     for (const action of actions) {
         if (typeof options.onAction !== "function") continue;
-        const activate = (source) => {
+        const positioned = action.dataset.rixGraphicPositioned === "true";
+        const current = () => String(action.dataset.rixPosition || "0,0").split(",").map(Number);
+        const activate = (source, position = positioned ? current() : null) => {
             const detail = Object.freeze({
                 type: "graphic:action",
                 actionId: action.dataset.rixGraphicAction,
                 targetId: action.dataset.rixGraphicTarget,
                 source,
+                ...(positioned ? { position: Object.freeze(position.map(Number)) } : {}),
             });
             try {
                 const result = options.onAction(detail, action, graphic);
@@ -873,18 +900,46 @@ function enhanceGraphic(graphic, options) {
                 if (status) status.textContent = error instanceof Error ? error.message : String(error);
             }
         };
+        actionActivators.set(action.dataset.rixGraphicAction, activate);
         action.addEventListener("click", (event) => {
             event.preventDefault?.();
             event.stopPropagation?.();
-            activate("pointer");
+            const position = positioned
+                ? graphicPointFromClient(
+                    svg.getBoundingClientRect(),
+                    svg.viewBox?.baseVal || graphicViewBox(options.state),
+                    { x: event.clientX, y: event.clientY },
+                )
+                : null;
+            if (positioned) action.dataset.rixPosition = position.join(",");
+            activate("pointer", position);
         });
         action.addEventListener("keydown", (event) => {
+            if (positioned && ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) {
+                const delta = event.shiftKey ? 10 : 1;
+                const position = current();
+                if (event.key === "ArrowLeft") position[0] -= delta;
+                else if (event.key === "ArrowRight") position[0] += delta;
+                else if (event.key === "ArrowUp") position[1] -= delta;
+                else position[1] += delta;
+                const box = svg.viewBox?.baseVal || graphicViewBox(options.state);
+                const next = [
+                    Math.min(Math.max(position[0], box.x), box.x + box.width),
+                    Math.min(Math.max(position[1], box.y), box.y + box.height),
+                ];
+                action.dataset.rixPosition = next.join(",");
+                event.preventDefault?.();
+                event.stopPropagation?.();
+                if (status) status.textContent = `Point-tool cursor ${next.map((value) => Number(value.toFixed(2))).join(", ")}. Press Enter to create.`;
+                return;
+            }
             if (event.key !== "Enter" && event.key !== " ") return;
             event.preventDefault?.();
             event.stopPropagation?.();
             activate("keyboard");
         });
     }
+    installGeometryWorkbench(graphic, status, options, navigation, actionActivators);
 
     if (handles.length === 0 || typeof options.onPosition !== "function") return;
 

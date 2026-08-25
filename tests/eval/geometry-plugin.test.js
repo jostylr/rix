@@ -364,4 +364,25 @@ describe("geometry plugin", () => {
         expect(text(field(metadata, "schema"))).toBe("rix.geometry.workbench@1");
         expect(field(metadata, "nodes").values).toHaveLength(2);
     });
+
+    test("authors exact free points with stable ids and reversible create events", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("geometry");
+            empty=.geometry.ConstructionGraph([]);
+            first=.geometry.AddPoint(empty,.geometry.Point(7/13,11/17),{= snap=1/4,maxNodes=3 });
+            second=.geometry.AddPoint(first,.geometry.Point(-2/3,5/6),{= snap=1/4,maxNodes=3 });
+            undone=.geometry.Undo(second); redone=.geometry.Redo(undone);
+            {: first,second,undone,redone,.geometry.ConstructionRecord(redone) };
+        `);
+        const [first, second, undone, redone, record] = result.values;
+        expect(field(first, "nodes").values.map((node) => text(field(node, "id")))).toEqual(["p1"]);
+        expect(field(field(first, "values"), "p1").entries.get("coordinates").values.map(String))
+            .toEqual(["1/2", "3/4"]);
+        expect(field(second, "nodes").values.map((node) => text(field(node, "id")))).toEqual(["p1", "p2"]);
+        expect(field(undone, "nodes").values).toHaveLength(1);
+        expect(field(undone, "future").values).toHaveLength(1);
+        expect(field(redone, "nodes").values).toHaveLength(2);
+        expect(text(field(field(redone, "history").values[1], "operation"))).toBe("create");
+        expect(text(field(field(record, "history").values[1], "tool"))).toBe("point");
+    });
 });

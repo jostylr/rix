@@ -184,3 +184,42 @@ test("Graphic actions emit semantic records for pointer and keyboard activation"
     ]);
     expect(status.textContent).toBe("Go left selected");
 });
+
+test("positioned Graphic actions retain pointer and keyboard cursor coordinates", () => {
+    const listeners = new Map();
+    const action = {
+        dataset: {
+            rixGraphicAction: "place",
+            rixGraphicTarget: "graph:points",
+            rixGraphicPositioned: "true",
+            rixPosition: "100,50",
+        },
+        addEventListener(name, listener) { listeners.set(name, listener); },
+        getAttribute(name) { return name === "aria-label" ? "Place point" : null; },
+    };
+    const svg = {
+        viewBox: { baseVal: { x: 0, y: 0, width: 200, height: 100 } },
+        getBoundingClientRect() { return { left: 10, top: 20, width: 400, height: 200 }; },
+    };
+    const status = { textContent: "" };
+    const graphic = {
+        dataset: {},
+        matches(selector) { return selector === ".rix-output-graphic"; },
+        querySelector(selector) {
+            if (selector === "svg.rix-output-svg") return svg;
+            if (selector === ".rix-output-graphic-status") return status;
+            return null;
+        },
+        querySelectorAll(selector) { return selector === "[data-rix-graphic-action]" ? [action] : []; },
+        dispatchEvent() {},
+    };
+    const received = [];
+    enhanceGraphicViews(graphic, { onAction(detail) { received.push(detail); return { type: "result" }; } });
+    listeners.get("click")({ clientX: 310, clientY: 70, preventDefault() {}, stopPropagation() {} });
+    listeners.get("keydown")({ key: "ArrowLeft", shiftKey: false, preventDefault() {}, stopPropagation() {} });
+    listeners.get("keydown")({ key: "Enter", preventDefault() {}, stopPropagation() {} });
+    expect(received).toEqual([
+        { type: "graphic:action", actionId: "place", targetId: "graph:points", source: "pointer", position: [150, 25] },
+        { type: "graphic:action", actionId: "place", targetId: "graph:points", source: "keyboard", position: [149, 25] },
+    ]);
+});

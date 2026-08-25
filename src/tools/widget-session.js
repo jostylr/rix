@@ -210,7 +210,10 @@ export class GraphicWidgetSession {
             if (event.targetId && String(event.targetId) !== action.targetId) {
                 throw new Error("Graphic action and target IDs do not match");
             }
-            const value = action.run();
+            const point = action.coordinateSystem
+                ? graphicPoint(event.position, action.coordinateSystem)
+                : null;
+            const value = action.run(point);
             const replacedDependencies = Object.freeze([...action.target.dependencies]);
             action.target.replaceValue(value, {
                 source: "widget",

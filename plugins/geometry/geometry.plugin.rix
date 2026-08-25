@@ -3,12 +3,12 @@ id: geometry
 description: Pure-RiX exact geometry, transformations, conics, constraints, and bounded portable Graphics refinement.
 kind: rix
 mount: geometry
-exports: [Point, Line, Segment, Ray, Polygon, Circle, Conic, Ellipse, Parabola, Hyperbola, Locus, Implicit, Affine, Projective, Transform, Constraint, Constraints, SquaredDistance, Distance, Length, Area, CircularAngle, Angle, Centroid, Incenter, Orthocenter, AngleBisector, Perpendicular, ParallelThrough, Midpoint, PerpendicularBisector, Circumcircle, Translate, RotateQuarterTurns, Rotate, ReflectAcross, Intersect, Points, Status, UncertainPoint, UncertainBounds, TransformUncertain, ConstructionGraph, ConstructionRecord, ImportConstruction, Drag, Undo, Redo, Refine, Draw, Workbench]
+exports: [Point, Line, Segment, Ray, Polygon, Circle, Conic, Ellipse, Parabola, Hyperbola, Locus, Implicit, Affine, Projective, Transform, Constraint, Constraints, SquaredDistance, Distance, Length, Area, CircularAngle, Angle, Centroid, Incenter, Orthocenter, AngleBisector, Perpendicular, ParallelThrough, Midpoint, PerpendicularBisector, Circumcircle, Translate, RotateQuarterTurns, Rotate, ReflectAcross, Intersect, Points, Status, UncertainPoint, UncertainBounds, TransformUncertain, ConstructionGraph, ConstructionRecord, ImportConstruction, AddPoint, Drag, Undo, Redo, Refine, Draw, Workbench, AuthoringWorkbench]
 groups: [Geometry, Graphics, Exact]
 permissions: []
 requires: [rix.numerics@1, rix.polynomial.algorithms@1, rix.algebraic-real@1]
-provides: [rix.geometry@1, rix.geometry.intersection@1, rix.geometry.constraint@1, rix.geometry.refinement@1, rix.geometry.circular-angle@1, rix.geometry.uncertain-point@1, rix.geometry.construction-graph@1, rix.geometry.construction-record@1, rix.geometry.workbench@1]
-schemas: [rix.geometry@1, rix.geometry.intersection@1, rix.geometry.constraint@1, rix.geometry.refinement@1, rix.geometry.circular-angle@1, rix.geometry.uncertain-point@1, rix.geometry.construction-graph@1, rix.geometry.construction-record@1, rix.geometry.workbench@1]
+provides: [rix.geometry@1, rix.geometry.intersection@1, rix.geometry.constraint@1, rix.geometry.refinement@1, rix.geometry.circular-angle@1, rix.geometry.uncertain-point@1, rix.geometry.construction-graph@1, rix.geometry.construction-record@1, rix.geometry.workbench@1, rix.geometry.authoring-policy@1]
+schemas: [rix.geometry@1, rix.geometry.intersection@1, rix.geometry.constraint@1, rix.geometry.refinement@1, rix.geometry.circular-angle@1, rix.geometry.uncertain-point@1, rix.geometry.construction-graph@1, rix.geometry.construction-record@1, rix.geometry.workbench@1, rix.geometry.authoring-policy@1]
 snapshot: true
 deterministic: true
 defaultEnabled: false
@@ -655,6 +655,40 @@ GeometryImportConstruction(record,constructors ?= {= }) -> {;
     GeometryBuildConstructionGraph(nodes,GeometryOption(record,"history",[]),GeometryOption(record,"future",[]));
 };
 
+GeometryAuthoringLimit(options) -> {;
+    limit=GeometryOption(options,"maxnodes",1000) ~!: :Integer;
+    (limit>=1&&limit<=10000) ?: limit ?_ .Error("geometry authoring maxNodes must be between 1 and 10000");
+};
+
+GeometryAuthoringPoint(graph,target,options ?= {= }) -> {;
+    valid=GeometryRequireConstructionGraph(graph,"geometry.AddPoint");
+    options ? :Map ?: _ ?_ .Error("geometry.AddPoint options must be a map");
+    limit=GeometryAuthoringLimit(options);
+    valid[:nodes].Len()<limit ?: _ ?_ .Error(@"geometry.AddPoint reached its maxNodes limit of @{limit}");
+    supplied=GeometryRequire(target,:point,"geometry.AddPoint target");
+    snap=GeometryOption(options,"snap");
+    point=snap==_
+      ?: supplied
+      ?_ {;
+          grid=GeometryExact(@snap,"geometry.AddPoint snap"); grid>0 ?: _ ?_ .Error("geometry.AddPoint snap must be positive");
+          GeometryPoint((@supplied[:x]/grid).Round()*grid,(@supplied[:y]/grid).Round()*grid);
+      };
+    prefix=GeometryOption(options,"idprefix","p");
+    prefix ? :String ?: _ ?_ .Error("geometry.AddPoint idPrefix must be a String");
+    id:=GeometryOption(options,"id");
+    {@ candidate=1; candidate<=@limit&&@id==_; {;
+        proposed=@"@{@prefix}@{candidate}";
+        @valid[:nodes].Any((node)->node[:id]==@proposed) ?: _ ?_ {; @id~=@proposed; };
+    }; candidate+=1 };
+    id!=_ ?: _ ?_ .Error("geometry.AddPoint could not allocate a stable point id");
+    valid[:nodes].Any((node)->node[:id]==@id) ?: .Error(@"geometry.AddPoint duplicate node id @{id}") ?_ _;
+    node={= id=id,free=1,value=point,dependson=[] };
+    event={= operation=:create,tool=:point,id=id,node=node,at=point,snap=snap };
+    GeometryBuildConstructionGraph(valid[:nodes].Push(node),valid[:history].Push(event),[]);
+};
+
+GeometryAddPoint(graph,target,options ?= {= }) -> GeometryAuthoringPoint(graph,target,options);
+
 GeometryMoveConstructionNode(graph,id,target,history,future) -> {;
     found=graph[:nodes].Filter((node)->node[:id]==id);
     found.Len()==1 ?: _ ?_ .Error(@"geometry construction node @{id} does not exist");
@@ -686,8 +720,15 @@ GeometryUndo(graph) -> {;
       ?: valid
       ?_ {;
           event=@valid[:history].Last();
-          event[:operation]==:drag ?: _ ?_ .Error("geometry.Undo encountered an unsupported construction event");
-          GeometryMoveConstructionNode(@valid,event[:id],event[:from],@valid[:history].DropLast(),GeometryOption(@valid,"future",[]).Push(event));
+          operation=event[:operation]; future=GeometryOption(@valid,"future",[]).Push(event); history=@valid[:history].DropLast();
+          operation==:drag
+            ?: GeometryMoveConstructionNode(@valid,event[:id],event[:from],history,future)
+            ?_ operation==:create
+                 ?: {;
+                     @valid[:nodes].Last()[:id]==@event[:id] ?: _ ?_ .Error("geometry.Undo can only remove the most recently created construction node");
+                     GeometryBuildConstructionGraph(@valid[:nodes].DropLast(),@history,@future);
+                 }
+                 ?_ .Error("geometry.Undo encountered an unsupported construction event");
       };
 };
 
@@ -697,8 +738,12 @@ GeometryRedo(graph) -> {;
       ?: valid
       ?_ {;
           event=@future.Last();
-          event[:operation]==:drag ?: _ ?_ .Error("geometry.Redo encountered an unsupported construction event");
-          GeometryMoveConstructionNode(@valid,event[:id],event[:to],@valid[:history].Push(event),@future.DropLast());
+          operation=event[:operation]; history=@valid[:history].Push(event); remaining=@future.DropLast();
+          operation==:drag
+            ?: GeometryMoveConstructionNode(@valid,event[:id],event[:to],history,remaining)
+            ?_ operation==:create
+                 ?: GeometryBuildConstructionGraph(@valid[:nodes].Push(event[:node]),history,remaining)
+                 ?_ .Error("geometry.Redo encountered an unsupported construction event");
       };
 };
 
@@ -1521,7 +1566,9 @@ GeometryWorkbench(graph, options ?= {= }) -> {;
     scale=.Min(size[1]/(xmax-xmin),size[2]/(ymax-ymin));
     offsetX=(size[1]-(xmax-xmin)*scale)/2; offsetY=(size[2]-(ymax-ymin)*scale)/2;
     frame=[offsetX,offsetY,size[1]-offsetX,size[2]-offsetY];
-    children:=[]; unresolved:=0; interactive:=[];
+    surface=GeometryOption(options,"surface",[]);
+    surface ? :Array ?: _ ?_ .Error("geometry.Workbench surface must be an array of Graphics nodes");
+    children:=surface; unresolved:=0; interactive:=[];
     {@ index=1; index<=@valid[:nodes].Len(); {;
         node=@valid[:nodes][index]; value=node[:value]; id=node[:id];
         schema=((value ? :Map)&&value.Has("schema")) ?: value[:schema] ?_ _;
@@ -1548,9 +1595,43 @@ GeometryWorkbench(graph, options ?= {= }) -> {;
             schema="rix.geometry.workbench@1",construction=record,nodes=record[:nodes],
             view=view,frame=frame,interactive=interactive,
             historyCount=valid[:history].Len(),redoCount=GeometryOption(valid,"future",[]).Len(),
+            authoring=GeometryOption(options,"authoring"),
             deterministic=1
         }
     });
+};
+
+GeometryAuthoringWorkbench(graph,actions,options ?= {= }) -> {;
+    valid=GeometryRequireConstructionGraph(graph,"geometry.AuthoringWorkbench");
+    options ? :Map ?: _ ?_ .Error("geometry.AuthoringWorkbench options must be a map");
+    actions ? :Array ?: _ ?_ .Error("geometry.AuthoringWorkbench actions must be [point, undo, redo] Graphics actions");
+    actions.Len()==3 ?: _ ?_ .Error("geometry.AuthoringWorkbench requires point, undo, and redo Graphics actions");
+    size=GeometryNumericSequence(GeometryOption(options,"size",[720,480]),2,"geometry.AuthoringWorkbench size");
+    view=GeometryNumericSequence(GeometryOption(options,"view",[-10,-10,10,10]),4,"geometry.AuthoringWorkbench view");
+    xmin=view[1]; ymin=view[2]; xmax=view[3]; ymax=view[4];
+    (xmax>xmin&&ymax>ymin) ?: _ ?_ .Error("geometry.AuthoringWorkbench view must satisfy xmin < xmax and ymin < ymax");
+    (size[1]>0&&size[2]>0) ?: _ ?_ .Error("geometry.AuthoringWorkbench size must be positive");
+    scale=.Min(size[1]/(xmax-xmin),size[2]/(ymax-ymin));
+    offsetX=(size[1]-(xmax-xmin)*scale)/2; offsetY=(size[2]-(ymax-ymin)*scale)/2;
+    frame=[offsetX,offsetY,size[1]-offsetX,size[2]-offsetY];
+    maxNodes=GeometryAuthoringLimit(options);
+    snap=GeometryOption(options,"snap");
+    snap==_ ?: _ ?_ {; grid=GeometryExact(@snap,"geometry.AuthoringWorkbench snap"); grid>0 ?: _ ?_ .Error("geometry.AuthoringWorkbench snap must be positive"); };
+    idPrefix=GeometryOption(options,"idprefix","p");
+    idPrefix ? :String ?: _ ?_ .Error("geometry.AuthoringWorkbench idPrefix must be a String");
+    actionPrefix=GeometryOption(options,"actionprefix","geometry-author");
+    actionPrefix ? :String ?: _ ?_ .Error("geometry.AuthoringWorkbench actionPrefix must be a String");
+    surfaceActionId=@"@{actionPrefix}-point"; undoActionId=@"@{actionPrefix}-undo"; redoActionId=@"@{actionPrefix}-redo";
+    coordinateSystem={= view=view,frame=frame };
+    policy={=
+        schema="rix.geometry.authoring-policy@1",tool=:point,tools=[:point],
+        maxNodes=maxNodes,snap=snap,idPrefix=idPrefix,coordinateSystem=coordinateSystem,
+        surfaceActionId=surfaceActionId,undoActionId=undoActionId,redoActionId=redoActionId,
+        exactCoordinates=1,deterministicIds=1
+    };
+    GeometryWorkbench(valid,options.Merge({=
+        surface=actions,authoring=policy,size=size,view=view
+    }));
 };
 
 geometryNamespace = {= };
@@ -1600,11 +1681,13 @@ geometryNamespace._proto = {=
     ConstructionGraph=(self, nodes, options ?= {= })->GeometryConstructionGraph(nodes,options),
     ConstructionRecord=(self, graph)->GeometryConstructionRecord(graph),
     ImportConstruction=(self, record, constructors ?= {= })->GeometryImportConstruction(record,constructors),
+    AddPoint=(self, graph, target, options ?= {= })->GeometryAddPoint(graph,target,options),
     Drag=(self, graph, id, target, options ?= {= })->GeometryDrag(graph,id,target,options),
     Undo=(self, graph)->GeometryUndo(graph),
     Redo=(self, graph)->GeometryRedo(graph),
     Refine=(self, value, request ?= {= })->GeometryRefine(value, request),
     Draw=(self, objects, options ?= {= })->GeometryDraw(objects, options),
-    Workbench=(self, graph, options ?= {= })->GeometryWorkbench(graph,options)
+    Workbench=(self, graph, options ?= {= })->GeometryWorkbench(graph,options),
+    AuthoringWorkbench=(self, graph, actions, options ?= {= })->GeometryAuthoringWorkbench(graph,actions,options)
 };
 .Host.RegisterValue("geometry", geometryNamespace, "Exact geometry, transformations, conics, constraints, and bounded Graphics refinement", ["Geometry", "Graphics", "Exact"]);

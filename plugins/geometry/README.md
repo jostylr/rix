@@ -133,8 +133,50 @@ $$workbench := .geometry.Workbench($graph,{=
 $workbench;
 ```
 
-This baseline is an exact controller and inspection environment, not yet a
-general nonlinear constraint solver or a complete canvas authoring UI.
+### Author exact free points from the canvas
+
+`AddPoint(graph, point, options)` appends a real free construction node rather
+than a browser-only mark. It allocates stable `p1`, `p2`, ... ids, supports an
+exact rational `snap`, enforces `maxNodes`, clears the redo branch, and records
+a reversible `:create` event. `Undo`, `Redo`, `ConstructionRecord`, and export
+therefore see the same edit.
+
+`Graphics.Action` accepts an optional `coordinateSystem`. A positioned action
+receives `(current, point)`, where `point` is the exact rational tuple obtained
+from the pointer or keyboard cursor. Because reactive `$$` identities may only
+be captured by a direct host constructor, create the point, undo, and redo
+actions directly, then pass them to `AuthoringWorkbench` in that order. Their
+ids use the workbench `actionPrefix` plus `-point`, `-undo`, and `-redo`.
+
+```rix
+.Plugin.Load("geometry");
+view := [-4,-3,4,3]; size := [640,480];
+$$graph := .geometry.ConstructionGraph([]);
+actions := [
+  .Graphics.Action({=
+    id="geometry-author-point",target=$$graph,
+    action=(current,position)->.geometry.AddPoint(
+      current,.geometry.Point(position[1],position[2]),{= snap=1/4,maxNodes=32 }
+    ),
+    label="Add an exact free point",coordinateSystem={= view=view,size=size },
+    children=[.Graphics.Rectangle([0,0],size,{= fill="transparent",stroke="none" })]
+  }),
+  .Graphics.Action({= id="geometry-author-undo",target=$$graph,
+    action=current->.geometry.Undo(current),children=[] }),
+  .Graphics.Action({= id="geometry-author-redo",target=$$graph,
+    action=current->.geometry.Redo(current),children=[] })
+];
+$$workbench := .geometry.AuthoringWorkbench($graph,actions,{=
+  view=view,size=size,snap=1/4,maxNodes=32
+});
+$workbench;
+```
+
+RiX Web exposes the Point tool, keeps focus on the authoring surface across
+reactive redraws, supports arrow-key cursor movement plus Enter/Space placement,
+and routes its Undo/Redo buttons through the retained construction history.
+This first authoring pass intentionally creates free points only; dependent
+line/circle tools and constraint-solving drag remain follow-up work.
 
 ## Bounded refinement
 
