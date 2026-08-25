@@ -53,9 +53,20 @@ option describes cells, so the sampler evaluates `(columns+1) × (rows+1)`
 vertices. The semantic metadata records the domain, sampling method and budget,
 exact/enclosed/approximate/unresolved evidence counts, stable cell or vector
 identities, unresolved and ambiguous regions, legends, and color scales. The
-current implicit/contour and inequality boundaries are explicitly described as
-sampled-sign classifications; they are not presented as certified enclosures of
-the function between grid vertices.
+implicit/contour and inequality boundaries are explicitly described as
+sampled-sign classifications; they are not presented as certified crossings
+between grid vertices.
+
+`Implicit`, `Contour`, and `Inequality` accept `refineDepth` from `0` through
+`6` and a `refinementBudget` through `50000`; an explicit budget must be at
+least the base grid's cell count. Their adaptive quadtree subdivides mixed
+cells and cells whose center disagrees with all four corners.
+The default depth is zero, preserving uniform-grid cost. Setting
+`certifyIntervals=1` requires a field function that accepts rational intervals.
+Its interval image can certify whole-cell exclusion for implicit levels or
+whole-cell inside/outside status for inequalities; drawn edge intersections
+remain sampled evidence. The retained refinement policy reports processed and
+leaf cells, subdivision count, depth, budget stops, and evaluation counts.
 
 `Implicit` accepts `level` (default `0`); `Contour` accepts `levels`; `Inequality`
 accepts `relation` and `level`; `HeatMap` accepts `colors` and `colorDomain`;
@@ -63,7 +74,8 @@ and `VectorField` accepts `vectorScale`. All field families lower to ordinary
 rectangles and paths with `hitId` values, so SVG, Canvas, and TikZ share the same
 scene and selection identities. Text-only renderers return a deterministic plot
 summary including domain, grid, unresolved regions, ambiguous sampled boundary
-regions, and evidence status.
+regions, adaptive work, budget exhaustion, interval classifications, and
+evidence status.
 
 ## Dependencies
 

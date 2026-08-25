@@ -2672,6 +2672,33 @@ function formatPlotText(graphic, format) {
     const gridValue = get(plot, "grid");
     const grid = gridValue?.entries instanceof Map ? gridValue.entries : null;
     if (grid) parts.push(`grid ${cellText(get(grid, "columns"), format)} × ${cellText(get(grid, "rows"), format)}`);
+    const refinementValue = get(plot, "refinement");
+    const refinementEntries = refinementValue && isSequence(refinementValue)
+        ? sequence(refinementValue, "plot refinement")
+        : refinementValue?.entries instanceof Map ? [refinementValue] : [];
+    if (refinementEntries.length) {
+        const records = refinementEntries.map((entry) => entry?.entries instanceof Map ? entry.entries : entry)
+            .filter((entry) => Number(get(entry, "maxDepth")?.value ?? get(entry, "maxDepth") ?? 0) > 0
+                || Number(get(entry, "intervalEvaluations")?.value ?? get(entry, "intervalEvaluations") ?? 0) > 0
+                || Number(get(entry, "refinedCells")?.value ?? get(entry, "refinedCells") ?? 0) > 0
+                || Number(get(entry, "budgetStops")?.value ?? get(entry, "budgetStops") ?? 0) > 0);
+        if (records.length) {
+            const number = (value) => Number(value?.value ?? value ?? 0);
+            const reached = Math.max(...records.map((entry) => number(get(entry, "maxDepthReached"))));
+            const maximum = Math.max(...records.map((entry) => number(get(entry, "maxDepth"))));
+            const refined = records.reduce((total, entry) => total + number(get(entry, "refinedCells")), 0);
+            const leaves = records.reduce((total, entry) => total + number(get(entry, "leafCells")), 0);
+            const intervals = records.reduce((total, entry) => total + number(get(entry, "intervalEvaluations")), 0);
+            const classifications = records.reduce((total, entry) => total
+                + number(get(entry, "certifiedExcludedCells"))
+                + number(get(entry, "certifiedInsideCells"))
+                + number(get(entry, "certifiedOutsideCells")), 0);
+            const candidates = records.reduce((total, entry) => total + number(get(entry, "enclosureCandidateCells")), 0);
+            const stops = records.reduce((total, entry) => total + number(get(entry, "budgetStops")), 0);
+            parts.push(`adaptive depth ${reached}/${maximum}, ${refined} subdivisions, ${leaves} leaf cells, ${stops} budget stops`);
+            if (intervals) parts.push(`${intervals} certified interval enclosures, ${classifications} whole-cell classifications, ${candidates} enclosure candidates; crossings remain sampled`);
+        }
+    }
     const unresolvedValue = get(plot, "unresolvedRegions");
     const unresolved = unresolvedValue && isSequence(unresolvedValue)
         ? sequence(unresolvedValue, "plot unresolved regions").length

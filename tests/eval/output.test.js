@@ -1164,6 +1164,7 @@ describe("portable structured output", () => {
             .toEqual(["polar", "implicit", "inequality", "contour", "heatmap", "vector_field"]);
         expect(polar.children.some(({ kind }) => kind === "path")).toBe(true);
         expect(plotMetadata(implicit).get("series").values.length).toBeGreaterThan(0);
+        expect(plotMetadata(implicit).get("refinement").values[0].entries.get("pointevaluations").value).toBe(0n);
         expect(inequality.children.some(({ kind }) => kind === "rectangle")).toBe(true);
         expect(plotMetadata(contour).get("legend").values).toHaveLength(3);
         expect(heatMap.children.filter(({ kind }) => kind === "rectangle").length).toBeGreaterThanOrEqual(16);
@@ -1195,6 +1196,79 @@ describe("portable structured output", () => {
             .Plugin.Load("plot");
             .plot.VectorField((x,y)->x+y, [-1,1], [-1,1], {= grid=[2,2] });
         `)).toThrow("must be an Array");
+    });
+
+    test("plot adaptive refinement retains sampled crossings and certified whole-cell evidence separately", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("plot");
+            [
+                .plot.Implicit((x,y)->x^2+y^2-1, [-2,2], [-2,2], {=
+                    grid=[4,4], refineDepth=2, refinementBudget=2000, certifyIntervals=1
+                }),
+                .plot.Inequality((x,y)->x+y, [-2,2], [-2,2], {=
+                    grid=[4,4], refineDepth=2, refinementBudget=2000, certifyIntervals=1
+                })
+            ];
+        `);
+        const [implicit, inequality] = result.values;
+        const metadata = (graphic) => graphic.metadata.get("plot").entries;
+        const text = (value) => value?.value ?? String(value);
+        const implicitPlot = metadata(implicit);
+        const implicitRefinement = implicitPlot.get("refinement").values[0].entries;
+        const inequalityPlot = metadata(inequality);
+        const inequalityRefinement = inequalityPlot.get("refinement").entries;
+
+        expect(text(implicitPlot.get("sampling").entries.get("method"))).toBe("adaptive_marching_squares");
+        expect(text(implicitPlot.get("sampling").entries.get("certification")))
+            .toBe("interval_exclusion_plus_sampled_crossings");
+        expect(implicitRefinement.get("maxdepth").value).toBe(2n);
+        expect(implicitRefinement.get("refinedcells").value).toBeGreaterThan(0n);
+        expect(implicitRefinement.get("intervalevaluations").value)
+            .toBe(implicitRefinement.get("processedcells").value);
+        expect(implicitRefinement.get("certifiedexcludedcells").value
+            + implicitRefinement.get("enclosurecandidatecells").value)
+            .toBe(implicitRefinement.get("intervalevaluations").value);
+        expect(implicitPlot.get("records").values.every((record) => text(record.entries.get("evidencelevel")) === "sample")).toBe(true);
+
+        const inequalityStatuses = inequalityPlot.get("records").values
+            .map((record) => text(record.entries.get("status")));
+        expect(inequalityStatuses).toContain("certified_inside");
+        expect(inequalityStatuses).toContain("certified_outside");
+        expect(inequalityRefinement.get("maxdepthreached").value).toBe(2n);
+        expect(formatOutputText(implicit, formatValue)).toContain("crossings remain sampled");
+        const html = renderOutputHtml(implicit, formatValue);
+        expect(html).toContain("Adaptive refinement evidence");
+        expect(html).toContain("proved whole-cell exclusion or classification");
+        expect(html).toContain("remained enclosure candidates; drawn crossings remain sampled");
+    });
+
+    test("plot adaptive refinement validates its bounded policy and interval contract", () => {
+        expect(() => parseAndEvaluate(`
+            .Plugin.Load("plot");
+            .plot.Implicit((x,y)->x+y, [-1,1], [-1,1], {= refineDepth=7 });
+        `)).toThrow("refineDepth must be between 0 and 6");
+        expect(() => parseAndEvaluate(`
+            .Plugin.Load("plot");
+            .plot.Inequality((x,y)->x+y, [-1,1], [-1,1], {= refinementBudget=0 });
+        `)).toThrow("refinementBudget must be between 1 and 50000");
+        expect(() => parseAndEvaluate(`
+            .Plugin.Load("plot");
+            .plot.Implicit((x,y)->1, [-1,1], [-1,1], {= grid=[2,2], certifyIntervals=1 });
+        `)).toThrow("certifyIntervals requires the field function to return a RationalInterval");
+
+        const budgeted = parseAndEvaluate(`
+            .Plugin.Load("plot");
+            .plot.Implicit((x,y)->x^2+y^2-1, [-1,1], [-1,1], {=
+                grid=[2,2], refineDepth=3, refinementBudget=4
+            });
+        `);
+        const refinement = budgeted.metadata.get("plot").entries.get("refinement").values[0].entries;
+        expect(refinement.get("processedcells").value).toBe(4n);
+        expect(refinement.get("budgetstops").value).toBeGreaterThan(0n);
+        expect(() => parseAndEvaluate(`
+            .Plugin.Load("plot");
+            .plot.Implicit((x,y)->x+y, [-1,1], [-1,1], {= grid=[4,4], refinementBudget=8 });
+        `)).toThrow("refinementBudget must be at least the base grid cell count (16)");
     });
 
     test("Graphics.Path preserves renderer-independent curve and arc commands", () => {

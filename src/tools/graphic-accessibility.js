@@ -215,6 +215,50 @@ function regionDescriptions(value, format, noun) {
     }));
 }
 
+function refinementPlans(plot, format) {
+    const raw = mapField(plot, "refinement");
+    const entries = sequenceValue(raw).length ? sequenceValue(raw) : raw ? [raw] : [];
+    return Object.freeze(entries.map((entry, index) => {
+        const level = mapField(entry, "level");
+        const maxDepth = finiteNumber(mapField(entry, "maxDepth")) ?? 0;
+        const reached = finiteNumber(mapField(entry, "maxDepthReached")) ?? 0;
+        const processed = finiteNumber(mapField(entry, "processedCells")) ?? 0;
+        const leaves = finiteNumber(mapField(entry, "leafCells")) ?? 0;
+        const refined = finiteNumber(mapField(entry, "refinedCells")) ?? 0;
+        const pointEvaluations = finiteNumber(mapField(entry, "pointEvaluations")) ?? 0;
+        const intervalEvaluations = finiteNumber(mapField(entry, "intervalEvaluations")) ?? 0;
+        const certifiedExcluded = finiteNumber(mapField(entry, "certifiedExcludedCells")) ?? 0;
+        const certifiedInside = finiteNumber(mapField(entry, "certifiedInsideCells")) ?? 0;
+        const certifiedOutside = finiteNumber(mapField(entry, "certifiedOutsideCells")) ?? 0;
+        const enclosureCandidates = finiteNumber(mapField(entry, "enclosureCandidateCells")) ?? 0;
+        const certifiedClassifications = certifiedExcluded + certifiedInside + certifiedOutside;
+        const budgetStops = finiteNumber(mapField(entry, "budgetStops")) ?? 0;
+        const prefix = level === null || level === undefined ? "Adaptive refinement" : `Adaptive refinement for level ${valueText(level, format)}`;
+        const certification = intervalEvaluations > 0
+            ? ` ${intervalEvaluations} certified interval enclosure evaluation${intervalEvaluations === 1 ? "" : "s"}; ${certifiedClassifications} proved whole-cell exclusion or classification and ${enclosureCandidates} remained enclosure candidate${enclosureCandidates === 1 ? "" : "s"}; drawn crossings remain sampled.`
+            : " No interval certification was requested; classifications remain sampled.";
+        return Object.freeze({
+            id: `refinement-${index + 1}`,
+            level: level === null || level === undefined ? null : valueText(level, format),
+            maxDepth,
+            reached,
+            processed,
+            leaves,
+            refined,
+            pointEvaluations,
+            intervalEvaluations,
+            certifiedExcluded,
+            certifiedInside,
+            certifiedOutside,
+            certifiedClassifications,
+            enclosureCandidates,
+            budgetStops,
+            certifiedIntervals: intervalEvaluations > 0,
+            summary: `${prefix}: depth ${reached} of ${maxDepth}; ${processed} processed cells, ${leaves} leaves, ${refined} subdivisions, ${budgetStops} budget stops; ${pointEvaluations} rational point evaluations.${certification}`,
+        });
+    }).filter((entry) => entry.maxDepth > 0 || entry.intervalEvaluations > 0 || entry.refined > 0 || entry.budgetStops > 0));
+}
+
 function retainedMarkEvents(plot, series, format) {
     return Object.freeze(sequenceValue(mapField(plot, "marks")).map((entry, index) => {
         const point = sequenceValue(mapField(entry, "point"));
@@ -286,11 +330,12 @@ export function createGraphicsTextPlan(graphic, format = String) {
     const objects = sceneObjects(graphic, format);
     const unresolved = plot ? regionDescriptions(mapField(plot, "unresolvedRegions"), format, "Unresolved region") : Object.freeze([]);
     const ambiguous = plot ? regionDescriptions(mapField(plot, "ambiguousRegions"), format, "Sampled boundary region") : Object.freeze([]);
+    const refinement = plot ? refinementPlans(plot, format) : Object.freeze([]);
     const marks = plot ? retainedMarkEvents(plot, series, format) : Object.freeze([]);
     const intersections = retainedIntersectionEvents(series);
     const pointsOfInterest = Object.freeze([...series.flatMap((entry) => entry.events), ...marks, ...intersections]);
     const domainSummary = x && y ? ` Domain x ${x.minimumText} to ${x.maximumText}; range y ${y.minimumText} to ${y.maximumText}.` : "";
-    const summary = `${title}. ${series.length ? `${series.length} series and ` : ""}${objects.length} retained scene object${objects.length === 1 ? "" : "s"}.${domainSummary} ${unresolved.length} unresolved region${unresolved.length === 1 ? "" : "s"}.`;
+    const summary = `${title}. ${series.length ? `${series.length} series and ` : ""}${objects.length} retained scene object${objects.length === 1 ? "" : "s"}.${domainSummary} ${unresolved.length} unresolved region${unresolved.length === 1 ? "" : "s"}.${refinement.length ? ` ${refinement.map((entry) => entry.summary).join(" ")}` : ""}`;
     const axes = Object.freeze([
         x && Object.freeze({ axis: "x", label: stringValue(mapField(plot, "xLabel")) || "x", scale: stringValue(mapField(graphic?.metadata, "xScale")) || "linear", range: x }),
         y && Object.freeze({ axis: "y", label: stringValue(mapField(plot, "yLabel")) || "y", scale: stringValue(mapField(graphic?.metadata, "yScale")) || "linear", range: y }),
@@ -307,6 +352,7 @@ export function createGraphicsTextPlan(graphic, format = String) {
         pointsOfInterest,
         marks,
         intersections,
+        refinement,
         uncertainty: ambiguous,
         unresolved,
     });
@@ -369,7 +415,7 @@ export function renderGraphicAccessibilityHtml(graphic, format = String) {
     const regions = [...textPlan.unresolved, ...textPlan.uncertainty];
     const semanticPoints = [...textPlan.marks, ...textPlan.intersections];
     const objects = `<details class="rix-output-graphic-objects"><summary>${textPlan.objects.length} semantic object${textPlan.objects.length === 1 ? "" : "s"}</summary><ol>${textPlan.objects.map((object) => `<li data-rix-graphics-text-object="${escapeHtml(object.id)}"${object.group ? ` data-rix-graphics-text-group="${escapeHtml(object.group)}"` : ""}><strong>${escapeHtml(object.label || object.role.replaceAll("_", " "))}</strong>: ${escapeHtml(object.description)}</li>`).join("")}</ol></details>`;
-    const text = `<details class="rix-output-graphic-text" data-rix-graphics-text-schema="${TEXT_SCHEMA}"><summary>Text alternative: ${escapeHtml(textPlan.title)}</summary><p>${escapeHtml(textPlan.summary)}</p>${axes}${series}${semanticPoints.length ? `<section><h4>Semantic points of interest</h4><ul>${semanticPoints.map((event) => `<li>${escapeHtml(event.label)}</li>`).join("")}</ul></section>` : ""}${regions.length ? `<section><h4>Uncertainty and unresolved areas</h4><ul>${regions.map((region) => `<li>${escapeHtml(region)}</li>`).join("")}</ul></section>` : ""}${objects}</details>`;
+    const text = `<details class="rix-output-graphic-text" data-rix-graphics-text-schema="${TEXT_SCHEMA}"><summary>Text alternative: ${escapeHtml(textPlan.title)}</summary><p>${escapeHtml(textPlan.summary)}</p>${axes}${series}${textPlan.refinement.length ? `<section><h4>Adaptive refinement evidence</h4><ul>${textPlan.refinement.map((entry) => `<li>${escapeHtml(entry.summary)}</li>`).join("")}</ul></section>` : ""}${semanticPoints.length ? `<section><h4>Semantic points of interest</h4><ul>${semanticPoints.map((event) => `<li>${escapeHtml(event.label)}</li>`).join("")}</ul></section>` : ""}${regions.length ? `<section><h4>Uncertainty and unresolved areas</h4><ul>${regions.map((region) => `<li>${escapeHtml(region)}</li>`).join("")}</ul></section>` : ""}${objects}</details>`;
     if (!audioPlan.supported) return text;
     const longest = Math.max(...audioPlan.series.map((entry) => entry.samples.length));
     const seriesOptions = `${audioPlan.series.map((entry, index) => `<option value="${index}">${escapeHtml(entry.label)}</option>`).join("")}${audioPlan.series.length > 1 ? '<option value="overview">Overview (sequential)</option>' : ""}`;

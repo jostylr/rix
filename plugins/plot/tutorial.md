@@ -66,8 +66,10 @@ Scalar and vector fields share exact domains and a bounded cell grid:
 .Plugin.Load("plot");
 .Fragment([
   .Figure(
-    .plot.Implicit((x,y) -> x^2+y^2-1, [-2,2], [-2,2], {= grid=[24,16] }),
-    "The sampled zero level of x² + y² − 1"
+    .plot.Implicit((x,y) -> x^2+y^2-1, [-2,2], [-2,2], {=
+      grid=[8,6], refineDepth=2, refinementBudget=2000, certifyIntervals=1
+    }),
+    "An adaptively sampled zero level with certified whole-cell exclusions"
   ),
   .Figure(
     .plot.HeatMap((x,y) -> x-y, [-2,2], [-2,2], {= grid=[24,16] }),
@@ -85,3 +87,8 @@ Inspect the returned Graphic's `metadata.plot` record through a renderer or host
 to find the sampling record, evidence counts, stable hit identities, ambiguous
 cells, and unresolved regions.
 These records distinguish sampled boundary evidence from a certified enclosure.
+`refineDepth` is bounded from zero through six; `refinementBudget` caps total
+processed cells and must cover the base grid. With `certifyIntervals=1`, interval-compatible functions can
+certify whole-cell exclusion or inequality classification. The plotted crossing
+itself remains sampled unless a separate mathematical continuity/existence
+contract certifies it.
