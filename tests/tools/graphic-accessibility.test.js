@@ -6,6 +6,7 @@ import {
     renderGraphicAccessibilityHtml,
 } from "../../src/tools/graphic-accessibility.js";
 import {
+    audioTraceCueFrequency,
     audioTraceFrequency,
     createAudioTraceState,
     stepAudioTrace,
@@ -87,6 +88,44 @@ describe("renderer-neutral graphic accessibility plans", () => {
         expect(html).toContain("No audio plays until Play is pressed");
         expect(html).not.toContain("intermediate samples omitted");
         expect(html).toContain("Origin at (0/1, 0/1); exact");
+    });
+
+    test("describes certified field evidence and construction dependency relations", () => {
+        const graphic = graphicFixture();
+        graphic.metadata.get("plot").set("records", [new Map([
+            ["id", "boundary-1"], ["level", rational(0)],
+            ["status", { type: "symbol", value: "sampled_boundary" }],
+            ["evidenceLevel", { type: "symbol", value: "sample" }],
+            ["edgeExistenceEvidence", { type: "symbol", value: "proof" }],
+        ])]);
+        graphic.metadata.set("workbench", new Map([["construction", new Map([["nodes", [
+            new Map([["id", "a"], ["free", true], ["dependsOn", []], ["status", "resolved"]]),
+            new Map([["id", "line-1"], ["kind", "line"], ["dependsOn", ["a"]], ["status", "resolved"]]),
+        ]]])]]));
+        const plan = createGraphicsTextPlan(graphic, format);
+        expect(plan.fieldEvidence[0]).toMatchObject({ type: "certified-boundary-existence", exactness: "exact" });
+        expect(plan.fieldEvidence[0].label).toContain("drawn segment location remains sampled");
+        expect(plan.relations[1]).toMatchObject({ id: "line-1", dependencies: ["a"] });
+        const html = renderGraphicAccessibilityHtml(graphic, format);
+        expect(html).toContain("Construction dependencies");
+        expect(html).toContain("intermediate value theorem");
+    });
+
+    test("retains custom tempo, pitch, cue palette, and preference identity in the audio plan", () => {
+        const graphic = graphicFixture();
+        const plot = graphic.metadata.get("plot");
+        plot.set("preferencesKey", "accessible-curves");
+        plot.set("audio", new Map([
+            ["tempo", 18], ["frequency", [110, 1760]],
+            ["cuePalette", new Map([["exact", 1440], ["approximate", 720]])],
+        ]));
+        const plan = createAudioTracePlan(graphic, format);
+        expect(plan.preferencesKey).toBe("accessible-curves");
+        expect(plan.defaults).toMatchObject({ tempo: 18, frequency: { minimum: 110, maximum: 1760 } });
+        expect(audioTraceCueFrequency({ exactness: "exact", type: "axis-crossing" }, plan.defaults.cuePalette)).toBe(1440);
+        const html = renderGraphicAccessibilityHtml(graphic, format);
+        expect(html).toContain('data-rix-audio-preferences-key="accessible-curves"');
+        expect(html).toContain("Low pitch (Hz)");
     });
 });
 

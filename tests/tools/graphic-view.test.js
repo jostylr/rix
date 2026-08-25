@@ -3,8 +3,10 @@ import {
     createGraphicViewState,
     describeGraphicNode,
     enhanceGraphicViews,
+    filterGraphicSelectionCatalog,
     graphicPointFromClient,
     graphicSelectionCatalog,
+    graphicSpatialTarget,
     graphicViewBox,
     panGraphicViewport,
     resetGraphicViewport,
@@ -119,6 +121,18 @@ describe("shared Graphic viewport and exact inspection", () => {
         const catalog = graphicSelectionCatalog(graphic);
         expect(catalog.map(({ role }) => role)).toEqual(["circle", "text_mark"]);
         expect(catalog[0].label).toContain("exact center (1, 2)");
+    });
+
+    test("searches dense semantic catalogs and navigates by retained spatial anchors", () => {
+        const catalog = [
+            { id: "origin", role: "circle", label: "Origin point", anchor: [0, 0] },
+            { id: "east", role: "circle", label: "East point", anchor: [10, 1] },
+            { id: "north", role: "text_mark", label: "North label", anchor: [0, -8] },
+        ];
+        expect(filterGraphicSelectionCatalog(catalog, "circle", "point").map((entry) => entry.id)).toEqual(["origin", "east"]);
+        expect(graphicSpatialTarget(catalog, "origin", "right")?.id).toBe("east");
+        expect(graphicSpatialTarget(catalog, "origin", "up")?.id).toBe("north");
+        expect(() => graphicSpatialTarget(catalog, "origin", "diagonal")).toThrow("left, right, up, or down");
     });
 });
 

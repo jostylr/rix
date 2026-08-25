@@ -43,6 +43,14 @@ labels, legend labels, styles, and a discontinuity threshold. Function and
 parametric plots expose split paths and an `unresolved` metadata count when a
 sample cannot be resolved or a likely jump is detected.
 
+`preferencesKey="name"` gives browser hosts an opt-in identity for separately
+persisting 2D navigation and audio-trace choices. `audio={= ... }` carries
+renderer-neutral defaults into `rix.audio-trace@1`: `tempo` is bounded from 1
+through 60 samples per second, `frequency=[low,high]` uses audible Hz values,
+and `cuePalette` may override `exact`, `certifiedEnclosure`, `approximate`,
+`unresolved`, `conjectural`, and `general` cue frequencies. A non-audio
+renderer can ignore these preferences without changing the retained plot.
+
 Plot Graphics also retain their resolved view, source-coordinate series, ticks,
 marks, and labels as semantic `rix.plot@1` metadata. Portable renderers may
 ignore it and paint the ordinary Graphics children; `.tikz` uses it to emit
@@ -87,7 +95,9 @@ rectangles and paths with `hitId` values, so SVG, Canvas, and TikZ share the sam
 scene and selection identities. Text-only renderers return a deterministic plot
 summary including domain, grid, unresolved regions, ambiguous sampled boundary
 regions, adaptive work, budget exhaustion, interval classifications, and
-evidence status.
+evidence status. The structured text projection consumes proof-bearing records:
+an IVT edge-existence proof is described separately from the sampled location
+of its displayed contour segment.
 
 ## Dependencies
 

@@ -21,6 +21,11 @@ export function createAudioTraceState(plan, target = {}) {
     target.startIndex = Math.max(0, Number(target.startIndex) || 0);
     target.endIndex = Number.isFinite(Number(target.endIndex)) ? Number(target.endIndex) : Math.max(0, (plan.series[target.seriesIndex]?.samples.length || 1) - 1);
     target.speed = [0.5, 1, 2, 4].includes(Number(target.speed)) ? Number(target.speed) : plan.defaults.speed;
+    target.tempo = clamp(target.tempo ?? plan.defaults.tempo, 1, 60);
+    const minimum = clamp(target.frequency?.minimum ?? plan.defaults.frequency.minimum, 20, 19999);
+    const maximum = clamp(target.frequency?.maximum ?? plan.defaults.frequency.maximum, minimum + 1, 20000);
+    target.frequency = { minimum, maximum };
+    target.cues = ["detailed", "minimal", "off"].includes(target.cues) ? target.cues : "detailed";
     target.waveform = target.waveform || plan.defaults.waveform;
     target.direction = target.direction === "reverse" ? "reverse" : "forward";
     target.stereo = target.stereo !== false;
@@ -51,13 +56,13 @@ function eventAt(plan, series, index) {
     return plan.events.filter((event) => event.sampleIndex === index && (!event.seriesId || event.seriesId === series?.id));
 }
 
-function cueFrequency(event) {
-    if (event.exactness === "exact") return 1320;
-    if (event.exactness === "certified-enclosure") return 1100;
-    if (event.exactness === "unresolved") return 150;
-    if (event.type === "sampled-extremum") return 990;
-    if (event.type.includes("axis-crossing")) return 660;
-    return 440;
+export function audioTraceCueFrequency(event, palette = {}) {
+    if (event.exactness === "exact") return Number(palette.exact ?? 1320);
+    if (event.exactness === "certified-enclosure") return Number(palette.certifiedEnclosure ?? 1100);
+    if (event.exactness === "unresolved") return Number(palette.unresolved ?? 150);
+    if (event.exactness === "conjectural") return Number(palette.conjectural ?? 330);
+    if (event.exactness === "approximate" || event.type === "sampled-extremum" || event.type.includes("axis-crossing")) return Number(palette.approximate ?? 660);
+    return Number(palette.general ?? 440);
 }
 
 function roots(root) {
@@ -83,6 +88,10 @@ function enhance(root, options) {
     const start = query("[data-rix-audio-start]");
     const end = query("[data-rix-audio-end]");
     const speed = query("[data-rix-audio-speed]");
+    const tempo = query("[data-rix-audio-tempo]");
+    const frequencyMinimum = query("[data-rix-audio-frequency-min]");
+    const frequencyMaximum = query("[data-rix-audio-frequency-max]");
+    const cues = query("[data-rix-audio-cues]");
     const waveform = query("[data-rix-audio-waveform]");
     const direction = query("[data-rix-audio-direction]");
     const stereo = query("[data-rix-audio-stereo]");
@@ -93,6 +102,28 @@ function enhance(root, options) {
     let oscillator = null;
     let gain = null;
     let panner = null;
+    const preferenceKey = plan.preferencesKey || root.dataset.rixAudioPreferencesKey || null;
+    const storage = options.storage || root.ownerDocument?.defaultView?.localStorage || null;
+
+    if (preferenceKey && storage && !state.preferencesLoaded) {
+        state.preferencesLoaded = true;
+        try {
+            const saved = JSON.parse(storage.getItem(`rix.audio:${preferenceKey}`) || "null");
+            if (saved && typeof saved === "object") createAudioTraceState(plan, Object.assign(state, saved, { playing: false }));
+        } catch { /* invalid or unavailable storage is non-fatal */ }
+    }
+    const savePreferences = () => {
+        if (!preferenceKey || !storage) return;
+        try {
+            storage.setItem(`rix.audio:${preferenceKey}`, JSON.stringify({
+                seriesIndex: state.seriesIndex, overview: state.overview,
+                startIndex: state.startIndex, endIndex: state.endIndex,
+                speed: state.speed, tempo: state.tempo, frequency: { ...state.frequency },
+                waveform: state.waveform, direction: state.direction,
+                stereo: state.stereo, muted: state.muted, cues: state.cues,
+            }));
+        } catch { /* unavailable storage is non-fatal */ }
+    };
 
     const listen = (element, name, handler) => {
         element?.addEventListener?.(name, handler);
@@ -109,6 +140,14 @@ function enhance(root, options) {
         if (play) play.textContent = state.playing ? "Pause" : "Play";
         mute?.setAttribute?.("aria-pressed", String(state.muted));
         if (mute) mute.textContent = state.muted ? "Unmute" : "Mute";
+        if (speed) speed.value = String(state.speed);
+        if (tempo) tempo.value = String(state.tempo);
+        if (frequencyMinimum) frequencyMinimum.value = String(state.frequency.minimum);
+        if (frequencyMaximum) frequencyMaximum.value = String(state.frequency.maximum);
+        if (cues) cues.value = state.cues;
+        if (waveform) waveform.value = state.waveform;
+        if (direction) direction.value = state.direction;
+        if (stereo) stereo.checked = state.stereo;
     };
     const ensureAudio = async () => {
         if (context) return true;
@@ -130,11 +169,14 @@ function enhance(root, options) {
         return true;
     };
     const cue = (events) => {
-        if (!events.length || !context || state.muted || typeof context.createOscillator !== "function") return;
+        const audible = state.cues === "off" ? [] : state.cues === "minimal"
+            ? events.filter((event) => event.type === "domain-boundary" || event.type.includes("axis-crossing"))
+            : events;
+        if (!audible.length || !context || state.muted || typeof context.createOscillator !== "function") return;
         const tone = context.createOscillator();
         const volume = context.createGain();
-        tone.frequency.value = cueFrequency(events[0]);
-        tone.type = events[0].exactness === "unresolved" ? "sawtooth" : "sine";
+        tone.frequency.value = audioTraceCueFrequency(audible[0], plan.defaults.cuePalette);
+        tone.type = audible[0].exactness === "unresolved" ? "sawtooth" : "sine";
         volume.gain.setValueAtTime?.(0.035, context.currentTime);
         volume.gain.exponentialRampToValueAtTime?.(0.0001, context.currentTime + 0.06);
         tone.connect(volume); volume.connect(context.destination); tone.start(); tone.stop(context.currentTime + 0.065);
@@ -144,7 +186,7 @@ function enhance(root, options) {
         const series = activeSeries(plan, state);
         const sample = current();
         if (!series || !sample) return;
-        const frequency = audioTraceFrequency(sample.y, plan.range, plan.defaults.frequency);
+        const frequency = audioTraceFrequency(sample.y, plan.range, state.frequency);
         if (oscillator) { oscillator.type = waveformName(); oscillator.frequency.setValueAtTime?.(frequency, context.currentTime); }
         if (gain) gain.gain.setValueAtTime?.(state.muted || !state.playing ? 0 : 0.08, context.currentTime);
         if (panner) panner.pan.setValueAtTime?.(state.stereo ? series.stereoPosition : 0, context.currentTime);
@@ -170,7 +212,7 @@ function enhance(root, options) {
             } else { pause(); setStatus(`Audio trace finished. ${status?.textContent || ""}`); return; }
         } else state.sampleIndex += delta;
         renderSample();
-        timer = setTimeout(advance, 1000 / (plan.defaults.tempo * state.speed));
+        timer = setTimeout(advance, 1000 / (state.tempo * state.speed));
     };
     const togglePlay = async () => {
         if (state.playing) { pause(); setStatus(`Audio trace paused. ${status?.textContent || ""}`); return; }
@@ -179,7 +221,7 @@ function enhance(root, options) {
         if (state.direction === "forward" && state.sampleIndex >= state.endIndex) state.sampleIndex = state.startIndex;
         if (state.direction === "reverse" && state.sampleIndex <= state.startIndex) state.sampleIndex = state.endIndex;
         renderSample();
-        timer = setTimeout(advance, 1000 / (plan.defaults.tempo * state.speed));
+        timer = setTimeout(advance, 1000 / (state.tempo * state.speed));
     };
     const chooseSeries = () => {
         state.overview = seriesSelect?.value === "overview";
@@ -192,15 +234,39 @@ function enhance(root, options) {
     listen(play, "click", togglePlay);
     listen(previous, "click", () => { pause(); stepAudioTrace(plan, state, -1); renderSample(); });
     listen(next, "click", () => { pause(); stepAudioTrace(plan, state, 1); renderSample(); });
-    listen(mute, "click", () => { state.muted = !state.muted; renderSample(); });
-    listen(seriesSelect, "change", chooseSeries);
+    listen(mute, "click", () => { state.muted = !state.muted; renderSample(); savePreferences(); });
+    listen(seriesSelect, "change", () => { chooseSeries(); savePreferences(); });
     listen(seek, "input", () => { state.sampleIndex = Number(seek.value); renderSample(); });
-    listen(start, "change", () => { state.startIndex = Number(start.value) - 1; normalizeRange(plan, state); renderSample(); });
-    listen(end, "change", () => { state.endIndex = Number(end.value) - 1; normalizeRange(plan, state); renderSample(); });
-    listen(speed, "change", () => { state.speed = Number(speed.value); });
-    listen(waveform, "change", () => { state.waveform = waveform.value; renderSample(); });
-    listen(direction, "change", () => { state.direction = direction.value; });
-    listen(stereo, "change", () => { state.stereo = stereo.checked; renderSample(); });
+    listen(start, "change", () => { state.startIndex = Number(start.value) - 1; normalizeRange(plan, state); renderSample(); savePreferences(); });
+    listen(end, "change", () => { state.endIndex = Number(end.value) - 1; normalizeRange(plan, state); renderSample(); savePreferences(); });
+    listen(speed, "change", () => { state.speed = Number(speed.value); savePreferences(); });
+    listen(tempo, "input", () => {
+        const value = Number(tempo.value);
+        if (Number.isFinite(value) && value >= 1 && value <= 60) { state.tempo = value; savePreferences(); }
+    });
+    listen(tempo, "change", () => { state.tempo = clamp(tempo.value, 1, 60); sync(); savePreferences(); });
+    const inputFrequency = () => {
+        const minimum = Number(frequencyMinimum?.value);
+        const maximum = Number(frequencyMaximum?.value);
+        if (Number.isFinite(minimum) && Number.isFinite(maximum) && minimum >= 20 && maximum > minimum && maximum <= 20000) {
+            state.frequency = { minimum, maximum };
+            savePreferences();
+        }
+    };
+    listen(frequencyMinimum, "input", inputFrequency);
+    listen(frequencyMaximum, "input", inputFrequency);
+    const changeFrequency = () => {
+        const minimum = clamp(frequencyMinimum?.value, 20, 19999);
+        const maximum = clamp(frequencyMaximum?.value, minimum + 1, 20000);
+        state.frequency = { minimum, maximum };
+        sync(); renderSample(); savePreferences();
+    };
+    listen(frequencyMinimum, "change", changeFrequency);
+    listen(frequencyMaximum, "change", changeFrequency);
+    listen(cues, "change", () => { state.cues = cues.value; savePreferences(); });
+    listen(waveform, "change", () => { state.waveform = waveform.value; renderSample(); savePreferences(); });
+    listen(direction, "change", () => { state.direction = direction.value; savePreferences(); });
+    listen(stereo, "change", () => { state.stereo = stereo.checked; renderSample(); savePreferences(); });
     listen(root, "keydown", (event) => {
         if (["INPUT", "SELECT", "BUTTON"].includes(event.target?.tagName) && event.key !== "Escape") return;
         if (event.key === " ") togglePlay();

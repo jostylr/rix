@@ -318,6 +318,55 @@ function retainedIntersectionEvents(series) {
     return Object.freeze(events);
 }
 
+function retainedFieldEvidenceEvents(plot, format) {
+    return Object.freeze(sequenceValue(mapField(plot, "records")).map((record, index) => {
+        const id = stringValue(mapField(record, "id")) || `field-record-${index + 1}`;
+        const status = stringValue(mapField(record, "status")) || "unknown";
+        const evidence = stringValue(mapField(record, "evidenceLevel")) || "none";
+        const edgeEvidence = stringValue(mapField(record, "edgeExistenceEvidence"));
+        const bounds = sequenceValue(mapField(record, "bounds"));
+        const level = mapField(record, "level");
+        if (edgeEvidence === "proof") {
+            return Object.freeze({
+                type: "certified-boundary-existence",
+                id,
+                exactness: "exact",
+                label: `Boundary ${id}: continuity and exact endpoint signs prove that level ${valueText(level, format)} occurs on both retained cell edges by the intermediate value theorem; the drawn segment location remains sampled`,
+            });
+        }
+        if (evidence === "proof") {
+            const region = bounds.length ? ` over ${bounds.map((bound) => valueText(bound, format)).join(", ")}` : "";
+            return Object.freeze({
+                type: "certified-region",
+                id,
+                exactness: "certified-enclosure",
+                label: `${id}: ${status.replaceAll("_", " ")} is certified for the retained region${region}`,
+            });
+        }
+        return null;
+    }).filter(Boolean));
+}
+
+function constructionRelations(graphic, format) {
+    const workbench = mapField(graphic?.metadata, "workbench");
+    const construction = mapField(workbench, "construction");
+    return Object.freeze(sequenceValue(mapField(construction, "nodes")).map((node, index) => {
+        const id = stringValue(mapField(node, "id")) || `construction-${index + 1}`;
+        const dependencies = Object.freeze(sequenceValue(mapField(node, "dependsOn")).map((dependency) => valueText(dependency, format)));
+        const kind = stringValue(mapField(node, "kind")) || (mapField(node, "free") ? "free point" : "derived object");
+        const status = stringValue(mapField(node, "status")) || "resolved";
+        return Object.freeze({
+            id,
+            kind,
+            status,
+            dependencies,
+            summary: dependencies.length
+                ? `${id}: ${kind.replaceAll("_", " ")}; depends on ${dependencies.join(", ")}; ${status.replaceAll("_", " ")}`
+                : `${id}: ${kind.replaceAll("_", " ")}; no construction dependencies; ${status.replaceAll("_", " ")}`,
+        });
+    }));
+}
+
 /** Build a deterministic structured-language projection from retained semantics. */
 export function createGraphicsTextPlan(graphic, format = String) {
     const plot = mapField(graphic?.metadata, "plot");
@@ -333,7 +382,9 @@ export function createGraphicsTextPlan(graphic, format = String) {
     const refinement = plot ? refinementPlans(plot, format) : Object.freeze([]);
     const marks = plot ? retainedMarkEvents(plot, series, format) : Object.freeze([]);
     const intersections = retainedIntersectionEvents(series);
-    const pointsOfInterest = Object.freeze([...series.flatMap((entry) => entry.events), ...marks, ...intersections]);
+    const fieldEvidence = plot ? retainedFieldEvidenceEvents(plot, format) : Object.freeze([]);
+    const relations = constructionRelations(graphic, format);
+    const pointsOfInterest = Object.freeze([...series.flatMap((entry) => entry.events), ...marks, ...intersections, ...fieldEvidence]);
     const domainSummary = x && y ? ` Domain x ${x.minimumText} to ${x.maximumText}; range y ${y.minimumText} to ${y.maximumText}.` : "";
     const summary = `${title}. ${series.length ? `${series.length} series and ` : ""}${objects.length} retained scene object${objects.length === 1 ? "" : "s"}.${domainSummary} ${unresolved.length} unresolved region${unresolved.length === 1 ? "" : "s"}.${refinement.length ? ` ${refinement.map((entry) => entry.summary).join(" ")}` : ""}`;
     const axes = Object.freeze([
@@ -352,6 +403,8 @@ export function createGraphicsTextPlan(graphic, format = String) {
         pointsOfInterest,
         marks,
         intersections,
+        fieldEvidence,
+        relations,
         refinement,
         uncertainty: ambiguous,
         unresolved,
@@ -372,6 +425,22 @@ export function createAudioTracePlan(graphic, format = String) {
     const yMinimum = textPlan.domain.y?.minimum ?? (allY.length ? Math.min(...allY) : null);
     const yMaximum = textPlan.domain.y?.maximum ?? (allY.length ? Math.max(...allY) : null);
     const supported = series.length > 0 && yMinimum !== null && yMaximum !== null;
+    const plot = mapField(graphic?.metadata, "plot");
+    const settings = mapField(plot, "audio");
+    const frequencyValues = sequenceValue(mapField(settings, "frequency"));
+    const frequencyMinimum = finiteNumber(frequencyValues[0]);
+    const frequencyMaximum = finiteNumber(frequencyValues[1]);
+    const frequency = frequencyMinimum !== null && frequencyMaximum !== null && frequencyMinimum >= 20 && frequencyMaximum > frequencyMinimum && frequencyMaximum <= 20000
+        ? Object.freeze({ minimum: frequencyMinimum, maximum: frequencyMaximum })
+        : Object.freeze({ minimum: 220, maximum: 880 });
+    const requestedTempo = finiteNumber(mapField(settings, "tempo"));
+    const tempo = requestedTempo !== null ? Math.min(60, Math.max(1, requestedTempo)) : 12;
+    const defaultCuePalette = { exact: 1320, certifiedEnclosure: 1100, approximate: 660, unresolved: 150, conjectural: 330, general: 440 };
+    const requestedPalette = mapField(settings, "cuePalette");
+    const cuePalette = Object.freeze(Object.fromEntries(Object.entries(defaultCuePalette).map(([key, fallback]) => {
+        const requested = finiteNumber(mapField(requestedPalette, key));
+        return [key, requested !== null && requested >= 20 && requested <= 20000 ? requested : fallback];
+    })));
     return Object.freeze({
         schema: AUDIO_SCHEMA,
         title: textPlan.title,
@@ -379,7 +448,8 @@ export function createAudioTracePlan(graphic, format = String) {
         reason: supported ? null : "Audio trace requires retained two-dimensional series samples",
         domain: textPlan.domain.x,
         range: yMinimum === null ? null : Object.freeze({ minimum: yMinimum, maximum: yMaximum }),
-        defaults: Object.freeze({ tempo: 12, speed: 1, waveform: "series", direction: "forward", stereo: true, frequency: Object.freeze({ minimum: 220, maximum: 880 }) }),
+        preferencesKey: stringValue(mapField(plot, "preferencesKey")),
+        defaults: Object.freeze({ tempo, speed: 1, waveform: "series", direction: "forward", stereo: true, frequency, cuePalette }),
         series,
         events: Object.freeze([
             ...series.flatMap((entry) => entry.events.map((event) => Object.freeze({ ...event, seriesId: entry.id, seriesLabel: entry.label }))),
@@ -413,12 +483,12 @@ export function renderGraphicAccessibilityHtml(graphic, format = String) {
         return `<details class="rix-output-graphic-series"><summary>${escapeHtml(entry.summary)}</summary><table><caption>${escapeHtml(entry.label)} retained data${omitted ? `; ${omitted} intermediate samples omitted from this concise view` : ""}</caption><thead><tr><th scope="col">Sample</th><th scope="col">x</th><th scope="col">y</th><th scope="col">Status</th></tr></thead><tbody>${rows.map((sample) => `<tr><th scope="row">${sample.index + 1}</th><td>${escapeHtml(sample.xText)}</td><td>${escapeHtml(sample.yText)}</td><td>${escapeHtml(sample.exactness.replace("-", " "))}</td></tr>`).join("")}</tbody></table>${entry.events.length ? `<ul>${entry.events.map((event) => `<li>${escapeHtml(event.label)}</li>`).join("")}</ul>` : ""}</details>`;
     }).join("");
     const regions = [...textPlan.unresolved, ...textPlan.uncertainty];
-    const semanticPoints = [...textPlan.marks, ...textPlan.intersections];
+    const semanticPoints = [...textPlan.marks, ...textPlan.intersections, ...textPlan.fieldEvidence];
     const objects = `<details class="rix-output-graphic-objects"><summary>${textPlan.objects.length} semantic object${textPlan.objects.length === 1 ? "" : "s"}</summary><ol>${textPlan.objects.map((object) => `<li data-rix-graphics-text-object="${escapeHtml(object.id)}"${object.group ? ` data-rix-graphics-text-group="${escapeHtml(object.group)}"` : ""}><strong>${escapeHtml(object.label || object.role.replaceAll("_", " "))}</strong>: ${escapeHtml(object.description)}</li>`).join("")}</ol></details>`;
-    const text = `<details class="rix-output-graphic-text" data-rix-graphics-text-schema="${TEXT_SCHEMA}"><summary>Text alternative: ${escapeHtml(textPlan.title)}</summary><p>${escapeHtml(textPlan.summary)}</p>${axes}${series}${textPlan.refinement.length ? `<section><h4>Adaptive refinement evidence</h4><ul>${textPlan.refinement.map((entry) => `<li>${escapeHtml(entry.summary)}</li>`).join("")}</ul></section>` : ""}${semanticPoints.length ? `<section><h4>Semantic points of interest</h4><ul>${semanticPoints.map((event) => `<li>${escapeHtml(event.label)}</li>`).join("")}</ul></section>` : ""}${regions.length ? `<section><h4>Uncertainty and unresolved areas</h4><ul>${regions.map((region) => `<li>${escapeHtml(region)}</li>`).join("")}</ul></section>` : ""}${objects}</details>`;
+    const text = `<details class="rix-output-graphic-text" data-rix-graphics-text-schema="${TEXT_SCHEMA}"><summary>Text alternative: ${escapeHtml(textPlan.title)}</summary><p>${escapeHtml(textPlan.summary)}</p>${axes}${series}${textPlan.refinement.length ? `<section><h4>Adaptive refinement evidence</h4><ul>${textPlan.refinement.map((entry) => `<li>${escapeHtml(entry.summary)}</li>`).join("")}</ul></section>` : ""}${semanticPoints.length ? `<section><h4>Semantic points of interest</h4><ul>${semanticPoints.map((event) => `<li>${escapeHtml(event.label)}</li>`).join("")}</ul></section>` : ""}${textPlan.relations.length ? `<section><h4>Construction dependencies</h4><ol>${textPlan.relations.map((relation) => `<li data-rix-graphics-relation="${escapeHtml(relation.id)}">${escapeHtml(relation.summary)}</li>`).join("")}</ol></section>` : ""}${regions.length ? `<section><h4>Uncertainty and unresolved areas</h4><ul>${regions.map((region) => `<li>${escapeHtml(region)}</li>`).join("")}</ul></section>` : ""}${objects}</details>`;
     if (!audioPlan.supported) return text;
     const longest = Math.max(...audioPlan.series.map((entry) => entry.samples.length));
     const seriesOptions = `${audioPlan.series.map((entry, index) => `<option value="${index}">${escapeHtml(entry.label)}</option>`).join("")}${audioPlan.series.length > 1 ? '<option value="overview">Overview (sequential)</option>' : ""}`;
-    const audio = `<section class="rix-output-audio-trace" data-rix-audio-trace-schema="${AUDIO_SCHEMA}" tabindex="0" aria-label="Audio trace controls for ${escapeHtml(audioPlan.title)}"><div class="rix-output-audio-toolbar" role="toolbar" aria-label="Audio trace transport"><button type="button" data-rix-audio-action="play" aria-label="Play audio trace">Play</button><button type="button" data-rix-audio-action="previous" aria-label="Previous sample">Previous</button><button type="button" data-rix-audio-action="next" aria-label="Next sample">Next</button><button type="button" data-rix-audio-action="mute" aria-pressed="false">Mute</button></div><div class="rix-output-audio-options"><label>Series <select data-rix-audio-series>${seriesOptions}</select></label><label>Seek <input data-rix-audio-seek type="range" min="0" max="${longest - 1}" value="0"></label><label>Domain start <input data-rix-audio-start type="number" min="1" max="${longest}" value="1"></label><label>Domain end <input data-rix-audio-end type="number" min="1" max="${longest}" value="${longest}"></label><label>Speed <select data-rix-audio-speed><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option></select></label><label>Waveform <select data-rix-audio-waveform><option value="series">Per series</option>${WAVEFORMS.map((waveform) => `<option value="${waveform}">${waveform}</option>`).join("")}</select></label><label>Direction <select data-rix-audio-direction><option value="forward">Forward</option><option value="reverse">Reverse</option></select></label><label><input data-rix-audio-stereo type="checkbox" checked> Stereo position</label></div><output class="rix-output-audio-status" data-rix-audio-status aria-live="polite">Audio trace ready. No audio plays until Play is pressed.</output><small>Keyboard: Space play/pause, Left/Right step, Home/End seek, M mute.</small></section>`;
+    const audio = `<section class="rix-output-audio-trace" data-rix-audio-trace-schema="${AUDIO_SCHEMA}"${audioPlan.preferencesKey ? ` data-rix-audio-preferences-key="${escapeHtml(audioPlan.preferencesKey)}"` : ""} tabindex="0" aria-label="Audio trace controls for ${escapeHtml(audioPlan.title)}"><div class="rix-output-audio-toolbar" role="toolbar" aria-label="Audio trace transport"><button type="button" data-rix-audio-action="play" aria-label="Play audio trace">Play</button><button type="button" data-rix-audio-action="previous" aria-label="Previous sample">Previous</button><button type="button" data-rix-audio-action="next" aria-label="Next sample">Next</button><button type="button" data-rix-audio-action="mute" aria-pressed="false">Mute</button></div><div class="rix-output-audio-options"><label>Series <select data-rix-audio-series>${seriesOptions}</select></label><label>Seek <input data-rix-audio-seek type="range" min="0" max="${longest - 1}" value="0"></label><label>Domain start <input data-rix-audio-start type="number" min="1" max="${longest}" value="1"></label><label>Domain end <input data-rix-audio-end type="number" min="1" max="${longest}" value="${longest}"></label><label>Speed <select data-rix-audio-speed><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option></select></label><label>Tempo <input data-rix-audio-tempo type="number" min="1" max="60" step="1" value="${audioPlan.defaults.tempo}"></label><label>Low pitch (Hz) <input data-rix-audio-frequency-min type="number" min="20" max="19999" value="${audioPlan.defaults.frequency.minimum}"></label><label>High pitch (Hz) <input data-rix-audio-frequency-max type="number" min="21" max="20000" value="${audioPlan.defaults.frequency.maximum}"></label><label>Cues <select data-rix-audio-cues><option value="detailed">Detailed</option><option value="minimal">Minimal</option><option value="off">Off</option></select></label><label>Waveform <select data-rix-audio-waveform><option value="series">Per series</option>${WAVEFORMS.map((waveform) => `<option value="${waveform}">${waveform}</option>`).join("")}</select></label><label>Direction <select data-rix-audio-direction><option value="forward">Forward</option><option value="reverse">Reverse</option></select></label><label><input data-rix-audio-stereo type="checkbox" checked> Stereo position</label></div><output class="rix-output-audio-status" data-rix-audio-status aria-live="polite">Audio trace ready. No audio plays until Play is pressed.</output><small>Keyboard: Space play/pause, Left/Right step, Home/End seek, M mute.</small></section>`;
     return `${text}${audio}`;
 }

@@ -114,6 +114,23 @@ list. A grid, comic-strip, or PDF renderer can choose its own grouping from
 `origin["entry"]` and `origin["state"]`; the quadratic example declares the same
 ordered data as `comic.html`.
 
+## Retained graphics navigation and alternatives
+
+The HTML host projects every `Graphic` through shared `rix.viewport@1` and
+`rix.selection@1` state. In addition to pan, zoom, type filters, and direct
+selection, the host searches retained identities/descriptions, performs
+Alt-arrow spatial traversal from retained object anchors, and exposes bounded
+pointer hit-area choices. Plot `preferencesKey` opts into namespaced browser
+persistence; it does not become evaluator state.
+
+`rix.graphics.text@1` includes semantic objects, proof-bearing scalar-field
+evidence, uncertainty, and geometry construction dependencies.
+`rix.audio-trace@1` reuses those labels and accepts renderer-neutral tempo,
+pitch-range, and exactness cue-palette defaults from a plot's `audio` map. The
+browser can choose detailed, minimal, or disabled cues and persists audio
+transport/presentation choices separately under the same optional key. Audio
+continues to require an explicit user play action and performs no evaluator I/O.
+
 ## Timeline
 
 `.Timeline.Sequence` accepts the same scene tuples and materializes the same

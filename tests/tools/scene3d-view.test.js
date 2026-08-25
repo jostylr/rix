@@ -10,6 +10,7 @@ import {
     projectScene3DPoint,
     renderScene3DSvgFallback,
     resetScene3DCamera,
+    resolveScene3DAnnotationOcclusion,
     scene3DSelectionCatalog,
     toggleScene3DProjection,
     truckScene3DCamera,
@@ -72,7 +73,7 @@ describe("Scene3D camera navigation", () => {
         expect(state.camera.position).toEqual(initial);
         expect(state.camera.projection).toBe("perspective");
         expect(state.selection).toEqual({ schema: "rix.selection@1", ids: [], focus: null });
-        expect(state.navigation).toEqual({ schema: "rix.scene3d-navigation@1", scope: "all" });
+        expect(state.navigation).toEqual({ schema: "rix.scene3d-navigation@1", scope: "all", query: "", pickTolerance: 8 });
     });
 
     test("one- and two-pointer gestures orbit, truck, and pinch-dolly through shared camera policy", () => {
@@ -179,5 +180,20 @@ describe("Scene3D plan picking and fallbacks", () => {
         expect(first[0].displaced).toBe(false);
         expect(first[1].displaced).toBe(true);
         expect(first[1].screen).not.toEqual(first[0].screen);
+    });
+
+    test("applies retained hide, fade, and show policies to depth-occluded annotations", () => {
+        const plan = trianglePlan();
+        const matrix = webGLPlanMatrix(plan);
+        const behind = projectScene3DPoint(matrix, [0, 0, -1], plan.viewport);
+        const annotations = [
+            { primitive: 1, visible: true, screen: behind.screen, depth: behind.depth, policy: { occlusion: "hide" } },
+            { primitive: 2, visible: true, screen: behind.screen, depth: behind.depth, policy: { occlusion: "fade" } },
+            { primitive: 3, visible: true, screen: behind.screen, depth: behind.depth, policy: { occlusion: "show" } },
+        ];
+        const resolved = resolveScene3DAnnotationOcclusion(plan, matrix, annotations);
+        expect(resolved[0]).toMatchObject({ occluded: true, visible: false });
+        expect(resolved[1]).toMatchObject({ occluded: true, visible: true });
+        expect(resolved[2]).toMatchObject({ occluded: false, visible: true });
     });
 });

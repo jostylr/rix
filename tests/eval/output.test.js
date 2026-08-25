@@ -1311,7 +1311,8 @@ describe("portable structured output", () => {
             [
                 .plot.Contour((x,y)->x+y, [-2,2], [-2,2], {=
                     grid=[3,3], levels=[-1,0,1], refineDepth=1, continuity=:continuous,
-                    labelContours=1, contourLabelLimit=2
+                    labelContours=1, contourLabelLimit=2, preferencesKey="contour-guide",
+                    audio={= tempo=18,frequency=[110,1760] }
                 }),
                 .plot.Implicit((x,y)->x*100, [-1,1], [-1,1], {=
                     grid=[2,2], refineDepth=1, discontinuityThreshold=10
@@ -1328,6 +1329,8 @@ describe("portable structured output", () => {
         const refinements = contourPlot.get("refinement").values.map((entry) => entry.entries);
         expect(refinements.slice(1).some((entry) => entry.get("cachehits").value > 0n)).toBe(true);
         expect(contourPlot.get("evidence").entries.get("contourlabels").value).toBe(2n);
+        expect(contourPlot.get("preferenceskey").value).toBe("contour-guide");
+        expect(contourPlot.get("audio").entries.get("tempo").value).toBe(18n);
         expect(contour.children.filter(({ kind }) => kind === "text_mark")).toHaveLength(2);
         const records = contourPlot.get("records").values;
         expect(records.some((record) => text(record.entries.get("edgeexistenceevidence")) === "proof")).toBe(true);

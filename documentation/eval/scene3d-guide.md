@@ -162,6 +162,16 @@ The return value includes screen coordinates for accessible DOM or Canvas text
 overlays. Exact Scene3D coordinates cross to Float32 only during GPU execution,
 and the plan reports that approximation as a diagnostic.
 
+RiX Web applies each retained annotation policy after projection. `occlusion`
+may be `"show"`, `"fade"`, or `"hide"`; fade and hide compare the annotation
+anchor with projected mesh depth without removing the semantic annotation from
+the scene. Its toolbar searches exact picking identities and descriptions and
+offers precise through extra-large CPU pick areas. Put
+`preferencesKey="name"` in the Scene's `metadata` map to persist camera,
+projection, selection, filter, search, and pick tolerance in the browser host.
+GPU color-buffer picking remains a future optimization for exceptionally dense
+scenes; the retained `pickid` contract does not depend on that implementation.
+
 ## Exact n-dimensional projections
 
 `.nd` provides `Point`, `Polyline`, `Polytope`, and `Hypercube` geometry under

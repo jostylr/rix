@@ -8,6 +8,7 @@ import {
 
 const MIN_PITCH = -Math.PI / 2 + 0.015;
 const MAX_PITCH = Math.PI / 2 - 0.015;
+const PICK_TOLERANCES = [4, 8, 16, 24];
 let scene3DViewSequence = 0;
 
 function sequenceValue(value) {
@@ -119,6 +120,8 @@ export function createScene3DViewState(plan, target = {}) {
     target.navigation = {
         schema: "rix.scene3d-navigation@1",
         scope: typeof target.navigation?.scope === "string" ? target.navigation.scope : "all",
+        query: typeof target.navigation?.query === "string" ? target.navigation.query : "",
+        pickTolerance: PICK_TOLERANCES.includes(Number(target.navigation?.pickTolerance)) ? Number(target.navigation.pickTolerance) : 8,
     };
     target.viewport = {
         schema: "rix.viewport3d@1",
@@ -418,6 +421,40 @@ export function layoutScene3DAnnotations(annotations, viewport, settings = {}) {
     });
 }
 
+/** Apply retained annotation occlusion policies against projected mesh depth. */
+export function resolveScene3DAnnotationOcclusion(plan, matrix, annotations, epsilon = 0.00001) {
+    const triangles = [];
+    for (const call of plan?.drawCalls || []) {
+        if (call.mode !== "triangles") continue;
+        const points = call.positions.map((point) => projectScene3DPoint(matrix, point, plan.viewport));
+        for (let index = 0; index + 2 < call.indices.length; index += 3) {
+            const triangle = call.indices.slice(index, index + 3).map((item) => points[item]);
+            if (triangle.some((item) => !item.screen)) continue;
+            triangles.push({
+                primitive: call.primitive,
+                points: triangle.map((item) => item.screen),
+                depth: triangle.reduce((sum, item) => sum + item.depth, 0) / 3,
+            });
+        }
+    }
+    return Object.freeze(Array.from(annotations || []).map((annotation) => {
+        const policy = annotation.policy?.occlusion || "show";
+        if (policy === "show" || !annotation.visible || !annotation.screen || annotation.depth === null) {
+            return Object.freeze({ ...annotation, occluded: false });
+        }
+        const occluded = triangles.some((triangle) => (
+            triangle.primitive !== annotation.primitive
+            && triangle.depth < annotation.depth - Number(epsilon)
+            && triangleContains(annotation.screen, ...triangle.points)
+        ));
+        return Object.freeze({
+            ...annotation,
+            occluded,
+            visible: occluded && policy === "hide" ? false : annotation.visible,
+        });
+    }));
+}
+
 function escapeHtml(value) {
     return String(value).replace(/[&<>"']/g, (character) => ({
         "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
@@ -472,6 +509,31 @@ function dispatchSceneEvent(root, detail) {
     if (typeof EventConstructor === "function") root.dispatchEvent(new EventConstructor("rix:scene3d-selection", { bubbles: true, detail }));
 }
 
+function scene3DPreferencesKey(scene) {
+    return stringValue(mapField(mapField(scene, "metadata"), "preferencesKey"));
+}
+
+function loadScene3DPreferences(container, scene, state, options) {
+    const key = scene3DPreferencesKey(scene);
+    const storage = options.storage || container.ownerDocument?.defaultView?.localStorage || null;
+    if (!key || !storage || state.preferencesLoaded) return { key, storage };
+    state.preferencesLoaded = true;
+    try {
+        const saved = JSON.parse(storage.getItem(`rix.scene3d:${key}`) || "null");
+        if (saved?.camera && sequenceValue(saved.camera.position).length === 3 && sequenceValue(saved.camera.target).length === 3) {
+            state.camera = cloneCamera({ ...state.camera, ...saved.camera });
+            state.viewport.projection = state.camera.projection;
+        }
+        if (saved?.navigation) {
+            state.navigation.scope = typeof saved.navigation.scope === "string" ? saved.navigation.scope : state.navigation.scope;
+            state.navigation.query = typeof saved.navigation.query === "string" ? saved.navigation.query : state.navigation.query;
+            if (PICK_TOLERANCES.includes(Number(saved.navigation.pickTolerance))) state.navigation.pickTolerance = Number(saved.navigation.pickTolerance);
+        }
+        if (typeof saved?.selection === "string") state.selection = { schema: "rix.selection@1", ids: [saved.selection], focus: saved.selection };
+    } catch { /* invalid or unavailable storage is non-fatal */ }
+    return { key, storage };
+}
+
 /** Enhance one or more rendered Scene3D placeholders with WebGL and accessible DOM overlays. */
 export function enhanceScene3DViews(root, options = {}) {
     const disposers = scene3DRoots(root).map((container) => {
@@ -486,6 +548,17 @@ export function enhanceScene3DViews(root, options = {}) {
         if (!canvas || !surface) return () => {};
         const plan = createWebGLPlan(scene, { width: 640, height: 480 });
         const state = createScene3DViewState(plan, options.state || {});
+        const preferences = loadScene3DPreferences(container, scene, state, options);
+        const savePreferences = () => {
+            if (!preferences.key || !preferences.storage) return;
+            try {
+                preferences.storage.setItem(`rix.scene3d:${preferences.key}`, JSON.stringify({
+                    camera: cloneCamera(state.camera),
+                    selection: state.selection.focus,
+                    navigation: { ...state.navigation },
+                }));
+            } catch { /* unavailable storage is non-fatal */ }
+        };
         const catalog = scene3DSelectionCatalog(scene, plan, format);
         const catalogById = new Map(catalog.map((entry) => [entry.id, entry]));
         const document = container.ownerDocument;
@@ -506,6 +579,23 @@ export function enhanceScene3DViews(root, options = {}) {
             || makeSelect("Object type", "rixScene3dSelectionScope");
         const objectSelect = toolbar?.querySelector?.("[data-rix-scene3d-object-select]")
             || makeSelect("3D object", "rixScene3dObjectSelect");
+        const searchInput = (() => {
+            const existing = toolbar?.querySelector?.("[data-rix-scene3d-search]");
+            if (existing || !document?.createElement) return existing;
+            const label = document.createElement("label");
+            label.className = "rix-output-scene3d-toolbar-search";
+            const text = document.createElement("span");
+            text.textContent = "Find object";
+            const input = document.createElement("input");
+            input.type = "search";
+            input.dataset.rixScene3dSearch = "true";
+            input.setAttribute("aria-label", "Find 3D object");
+            label.append(text, input);
+            toolbar?.append(label);
+            return input;
+        })();
+        const toleranceSelect = toolbar?.querySelector?.("[data-rix-scene3d-pick-tolerance]")
+            || makeSelect("Pick area", "rixScene3dPickTolerance");
         const appendOption = (select, value, text) => {
             if (!select || !document?.createElement) return;
             const option = document.createElement("option");
@@ -524,7 +614,19 @@ export function enhanceScene3DViews(root, options = {}) {
             if (![...roles.keys(), "all"].includes(state.navigation.scope)) state.navigation.scope = "all";
             scopeSelect.value = state.navigation.scope;
         }
-        const scopedCatalog = () => catalog.filter((entry) => state.navigation.scope === "all" || entry.role === state.navigation.scope);
+        if (searchInput) searchInput.value = state.navigation.query;
+        if (toleranceSelect) {
+            toleranceSelect.replaceChildren?.();
+            for (const [value, label] of [[4, "Precise"], [8, "Standard"], [16, "Large"], [24, "Extra large"]]) appendOption(toleranceSelect, String(value), label);
+            toleranceSelect.value = String(state.navigation.pickTolerance);
+        }
+        const scopedCatalog = () => {
+            const needle = state.navigation.query.trim().toLocaleLowerCase();
+            return catalog.filter((entry) => (
+                (state.navigation.scope === "all" || entry.role === state.navigation.scope)
+                && (!needle || `${entry.id} ${entry.role} ${entry.label}`.toLocaleLowerCase().includes(needle))
+            ));
+        };
         const refreshObjectOptions = () => {
             if (!objectSelect) return;
             objectSelect.replaceChildren?.();
@@ -542,7 +644,7 @@ export function enhanceScene3DViews(root, options = {}) {
         inspector?.setAttribute?.("aria-live", "off");
         const descriptions = [inspector?.id, status?.id].filter(Boolean).join(" ");
         if (descriptions) canvas.setAttribute("aria-describedby", descriptions);
-        canvas.setAttribute("aria-keyshortcuts", "ArrowLeft ArrowRight ArrowUp ArrowDown + - Home P [ ]");
+        canvas.setAttribute("aria-keyshortcuts", "ArrowLeft ArrowRight ArrowUp ArrowDown + - Home P [ ] /");
         toolbar?.setAttribute?.("aria-controls", viewId);
         let gl = null;
         let matrix = null;
@@ -599,6 +701,7 @@ export function enhanceScene3DViews(root, options = {}) {
             const detail = Object.freeze({ type: "scene3d:selection", selection: { ...state.selection, ids: [...state.selection.ids] }, pickId, exact, interaction, source });
             options.onSelection?.(detail);
             dispatchSceneEvent(container, detail);
+            savePreferences();
         };
         const renderAnnotations = (annotations, ratio) => {
             if (!overlay) return;
@@ -621,6 +724,8 @@ export function enhanceScene3DViews(root, options = {}) {
                 label.style.top = `${annotation.screen[1]}px`;
                 label.toggleAttribute("data-rix-annotation-displaced", annotation.displaced);
                 label.toggleAttribute("data-rix-annotation-crowded", annotation.crowded);
+                label.toggleAttribute("data-rix-annotation-occluded", annotation.occluded);
+                if (annotation.occluded && annotation.policy?.occlusion === "fade") label.style.opacity = "0.28";
                 if (annotation.pickId) {
                     label.dataset.rixSemanticId = annotation.pickId;
                     label.setAttribute("aria-label", catalogById.get(annotation.pickId)?.label || label.textContent);
@@ -649,9 +754,10 @@ export function enhanceScene3DViews(root, options = {}) {
             canvas.hidden = false;
             const result = paintWebGLPlan(gl, plan);
             matrix = result.matrix;
-            renderAnnotations(result.annotations, ratio);
+            renderAnnotations(resolveScene3DAnnotationOcclusion(plan, matrix, result.annotations), ratio);
             setStatus(`${state.camera.projection} projection · drag to orbit · pinch to dolly and truck · Shift-drag to truck · wheel to dolly`);
             options.onViewport?.({ type: "scene3d:viewport", viewport: { ...state.viewport }, camera: cloneCamera(state.camera) });
+            savePreferences();
         };
         const logicalPoint = (event) => {
             const rect = canvas.getBoundingClientRect();
@@ -685,6 +791,19 @@ export function enhanceScene3DViews(root, options = {}) {
             refreshObjectOptions();
             const count = scopedCatalog().length;
             setStatus(`${count} ${state.navigation.scope === "all" ? "selectable" : state.navigation.scope.replaceAll("_", " ")} object${count === 1 ? "" : "s"} available`);
+            savePreferences();
+        });
+        listen(searchInput, "input", () => {
+            state.navigation.query = searchInput.value || "";
+            refreshObjectOptions();
+            const count = scopedCatalog().length;
+            setStatus(`${count} 3D object${count === 1 ? "" : "s"} match “${state.navigation.query}”`);
+            savePreferences();
+        });
+        listen(toleranceSelect, "change", () => {
+            state.navigation.pickTolerance = PICK_TOLERANCES.includes(Number(toleranceSelect.value)) ? Number(toleranceSelect.value) : 8;
+            setStatus(`3D pick area set to ${state.navigation.pickTolerance} pixels`);
+            savePreferences();
         });
         listen(objectSelect, "change", () => select(objectSelect.value || null, "keyboard"));
         for (const button of container.querySelectorAll?.("[data-rix-scene3d-action]") || []) {
@@ -730,7 +849,7 @@ export function enhanceScene3DViews(root, options = {}) {
             const wasOnlyPointer = pointers.size === 1;
             pointers.delete(event.pointerId);
             if (wasOnlyPointer && !gestureChanged && !completed.moved && matrix) {
-                select(pickScene3DPlan(plan, matrix, logicalPoint(event))?.pickId || null, "pointer");
+                select(pickScene3DPlan(plan, matrix, logicalPoint(event), state.navigation.pickTolerance)?.pickId || null, "pointer");
             }
             if (canvas.hasPointerCapture?.(event.pointerId)) canvas.releasePointerCapture?.(event.pointerId);
             if (!pointers.size) gestureChanged = false;
@@ -747,6 +866,7 @@ export function enhanceScene3DViews(root, options = {}) {
         listen(canvas, "dblclick", (event) => { event.preventDefault(); resetScene3DCamera(state); repaint(); });
         listen(canvas, "keydown", (event) => {
             let handled = true;
+            if (event.key === "/" && searchInput) { event.preventDefault(); searchInput.focus?.(); return; }
             if (event.key === "ArrowLeft") event.shiftKey ? truckScene3DCamera(state, -cameraStep(), 0) : orbitScene3DCamera(state, -0.1, 0);
             else if (event.key === "ArrowRight") event.shiftKey ? truckScene3DCamera(state, cameraStep(), 0) : orbitScene3DCamera(state, 0.1, 0);
             else if (event.key === "ArrowUp") event.shiftKey ? truckScene3DCamera(state, 0, cameraStep()) : orbitScene3DCamera(state, 0, 0.08);

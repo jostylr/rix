@@ -2,6 +2,7 @@
 
 const MIN_ZOOM = 1 / 8;
 const MAX_ZOOM = 64;
+const HIT_TOLERANCES = [4, 8, 16, 24];
 let graphicViewSequence = 0;
 
 function finiteNumber(value, fallback = 0) {
@@ -77,6 +78,29 @@ function nearestPoint(points, scenePoint) {
     return best;
 }
 
+function graphicNodeAnchor(node) {
+    const point = (value) => {
+        const values = sequenceValue(value);
+        return values.length >= 2 ? [finiteNumber(values[0]), finiteNumber(values[1])] : null;
+    };
+    if (!node) return null;
+    if (node.kind === "circle" || node.kind === "drag_point") return point(node.center);
+    if (node.kind === "text_mark") return point(node.position);
+    if (node.kind === "rectangle") {
+        const origin = point(node.origin);
+        const size = point(node.size);
+        return origin && size ? [origin[0] + size[0] / 2, origin[1] + size[1] / 2] : null;
+    }
+    const points = sequenceValue(node.points).map(point).filter(Boolean);
+    if (points.length) {
+        return [
+            points.reduce((sum, entry) => sum + entry[0], 0) / points.length,
+            points.reduce((sum, entry) => sum + entry[1], 0) / points.length,
+        ];
+    }
+    return null;
+}
+
 /** A deterministic exact-value description for one renderer-neutral scene node. */
 export function describeGraphicNode(node, format = String, scenePoint = null) {
     if (!node) return "Graphic background";
@@ -117,7 +141,43 @@ export function graphicSelectionCatalog(graphic, format = String) {
             id: String(id),
             role: String(node.kind || "object"),
             label: describeGraphicNode(node, format),
+            anchor: graphicNodeAnchor(node),
         })));
+}
+
+/** Filter a semantic catalog without losing its retained deterministic order. */
+export function filterGraphicSelectionCatalog(catalog, scope = "all", query = "") {
+    const needle = String(query || "").trim().toLocaleLowerCase();
+    return Object.freeze(Array.from(catalog || []).filter((entry) => (
+        (scope === "all" || entry.role === scope)
+        && (!needle || `${entry.id} ${entry.role} ${entry.label}`.toLocaleLowerCase().includes(needle))
+    )));
+}
+
+/** Select the nearest retained object in a requested screen-space direction. */
+export function graphicSpatialTarget(catalog, currentId, direction) {
+    const vector = {
+        left: [-1, 0], right: [1, 0], up: [0, -1], down: [0, 1],
+    }[direction];
+    if (!vector) throw new Error("Graphic spatial navigation direction must be left, right, up, or down");
+    const entries = Array.from(catalog || []).filter((entry) => Array.isArray(entry.anchor));
+    if (!entries.length) return null;
+    const current = entries.find((entry) => entry.id === currentId);
+    if (!current) {
+        return [...entries].sort((left, right) => (
+            (left.anchor[0] * vector[0] + left.anchor[1] * vector[1])
+            - (right.anchor[0] * vector[0] + right.anchor[1] * vector[1])
+            || left.id.localeCompare(right.id)
+        ))[0] || null;
+    }
+    return entries.filter((entry) => entry !== current).map((entry) => {
+        const dx = entry.anchor[0] - current.anchor[0];
+        const dy = entry.anchor[1] - current.anchor[1];
+        const forward = dx * vector[0] + dy * vector[1];
+        const sideways = Math.abs(dx * vector[1] - dy * vector[0]);
+        return { entry, forward, score: forward + sideways * 4 };
+    }).filter((candidate) => candidate.forward > 1e-9)
+        .sort((left, right) => left.score - right.score || left.forward - right.forward || left.entry.id.localeCompare(right.entry.id))[0]?.entry || null;
 }
 
 function plotInspection(graphic, scenePoint, format) {
@@ -198,6 +258,8 @@ export function createGraphicViewState(width, height, target = {}) {
     target.navigation = {
         schema: "rix.graphic-navigation@1",
         scope: typeof target.navigation?.scope === "string" ? target.navigation.scope : "all",
+        query: typeof target.navigation?.query === "string" ? target.navigation.query : "",
+        hitTolerance: HIT_TOLERANCES.includes(Number(target.navigation?.hitTolerance)) ? Number(target.navigation.hitTolerance) : 8,
     };
     return target;
 }
@@ -564,12 +626,55 @@ function makeSelectControl(document, labelText, dataName) {
     return { label, select };
 }
 
+function graphicPreferencesKey(graphic) {
+    const metadata = graphic?.metadata;
+    const plot = mapField(metadata, "plot");
+    return stringValue(mapField(metadata, "preferencesKey")) || stringValue(mapField(plot, "preferencesKey"));
+}
+
+function graphicPreferencesStorage(graphic, options) {
+    return options.storage || graphic.ownerDocument?.defaultView?.localStorage || null;
+}
+
+function loadGraphicPreferences(graphic, state, options) {
+    const key = graphicPreferencesKey(options.graphic);
+    const storage = key ? graphicPreferencesStorage(graphic, options) : null;
+    if (!key || !storage || state.preferencesLoaded) return { key, storage };
+    state.preferencesLoaded = true;
+    try {
+        const saved = JSON.parse(storage.getItem(`rix.graphics:${key}`) || "null");
+        if (saved?.viewport) {
+            state.viewport.pan = sequenceValue(saved.viewport.pan).slice(0, 2).map((value) => finiteNumber(value));
+            if (state.viewport.pan.length !== 2) state.viewport.pan = [0, 0];
+            state.viewport.zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, finiteNumber(saved.viewport.zoom, 1)));
+        }
+        if (saved?.navigation) {
+            state.navigation.scope = typeof saved.navigation.scope === "string" ? saved.navigation.scope : state.navigation.scope;
+            state.navigation.query = typeof saved.navigation.query === "string" ? saved.navigation.query : state.navigation.query;
+            if (HIT_TOLERANCES.includes(Number(saved.navigation.hitTolerance))) state.navigation.hitTolerance = Number(saved.navigation.hitTolerance);
+        }
+        if (typeof saved?.selection === "string") state.selection = { schema: "rix.selection@1", ids: [saved.selection], focus: saved.selection };
+    } catch { /* invalid or unavailable storage is non-fatal */ }
+    return { key, storage };
+}
+
 function installNavigation(graphic, svg, status, options) {
     if (typeof svg.addEventListener !== "function") return null;
     const width = finiteNumber(options.graphic?.size?.[0] ?? svg.getAttribute?.("width"), 1);
     const height = finiteNumber(options.graphic?.size?.[1] ?? svg.getAttribute?.("height"), 1);
     const state = createGraphicViewState(width, height, options.state || {});
     if (!options.state) options.state = state;
+    const preferences = loadGraphicPreferences(graphic, state, options);
+    const savePreferences = () => {
+        if (!preferences.key || !preferences.storage) return;
+        try {
+            preferences.storage.setItem(`rix.graphics:${preferences.key}`, JSON.stringify({
+                viewport: { pan: [...state.viewport.pan], zoom: state.viewport.zoom },
+                selection: state.selection.focus,
+                navigation: { ...state.navigation },
+            }));
+        } catch { /* unavailable storage is non-fatal */ }
+    };
     const nodes = indexGraphicNodes(options.graphic);
     const document = graphic.ownerDocument;
     let inspector = graphic.querySelector?.(".rix-output-graphic-inspector") || null;
@@ -588,7 +693,23 @@ function installNavigation(graphic, svg, status, options) {
         ]) toolbar.append(makeButton(document, ...spec));
         const scopeControl = makeSelectControl(document, "Object type", "rixGraphicSelectionScope");
         const objectControl = makeSelectControl(document, "Mathematical object", "rixGraphicObjectSelect");
-        toolbar.append(scopeControl.label, objectControl.label);
+        const searchLabel = document.createElement("label");
+        searchLabel.className = "rix-output-graphic-toolbar-search";
+        const searchText = document.createElement("span");
+        searchText.textContent = "Find object";
+        const search = document.createElement("input");
+        search.type = "search";
+        search.dataset.rixGraphicSearch = "true";
+        search.setAttribute("aria-label", "Find mathematical object");
+        searchLabel.append(searchText, search);
+        const toleranceControl = makeSelectControl(document, "Hit area", "rixGraphicHitTolerance");
+        for (const [value, label] of [[4, "Precise"], [8, "Standard"], [16, "Large"], [24, "Extra large"]]) {
+            const option = document.createElement("option");
+            option.value = String(value);
+            option.textContent = label;
+            toleranceControl.select.append(option);
+        }
+        toolbar.append(scopeControl.label, searchLabel, objectControl.label, toleranceControl.label);
         graphic.insertBefore?.(toolbar, svg);
     }
     if (document?.createElement && !inspector) {
@@ -605,7 +726,7 @@ function installNavigation(graphic, svg, status, options) {
     if (status) status.id ||= `${viewId}-status`;
     const descriptions = [inspector?.id, status?.id].filter(Boolean).join(" ");
     if (descriptions) svg.setAttribute("aria-describedby", descriptions);
-    svg.setAttribute("aria-keyshortcuts", "ArrowLeft ArrowRight ArrowUp ArrowDown + - Home [ ]");
+    svg.setAttribute("aria-keyshortcuts", "ArrowLeft ArrowRight ArrowUp ArrowDown Alt+ArrowLeft Alt+ArrowRight Alt+ArrowUp Alt+ArrowDown + - Home [ ] /");
     toolbar?.setAttribute?.("aria-controls", viewId);
 
     const semanticElements = [...(svg.querySelectorAll?.("[data-rix-semantic-id]") || [])];
@@ -617,9 +738,14 @@ function installNavigation(graphic, svg, status, options) {
     const catalog = new Map(graphicSelectionCatalog(options.graphic, options.format || String).map((entry) => [entry.id, entry]));
     const scopeSelect = toolbar?.querySelector?.("[data-rix-graphic-selection-scope]") || null;
     const objectSelect = toolbar?.querySelector?.("[data-rix-graphic-object-select]") || null;
+    const searchInput = toolbar?.querySelector?.("[data-rix-graphic-search]") || null;
+    const toleranceSelect = toolbar?.querySelector?.("[data-rix-graphic-hit-tolerance]") || null;
     const scopedSelectable = () => selectable.filter((element) => {
         const scope = state.navigation.scope;
-        return scope === "all" || catalog.get(element.dataset.rixSemanticId)?.role === scope;
+        const entry = catalog.get(element.dataset.rixSemanticId);
+        const needle = state.navigation.query.trim().toLocaleLowerCase();
+        return (scope === "all" || entry?.role === scope)
+            && (!needle || `${entry?.id || ""} ${entry?.role || ""} ${entry?.label || ""}`.toLocaleLowerCase().includes(needle));
     });
     const appendOption = (select, value, text) => {
         if (!select || !document?.createElement) return;
@@ -641,6 +767,8 @@ function installNavigation(graphic, svg, status, options) {
         if (![...roles.keys(), "all"].includes(state.navigation.scope)) state.navigation.scope = "all";
         scopeSelect.value = state.navigation.scope;
     }
+    if (searchInput) searchInput.value = state.navigation.query;
+    if (toleranceSelect) toleranceSelect.value = String(state.navigation.hitTolerance);
     const refreshObjectOptions = () => {
         if (!objectSelect) return;
         objectSelect.replaceChildren?.();
@@ -675,6 +803,7 @@ function installNavigation(graphic, svg, status, options) {
         if (status) status.textContent = `Graphic view at ${Math.round(state.viewport.zoom * 100)}% zoom`;
         dispatchGraphicEvent(graphic, "rix-graphic-viewport", detail);
         options.onViewport?.(detail, graphic);
+        savePreferences();
     };
     const clearClasses = (name) => semanticElements.forEach((element) => element.classList?.remove(name));
     const describe = (element, scenePoint = null) => {
@@ -701,6 +830,7 @@ function installNavigation(graphic, svg, status, options) {
         }, exact: message, source });
         dispatchGraphicEvent(graphic, "rix-graphic-selection", detail);
         options.onSelection?.(detail, element, graphic);
+        savePreferences();
     };
     const cycleSelection = (step) => {
         const values = scopedSelectable();
@@ -708,6 +838,11 @@ function installNavigation(graphic, svg, status, options) {
         const current = values.findIndex((element) => element.dataset.rixSemanticId === state.selection.focus);
         const next = current < 0 ? (step > 0 ? 0 : values.length - 1) : (current + step + values.length) % values.length;
         setSelection(values[next], "keyboard");
+    };
+    const spatialSelection = (direction) => {
+        const entries = filterGraphicSelectionCatalog([...catalog.values()], state.navigation.scope, state.navigation.query);
+        const target = graphicSpatialTarget(entries, state.selection.focus, direction);
+        if (target) selectById(target.id, "spatial-keyboard");
     };
     const selectById = (id, source = "workbench", focus = true) => {
         const element = semanticElements.find((candidate) => candidate.dataset?.rixSemanticId === String(id));
@@ -726,6 +861,19 @@ function installNavigation(graphic, svg, status, options) {
         refreshObjectOptions();
         const count = scopedSelectable().length;
         if (status) status.textContent = `${count} ${state.navigation.scope === "all" ? "mathematical" : state.navigation.scope.replaceAll("_", " ")} object${count === 1 ? "" : "s"} available`;
+        savePreferences();
+    });
+    searchInput?.addEventListener?.("input", () => {
+        state.navigation.query = searchInput.value || "";
+        refreshObjectOptions();
+        const count = scopedSelectable().length;
+        if (status) status.textContent = `${count} mathematical object${count === 1 ? "" : "s"} match “${state.navigation.query}”`;
+        savePreferences();
+    });
+    toleranceSelect?.addEventListener?.("change", () => {
+        state.navigation.hitTolerance = HIT_TOLERANCES.includes(Number(toleranceSelect.value)) ? Number(toleranceSelect.value) : 8;
+        if (status) status.textContent = `Pointer hit area set to ${state.navigation.hitTolerance} pixels`;
+        savePreferences();
     });
     objectSelect?.addEventListener?.("change", () => selectById(objectSelect.value, "keyboard", false));
 
@@ -798,7 +946,20 @@ function installNavigation(graphic, svg, status, options) {
         pointers.delete(event.pointerId);
         if (!pointers.size) svg.classList?.remove("rix-output-svg-panning");
         if (svg.hasPointerCapture?.(event.pointerId)) svg.releasePointerCapture(event.pointerId);
-        if (!cancelled && wasOnlyPointer && !gestureChanged && !completed.moved) setSelection(completed.target, "pointer", pointerPoint(event));
+        if (!cancelled && wasOnlyPointer && !gestureChanged && !completed.moved) {
+            let target = completed.target;
+            if (!target) {
+                const candidates = scopedSelectable().map((element) => {
+                    const bounds = element.getBoundingClientRect?.();
+                    if (!bounds) return null;
+                    const dx = Math.max(bounds.left - event.clientX, 0, event.clientX - bounds.right);
+                    const dy = Math.max(bounds.top - event.clientY, 0, event.clientY - bounds.bottom);
+                    return { element, distance: Math.hypot(dx, dy) };
+                }).filter(Boolean).sort((left, right) => left.distance - right.distance);
+                if (candidates[0]?.distance <= state.navigation.hitTolerance) target = candidates[0].element;
+            }
+            setSelection(target, "pointer", pointerPoint(event));
+        }
         if (!pointers.size) {
             if (!cancelled && (gestureChanged || completed.moved)) announceViewport("pointer");
             gestureChanged = false;
@@ -833,6 +994,16 @@ function installNavigation(graphic, svg, status, options) {
     });
     svg.addEventListener("keydown", (event) => {
         if (event.defaultPrevented) return;
+        if (event.key === "/" && searchInput) {
+            event.preventDefault?.();
+            searchInput.focus?.();
+            return;
+        }
+        if (event.altKey && ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) {
+            event.preventDefault?.();
+            spatialSelection(event.key.replace("Arrow", "").toLocaleLowerCase());
+            return;
+        }
         const amount = event.shiftKey ? 0.25 : 0.1;
         if (event.key === "ArrowLeft") panGraphicViewport(state, state.viewport.width * amount, 0);
         else if (event.key === "ArrowRight") panGraphicViewport(state, -state.viewport.width * amount, 0);
@@ -855,7 +1026,7 @@ function installNavigation(graphic, svg, status, options) {
         applyViewport();
         announceViewport("keyboard");
     });
-    return Object.freeze({ selectById, cycleSelection });
+    return Object.freeze({ selectById, cycleSelection, spatialSelection });
 }
 
 function enhanceGraphic(graphic, options) {

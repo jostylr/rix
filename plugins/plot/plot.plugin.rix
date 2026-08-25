@@ -449,6 +449,8 @@ PlotGeneral(data, settings, kind) -> {;
             status=unresolved==0 ?: :sampled ?_ :partial,
             rendering=:series,
             tickCount=tickCount,
+            preferencesKey=PlotOption(settings,"preferenceskey"),
+            audio=PlotOption(settings,"audio",{= }),
             title=PlotOption(settings,"title"),
             xLabel=PlotOption(settings,"xlabel"),
             yLabel=PlotOption(settings,"ylabel")
@@ -583,6 +585,7 @@ PlotFieldGraphic(kind,config,settings,children,details) -> {;
             unresolvedRegions=unresolved,ambiguousRegions=PlotOption(details,"ambiguousregions",[]),
             legend=PlotOption(details,"legend",[]),colorScale=PlotOption(details,"colorscale",_),
             records=PlotOption(details,"records",[]),series=series,rendering=PlotOption(details,"rendering",:graphics),
+            preferencesKey=PlotOption(settings,"preferenceskey"),audio=PlotOption(settings,"audio",{= }),
             title=PlotOption(settings,"title"),xLabel=PlotOption(settings,"xlabel"),yLabel=PlotOption(settings,"ylabel")
         }
     });
