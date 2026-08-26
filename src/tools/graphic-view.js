@@ -453,9 +453,12 @@ function installGeometryWorkbench(graphic, status, options, navigation, actionAc
     const authoring = mapField(workbench, "authoring");
     const authoringEnabled = stringValue(mapField(authoring, "schema")) === "rix.geometry.authoring-policy@1";
     const availableTools = new Set(sequenceValue(mapField(authoring, "tools")).map((tool) => stringValue(tool)));
+    const authoringSpecs = sequenceValue(mapField(authoring, "toolSpecs"));
+    const specsByTool = new Map(authoringSpecs.map((spec) => [stringValue(mapField(spec, "tool")), spec]));
     let activeTool = "point";
-    let selectedPointIds = [];
+    let selectedObjectIds = [];
     const toolButtons = new Map();
+    const treeButtons = [];
     const panel = document.createElement("aside");
     panel.className = "rix-output-geometry-workbench";
     panel.setAttribute("aria-label", "Geometry construction workbench");
@@ -470,30 +473,35 @@ function installGeometryWorkbench(graphic, status, options, navigation, actionAc
     const exportButton = makeButton(document, "geometry-export", "Export portable construction record", "Export");
     controls.append(undo, redo, exportButton);
     if (authoringEnabled) {
-        const pointTool = makeButton(document, "geometry-point-tool", "Focus the exact free-point authoring surface", "Point tool");
         const activateTool = (tool) => {
             activeTool = tool;
-            selectedPointIds = [];
+            selectedObjectIds = [];
+            for (const candidate of treeButtons) candidate.setAttribute("aria-pressed", "false");
             for (const [name, button] of toolButtons) button.setAttribute("aria-pressed", name === tool ? "true" : "false");
-            if (tool === "point") {
-                const actionId = stringValue(mapField(authoring, "surfaceActionId"));
+            const spec = specsByTool.get(tool);
+            const selectionKind = stringValue(mapField(spec, "selectionKind"));
+            const label = stringValue(mapField(spec, "label")) || tool;
+            if (selectionKind === "canvas") {
+                const actionId = stringValue(mapField(spec, "actionId"));
                 const surface = [...graphic.querySelectorAll("[data-rix-graphic-action]")]
                     .find((candidate) => candidate.dataset.rixGraphicAction === actionId);
                 surface?.focus?.();
                 if (status) status.textContent = "Point tool active. Click empty canvas space, or move the keyboard cursor with arrows and press Enter.";
             } else if (status) {
-                status.textContent = `${tool === "line" ? "Line" : "Circle"} tool active. Select two distinct points in the construction tree.`;
+                const operands = sequenceValue(mapField(spec, "operandLabels")).map((item) => stringValue(item));
+                status.textContent = `${label} tool active. Select ${operands[0] || "the first object"} in the construction tree.`;
             }
         };
-        toolButtons.set("point", pointTool);
-        pointTool.addEventListener("click", () => activateTool("point"));
-        const authoringButtons = [pointTool];
-        for (const [tool, label, title] of [
-            ["line", "Line tool", "Create an exact line through two selected points"],
-            ["circle", "Circle tool", "Create an exact circle from a selected center and through-point"],
-        ]) {
-            if (!availableTools.has(tool)) continue;
-            const button = makeButton(document, `geometry-${tool}-tool`, title, label);
+        const authoringButtons = [];
+        for (const tool of availableTools) {
+            const spec = specsByTool.get(tool);
+            if (!spec) continue;
+            const label = stringValue(mapField(spec, "label")) || `${tool[0]?.toUpperCase() || ""}${tool.slice(1)}`;
+            const selectionKinds = sequenceValue(mapField(spec, "selectionKinds")).map((kind) => stringValue(kind));
+            const title = tool === "point"
+                ? "Focus the exact free-point authoring surface"
+                : `Create an exact ${label.toLowerCase()} from selected ${selectionKinds.join(" or ")} objects`;
+            const button = makeButton(document, `geometry-${tool}-tool`, title, `${label} tool`);
             toolButtons.set(tool, button);
             button.addEventListener("click", () => activateTool(tool));
             authoringButtons.push(button);
@@ -514,7 +522,6 @@ function installGeometryWorkbench(graphic, status, options, navigation, actionAc
     const tree = document.createElement("ol");
     tree.className = "rix-output-geometry-tree";
     tree.setAttribute("role", "tree");
-    const treeButtons = [];
     for (const node of nodes) {
         const id = stringValue(mapField(node, "id")) || String(mapField(node, "id") ?? "object");
         const kind = stringValue(mapField(node, "kind")) || "value";
@@ -525,6 +532,7 @@ function installGeometryWorkbench(graphic, status, options, navigation, actionAc
         item.setAttribute("aria-level", "1");
         const button = document.createElement("button");
         button.type = "button";
+        button.setAttribute("aria-pressed", "false");
         button.dataset.rixGeometryObject = id;
         button.textContent = `${id} · ${kind} · ${free ? "free" : "derived"}`;
         const choose = (source = "workbench") => {
@@ -536,25 +544,32 @@ function installGeometryWorkbench(graphic, status, options, navigation, actionAc
             properties.textContent = [id, kind, free ? "free" : "derived", dependencyText, statusValue, diagnostic, exact === null ? null : `exact ${exactText(exact, options.format || String)}`]
                 .filter(Boolean).join(" · ");
             if (authoringEnabled && activeTool !== "point") {
-                if (kind !== "point") {
-                    if (status) status.textContent = `${activeTool === "line" ? "Line" : "Circle"} tool requires point objects.`;
+                const spec = specsByTool.get(activeTool);
+                const label = stringValue(mapField(spec, "label")) || activeTool;
+                const acceptedKinds = sequenceValue(mapField(spec, "selectionKinds")).map((entry) => stringValue(entry));
+                const operandLabels = sequenceValue(mapField(spec, "operandLabels")).map((entry) => stringValue(entry));
+                const selectionCount = finiteNumber(mapField(spec, "selectionCount"), 0);
+                if (!acceptedKinds.includes(kind)) {
+                    if (status) status.textContent = `${label} tool requires ${acceptedKinds.join(" or ")} objects; ${id} is ${kind}.`;
                     return;
                 }
-                if (selectedPointIds.includes(id)) {
-                    selectedPointIds = selectedPointIds.filter((selected) => selected !== id);
+                if (selectedObjectIds.includes(id)) {
+                    selectedObjectIds = selectedObjectIds.filter((selected) => selected !== id);
                 } else {
-                    selectedPointIds.push(id);
+                    selectedObjectIds.push(id);
                 }
-                button.setAttribute("aria-selected", selectedPointIds.includes(id) ? "true" : "false");
-                if (selectedPointIds.length < 2) {
-                    if (status) status.textContent = `${id} selected. Choose one more point for the ${activeTool} tool.`;
+                button.setAttribute("aria-pressed", selectedObjectIds.includes(id) ? "true" : "false");
+                if (selectedObjectIds.length < selectionCount) {
+                    const nextOperand = operandLabels[selectedObjectIds.length] || `object ${selectedObjectIds.length + 1}`;
+                    if (status) status.textContent = selectedObjectIds.length
+                        ? `${id} selected. Choose ${nextOperand} for the ${label.toLowerCase()} tool.`
+                        : `${id} deselected. Choose ${operandLabels[0] || "the first object"} for the ${label.toLowerCase()} tool.`;
                     return;
                 }
-                const key = activeTool === "line" ? "lineActionId" : "circleActionId";
-                const actionId = stringValue(mapField(authoring, key));
-                const selection = Object.freeze(selectedPointIds.slice(0, 2));
-                selectedPointIds = [];
-                for (const candidate of treeButtons) candidate.setAttribute("aria-selected", "false");
+                const actionId = stringValue(mapField(spec, "actionId"));
+                const selection = Object.freeze(selectedObjectIds.slice(0, selectionCount));
+                selectedObjectIds = [];
+                for (const candidate of treeButtons) candidate.setAttribute("aria-pressed", "false");
                 actionActivators.get(actionId)?.(source, null, selection);
             }
         };

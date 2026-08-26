@@ -407,7 +407,7 @@ describe("WidgetSession", () => {
         widget.dispose();
     });
 
-    test("authors exact lines and circles from semantic point selections", () => {
+    test("authors exact lines, circles, intersections, and measurements from semantic selections", () => {
         const state = session();
         const graphic = parseAndEvaluate(`
             .Plugin.Load("geometry");
@@ -426,6 +426,14 @@ describe("WidgetSession", () => {
                 id="geometry-author-circle",target=$$graph,
                 action=(current,ids)->.geometry.AddCircle(current,ids[1],ids[2]),children=[]
             });
+            IntersectionAction() -> .Graphics.Action({=
+                id="geometry-author-intersection",target=$$graph,
+                action=(current,ids)->.geometry.AddIntersection(current,ids[1],ids[2]),children=[]
+            });
+            MeasurementAction() -> .Graphics.Action({=
+                id="geometry-author-measurement",target=$$graph,
+                action=(current,ids)->.geometry.AddMeasurement(current,ids[1],ids[2]),children=[]
+            });
             UndoAction() -> .Graphics.Action({=
                 id="geometry-author-undo",target=$$graph,action=current->.geometry.Undo(current),children=[]
             });
@@ -433,7 +441,7 @@ describe("WidgetSession", () => {
                 id="geometry-author-redo",target=$$graph,action=current->.geometry.Redo(current),children=[]
             });
             $$view := .geometry.AuthoringWorkbench(
-                $graph,[PointAction(),LineAction(),CircleAction(),UndoAction(),RedoAction()],
+                $graph,[PointAction(),LineAction(),CircleAction(),IntersectionAction(),MeasurementAction(),UndoAction(),RedoAction()],
                 {= view=[-2,-1,2,1],size=[400,100] }
             );
             $view
@@ -441,24 +449,31 @@ describe("WidgetSession", () => {
         const widget = createWidgetSession(graphic);
         const action = (id) => graphic.children.find((child) => child.id === id);
         const point = action("geometry-author-point");
-        for (const position of [[150, 50], [250, 50]]) {
+        for (const position of [[150, 50], [250, 50], [200, 25], [200, 75]]) {
             widget.dispatch({
                 type: "graphic:action", actionId: point.id, targetId: point.targetId, position, source: "pointer",
             });
         }
-        for (const id of ["geometry-author-line", "geometry-author-circle"]) {
+        const dispatchSelection = (id, payload) => {
             const selected = action(id);
             widget.dispatch({
                 type: "graphic:action", actionId: selected.id, targetId: selected.targetId,
-                payload: ["p1", "p2"], source: "workbench",
+                payload, source: "workbench",
             });
-        }
+        };
+        dispatchSelection("geometry-author-line", ["p1", "p2"]);
+        dispatchSelection("geometry-author-line", ["p3", "p4"]);
+        dispatchSelection("geometry-author-circle", ["p1", "p2"]);
+        dispatchSelection("geometry-author-intersection", ["l1", "l2"]);
+        dispatchSelection("geometry-author-measurement", ["p1", "p2"]);
         const graph = state.context.get("graph").peek();
-        expect(graph.entries.get("nodes").values.map((node) => node.entries.get("value").entries.get("kind").value))
-            .toEqual(["point", "point", "line", "circle"]);
+        expect(graph.entries.get("nodes").values.map((node) =>
+            node.entries.get("tool")?.value ?? node.entries.get("value").entries.get("kind").value))
+            .toEqual(["point", "point", "point", "point", "line", "line", "circle", "intersection", "measurement"]);
         const authoring = graphic.metadata.get("workbench").entries.get("authoring").entries;
-        expect(authoring.get("tools").values.map((tool) => tool.value)).toEqual(["point", "line", "circle"]);
-        expect(authoring.get("toolspecs").values).toHaveLength(3);
+        expect(authoring.get("tools").values.map((tool) => tool.value))
+            .toEqual(["point", "line", "circle", "intersection", "measurement"]);
+        expect(authoring.get("toolspecs").values).toHaveLength(5);
         widget.dispose();
     });
 

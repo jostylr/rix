@@ -82,6 +82,10 @@ actions3 := [
     action=(current,ids)->.geometry.AddLine(current,ids[1],ids[2]),children=[] }),
   .Graphics.Action({= id="geometry-author-circle",target=$$graph3,
     action=(current,ids)->.geometry.AddCircle(current,ids[1],ids[2]),children=[] }),
+  .Graphics.Action({= id="geometry-author-intersection",target=$$graph3,
+    action=(current,ids)->.geometry.AddIntersection(current,ids[1],ids[2]),children=[] }),
+  .Graphics.Action({= id="geometry-author-measurement",target=$$graph3,
+    action=(current,ids)->.geometry.AddMeasurement(current,ids[1],ids[2]),children=[] }),
   .Graphics.Action({= id="geometry-author-undo",target=$$graph3,
     action=current->.geometry.Undo(current),children=[] }),
   .Graphics.Action({= id="geometry-author-redo",target=$$graph3,
@@ -97,8 +101,10 @@ Click empty canvas space to place `p1`, `p2`, and so on. Select **Point tool**
 to focus its surface; arrows move the cursor, Shift-arrows move ten pixels, and
 Enter or Space places the point. Select **Line tool** or **Circle tool**, then
 choose two distinct points in the construction tree. For a circle, choose its
-center first and its through-point second. `snap` is applied in mathematical
-coordinates, and `maxNodes` is a strict construction bound.
+center first and its through-point second. **Intersection tool** accepts two
+lines, circles, or conics; **Distance tool** accepts two points. `snap` is
+applied in mathematical coordinates, and `maxNodes` is a strict construction
+bound.
 
 ## Keep unresolved intersections visible
 
