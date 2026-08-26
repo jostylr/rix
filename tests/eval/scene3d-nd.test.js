@@ -175,14 +175,21 @@ describe("Scene3D and n-dimensional geometry plugins", () => {
                 ],[plane])
             ]);
             realized=.scene3d.Realize(scene);
-            [material,plane,realized["primitives"][1]];
+            [material,plane,realized["primitives"][1],realized["clipping"]];
         `);
-        const [material, plane, primitive] = result.values;
+        const [material, plane, primitive, clipping] = result.values;
         expect(text(field(material, "materialschema"))).toBe("rix.scene3d.material@1");
         expect(String(field(field(material, "values"), "roughness"))).toBe("1/4");
         expect(text(field(plane, "clipschema"))).toBe("rix.scene3d.clip-plane@1");
         expect(sequence(field(primitive, "clipplanes"))).toHaveLength(1);
         expect(String(field(sequence(field(primitive, "clipplanes"))[0], "offset"))).toBe("-1/2");
+        expect(sequence(field(primitive, "points")).map((point) => String(sequence(point)[0])))
+            .toEqual(["1/2", "1", "1/2"]);
+        expect(sequence(field(primitive, "triangles"))).toHaveLength(1);
+        expect(text(field(field(primitive, "cliprealization"), "method"))).toBe("triangle_halfspace");
+        expect(text(field(clipping, "method"))).toBe("exact_halfspace");
+        expect(integer(field(clipping, "inputpoints"))).toBe(3);
+        expect(integer(field(clipping, "outputpoints"))).toBe(3);
     });
 
     test("Phase 2 adaptively meshes exact parametric surfaces and retains interaction policies", () => {

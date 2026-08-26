@@ -177,10 +177,17 @@ scene = (state, origin) -> .Paragraph(@"snapshot @{origin[:ordinal]}: state @{st
 
 `.Timeline.Sequence` accepts the same entries and records ordered frames.
 Each timeline frame uses the same `state`, `origin`, and `content` record.
-`.Timeline.Track({= id, kind, keyframes, interpolation? })` adds a retained
-camera, caption, narration, or state track. Keyframes use one-based `frame`
-indices and exact RiX `value`s; caption and narration values are strings and
-remain stepwise for accessible output.
+`.Timeline.Track({= id, kind, keyframes, interpolation?, target? })` adds a
+retained camera, caption, narration, state, path, construction, or formula
+track. Keyframes use one-based `frame` indices and exact RiX `value`s. Caption,
+narration, and formula values are strings; caption, narration, construction,
+and formula tracks remain stepwise for accessible output. Path and camera
+tracks may declare linear or cubic presentation interpolation without changing
+the discrete exact frames.
+`.Timeline.Manifest(timeline)` materializes `rix.timeline-manifest@1`: every
+frame receives a stable id, exact duration, origin, marker, and the active value
+and source keyframe for each semantic track. This is the deterministic schedule
+for media renderers and external production tools.
 `.Timeline.Render(timeline, frame?)` selects one one-based frame for a static
 renderer. Browser hosts expose the retained timeline directly with transport,
 range, comparison, exact inspection, and complete text-track controls. A grid

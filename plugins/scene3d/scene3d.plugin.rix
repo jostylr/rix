@@ -603,6 +603,119 @@ S3Collect(children, parent, clipPlanes ?= []) -> {;
     result;
 };
 
+S3ClipSide(point,plane) -> S3Dot(plane[:normal],point)+plane[:offset];
+
+S3ClipIntersection(first,second,firstSide,secondSide) -> {;
+    ratio=firstSide/(firstSide-secondSide);
+    [1,2,3].Map((coordinate)->first[coordinate]+(second[coordinate]-first[coordinate])*@ratio);
+};
+
+S3SamePoint3(first,second) -> [1,2,3].All((coordinate)->first[coordinate]==second[coordinate]);
+
+S3ClipSegmentPlanes(first,second,planes) -> {;
+    segment:=[first,second];
+    {@ planeIndex=1; planeIndex<=@planes.Len()&&@segment!=_; {;
+        plane=@planes[planeIndex]; start=@segment[1]; finish=@segment[2];
+        startSide=S3ClipSide(start,plane); finishSide=S3ClipSide(finish,plane);
+        startInside=startSide>=0; finishInside=finishSide>=0;
+        (!startInside&&!finishInside)
+          ?: {; @segment~=_; }
+          ?_ startInside&&finishInside
+               ?: _
+               ?_ {;
+                   cut=S3ClipIntersection(@start,@finish,@startSide,@finishSide);
+                   @segment ~= @startInside ?: [@start,cut] ?_ [cut,@finish];
+               };
+    }; planeIndex+=1 };
+    segment;
+};
+
+S3ClipPolygonPlane(points,plane) -> {;
+    result:=[];
+    points.Len()>0 ?: {;
+        previous:=@points.Last(); previousSide:=S3ClipSide(previous,@plane); previousInside:=previousSide>=0;
+        {@ index=1; index<=@points.Len(); {;
+            current=@points[index]; currentSide=S3ClipSide(current,@plane); currentInside=currentSide>=0;
+            currentInside
+              ?: {;
+                  !@previousInside ?: {;
+                      @result ~= @result.Push(S3ClipIntersection(@previous,@current,@previousSide,@currentSide));
+                  } ?_ _;
+                  @result ~= @result.Push(@current);
+              }
+              ?_ @previousInside ?: {;
+                  @result ~= @result.Push(S3ClipIntersection(@previous,@current,@previousSide,@currentSide));
+              } ?_ _;
+            @previous~=current; @previousSide~=currentSide; @previousInside~=currentInside;
+        }; index+=1 };
+    } ?_ _;
+    (result.Len()>1&&S3SamePoint3(result[1],result.Last())) ?: result.Slice(1,result.Len()) ?_ result;
+};
+
+S3ClipPolygonPlanes(points,planes) -> {;
+    result:=points;
+    {@ index=1; index<=@planes.Len()&&@result.Len()>0; {;
+        @result ~= S3ClipPolygonPlane(@result,@planes[index]);
+    }; index+=1 };
+    result;
+};
+
+S3ClipPrimitive(primitive) -> {;
+    planes=primitive[:clipplanes];
+    planes.Len()==0
+      ?: primitive
+      ?_ primitive[:kind]==:points
+           ?: {;
+               points=@primitive[:points].Filter((point)->@planes.All((plane)->S3ClipSide(point,plane)>=0));
+               @primitive.Merge({= points=points,clipRealization={=
+                   schema="rix.scene3d.clip-realization@1",method=:point_filter,inputPoints=@primitive[:points].Len(),outputPoints=points.Len()
+               } });
+           }
+           ?_ primitive[:kind]==:annotation
+                ?: {;
+                    kept=@planes.All((plane)->S3ClipSide(@primitive[:points][1],plane)>=0);
+                    @primitive.Merge({= points=kept ?: @primitive[:points] ?_ [],clipRealization={=
+                        schema="rix.scene3d.clip-realization@1",method=:point_filter,inputPoints=1,outputPoints=kept ?: 1 ?_ 0
+                    } });
+                }
+                ?_ primitive[:kind]==:lines
+                     ?: {;
+                         points:=[]; segments:=[];
+                         {@ index=1; index<=@primitive[:segments].Len(); {;
+                             pair=@primitive[:segments][index]; clipped=S3ClipSegmentPlanes(@primitive[:points][pair[1]],@primitive[:points][pair[2]],@planes);
+                             clipped!=_ ?: {;
+                                 first=@points.Len()+1; @points ~= @points.Concat(@clipped); @segments ~= @segments.Push([first,first+1]);
+                             } ?_ _;
+                         }; index+=1 };
+                         @primitive.Merge({= points=points,segments=segments,clipRealization={=
+                             schema="rix.scene3d.clip-realization@1",method=:segment_halfspace,
+                             inputSegments=@primitive[:segments].Len(),outputSegments=segments.Len(),inputPoints=@primitive[:points].Len(),outputPoints=points.Len()
+                         } });
+                     }
+                     ?_ primitive[:kind]==:mesh
+                          ?: {;
+                              points:=[]; triangles:=[];
+                              {@ index=1; index<=@primitive[:triangles].Len(); {;
+                                  triangle=@primitive[:triangles][index]; polygon=S3ClipPolygonPlanes(
+                                      [@primitive[:points][triangle[1]],@primitive[:points][triangle[2]],@primitive[:points][triangle[3]]],@planes
+                                  );
+                                  polygon.Len()>=3 ?: {;
+                                      first=@points.Len()+1; @points ~= @points.Concat(@polygon);
+                                      {@ corner=2; corner<@polygon.Len(); {;
+                                          @triangles ~= @triangles.Push([@first,@first+corner-1,@first+corner]);
+                                      }; corner+=1 };
+                                  } ?_ _;
+                              }; index+=1 };
+                              @primitive.Merge({= points=points,triangles=triangles,segments=S3MeshSegments(triangles),clipRealization={=
+                                  schema="rix.scene3d.clip-realization@1",method=:triangle_halfspace,
+                                  inputTriangles=@primitive[:triangles].Len(),outputTriangles=triangles.Len(),inputPoints=@primitive[:points].Len(),outputPoints=points.Len()
+                              } });
+                          }
+                          ?_ primitive;
+};
+
+S3ApplyClipPlanes(primitives) -> primitives.Map((primitive)->S3ClipPrimitive(primitive)).Filter((primitive)->primitive[:points].Len()>0);
+
 S3Picking(primitives) -> {;
     result := {= };
     {@ index=1; index<=@primitives.Len(); {;
@@ -619,13 +732,21 @@ S3Picking(primitives) -> {;
 };
 
 S3Realized(children) -> {;
-    primitives = S3Collect(children,S3Identity(),[]);
+    collected = S3Collect(children,S3Identity(),[]);
+    primitives = S3ApplyClipPlanes(collected);
+    clipped=collected.Filter((primitive)->primitive[:clipplanes].Len()>0);
     .DeepMutable({=
         type="scene3d_realized",
         schema="rix.scene3d.realized@1",
         coordinateSystem={= handedness="right", up="z", units="unspecified" },
         primitives=primitives,
-        picking=S3Picking(primitives)
+        picking=S3Picking(primitives),
+        clipping={=
+            schema="rix.scene3d.clip-work@1",method=:exact_halfspace,
+            inputPrimitives=collected.Len(),outputPrimitives=primitives.Len(),clippedPrimitives=clipped.Len(),
+            inputPoints=collected.Reduce((total,primitive)->total+primitive[:points].Len(),0),
+            outputPoints=primitives.Reduce((total,primitive)->total+primitive[:points].Len(),0)
+        }
     }, _);
 };
 

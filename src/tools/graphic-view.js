@@ -180,6 +180,41 @@ export function graphicSpatialTarget(catalog, currentId, direction) {
         .sort((left, right) => left.score - right.score || left.forward - right.forward || left.entry.id.localeCompare(right.entry.id))[0]?.entry || null;
 }
 
+/** Publish deterministic host guidance before a dense scene is lowered to a projection. */
+export function createGraphicDensityPlan(catalogOrCount, options = {}) {
+    const count = Array.isArray(catalogOrCount) ? catalogOrCount.length : Number(catalogOrCount);
+    const semanticLimit = Number(options.semanticLimit ?? 2000);
+    const svgLimit = Number(options.svgLimit ?? 5000);
+    const canvasLimit = Number(options.canvasLimit ?? 50000);
+    const cellSize = Number(options.cellSize ?? 64);
+    const pageSize = Number(options.pageSize ?? 500);
+    if (![count, semanticLimit, svgLimit, canvasLimit].every(Number.isSafeInteger)
+        || count < 0 || semanticLimit < 1 || svgLimit < semanticLimit || canvasLimit < svgLimit) {
+        throw new Error("Graphic density thresholds must be ordered nonnegative safe integers");
+    }
+    if (!(cellSize > 0) || !Number.isFinite(cellSize)) throw new Error("Graphic density cell size must be positive");
+    if (!Number.isSafeInteger(pageSize) || pageSize < 1) throw new Error("Graphic density page size must be a positive safe integer");
+    const preferredProjection = count <= svgLimit ? "svg" : count <= canvasLimit ? "canvas" : "webgl";
+    const semanticMode = count <= semanticLimit ? "complete" : "virtualized";
+    return Object.freeze({
+        schema: "rix.graphics.density-policy@1",
+        sourceCount: count,
+        thresholds: Object.freeze({ semanticLimit, svgLimit, canvasLimit }),
+        preferredProjection,
+        semanticMode,
+        navigation: Object.freeze({
+            indexed: true,
+            cellSize,
+            pageSize: Math.min(semanticLimit, pageSize),
+        }),
+        reasons: Object.freeze([
+            `source-count:${count}`,
+            `projection:${preferredProjection}`,
+            `semantic-navigation:${semanticMode}`,
+        ]),
+    });
+}
+
 /** Build a bounded screen-space bucket index for dense semantic SVG scenes. */
 export function createGraphicHitIndex(entries, cellSize = 64) {
     const size = Number(cellSize);
@@ -187,7 +222,9 @@ export function createGraphicHitIndex(entries, cellSize = 64) {
     const normalized = [];
     const buckets = new Map();
     const overflow = [];
-    for (const [order, entry] of Array.from(entries || []).entries()) {
+    let bucketReferences = 0;
+    const source = Array.from(entries || []);
+    for (const [order, entry] of source.entries()) {
         const bounds = entry?.bounds;
         if (!bounds) continue;
         const left = Number(bounds.left);
@@ -210,10 +247,28 @@ export function createGraphicHitIndex(entries, cellSize = 64) {
                 const key = `${x}:${y}`;
                 if (!buckets.has(key)) buckets.set(key, []);
                 buckets.get(key).push(index);
+                bucketReferences += 1;
             }
         }
     }
-    return Object.freeze({ schema: "rix.graphics.hit-index@1", cellSize: size, entries: Object.freeze(normalized), buckets, overflow: Object.freeze(overflow) });
+    const maximumBucketLoad = [...buckets.values()].reduce((maximum, bucket) => Math.max(maximum, bucket.length), 0);
+    return Object.freeze({
+        schema: "rix.graphics.hit-index@1",
+        cellSize: size,
+        entries: Object.freeze(normalized),
+        buckets,
+        overflow: Object.freeze(overflow),
+        work: Object.freeze({
+            schema: "rix.graphics.hit-index-work@1",
+            sourceEntries: source.length,
+            indexedEntries: normalized.length,
+            bucketCount: buckets.size,
+            bucketReferences,
+            overflowEntries: overflow.length,
+            maximumBucketLoad,
+            maximumCellsPerEntry: 4096,
+        }),
+    });
 }
 
 /** Query only nearby buckets, returning the nearest entry within tolerance. */
@@ -224,8 +279,10 @@ export function queryGraphicHitIndex(index, point, tolerance = 0) {
     const radius = Number(tolerance);
     if (![x, y, radius].every(Number.isFinite) || radius < 0) throw new Error("Graphic hit query requires finite coordinates and a nonnegative tolerance");
     const candidates = new Set(index.overflow || []);
+    let visitedBuckets = 0;
     for (let column = Math.floor((x - radius) / index.cellSize); column <= Math.floor((x + radius) / index.cellSize); column += 1) {
         for (let row = Math.floor((y - radius) / index.cellSize); row <= Math.floor((y + radius) / index.cellSize); row += 1) {
+            visitedBuckets += 1;
             for (const entry of index.buckets.get(`${column}:${row}`) || []) candidates.add(entry);
         }
     }
@@ -239,7 +296,10 @@ export function queryGraphicHitIndex(index, point, tolerance = 0) {
             best = { entry, distance };
         }
     }
-    return best ? Object.freeze(best) : null;
+    return best ? Object.freeze({
+        ...best,
+        work: Object.freeze({ examinedEntries: candidates.size, visitedBuckets }),
+    }) : null;
 }
 
 function plotInspection(graphic, scenePoint, format) {
@@ -506,7 +566,7 @@ export function serializeGeometryConstructionRecord(record, format = String) {
     return JSON.stringify(portableGeometryValue(record, format), null, 2);
 }
 
-function installGeometryWorkbench(graphic, status, options, navigation, actionActivators = new Map()) {
+function installGeometryWorkbench(graphic, status, options, navigation, actionActivators = new Map(), pendingActionPayloads = new Map()) {
     const workbench = geometryWorkbench(options.graphic);
     const document = graphic.ownerDocument;
     if (!workbench || !document?.createElement) return;
@@ -609,10 +669,13 @@ function installGeometryWorkbench(graphic, status, options, navigation, actionAc
                 const spec = specsByTool.get(activeTool);
                 const label = stringValue(mapField(spec, "label")) || activeTool;
                 const acceptedKinds = sequenceValue(mapField(spec, "selectionKinds")).map((entry) => stringValue(entry));
+                const operandKinds = sequenceValue(mapField(spec, "operandKinds"));
                 const operandLabels = sequenceValue(mapField(spec, "operandLabels")).map((entry) => stringValue(entry));
                 const selectionCount = finiteNumber(mapField(spec, "selectionCount"), 0);
-                if (!acceptedKinds.includes(kind)) {
-                    if (status) status.textContent = `${label} tool requires ${acceptedKinds.join(" or ")} objects; ${id} is ${kind}.`;
+                const operandAcceptedKinds = sequenceValue(operandKinds[selectedObjectIds.length]).map((entry) => stringValue(entry));
+                const kindsForOperand = operandAcceptedKinds.length ? operandAcceptedKinds : acceptedKinds;
+                if (!kindsForOperand.includes(kind)) {
+                    if (status) status.textContent = `${label} tool requires ${kindsForOperand.join(" or ")} for ${operandLabels[selectedObjectIds.length] || "this operand"}; ${id} is ${kind}.`;
                     return;
                 }
                 if (selectedObjectIds.includes(id)) {
@@ -632,7 +695,15 @@ function installGeometryWorkbench(graphic, status, options, navigation, actionAc
                 const selection = Object.freeze(selectedObjectIds.slice(0, selectionCount));
                 selectedObjectIds = [];
                 for (const candidate of treeButtons) candidate.setAttribute("aria-pressed", "false");
-                actionActivators.get(actionId)?.(source, null, selection);
+                if (stringValue(mapField(spec, "selectionKind")) === "objectThenCanvas") {
+                    pendingActionPayloads.set(actionId, selection);
+                    const action = [...graphic.querySelectorAll("[data-rix-graphic-action]")]
+                        .find((candidate) => candidate.dataset.rixGraphicAction === actionId);
+                    action?.focus?.();
+                    if (status) status.textContent = `${label} operands selected. Click the target position, or move the keyboard cursor with arrows and press Enter.`;
+                } else {
+                    actionActivators.get(actionId)?.(source, null, selection);
+                }
             }
         };
         button.addEventListener("click", () => choose());
@@ -710,6 +781,22 @@ function installGeometryWorkbench(graphic, status, options, navigation, actionAc
         dispatchGraphicEvent(graphic, "rix-geometry-export", { schema: "rix.geometry.construction-record@1", record, text });
         if (status) status.textContent = "Portable construction record exported";
     });
+    const svg = graphic.querySelector("svg.rix-output-svg");
+    svg?.addEventListener?.("click", (event) => {
+        const spec = specsByTool.get(activeTool);
+        if (stringValue(mapField(spec, "selectionKind")) !== "objectThenCanvas") return;
+        const actionId = stringValue(mapField(spec, "actionId"));
+        const payload = pendingActionPayloads.get(actionId);
+        if (!payload) return;
+        event.preventDefault?.();
+        event.stopImmediatePropagation?.();
+        const position = graphicPointFromClient(
+            svg.getBoundingClientRect(),
+            svg.viewBox?.baseVal || graphicViewBox(options.state),
+            { x: event.clientX, y: event.clientY },
+        );
+        actionActivators.get(actionId)?.("pointer", position, payload);
+    }, true);
     refreshHistory();
 }
 
@@ -858,6 +945,10 @@ function installNavigation(graphic, svg, status, options) {
         || element.dataset?.rixGraphicAction
         || !element.querySelector?.("[data-rix-semantic-id]")
     ));
+    const densityPlan = createGraphicDensityPlan(selectable.length);
+    graphic.dataset.rixGraphicDensityProjection = densityPlan.preferredProjection;
+    graphic.dataset.rixGraphicSemanticMode = densityPlan.semanticMode;
+    graphic.dataset.rixGraphicSourceCount = String(densityPlan.sourceCount);
     const catalog = new Map(graphicSelectionCatalog(options.graphic, options.format || String).map((entry) => [entry.id, entry]));
     const scopeSelect = toolbar?.querySelector?.("[data-rix-graphic-selection-scope]") || null;
     const objectSelect = toolbar?.querySelector?.("[data-rix-graphic-object-select]") || null;
@@ -1175,19 +1266,21 @@ function enhanceGraphic(graphic, options) {
 
     const navigation = installNavigation(graphic, svg, status, options);
     const actionActivators = new Map();
+    const pendingActionPayloads = new Map();
 
     for (const action of actions) {
         if (typeof options.onAction !== "function") continue;
         const positioned = action.dataset.rixGraphicPositioned === "true";
         const current = () => String(action.dataset.rixPosition || "0,0").split(",").map(Number);
         const activate = (source, position = positioned ? current() : null, payload = null) => {
+            const retainedPayload = payload ?? pendingActionPayloads.get(action.dataset.rixGraphicAction) ?? null;
             const detail = Object.freeze({
                 type: "graphic:action",
                 actionId: action.dataset.rixGraphicAction,
                 targetId: action.dataset.rixGraphicTarget,
                 source,
                 ...(positioned ? { position: Object.freeze(position.map(Number)) } : {}),
-                ...(payload === null ? {} : { payload }),
+                ...(retainedPayload === null ? {} : { payload: retainedPayload }),
             });
             try {
                 const result = options.onAction(detail, action, graphic);
@@ -1195,6 +1288,7 @@ function enhanceGraphic(graphic, options) {
                 if (status) status.textContent = `${action.getAttribute("aria-label") || "Scene action"} selected`;
                 dispatchGraphicEvent(graphic, "rix-graphic-action", { ...detail, revision: result?.revision ?? null });
                 options.onActionCommitted?.(detail, result, action, graphic);
+                pendingActionPayloads.delete(action.dataset.rixGraphicAction);
             } catch (error) {
                 if (status) status.textContent = error instanceof Error ? error.message : String(error);
             }
@@ -1238,7 +1332,7 @@ function enhanceGraphic(graphic, options) {
             activate("keyboard");
         });
     }
-    installGeometryWorkbench(graphic, status, options, navigation, actionActivators);
+    installGeometryWorkbench(graphic, status, options, navigation, actionActivators, pendingActionPayloads);
 
     if (handles.length === 0 || typeof options.onPosition !== "function") return;
 

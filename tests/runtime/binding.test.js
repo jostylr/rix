@@ -515,6 +515,62 @@ describe("WidgetSession", () => {
         widget.dispose();
     });
 
+    test("authors a constrained move from an object pair and a canvas target", () => {
+        const state = session();
+        const graphic = parseAndEvaluate(`
+            .Plugin.Load("geometry");
+            $$graph := .geometry.ConstructionGraph([
+                {= id="p1",free=1,value=.geometry.Point(0,0) },
+                {= id="p2",free=1,value=.geometry.Point(-2,1) },
+                {= id="p3",free=1,value=.geometry.Point(2,1) },
+                {= id="l1",dependsOn=["p2","p3"],construct=(values)->.geometry.Line(values["p2"],values["p3"]) }
+            ]);
+            EmptyAction(id,action) -> .Graphics.Action({= id=id,target=$$graph,action=action,children=[] });
+            PointAction() -> .Graphics.Action({=
+                id="geometry-author-point",target=$$graph,
+                action=(current,position)->.geometry.AddPoint(current,.geometry.Point(position[1],position[2])),
+                coordinateSystem={= view=[-5,-5,5,5],size=[100,100] },children=[]
+            });
+            LineAction() -> EmptyAction("geometry-author-line",(current,ids)->.geometry.AddLine(current,ids[1],ids[2]));
+            CircleAction() -> EmptyAction("geometry-author-circle",(current,ids)->.geometry.AddCircle(current,ids[1],ids[2]));
+            IntersectionAction() -> EmptyAction("geometry-author-intersection",(current,ids)->.geometry.AddIntersection(current,ids[1],ids[2]));
+            MeasurementAction() -> EmptyAction("geometry-author-measurement",(current,ids)->.geometry.AddMeasurement(current,ids[1],ids[2]));
+            TransformAction() -> EmptyAction("geometry-author-transform",(current,ids)->.geometry.AddTransform(current,ids[1],.geometry.Translate(1,0)));
+            ConstrainedAction() -> .Graphics.Action({=
+                id="geometry-author-constrained-move",target=$$graph,
+                action=(current,position,ids)->.geometry.ConstrainedDrag(
+                    current,ids[1],.geometry.Point(position[1],position[2]),{= constraint=ids[2] }
+                ),
+                coordinateSystem={= view=[-5,-5,5,5],size=[100,100] },children=[]
+            });
+            UndoAction() -> EmptyAction("geometry-author-undo",current->.geometry.Undo(current));
+            RedoAction() -> EmptyAction("geometry-author-redo",current->.geometry.Redo(current));
+            $$view := .geometry.AuthoringWorkbench($graph,[
+                PointAction(),LineAction(),CircleAction(),IntersectionAction(),MeasurementAction(),TransformAction(),
+                ConstrainedAction(),UndoAction(),RedoAction()
+            ],{= view=[-5,-5,5,5],size=[100,100] });
+            $view
+        `, state);
+        const constrained = graphic.children.find((child) => child.id === "geometry-author-constrained-move");
+        const widget = createWidgetSession(graphic);
+        widget.dispatch({
+            type: "graphic:action", actionId: constrained.id, targetId: constrained.targetId,
+            position: [80,10], payload: ["p1", "l1"], source: "workbench",
+        });
+        let graph = state.context.get("graph").peek();
+        expect(formatValue(graph.entries.get("values").entries.get("p1").entries.get("coordinates"))).toBe("[3, 1]");
+        expect(graph.entries.get("history").values.at(-1).entries.get("operation").value).toBe("drag");
+        const authoring = graphic.metadata.get("workbench").entries.get("authoring").entries;
+        expect(authoring.get("tools").values.map((tool) => tool.value).at(-1)).toBe("constrainedMove");
+        expect(authoring.get("toolspecs").values.at(-1).entries.get("selectionkind").value).toBe("objectThenCanvas");
+
+        const undo = graphic.children.find((child) => child.id === "geometry-author-undo");
+        widget.dispatch({ type: "graphic:action", actionId: undo.id, targetId: undo.targetId, source: "undo" });
+        graph = state.context.get("graph").peek();
+        expect(formatValue(graph.entries.get("values").entries.get("p1").entries.get("coordinates"))).toBe("[0, 0]");
+        widget.dispose();
+    });
+
     test("routes semantic control:set events like $name := an exact value", () => {
         const state = session();
         const panel = parseAndEvaluate(`

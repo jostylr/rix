@@ -370,6 +370,44 @@ describe("portable structured output", () => {
             .Timeline.Sequence({= tracks=[track],entries=[{: scene,[0,1]}] })
         `)).toThrow("outside 1…2");
 
+        const manifest = parseAndEvaluate(`
+            scene = state -> .Paragraph(@"manifest @{state}");
+            path=.Timeline.Track({=
+                id="point-path",kind="path",target="point-a",interpolation="linear",
+                keyframes=[{= frame=1,value=[0,0]},{= frame=3,value=[2,4]}]
+            });
+            construction=.Timeline.Track({=
+                id="construction",kind="construction",
+                keyframes=[{= frame=2,value={= step="draw radius"} }]
+            });
+            formula=.Timeline.Track({=
+                id="formula",kind="formula",
+                keyframes=[{= frame=1,value="x^2"},{= frame=3,value="(x+1)^2"}]
+            });
+            timeline=.Timeline.Sequence({=
+                title="Deterministic construction",frameDurations=[1/4,1/2,3/4],
+                markers=[{= frame=2,label="radius"}],tracks=[path,construction,formula],
+                entries=[{: scene,[0,1,2]}]
+            });
+            .Timeline.Manifest(timeline)
+        `);
+        expect(manifest.kind).toBe("timeline_manifest");
+        expect(manifest.schema).toBe("rix.timeline-manifest@1");
+        expect(manifest.timing).toBe("per-frame");
+        expect(manifest.frames.map(({ id }) => id)).toEqual(["frame-1", "frame-2", "frame-3"]);
+        expect(manifest.frames[1].marker).toBe("radius");
+        expect(manifest.frames[1].tracks.map(({ kind, sourceFrame }) => [kind, sourceFrame]))
+            .toEqual([["path", 1], ["construction", 2], ["formula", 1]]);
+        expect(formatValue(manifest.frames[1].duration)).toBe("1/2");
+        expect(renderOutputHtml(manifest, formatValue)).toContain("rix.timeline-manifest@1");
+        expect(formatValue(manifest)).toContain("point-path=[0, 0] (from 1)");
+        expect(() => parseAndEvaluate(`
+            .Timeline.Track({=
+                id="bad",kind="construction",interpolation="linear",
+                keyframes=[{= frame=1,value={= step="one"} }]
+            })
+        `)).toThrow("construction interpolation must be step");
+
         const graphicsSnapshots = parseAndEvaluate(`
             scene = state -> .Paragraph(@"graphic state @{state}");
             .Graphics.Snapshots([{: scene, [1, 2]}])
@@ -1165,6 +1203,40 @@ describe("portable structured output", () => {
         `);
         expect(direct.values.map((entry) => entry.entries.get("kind").value))
             .toEqual(["y_intercept", "root"]);
+        expect(direct.values.map((entry) => entry.entries.get("id").value))
+            .toEqual(["poi-y_intercept-1", "poi-root-2"]);
+    });
+
+    test("the plot plugin retains higher-degree exact samples, certified brackets, and bounded labels", () => {
+        const exactSamples = parseAndEvaluate(`
+            .Plugin.Load("plot");
+            .plot.PolynomialPOI([1,0,-1,0],[-2,2],{= samples=9 })
+        `);
+        const roots = exactSamples.values.filter((entry) => entry.entries.get("kind").value === "root");
+        expect(roots.map((entry) => formatValue(entry.entries.get("point").values[0])))
+            .toEqual(["-1", "0", "1"]);
+        expect(roots.every((entry) => entry.entries.get("status").value === "exact")).toBe(true);
+        expect(new Set(exactSamples.values.map((entry) => entry.entries.get("id").value)).size)
+            .toBe(exactSamples.values.length);
+
+        const bracketed = parseAndEvaluate(`
+            .Plugin.Load("plot");
+            .plot.PolynomialPOI([1,0,0,-2],[0,2],{= samples=5 })
+        `);
+        const bracket = bracketed.values.find((entry) => entry.entries.get("status").value === "certifiedBracket");
+        expect(bracket.entries.get("evidencelevel").value).toBe("existence");
+        expect(formatValue(bracket.entries.get("evidence").entries.get("xinterval"))).toBe("[1, 1..1/2]");
+
+        const plot = parseAndEvaluate(`
+            .Plugin.Load("plot");
+            .plot.Polynomial([1,-2,-3],[-3,5],{=
+                pointsOfInterest=1,samples=17,poiLabels=:all,poiMaxLabels=2
+            })
+        `);
+        const metadata = plot.metadata.get("plot").entries;
+        expect(plot.children.filter(({ kind }) => kind === "circle")).toHaveLength(4);
+        expect(plot.children.filter(({ kind }) => kind === "text_mark")).toHaveLength(2);
+        expect(formatValue(metadata.get("poilabelsshown"))).toBe("2");
     });
 
     test("the plot plugin accepts a fixed yDomain for stable axes", () => {

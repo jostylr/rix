@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
     createGraphicViewState,
+    createGraphicDensityPlan,
     createGraphicHitIndex,
     describeGraphicNode,
     enhanceGraphicViews,
@@ -145,9 +146,37 @@ describe("shared Graphic viewport and exact inspection", () => {
         const index = createGraphicHitIndex(entries, 32);
         expect(index.schema).toBe("rix.graphics.hit-index@1");
         expect(index.entries).toHaveLength(1000);
-        expect(queryGraphicHitIndex(index, [502.5, 22], 4)?.entry.id).toBe("point-50");
+        expect(index.work).toMatchObject({
+            schema: "rix.graphics.hit-index-work@1",
+            sourceEntries: 1000,
+            indexedEntries: 1000,
+            overflowEntries: 0,
+            maximumCellsPerEntry: 4096,
+        });
+        const hit = queryGraphicHitIndex(index, [502.5, 22], 4);
+        expect(hit?.entry.id).toBe("point-50");
+        expect(hit?.work.examinedEntries).toBeLessThan(20);
         expect(queryGraphicHitIndex(index, [506, 22], 2)).toBeNull();
         expect(() => createGraphicHitIndex([], 0)).toThrow("cell size must be positive");
+    });
+
+    test("publishes stable dense-scene projection and semantic-navigation thresholds", () => {
+        expect(createGraphicDensityPlan(2000)).toMatchObject({
+            schema: "rix.graphics.density-policy@1",
+            sourceCount: 2000,
+            preferredProjection: "svg",
+            semanticMode: "complete",
+        });
+        expect(createGraphicDensityPlan(6000)).toMatchObject({
+            preferredProjection: "canvas",
+            semanticMode: "virtualized",
+        });
+        expect(createGraphicDensityPlan(60000)).toMatchObject({
+            preferredProjection: "webgl",
+            semanticMode: "virtualized",
+        });
+        expect(createGraphicDensityPlan(6000).navigation).toEqual({ indexed: true, cellSize: 64, pageSize: 500 });
+        expect(() => createGraphicDensityPlan(10, { semanticLimit: 100, svgLimit: 20 })).toThrow("ordered");
     });
 });
 

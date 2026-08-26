@@ -192,7 +192,7 @@ export function createWebGLPlan(scene, options = null) {
     ));
     if (drawCalls.some(({ clipPlanes }) => clipPlanes.length > 0)) diagnostics.push(diagnostic(
         "webgl-retained-clip-planes",
-        "Scene3D clip planes are retained on draw calls; the portable flat executor reports but does not geometrically split crossing primitives.",
+        "Scene3D realization exactly clips supported points, lines, and meshes; the defining planes remain on draw calls for capable hosts.",
         "info",
     ));
     if (drawCalls.some(({ material }) => material.roughness !== 1 || material.metallic !== 0 || material.emissive)) diagnostics.push(diagnostic(

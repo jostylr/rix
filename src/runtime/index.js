@@ -217,6 +217,7 @@ export {
     createSnapshots,
     createTimelineTrack,
     createTimelineSequence,
+    createTimelineManifest,
     createTimelineRender,
     createClip,
 } from "./output.js";

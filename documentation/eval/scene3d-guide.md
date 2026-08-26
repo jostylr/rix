@@ -114,10 +114,12 @@ was constructed.
 
 `.scene3d.Snapshot` projects a retained scene into core `.Graphics`. Phase 1
 implements explicitly named `wireframe` and `lit` modes. Wireframe clips
-perspective segments against the camera's near/far planes. Lit mode uses
-deterministic flat Lambert shading and painter's ordering for mesh triangles;
-it does not claim certified hidden-surface removal, shadows, triangle clipping,
-or certified tessellation.
+perspective segments against the camera's near/far planes. Before projection,
+exact `ClipPlane` half-spaces filter point clouds, cut line segments, and clip
+and retriangulate mesh triangles; `realized["clipping"]` and each affected
+primitive's `clipRealization` record the work. Lit mode uses deterministic flat
+Lambert shading and painter's ordering for mesh triangles; it does not claim
+certified hidden-surface removal, shadows, or certified tessellation.
 
 ```rix
 snapshot := .scene3d.Snapshot(scene, {=

@@ -88,7 +88,7 @@ export {
     createAlgebraOutputCollection, createGraphicsOutputCollection, createTimelineOutputCollection, createControlsOutputCollection, createSyntheticDivision, createPlotOutputCollection,
     createPolynomialPlot, createGroup, createTransform, createTextMark,
     createRectangle, createCircle, createDragPoint, createGraphicAction, createClip, createSliderControl, createInputControl,
-    createChoiceControl, createToggleControl, createRangeControl, createResetControl, createActionControl, createHoldControl, createControlPanel, createSnapshots, createTimelineTrack, createTimelineSequence, createTimelineRender,
+    createChoiceControl, createToggleControl, createRangeControl, createResetControl, createActionControl, createHoldControl, createControlPanel, createSnapshots, createTimelineTrack, createTimelineSequence, createTimelineManifest, createTimelineRender,
 } from "./runtime/index.js";
 export { createDrawPluginCollection, installDrawPlugin } from "../plugins/draw/draw.plugin.rix.js";
 export { installBundledPlugins } from "../plugins/bundled.js";
@@ -102,7 +102,8 @@ export {
 } from "./tools/sheet-view.js";
 export { WidgetSession, GraphicWidgetSession, ControlPanelWidgetSession, createWidgetSession } from "./tools/widget-session.js";
 export {
-    enhanceGraphicViews, graphicPointFromClient, graphicSelectionCatalog,
+    createGraphicDensityPlan, enhanceGraphicViews, graphicPointFromClient,
+    graphicSelectionCatalog,
     updateGraphicGesture,
 } from "./tools/graphic-view.js";
 export {

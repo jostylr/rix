@@ -62,10 +62,55 @@ PlotExactSqrt(value) -> {;
     };
 };
 
-PlotPOI(kind,point,label,evidence ?= {= }) -> .DeepMutable({=
-    schema="rix.plot.poi@1",kind=kind,status=:exact,evidenceLevel=:proof,
+PlotPOIRecord(kind,point,label,status,evidenceLevel,evidence ?= {= }) -> .DeepMutable({=
+    schema="rix.plot.poi@1",kind=kind,status=status,evidenceLevel=evidenceLevel,
     point=point,label=label,evidence=evidence
 },_);
+
+PlotPOI(kind,point,label,evidence ?= {= }) -> PlotPOIRecord(kind,point,label,:exact,:proof,evidence);
+
+PlotPolynomialSamplePOI(coefficients,xMin,xMax,samples,existing) -> {;
+    data:=[];
+    {@ index=1; index<=@samples; {;
+        x=@xMin+(@xMax-@xMin)*(index-1)/(@samples-1);
+        @data ~= @data.Push([x,PlotEvaluate(@coefficients,x)]);
+    }; index+=1 };
+    result:=[];
+    {@ index=1; index<=@data.Len(); {;
+        point=@data[index]; x=point[1]; y=point[2];
+        duplicate=@existing.Concat(@result).Any((poi)->poi[:kind]==:root&&poi[:point][1]==@x);
+        (y==0&&!duplicate) ?: {;
+            @result ~= @result.Push(PlotPOI(:root,[@x,0],@"sample-exact root x = @{@x}",{=
+                identity=:exact_sample,continuity=:polynomial,sampleIndex=@index,samples=@samples
+            }));
+        } ?_ _;
+        index>1 ?: {;
+            previous=@data[@index-1];
+            bracketed=(previous[2]<0&&@y>0)||(previous[2]>0&&@y<0);
+            known=@existing.Concat(@result).Any((poi)->poi[:kind]==:root&&poi[:point][1]>@previous[1]&&poi[:point][1]<@x);
+            (bracketed&&!known) ?: {;
+                midpoint=(@previous[1]+@x)/2;
+                @result ~= @result.Push(PlotPOIRecord(:root,[midpoint,PlotEvaluate(@coefficients,midpoint)],
+                    @"certified root bracket [@{@previous[1]}, @{@x}]",:certifiedBracket,:existence,{=
+                        identity=:intermediate_value_theorem,continuity=:polynomial,
+                        xInterval=[@previous[1],@x],values=[@previous[2],@y],samples=@samples
+                    }));
+            } ?_ _;
+        } ?_ _;
+        (index>1&&index<@data.Len()) ?: {;
+            previousY=@data[@index-1][2]; nextY=@data[@index+1][2];
+            classification=(@y<previousY&&@y<nextY) ?: :minimum
+              ?_ (@y>previousY&&@y>nextY) ?: :maximum ?_ _;
+            classification!=_ ?: {;
+                @result ~= @result.Push(PlotPOIRecord(:extremum,[@x,@y],@"sampled @{@classification} candidate (@{@x}, @{@y})",
+                    :sampledCandidate,:sample,{=
+                        identity=:neighbor_comparison,classification=@classification,sampleIndex=@index,samples=@samples
+                    }));
+            } ?_ _;
+        } ?_ _;
+    }; index+=1 };
+    result;
+};
 
 PlotPolynomialPOI(coefficientsValue,domain,options ?= {= }) -> {;
     coefficients=PlotExactArray(coefficientsValue,"Polynomial POI coefficients");
@@ -99,8 +144,26 @@ PlotPolynomialPOI(coefficientsValue,domain,options ?= {= }) -> {;
             } ?_ _;
         } ?_ _;
     } ?_ _;
-    result;
+    samples=PlotPositiveSamples(PlotOption(options,"samples",161));
+    coefficients.Len()>3 ?: {; @result ~= @result.Concat(PlotPolynomialSamplePOI(@coefficients,@xMin,@xMax,@samples,@result)); } ?_ _;
+    result.Map((poi,index)->poi.Merge({= id=@"poi-@{poi[:kind]}-@{index}" }));
 };
+
+PlotPOILabelPolicy(options) -> {;
+    policy=PlotOption(options,"poilabels",:all);
+    (policy==:all||policy==:none||policy==:exact||policy==:roots)
+      ?: policy
+      ?_ .Error("Polynomial plot poiLabels must be :all, :none, :exact, or :roots");
+};
+
+PlotPOIMaxLabels(options) -> {;
+    maximum=PlotOption(options,"poimaxlabels",10000) ~!: :Integer;
+    (maximum>=0&&maximum<=10000) ?: maximum ?_ .Error("Polynomial plot poiMaxLabels must be between 0 and 10000");
+};
+
+PlotPOIShowLabel(poi,policy,shown,maximum) -> shown<maximum && (
+    policy==:all || (policy==:exact&&poi[:status]==:exact) || (policy==:roots&&poi[:kind]==:root)
+);
 
 PlotReadSeries(coefficientsValue, settings, index, samples, xMin, xMax, primary) -> {;
     coefficients = PlotExactArray(coefficientsValue, @"Polynomial plot series @{index} coefficients");
@@ -210,10 +273,13 @@ PlotPolynomial(coefficientsValue, domain, options ?= {= }) -> {;
         @marks ~= @marks.Push(PlotReadMark(@markEntries[index], index));
     }; index += 1 };
     pointsOfInterest=PlotOption(options,"pointsofinterest",0)==1 ?: PlotPolynomialPOI(coefficients,domain,options) ?_ [];
+    poiLabelPolicy=PlotPOILabelPolicy(options); poiMaxLabels=PlotPOIMaxLabels(options); shownPOILabels:=0;
     {@ index=1; index<=@pointsOfInterest.Len(); {;
         poi=@pointsOfInterest[index];
+        showLabel=PlotPOIShowLabel(poi,@poiLabelPolicy,@shownPOILabels,@poiMaxLabels);
+        @shownPOILabels += showLabel ?: 1 ?_ 0;
         @marks ~= @marks.Push({=
-            point=poi[:point],label=poi[:label],radius=PlotExact(PlotOption(@options,"poiradius",5),"Polynomial POI radius"),
+            point=poi[:point],label=showLabel ?: poi[:label] ?_ _,radius=PlotExact(PlotOption(@options,"poiradius",5),"Polynomial POI radius"),
             style=PlotOption(@options,"poistyle",{= fill="#7c3aed",stroke="#fff",width=2 }),
             labelStyle=PlotOption(@options,"poilabelstyle",{= size=13 })
         });
@@ -281,6 +347,8 @@ PlotPolynomial(coefficientsValue, domain, options ?= {= }) -> {;
             ticks=ticks,
             marks=marks,
             pointsOfInterest=pointsOfInterest,
+            poiLabelPolicy=poiLabelPolicy,
+            poiLabelsShown=shownPOILabels,
             title=PlotOption(options,"title"),
             xLabel=PlotOption(options,"xlabel"),
             yLabel=PlotOption(options,"ylabel")
