@@ -11,6 +11,17 @@ import { isFormulaSheet } from "../runtime/formula-sheet.js";
 import { isReactiveNode } from "../runtime/reactive-graph.js";
 import { Integer, Rational, RationalInterval } from "@ratmath/core";
 
+function graphicActionPayload(value, label = "Graphic action payload") {
+    if (value === null || value === undefined) return null;
+    if (value?.type) return value;
+    if (typeof value === "string") return { type: "string", value };
+    if (typeof value === "number" && Number.isSafeInteger(value)) return new Integer(BigInt(value));
+    if (Array.isArray(value)) {
+        return { type: "sequence", values: value.map((item, index) => graphicActionPayload(item, `${label}[${index}]`)) };
+    }
+    throw new Error(`${label} must contain only RiX values, strings, safe integers, or arrays`);
+}
+
 function sheetSource(widget) {
     if (!isOutputValue(widget) || widget.kind !== "sheet") {
         throw new Error("WidgetSession currently requires a Sheet output value");
@@ -213,7 +224,8 @@ export class GraphicWidgetSession {
             const point = action.coordinateSystem
                 ? graphicPoint(event.position, action.coordinateSystem)
                 : null;
-            const value = action.run(point);
+            const payload = graphicActionPayload(event.payload);
+            const value = action.run(point, payload);
             const replacedDependencies = Object.freeze([...action.target.dependencies]);
             action.target.replaceValue(value, {
                 source: "widget",
@@ -222,6 +234,7 @@ export class GraphicWidgetSession {
                 actionId: action.id,
                 targetId: action.targetId,
                 inputSource: event.source ?? null,
+                payload,
                 replacedDependencies,
             });
             return value;

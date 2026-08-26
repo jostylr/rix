@@ -452,6 +452,10 @@ function installGeometryWorkbench(graphic, status, options, navigation, actionAc
     const history = geometryHistory(options.state || (options.state = {}));
     const authoring = mapField(workbench, "authoring");
     const authoringEnabled = stringValue(mapField(authoring, "schema")) === "rix.geometry.authoring-policy@1";
+    const availableTools = new Set(sequenceValue(mapField(authoring, "tools")).map((tool) => stringValue(tool)));
+    let activeTool = "point";
+    let selectedPointIds = [];
+    const toolButtons = new Map();
     const panel = document.createElement("aside");
     panel.className = "rix-output-geometry-workbench";
     panel.setAttribute("aria-label", "Geometry construction workbench");
@@ -467,15 +471,35 @@ function installGeometryWorkbench(graphic, status, options, navigation, actionAc
     controls.append(undo, redo, exportButton);
     if (authoringEnabled) {
         const pointTool = makeButton(document, "geometry-point-tool", "Focus the exact free-point authoring surface", "Point tool");
-        pointTool.setAttribute("aria-pressed", "true");
-        pointTool.addEventListener("click", () => {
-            const actionId = stringValue(mapField(authoring, "surfaceActionId"));
-            const surface = [...graphic.querySelectorAll("[data-rix-graphic-action]")]
-                .find((candidate) => candidate.dataset.rixGraphicAction === actionId);
-            surface?.focus?.();
-            if (status) status.textContent = "Point tool active. Click empty canvas space, or move the keyboard cursor with arrows and press Enter.";
-        });
-        controls.prepend(pointTool);
+        const activateTool = (tool) => {
+            activeTool = tool;
+            selectedPointIds = [];
+            for (const [name, button] of toolButtons) button.setAttribute("aria-pressed", name === tool ? "true" : "false");
+            if (tool === "point") {
+                const actionId = stringValue(mapField(authoring, "surfaceActionId"));
+                const surface = [...graphic.querySelectorAll("[data-rix-graphic-action]")]
+                    .find((candidate) => candidate.dataset.rixGraphicAction === actionId);
+                surface?.focus?.();
+                if (status) status.textContent = "Point tool active. Click empty canvas space, or move the keyboard cursor with arrows and press Enter.";
+            } else if (status) {
+                status.textContent = `${tool === "line" ? "Line" : "Circle"} tool active. Select two distinct points in the construction tree.`;
+            }
+        };
+        toolButtons.set("point", pointTool);
+        pointTool.addEventListener("click", () => activateTool("point"));
+        const authoringButtons = [pointTool];
+        for (const [tool, label, title] of [
+            ["line", "Line tool", "Create an exact line through two selected points"],
+            ["circle", "Circle tool", "Create an exact circle from a selected center and through-point"],
+        ]) {
+            if (!availableTools.has(tool)) continue;
+            const button = makeButton(document, `geometry-${tool}-tool`, title, label);
+            toolButtons.set(tool, button);
+            button.addEventListener("click", () => activateTool(tool));
+            authoringButtons.push(button);
+        }
+        controls.prepend(...authoringButtons);
+        activateTool("point");
     }
     panel.append(controls);
     const exported = document.createElement("pre");
@@ -511,6 +535,28 @@ function installGeometryWorkbench(graphic, status, options, navigation, actionAc
             const exact = mapField(node, "value");
             properties.textContent = [id, kind, free ? "free" : "derived", dependencyText, statusValue, diagnostic, exact === null ? null : `exact ${exactText(exact, options.format || String)}`]
                 .filter(Boolean).join(" · ");
+            if (authoringEnabled && activeTool !== "point") {
+                if (kind !== "point") {
+                    if (status) status.textContent = `${activeTool === "line" ? "Line" : "Circle"} tool requires point objects.`;
+                    return;
+                }
+                if (selectedPointIds.includes(id)) {
+                    selectedPointIds = selectedPointIds.filter((selected) => selected !== id);
+                } else {
+                    selectedPointIds.push(id);
+                }
+                button.setAttribute("aria-selected", selectedPointIds.includes(id) ? "true" : "false");
+                if (selectedPointIds.length < 2) {
+                    if (status) status.textContent = `${id} selected. Choose one more point for the ${activeTool} tool.`;
+                    return;
+                }
+                const key = activeTool === "line" ? "lineActionId" : "circleActionId";
+                const actionId = stringValue(mapField(authoring, key));
+                const selection = Object.freeze(selectedPointIds.slice(0, 2));
+                selectedPointIds = [];
+                for (const candidate of treeButtons) candidate.setAttribute("aria-selected", "false");
+                actionActivators.get(actionId)?.(source, null, selection);
+            }
         };
         button.addEventListener("click", () => choose());
         button.addEventListener("keydown", (event) => {
@@ -1053,13 +1099,14 @@ function enhanceGraphic(graphic, options) {
         if (typeof options.onAction !== "function") continue;
         const positioned = action.dataset.rixGraphicPositioned === "true";
         const current = () => String(action.dataset.rixPosition || "0,0").split(",").map(Number);
-        const activate = (source, position = positioned ? current() : null) => {
+        const activate = (source, position = positioned ? current() : null, payload = null) => {
             const detail = Object.freeze({
                 type: "graphic:action",
                 actionId: action.dataset.rixGraphicAction,
                 targetId: action.dataset.rixGraphicTarget,
                 source,
                 ...(positioned ? { position: Object.freeze(position.map(Number)) } : {}),
+                ...(payload === null ? {} : { payload }),
             });
             try {
                 const result = options.onAction(detail, action, graphic);

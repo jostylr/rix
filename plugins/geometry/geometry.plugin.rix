@@ -1729,8 +1729,9 @@ GeometryWorkbench(graph, options ?= {= }) -> {;
 GeometryAuthoringWorkbench(graph,actions,options ?= {= }) -> {;
     valid=GeometryRequireConstructionGraph(graph,"geometry.AuthoringWorkbench");
     options ? :Map ?: _ ?_ .Error("geometry.AuthoringWorkbench options must be a map");
-    actions ? :Array ?: _ ?_ .Error("geometry.AuthoringWorkbench actions must be [point, undo, redo] Graphics actions");
-    actions.Len()==3 ?: _ ?_ .Error("geometry.AuthoringWorkbench requires point, undo, and redo Graphics actions");
+    actions ? :Array ?: _ ?_ .Error("geometry.AuthoringWorkbench actions must be [point, undo, redo] or [point, line, circle, undo, redo] Graphics actions");
+    expandedActions=actions.Len()==5;
+    (actions.Len()==3||expandedActions) ?: _ ?_ .Error("geometry.AuthoringWorkbench requires three baseline actions or five point/line/circle actions");
     size=GeometryNumericSequence(GeometryOption(options,"size",[720,480]),2,"geometry.AuthoringWorkbench size");
     view=GeometryNumericSequence(GeometryOption(options,"view",[-10,-10,10,10]),4,"geometry.AuthoringWorkbench view");
     xmin=view[1]; ymin=view[2]; xmax=view[3]; ymax=view[4];
@@ -1746,12 +1747,20 @@ GeometryAuthoringWorkbench(graph,actions,options ?= {= }) -> {;
     idPrefix ? :String ?: _ ?_ .Error("geometry.AuthoringWorkbench idPrefix must be a String");
     actionPrefix=GeometryOption(options,"actionprefix","geometry-author");
     actionPrefix ? :String ?: _ ?_ .Error("geometry.AuthoringWorkbench actionPrefix must be a String");
-    surfaceActionId=@"@{actionPrefix}-point"; undoActionId=@"@{actionPrefix}-undo"; redoActionId=@"@{actionPrefix}-redo";
+    surfaceActionId=@"@{actionPrefix}-point"; lineActionId=@"@{actionPrefix}-line"; circleActionId=@"@{actionPrefix}-circle";
+    undoActionId=@"@{actionPrefix}-undo"; redoActionId=@"@{actionPrefix}-redo";
     coordinateSystem={= view=view,frame=frame };
+    tools=expandedActions ?: [:point,:line,:circle] ?_ [:point];
+    toolSpecs=expandedActions ?: [
+        {= tool=:point,actionId=surfaceActionId,selectionKind=:canvas,selectionCount=1 },
+        {= tool=:line,actionId=lineActionId,selectionKind=:point,selectionCount=2 },
+        {= tool=:circle,actionId=circleActionId,selectionKind=:point,selectionCount=2 }
+    ] ?_ [{= tool=:point,actionId=surfaceActionId,selectionKind=:canvas,selectionCount=1 }];
     policy={=
-        schema="rix.geometry.authoring-policy@1",tool=:point,tools=[:point],
+        schema="rix.geometry.authoring-policy@1",tool=:point,tools=tools,toolSpecs=toolSpecs,
         maxNodes=maxNodes,snap=snap,idPrefix=idPrefix,coordinateSystem=coordinateSystem,
-        surfaceActionId=surfaceActionId,undoActionId=undoActionId,redoActionId=redoActionId,
+        surfaceActionId=surfaceActionId,lineActionId=lineActionId,circleActionId=circleActionId,
+        undoActionId=undoActionId,redoActionId=redoActionId,
         exactCoordinates=1,deterministicIds=1
     };
     GeometryWorkbench(valid,options.Merge({=

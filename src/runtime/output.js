@@ -1789,12 +1789,12 @@ export function createGraphicAction(args, runtime = null) {
         targetId: target.id,
         action,
         coordinateSystem,
-        run: (position = null) => invokeControlCallable(
-            action,
-            coordinateSystem ? [target.get(), position] : [target.get()],
-            runtime,
-            "Graphics.Action action",
-        ),
+        run: (position = null, payload = null) => {
+            const actionArgs = [target.get()];
+            if (coordinateSystem) actionArgs.push(position);
+            if (payload !== null && payload !== undefined) actionArgs.push(payload);
+            return invokeControlCallable(action, actionArgs, runtime, "Graphics.Action action");
+        },
         replacesDependencies: Object.freeze([...target.dependencies]),
     });
 }

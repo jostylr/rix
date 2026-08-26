@@ -407,6 +407,61 @@ describe("WidgetSession", () => {
         widget.dispose();
     });
 
+    test("authors exact lines and circles from semantic point selections", () => {
+        const state = session();
+        const graphic = parseAndEvaluate(`
+            .Plugin.Load("geometry");
+            $$graph := .geometry.ConstructionGraph([]);
+            PointAction() -> .Graphics.Action({=
+                id="geometry-author-point",target=$$graph,
+                action=(current,position)->.geometry.AddPoint(current,.geometry.Point(position[1],position[2])),
+                coordinateSystem={= view=[-2,-1,2,1],size=[400,100] },
+                children=[.Graphics.Rectangle([100,0],[200,100],{= fill="transparent" })]
+            });
+            LineAction() -> .Graphics.Action({=
+                id="geometry-author-line",target=$$graph,
+                action=(current,ids)->.geometry.AddLine(current,ids[1],ids[2]),children=[]
+            });
+            CircleAction() -> .Graphics.Action({=
+                id="geometry-author-circle",target=$$graph,
+                action=(current,ids)->.geometry.AddCircle(current,ids[1],ids[2]),children=[]
+            });
+            UndoAction() -> .Graphics.Action({=
+                id="geometry-author-undo",target=$$graph,action=current->.geometry.Undo(current),children=[]
+            });
+            RedoAction() -> .Graphics.Action({=
+                id="geometry-author-redo",target=$$graph,action=current->.geometry.Redo(current),children=[]
+            });
+            $$view := .geometry.AuthoringWorkbench(
+                $graph,[PointAction(),LineAction(),CircleAction(),UndoAction(),RedoAction()],
+                {= view=[-2,-1,2,1],size=[400,100] }
+            );
+            $view
+        `, state);
+        const widget = createWidgetSession(graphic);
+        const action = (id) => graphic.children.find((child) => child.id === id);
+        const point = action("geometry-author-point");
+        for (const position of [[150, 50], [250, 50]]) {
+            widget.dispatch({
+                type: "graphic:action", actionId: point.id, targetId: point.targetId, position, source: "pointer",
+            });
+        }
+        for (const id of ["geometry-author-line", "geometry-author-circle"]) {
+            const selected = action(id);
+            widget.dispatch({
+                type: "graphic:action", actionId: selected.id, targetId: selected.targetId,
+                payload: ["p1", "p2"], source: "workbench",
+            });
+        }
+        const graph = state.context.get("graph").peek();
+        expect(graph.entries.get("nodes").values.map((node) => node.entries.get("value").entries.get("kind").value))
+            .toEqual(["point", "point", "line", "circle"]);
+        const authoring = graphic.metadata.get("workbench").entries.get("authoring").entries;
+        expect(authoring.get("tools").values.map((tool) => tool.value)).toEqual(["point", "line", "circle"]);
+        expect(authoring.get("toolspecs").values).toHaveLength(3);
+        widget.dispose();
+    });
+
     test("routes semantic control:set events like $name := an exact value", () => {
         const state = session();
         const panel = parseAndEvaluate(`

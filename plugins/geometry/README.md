@@ -145,8 +145,9 @@ therefore see the same edit.
 receives `(current, point)`, where `point` is the exact rational tuple obtained
 from the pointer or keyboard cursor. Because reactive `$$` identities may only
 be captured by a direct host constructor, create the point, undo, and redo
-actions directly, then pass them to `AuthoringWorkbench` in that order. Their
-ids use the workbench `actionPrefix` plus `-point`, `-undo`, and `-redo`.
+actions directly, then pass either the baseline `[point, undo, redo]` set or
+the full `[point, line, circle, undo, redo]` set to `AuthoringWorkbench`. Their
+ids use the workbench `actionPrefix` plus the corresponding tool name.
 
 ```rix
 .Plugin.Load("geometry");
@@ -161,6 +162,10 @@ actions := [
     label="Add an exact free point",coordinateSystem={= view=view,size=size },
     children=[.Graphics.Rectangle([0,0],size,{= fill="transparent",stroke="none" })]
   }),
+  .Graphics.Action({= id="geometry-author-line",target=$$graph,
+    action=(current,ids)->.geometry.AddLine(current,ids[1],ids[2]),children=[] }),
+  .Graphics.Action({= id="geometry-author-circle",target=$$graph,
+    action=(current,ids)->.geometry.AddCircle(current,ids[1],ids[2]),children=[] }),
   .Graphics.Action({= id="geometry-author-undo",target=$$graph,
     action=current->.geometry.Undo(current),children=[] }),
   .Graphics.Action({= id="geometry-author-redo",target=$$graph,
@@ -172,9 +177,11 @@ $$workbench := .geometry.AuthoringWorkbench($graph,actions,{=
 $workbench;
 ```
 
-RiX Web exposes the Point tool, keeps focus on the authoring surface across
-reactive redraws, supports arrow-key cursor movement plus Enter/Space placement,
-and routes its Undo/Redo buttons through the retained construction history.
+RiX Web exposes Point, Line, and Circle tools. Point keeps focus on the
+authoring surface across reactive redraws and supports arrow-key cursor movement
+plus Enter/Space placement. Line and Circle consume two distinct point ids from
+the accessible construction tree; Circle interprets them as center then
+through-point. Undo/Redo route through the retained construction history.
 
 The kernel also provides dependency-bearing authoring operations:
 
@@ -192,8 +199,8 @@ The kernel also provides dependency-bearing authoring operations:
 Derived construction records remain deliberately explicit: importing one still
 requires a constructor map for every id in `replayRequires`. This avoids
 pretending executable construction callbacks are portable JSON. The current
-browser authoring toolbar exposes point placement; hosts can bind the additional
-kernel tools to their own selection UI through the same retained graph.
+browser toolbar and other hosts can bind further kernel tools through the same
+semantic `Graphics.Action` payload and retained graph.
 
 ## Bounded refinement
 
