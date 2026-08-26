@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
     createGraphicViewState,
+    createGraphicHitIndex,
     describeGraphicNode,
     enhanceGraphicViews,
     filterGraphicSelectionCatalog,
@@ -10,6 +11,7 @@ import {
     graphicViewBox,
     panGraphicViewport,
     resetGraphicViewport,
+    queryGraphicHitIndex,
     serializeGeometryConstructionRecord,
     updateGraphicGesture,
     zoomGraphicViewport,
@@ -133,6 +135,19 @@ describe("shared Graphic viewport and exact inspection", () => {
         expect(graphicSpatialTarget(catalog, "origin", "right")?.id).toBe("east");
         expect(graphicSpatialTarget(catalog, "origin", "up")?.id).toBe("north");
         expect(() => graphicSpatialTarget(catalog, "origin", "diagonal")).toThrow("left, right, up, or down");
+    });
+
+    test("indexes dense screen-space bounds and queries only nearby buckets", () => {
+        const entries = Array.from({ length: 1000 }, (_, index) => ({
+            id: `point-${index}`,
+            bounds: { left: index * 10, right: index * 10 + 3, top: 20, bottom: 23 },
+        }));
+        const index = createGraphicHitIndex(entries, 32);
+        expect(index.schema).toBe("rix.graphics.hit-index@1");
+        expect(index.entries).toHaveLength(1000);
+        expect(queryGraphicHitIndex(index, [502.5, 22], 4)?.entry.id).toBe("point-50");
+        expect(queryGraphicHitIndex(index, [506, 22], 2)).toBeNull();
+        expect(() => createGraphicHitIndex([], 0)).toThrow("cell size must be positive");
     });
 });
 

@@ -216,6 +216,7 @@ export function enhanceTimelineView(root, options = {}) {
     const state = createTimelineViewState(timeline, stateTarget, options);
     const frames = [...root.querySelectorAll("[data-rix-timeline-frame]")];
     const textFrames = [...root.querySelectorAll("[data-rix-timeline-text-frame]")];
+    const semanticTracks = [...root.querySelectorAll("[data-rix-timeline-track]")];
     const status = root.querySelector("[data-rix-timeline-status]");
     const exactState = root.querySelector("[data-rix-timeline-exact-state]");
     const exactOrigin = root.querySelector("[data-rix-timeline-exact-origin]");
@@ -316,6 +317,17 @@ export function enhanceTimelineView(root, options = {}) {
         }
         for (const [frameIndex, item] of textFrames.entries()) {
             item.toggleAttribute("aria-current", frameIndex === currentIndex);
+        }
+        for (const track of semanticTracks) {
+            const keyframes = [...track.querySelectorAll("[data-rix-timeline-track-keyframe]")];
+            let active = null;
+            for (const keyframe of keyframes) {
+                if (Number(keyframe.dataset.rixTimelineTrackKeyframe) <= state.frame) active = keyframe;
+            }
+            for (const keyframe of keyframes) {
+                keyframe.hidden = keyframe !== active;
+                keyframe.toggleAttribute("aria-current", keyframe === active);
+            }
         }
         const frame = timeline.frames[currentIndex];
         const matched = matchedIdentities(previousRoot, currentRoot);

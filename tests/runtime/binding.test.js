@@ -477,6 +477,44 @@ describe("WidgetSession", () => {
         widget.dispose();
     });
 
+    test("authors exact retained transforms from a semantic object selection", () => {
+        const state = session();
+        const graphic = parseAndEvaluate(`
+            .Plugin.Load("geometry");
+            $$graph := .geometry.AddPoint(.geometry.ConstructionGraph([]),.geometry.Point(0,0));
+            EmptyAction(id,action) -> .Graphics.Action({= id=id,target=$$graph,action=action,children=[] });
+            PointAction() -> .Graphics.Action({=
+                id="geometry-author-point",target=$$graph,
+                action=(current,position)->.geometry.AddPoint(current,.geometry.Point(position[1],position[2])),
+                coordinateSystem={= view=[-2,-1,2,1],size=[400,100] },children=[]
+            });
+            LineAction() -> EmptyAction("geometry-author-line",(current,ids)->.geometry.AddLine(current,ids[1],ids[2]));
+            CircleAction() -> EmptyAction("geometry-author-circle",(current,ids)->.geometry.AddCircle(current,ids[1],ids[2]));
+            IntersectionAction() -> EmptyAction("geometry-author-intersection",(current,ids)->.geometry.AddIntersection(current,ids[1],ids[2]));
+            MeasurementAction() -> EmptyAction("geometry-author-measurement",(current,ids)->.geometry.AddMeasurement(current,ids[1],ids[2]));
+            TransformAction() -> EmptyAction("geometry-author-transform",(current,ids)->.geometry.AddTransform(current,ids[1],.geometry.Translate(2,1)));
+            UndoAction() -> EmptyAction("geometry-author-undo",current->.geometry.Undo(current));
+            RedoAction() -> EmptyAction("geometry-author-redo",current->.geometry.Redo(current));
+            $$view := .geometry.AuthoringWorkbench($graph,[PointAction(),LineAction(),CircleAction(),IntersectionAction(),MeasurementAction(),TransformAction(),UndoAction(),RedoAction()],{=
+                view=[-2,-1,2,1],size=[400,100],transformLabel="Translate (2,1)"
+            });
+            $view
+        `, state);
+        const transform = graphic.children.find((child) => child.id === "geometry-author-transform");
+        const widget = createWidgetSession(graphic);
+        widget.dispatch({
+            type: "graphic:action", actionId: transform.id, targetId: transform.targetId,
+            payload: ["p1"], source: "workbench",
+        });
+        const graph = state.context.get("graph").peek();
+        expect(graph.entries.get("nodes").values.at(-1).entries.get("tool").value).toBe("transform");
+        expect(formatValue(graph.entries.get("values").entries.get("t1").entries.get("coordinates"))).toBe("[2, 1]");
+        const authoring = graphic.metadata.get("workbench").entries.get("authoring").entries;
+        expect(authoring.get("tools").values.map((tool) => tool.value)).toContain("transform");
+        expect(authoring.get("toolspecs").values.at(-1).entries.get("label").value).toBe("Translate (2,1)");
+        widget.dispose();
+    });
+
     test("routes semantic control:set events like $name := an exact value", () => {
         const state = session();
         const panel = parseAndEvaluate(`

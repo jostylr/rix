@@ -88,7 +88,7 @@ export {
     createAlgebraOutputCollection, createGraphicsOutputCollection, createTimelineOutputCollection, createControlsOutputCollection, createSyntheticDivision, createPlotOutputCollection,
     createPolynomialPlot, createGroup, createTransform, createTextMark,
     createRectangle, createCircle, createDragPoint, createGraphicAction, createClip, createSliderControl, createInputControl,
-    createChoiceControl, createToggleControl, createRangeControl, createResetControl, createActionControl, createHoldControl, createControlPanel, createSnapshots, createTimelineSequence, createTimelineRender,
+    createChoiceControl, createToggleControl, createRangeControl, createResetControl, createActionControl, createHoldControl, createControlPanel, createSnapshots, createTimelineTrack, createTimelineSequence, createTimelineRender,
 } from "./runtime/index.js";
 export { createDrawPluginCollection, installDrawPlugin } from "../plugins/draw/draw.plugin.rix.js";
 export { installBundledPlugins } from "../plugins/bundled.js";

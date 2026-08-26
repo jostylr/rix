@@ -146,8 +146,9 @@ receives `(current, point)`, where `point` is the exact rational tuple obtained
 from the pointer or keyboard cursor. Because reactive `$$` identities may only
 be captured by a direct host constructor, create the point, undo, and redo
 actions directly, then pass either the baseline `[point, undo, redo]` set or
-the five-action `[point, line, circle, undo, redo]` set, or the current full
-`[point, line, circle, intersection, measurement, undo, redo]` set to
+the five-action `[point, line, circle, undo, redo]` set, the seven-action
+`[point, line, circle, intersection, measurement, undo, redo]` set, or the
+eight-action `[point, line, circle, intersection, measurement, transform, undo, redo]` set to
 `AuthoringWorkbench`. Their ids use the workbench `actionPrefix` plus the
 corresponding tool name.
 
@@ -172,18 +173,21 @@ actions := [
     action=(current,ids)->.geometry.AddIntersection(current,ids[1],ids[2]),children=[] }),
   .Graphics.Action({= id="geometry-author-measurement",target=$$graph,
     action=(current,ids)->.geometry.AddMeasurement(current,ids[1],ids[2]),children=[] }),
+  .Graphics.Action({= id="geometry-author-transform",target=$$graph,
+    action=(current,ids)->.geometry.AddTransform(current,ids[1],.geometry.Translate(1,1)),children=[] }),
   .Graphics.Action({= id="geometry-author-undo",target=$$graph,
     action=current->.geometry.Undo(current),children=[] }),
   .Graphics.Action({= id="geometry-author-redo",target=$$graph,
     action=current->.geometry.Redo(current),children=[] })
 ];
 $$workbench := .geometry.AuthoringWorkbench($graph,actions,{=
-  view=view,size=size,snap=1/4,maxNodes=32
+  view=view,size=size,snap=1/4,maxNodes=32,transformLabel="Translate (1,1)"
 });
 $workbench;
 ```
 
-RiX Web exposes Point, Line, Circle, Intersection, and Distance tools. Point keeps focus on the
+RiX Web exposes Point, Line, Circle, Intersection, Distance, and caller-defined
+exact Transform tools. Point keeps focus on the
 authoring surface across reactive redraws and supports arrow-key cursor movement
 plus Enter/Space placement. Line and Circle consume two distinct point ids from
 the accessible construction tree; Circle interprets them as center then

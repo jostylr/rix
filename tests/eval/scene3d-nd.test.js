@@ -164,6 +164,27 @@ describe("Scene3D and n-dimensional geometry plugins", () => {
         `)).toThrow("Duplicate Scene3D picking id 'duplicate'");
     });
 
+    test("retains exact clip planes and advanced material semantics through realization", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("scene3d");
+            material=.scene3d.Material({= color="#336699",roughness=1/4,metallic=3/4,emissive="#110000" });
+            plane=.scene3d.ClipPlane([1,0,0],-1/2);
+            scene=.scene3d.Scene([
+                .scene3d.Clip([
+                    .scene3d.Mesh([[0,0,0],[1,0,0],[0,1,0]],[[1,2,3]],{= material=material,id="clipped" })
+                ],[plane])
+            ]);
+            realized=.scene3d.Realize(scene);
+            [material,plane,realized["primitives"][1]];
+        `);
+        const [material, plane, primitive] = result.values;
+        expect(text(field(material, "materialschema"))).toBe("rix.scene3d.material@1");
+        expect(String(field(field(material, "values"), "roughness"))).toBe("1/4");
+        expect(text(field(plane, "clipschema"))).toBe("rix.scene3d.clip-plane@1");
+        expect(sequence(field(primitive, "clipplanes"))).toHaveLength(1);
+        expect(String(field(sequence(field(primitive, "clipplanes"))[0], "offset"))).toBe("-1/2");
+    });
+
     test("Phase 2 adaptively meshes exact parametric surfaces and retains interaction policies", () => {
         const result = parseAndEvaluate(`
             .Plugin.Load("scene3d");

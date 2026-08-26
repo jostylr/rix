@@ -3,12 +3,12 @@ id: scene3d
 description: Pure-RiX exact retained 3D scenes, explicit realization and projection, and portable Graphics snapshots.
 kind: rix
 mount: scene3d
-exports: [Scene, Group, Transform, Mesh, Polyline, PointCloud, ParametricCurve, ParametricSurface, Axes, Annotation, AnnotationPolicy, Interaction, Material, AmbientLight, DirectionalLight, PointLight, PerspectiveCamera, OrthographicCamera, OrbitCamera, Realize, Project, Snapshot]
+exports: [Scene, Group, Transform, ClipPlane, Clip, Mesh, Polyline, PointCloud, ParametricCurve, ParametricSurface, Axes, Annotation, AnnotationPolicy, Interaction, Material, AmbientLight, DirectionalLight, PointLight, PerspectiveCamera, OrthographicCamera, OrbitCamera, Realize, Project, Snapshot]
 groups: [Scene3D, Graphics, Exact]
 permissions: []
 requires: [rix.numerics@1]
-provides: [rix.scene3d@1, rix.scene3d.realized@1, rix.scene3d.projected@1, rix.scene3d.snapshot@1, rix.scene3d.orbit@1, rix.scene3d.interaction@1, rix.scene3d.annotation-policy@1, rix.scene3d.surface-sampling@1]
-schemas: [rix.scene3d@1, rix.scene3d.realized@1, rix.scene3d.projected@1, rix.scene3d.snapshot@1, rix.scene3d.orbit@1, rix.scene3d.interaction@1, rix.scene3d.annotation-policy@1, rix.scene3d.surface-sampling@1]
+provides: [rix.scene3d@1, rix.scene3d.realized@1, rix.scene3d.projected@1, rix.scene3d.snapshot@1, rix.scene3d.orbit@1, rix.scene3d.interaction@1, rix.scene3d.annotation-policy@1, rix.scene3d.surface-sampling@1, rix.scene3d.clip-plane@1, rix.scene3d.material@1]
+schemas: [rix.scene3d@1, rix.scene3d.realized@1, rix.scene3d.projected@1, rix.scene3d.snapshot@1, rix.scene3d.orbit@1, rix.scene3d.interaction@1, rix.scene3d.annotation-policy@1, rix.scene3d.surface-sampling@1, rix.scene3d.clip-plane@1, rix.scene3d.material@1]
 snapshot: true
 deterministic: true
 defaultEnabled: false
@@ -54,10 +54,16 @@ S3MaterialValues(material) -> ((material ? :Map) && S3IsNode(material) && materi
 S3Style(settings) -> {;
     material = S3Option(settings, "material");
     values = S3MaterialValues(material);
+    roughness=S3Exact(S3Option(settings, "roughness", S3Option(values, "roughness", 1)), "Scene3D style roughness");
+    metallic=S3Exact(S3Option(settings, "metallic", S3Option(values, "metallic", 0)), "Scene3D style metallic");
+    (roughness>=0&&roughness<=1&&metallic>=0&&metallic<=1) ?: _ ?_ .Error("Scene3D style roughness and metallic must be between zero and one");
     .DeepMutable({=
         color=S3Option(settings, "color", S3Option(values, "color", "#275dad")),
         width=S3Exact(S3Option(settings, "width", S3Option(values, "width", 1)), "Scene3D style width"),
         opacity=S3Exact(S3Option(settings, "opacity", S3Option(values, "opacity", 1)), "Scene3D style opacity"),
+        roughness=roughness,
+        metallic=metallic,
+        emissive=S3Option(settings, "emissive", S3Option(values, "emissive")),
         material=material
     }, _);
 };
@@ -130,10 +136,14 @@ S3LeafFields(settings, label) -> S3LeafInteraction(settings, label).Merge({=
 
 S3Material(color ?= "#275dad", opacity ?= 1, width ?= 1) -> {;
     settings = color ? :Map ?: color ?_ {= color=color, opacity=opacity, width=width };
-    S3Value(:material, {= values=.DeepMutable({=
+    roughness=S3Exact(S3Option(settings, "roughness", 1), "scene3d.Material roughness");
+    metallic=S3Exact(S3Option(settings, "metallic", 0), "scene3d.Material metallic");
+    (roughness>=0&&roughness<=1&&metallic>=0&&metallic<=1) ?: _ ?_ .Error("scene3d.Material roughness and metallic must be between zero and one");
+    S3Value(:material, {= materialSchema="rix.scene3d.material@1",values=.DeepMutable({=
         color=S3Option(settings, "color", "#275dad"),
         opacity=S3Exact(S3Option(settings, "opacity", 1), "scene3d.Material opacity"),
-        width=S3Exact(S3Option(settings, "width", 1), "scene3d.Material width")
+        width=S3Exact(S3Option(settings, "width", 1), "scene3d.Material width"),
+        roughness=roughness,metallic=metallic,emissive=S3Option(settings,"emissive")
     }, _) });
 };
 
@@ -417,6 +427,29 @@ S3Group(children, options ?= {= }) -> {;
     S3Value(:group, {= children=S3Children(settings[:children], "scene3d.Group children"), metadata=S3Option(settings, "metadata") });
 };
 
+S3ClipPlane(normal, offset ?= 0) -> {;
+    settings=normal ? :Map ?: normal ?_ {= normal=normal,offset=offset };
+    vector=S3Vector(settings[:normal],3,"scene3d.ClipPlane normal");
+    S3Dot(vector,vector)>0 ?: _ ?_ .Error("scene3d.ClipPlane normal must not be zero");
+    S3Value(:clip_plane,{=
+        clipSchema="rix.scene3d.clip-plane@1",normal=vector,
+        offset=S3Exact(S3Option(settings,"offset",0),"scene3d.ClipPlane offset"),
+        label=S3OptionalString(settings,"label","scene3d.ClipPlane label")
+    });
+};
+
+S3Clip(children, planes, options ?= {= }) -> {;
+    settings=children ? :Map ?: children ?_ options.Merge({= children=children,planes=planes });
+    normalizedPlanes=S3Option(settings,"planes",[]);
+    normalizedPlanes ? :Array ?: _ ?_ .Error("scene3d.Clip planes must be an Array");
+    normalizedPlanes.Filter((plane)->!(S3IsNode(plane)&&plane[:kind]==:clip_plane)).Len()==0
+      ?: _ ?_ .Error("scene3d.Clip planes must come from scene3d.ClipPlane");
+    S3Value(:clip,{=
+        children=S3Children(settings[:children],"scene3d.Clip children"),planes=normalizedPlanes,
+        metadata=S3Option(settings,"metadata")
+    });
+};
+
 S3Identity() -> [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
 
 S3Transform(children, options ?= {= }) -> {;
@@ -516,30 +549,32 @@ S3MeshSegments(triangles) -> {;
     segments;
 };
 
-S3PrimitiveFields(child) -> {=
+S3PrimitiveFields(child,clipPlanes ?= []) -> {=
     pickid=S3Option(child,"pickid"),
     label=S3Option(child,"label"),
     metadata=S3Option(child,"metadata"),
     interaction=S3Option(child,"interaction"),
-    annotationPolicy=S3Option(child,"annotationpolicy")
+    annotationPolicy=S3Option(child,"annotationpolicy"),clipPlanes=clipPlanes
 };
 
-S3Collect(children, parent) -> {;
+S3Collect(children, parent, clipPlanes ?= []) -> {;
     result := [];
     {@ index = 1; index <= @children.Len(); {;
         child = @children[index];
         kind = child[:kind];
         kind == :group
-          ?: {; @result ~= @result.Concat(S3Collect(@child[:children], @parent)); }
+          ?: {; @result ~= @result.Concat(S3Collect(@child[:children], @parent, @clipPlanes)); }
           ?_ kind == :transform
-               ?: {; @result ~= @result.Concat(S3Collect(@child[:children], S3Multiply4(@parent, @child[:matrix]))); }
+               ?: {; @result ~= @result.Concat(S3Collect(@child[:children], S3Multiply4(@parent, @child[:matrix]), @clipPlanes)); }
+               ?_ kind == :clip
+                    ?: {; @result ~= @result.Concat(S3Collect(@child[:children],@parent,@clipPlanes.Concat(@child[:planes]))); }
                ?_ kind == :mesh
                     ?: {;
                         points = @child[:vertices].Map((point) -> S3TransformPoint(@parent, point));
                         @result ~= @result.Push(.DeepMutable({=
                             kind=:mesh, points=points, segments=S3MeshSegments(@child[:triangles]),
                             triangles=@child[:triangles], style=@child[:style]
-                        }.Merge(S3PrimitiveFields(@child)), _));
+                        }.Merge(S3PrimitiveFields(@child,@clipPlanes)), _));
                     }
                     ?_ kind == :polyline
                          ?: {;
@@ -549,19 +584,19 @@ S3Collect(children, parent) -> {;
                                  @segments ~= @segments.Push([pointIndex, pointIndex+1]);
                              }; pointIndex += 1 };
                              (@child[:closed]==1 && points.Len() > 2) ?: {; @segments ~= @segments.Push([@points.Len(),1]); } ?_ _;
-                             @result ~= @result.Push(.DeepMutable({= kind=:lines, points=points, segments=segments, style=@child[:style] }.Merge(S3PrimitiveFields(@child)), _));
+                             @result ~= @result.Push(.DeepMutable({= kind=:lines, points=points, segments=segments, style=@child[:style] }.Merge(S3PrimitiveFields(@child,@clipPlanes)), _));
                          }
                          ?_ kind == :point_cloud
                               ?: {; @result ~= @result.Push(.DeepMutable({=
                                   kind=:points, points=@child[:points].Map((point) -> S3TransformPoint(@parent, point)),
                                   radius=@child[:radius], style=@child[:style]
-                              }.Merge(S3PrimitiveFields(@child)), _)); }
+                              }.Merge(S3PrimitiveFields(@child,@clipPlanes)), _)); }
                               ?_ kind == :annotation
                                    ?: {; @result ~= @result.Push(.DeepMutable({=
                                        kind=:annotation,points=[S3TransformPoint(@parent,@child[:position])],
                                        text=@child[:text],style=@child[:style]
-                                   }.Merge(S3PrimitiveFields(@child)),_)); }
-                              ?_ ((kind == :material || kind == :camera)
+                                   }.Merge(S3PrimitiveFields(@child,@clipPlanes)),_)); }
+                              ?_ ((kind == :material || kind == :camera || kind == :clip_plane)
                                   ?: _
                                   ?_ .Error(@"Unsupported Scene3D node '@{kind}'"));
     }; index += 1 };
@@ -584,7 +619,7 @@ S3Picking(primitives) -> {;
 };
 
 S3Realized(children) -> {;
-    primitives = S3Collect(children,S3Identity());
+    primitives = S3Collect(children,S3Identity(),[]);
     .DeepMutable({=
         type="scene3d_realized",
         schema="rix.scene3d.realized@1",
@@ -888,6 +923,8 @@ scene3dNamespace._proto={=
     Scene=(self,children,options ?= {= })->S3Scene(children,options),
     Group=(self,children,options ?= {= })->S3Group(children,options),
     Transform=(self,children,options ?= {= })->S3Transform(children,options),
+    ClipPlane=(self,normal,offset ?= 0)->S3ClipPlane(normal,offset),
+    Clip=(self,children,planes,options ?= {= })->S3Clip(children,planes,options),
     Mesh=(self,vertices,triangles ?= _,options ?= {= })->S3Mesh(vertices,triangles,options),
     Polyline=(self,points,options ?= {= })->S3Polyline(points,options),
     PointCloud=(self,points,options ?= {= })->S3PointCloud(points,options),

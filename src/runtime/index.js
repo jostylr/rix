@@ -215,6 +215,7 @@ export {
     createHoldControl,
     createControlPanel,
     createSnapshots,
+    createTimelineTrack,
     createTimelineSequence,
     createTimelineRender,
     createClip,

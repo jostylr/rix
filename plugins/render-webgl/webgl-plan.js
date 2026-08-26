@@ -43,6 +43,18 @@ function style(value) {
         color: color(field(value, "color")),
         opacity,
         width: numberValue(field(value, "width", 1), "Scene3D style width"),
+        roughness: numberValue(field(value, "roughness", 1), "Scene3D material roughness"),
+        metallic: numberValue(field(value, "metallic", 0), "Scene3D material metallic"),
+        emissive: text(field(value, "emissive")),
+    };
+}
+
+function clipPlane(value, index) {
+    return {
+        schema: text(field(value, "clipschema"), "rix.scene3d.clip-plane@1"),
+        normal: vector(field(value, "normal"), 3, `Scene3D clip plane ${index + 1} normal`),
+        offset: numberValue(field(value, "offset", 0), `Scene3D clip plane ${index + 1} offset`),
+        label: text(field(value, "label")),
     };
 }
 
@@ -62,6 +74,7 @@ function primitive(value, index) {
         label: text(field(value, "label")),
         interaction: plainValue(field(value, "interaction")),
         annotationPolicy: plainValue(field(value, "annotationpolicy")),
+        clipPlanes: sequence(field(value, "clipplanes", { type: "sequence", values: [] }), `Scene3D primitive ${index + 1} clip planes`).map(clipPlane),
     };
 }
 
@@ -151,6 +164,13 @@ export function createWebGLPlan(scene, options = null) {
             pickId: entry.pickId,
             label: entry.label,
             interaction: entry.interaction,
+            material: {
+                schema: "rix.scene3d.material@1",
+                roughness: entry.style.roughness,
+                metallic: entry.style.metallic,
+                emissive: entry.style.emissive,
+            },
+            clipPlanes: entry.clipPlanes,
         };
         drawCalls.push(call);
         if (entry.pickId) picking[entry.pickId] = { kind: "drawCall", index: drawCalls.length - 1, label: entry.label, interaction: entry.interaction };
@@ -168,6 +188,16 @@ export function createWebGLPlan(scene, options = null) {
     if (annotations.length) diagnostics.push(diagnostic(
         "webgl-annotation-overlay",
         "Scene3D annotations are returned as projected host overlays so text remains accessible and interactive.",
+        "info",
+    ));
+    if (drawCalls.some(({ clipPlanes }) => clipPlanes.length > 0)) diagnostics.push(diagnostic(
+        "webgl-retained-clip-planes",
+        "Scene3D clip planes are retained on draw calls; the portable flat executor reports but does not geometrically split crossing primitives.",
+        "info",
+    ));
+    if (drawCalls.some(({ material }) => material.roughness !== 1 || material.metallic !== 0 || material.emissive)) diagnostics.push(diagnostic(
+        "webgl-retained-advanced-material",
+        "Advanced material parameters are retained for capable hosts; the portable executor uses flat color and opacity.",
         "info",
     ));
     const lights = sequence(field(scene, "lights"), "Scene3D lights").map(lightPlan);

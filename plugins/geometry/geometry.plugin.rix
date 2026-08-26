@@ -1733,7 +1733,8 @@ GeometryAuthoringWorkbench(graph,actions,options ?= {= }) -> {;
     actions ? :Array ?: _ ?_ .Error("geometry.AuthoringWorkbench actions must be a supported ordered Graphics action set");
     expandedActions=actions.Len()==5;
     selectionActions=actions.Len()==7;
-    (actions.Len()==3||expandedActions||selectionActions) ?: _ ?_ .Error("geometry.AuthoringWorkbench actions must be [point, undo, redo], [point, line, circle, undo, redo], or [point, line, circle, intersection, measurement, undo, redo]");
+    transformActions=actions.Len()==8;
+    (actions.Len()==3||expandedActions||selectionActions||transformActions) ?: _ ?_ .Error("geometry.AuthoringWorkbench actions must be [point, undo, redo], [point, line, circle, undo, redo], [point, line, circle, intersection, measurement, undo, redo], or [point, line, circle, intersection, measurement, transform, undo, redo]");
     size=GeometryNumericSequence(GeometryOption(options,"size",[720,480]),2,"geometry.AuthoringWorkbench size");
     view=GeometryNumericSequence(GeometryOption(options,"view",[-10,-10,10,10]),4,"geometry.AuthoringWorkbench view");
     xmin=view[1]; ymin=view[2]; xmax=view[3]; ymax=view[4];
@@ -1751,23 +1752,32 @@ GeometryAuthoringWorkbench(graph,actions,options ?= {= }) -> {;
     actionPrefix ? :String ?: _ ?_ .Error("geometry.AuthoringWorkbench actionPrefix must be a String");
     surfaceActionId=@"@{actionPrefix}-point"; lineActionId=@"@{actionPrefix}-line"; circleActionId=@"@{actionPrefix}-circle";
     intersectionActionId=@"@{actionPrefix}-intersection"; measurementActionId=@"@{actionPrefix}-measurement";
+    transformActionId=@"@{actionPrefix}-transform";
     undoActionId=@"@{actionPrefix}-undo"; redoActionId=@"@{actionPrefix}-redo";
     coordinateSystem={= view=view,frame=frame };
-    tools=selectionActions ?: [:point,:line,:circle,:intersection,:measurement]
+    tools=transformActions ?: [:point,:line,:circle,:intersection,:measurement,:transform]
+      ?_ selectionActions ?: [:point,:line,:circle,:intersection,:measurement]
       ?_ expandedActions ?: [:point,:line,:circle] ?_ [:point];
     pointSpec={= tool=:point,label="Point",actionId=surfaceActionId,selectionKind=:canvas,selectionCount=1 };
     lineSpec={= tool=:line,label="Line",actionId=lineActionId,selectionKind=:object,selectionKinds=[:point],selectionCount=2,operandLabels=["first point","second point"] };
     circleSpec={= tool=:circle,label="Circle",actionId=circleActionId,selectionKind=:object,selectionKinds=[:point],selectionCount=2,operandLabels=["center","through-point"] };
-    toolSpecs=selectionActions ?: [
+    selectionSpecs=[
         pointSpec,lineSpec,circleSpec,
         {= tool=:intersection,label="Intersection",actionId=intersectionActionId,selectionKind=:object,selectionKinds=[:line,:circle,:conic],selectionCount=2,operandLabels=["first curve","second curve"] },
         {= tool=:measurement,label="Distance",actionId=measurementActionId,selectionKind=:object,selectionKinds=[:point],selectionCount=2,operandLabels=["first point","second point"] }
-    ] ?_ expandedActions ?: [pointSpec,lineSpec,circleSpec] ?_ [pointSpec];
+    ];
+    transformLabel=GeometryOption(options,"transformlabel","Transform");
+    transformLabel ? :String ?: _ ?_ .Error("geometry.AuthoringWorkbench transformLabel must be a String");
+    toolSpecs=transformActions ?: selectionSpecs.Push({=
+        tool=:transform,label=transformLabel,actionId=transformActionId,selectionKind=:object,
+        selectionKinds=[:point,:line,:segment,:ray,:polygon,:circle,:conic],selectionCount=1,operandLabels=["object"]
+    }) ?_ selectionActions ?: selectionSpecs ?_ expandedActions ?: [pointSpec,lineSpec,circleSpec] ?_ [pointSpec];
     policy={=
         schema="rix.geometry.authoring-policy@1",tool=:point,tools=tools,toolSpecs=toolSpecs,
         maxNodes=maxNodes,snap=snap,idPrefix=idPrefix,coordinateSystem=coordinateSystem,
         surfaceActionId=surfaceActionId,lineActionId=lineActionId,circleActionId=circleActionId,
         intersectionActionId=intersectionActionId,measurementActionId=measurementActionId,
+        transformActionId=transformActionId,
         undoActionId=undoActionId,redoActionId=redoActionId,
         exactCoordinates=1,deterministicIds=1
     };

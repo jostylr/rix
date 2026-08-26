@@ -580,10 +580,12 @@ describe("renderer registry", () => {
         const scene = parseAndEvaluate(`
             .Plugin.Load("scene3d");
             interaction := .scene3d.Interaction({= events=["hover","select"], tooltip="surface" });
+            material := .scene3d.Material({= color="#2563eb",roughness=1/3,metallic=2/3 });
+            plane := .scene3d.ClipPlane([1,0,0],0);
             .scene3d.Scene([
-                .scene3d.Mesh([[0,0,0],[1/3,0,0],[0,1,0]], [[1,2,3]], {=
-                    color="#2563eb", id="surface", interaction=interaction
-                }),
+                .scene3d.Clip([.scene3d.Mesh([[0,0,0],[1/3,0,0],[0,1,0]], [[1,2,3]], {=
+                    material=material, id="surface", interaction=interaction
+                })],[plane]),
                 .scene3d.Polyline([[0,0,0],[0,0,1]], {= width=3 }),
                 .scene3d.PointCloud([[0,0,0]], {= radius=5 }),
                 .scene3d.Annotation([0,1,0], "y", {= id="label" })
@@ -605,6 +607,10 @@ describe("renderer registry", () => {
         expect(plan.picking.surface.interaction.events).toEqual(["hover", "select"]);
         expect(plan.annotations).toHaveLength(1);
         expect(plan.diagnostics.map(({ code }) => code)).toContain("webgl-float32-approximation");
+        expect(plan.drawCalls[0].clipPlanes[0]).toMatchObject({ offset: 0, normal: [1, 0, 0] });
+        expect(plan.drawCalls[0].material).toMatchObject({ roughness: 1 / 3, metallic: 2 / 3 });
+        expect(plan.diagnostics.map(({ code }) => code)).toContain("webgl-retained-clip-planes");
+        expect(plan.diagnostics.map(({ code }) => code)).toContain("webgl-retained-advanced-material");
 
         const calls = [];
         let resource = 0;

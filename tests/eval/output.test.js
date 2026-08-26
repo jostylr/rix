@@ -345,6 +345,31 @@ describe("portable structured output", () => {
             .Timeline.Sequence({= markers=[{= frame=3, label="late"}], entries=[{: scene, [0, 1]}] })
         `)).toThrow("outside 1…2");
 
+        const tracked = parseAndEvaluate(`
+            scene = state -> .Paragraph(@"tracked @{state}");
+            captions = .Timeline.Track({=
+                id="captions",kind="caption",
+                keyframes=[{= frame=1,value="start"},{= frame=3,value="finish"}]
+            });
+            camera = .Timeline.Track({=
+                id="camera",kind="camera",interpolation="linear",
+                keyframes=[{= frame=1,value={= position=[4,4,3]}},{= frame=3,value={= position=[2,2,1]} }]
+            });
+            .Timeline.Sequence({= tracks=[captions,camera],entries=[{: scene,[0,1,2]}] })
+        `);
+        expect(tracked.tracks.map(({ trackKind }) => trackKind)).toEqual(["caption", "camera"]);
+        expect(tracked.tracks[1].interpolation).toBe("linear");
+        const trackedHtml = renderOutputHtml(tracked, formatValue);
+        expect(trackedHtml).toContain('data-rix-timeline-track-count="2"');
+        expect(trackedHtml).toContain('data-rix-timeline-track="captions"');
+        expect(trackedHtml).toContain('data-rix-timeline-track-keyframe="3"');
+        expect(formatValue(tracked)).toContain("Track captions (caption, step)");
+        expect(() => parseAndEvaluate(`
+            scene = state -> .Paragraph(@"frame @{state}");
+            track=.Timeline.Track({= id="late",kind="state",keyframes=[{= frame=3,value=0}] });
+            .Timeline.Sequence({= tracks=[track],entries=[{: scene,[0,1]}] })
+        `)).toThrow("outside 1…2");
+
         const graphicsSnapshots = parseAndEvaluate(`
             scene = state -> .Paragraph(@"graphic state @{state}");
             .Graphics.Snapshots([{: scene, [1, 2]}])
@@ -1119,6 +1144,27 @@ describe("portable structured output", () => {
         expect(html).toContain("linear part</text>");
         expect(html).toContain("center = 1/2</text>");
         expect(html).toContain("f(1/2) = -3/4)");
+    });
+
+    test("the plot plugin derives exact proof-carrying polynomial points of interest", () => {
+        const plot = parseAndEvaluate(`
+            .Plugin.Load("plot");
+            .plot.Polynomial([1,-2,-3],[-3,5],{= pointsOfInterest=1,samples=17 })
+        `);
+        const metadata = plot.metadata.get("plot").entries;
+        const points = metadata.get("pointsofinterest").values;
+        expect(points.map((entry) => entry.entries.get("kind").value))
+            .toEqual(["y_intercept", "extremum", "root", "root"]);
+        expect(points.every((entry) => entry.entries.get("status").value === "exact")).toBe(true);
+        expect(points.every((entry) => entry.entries.get("evidencelevel").value === "proof")).toBe(true);
+        expect(plot.children.filter(({ kind }) => kind === "circle")).toHaveLength(4);
+
+        const direct = parseAndEvaluate(`
+            .Plugin.Load("plot");
+            .plot.PolynomialPOI([2,4],[-5,1])
+        `);
+        expect(direct.values.map((entry) => entry.entries.get("kind").value))
+            .toEqual(["y_intercept", "root"]);
     });
 
     test("the plot plugin accepts a fixed yDomain for stable axes", () => {

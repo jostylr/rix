@@ -20,6 +20,7 @@ to SVG by a web or notebook host.
 | Command | Result |
 | --- | --- |
 | `.plot.Polynomial(coefficients, xDomain, options?)` | A `.Graphics` scene containing axes and the sampled curve. |
+| `.plot.PolynomialPOI(coefficients, xDomain, options?)` | Exact proof-carrying intercept/root/vertex records for supported linear and quadratic cases. |
 | `.plot.Function(fn, xDomain, options?)` | Sample a one-variable function through the Numerics contract. |
 | `.plot.Parametric(fn, parameterDomain, options?)` | Plot a function returning `[x,y]`. |
 | `.plot.Scatter(data, options?)` | Point marks for `[x,y]` rows. |

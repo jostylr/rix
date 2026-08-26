@@ -3,11 +3,12 @@ id: plot
 description: Pure-RiX exact and numerics-backed 2D plotting that lowers to portable core Graphics scenes.
 kind: rix
 mount: plot
-exports: [Polynomial, Function, Parametric, Scatter, Line, Bar, Step, Polar, Implicit, Inequality, Contour, HeatMap, VectorField]
+exports: [Polynomial, PolynomialPOI, Function, Parametric, Scatter, Line, Bar, Step, Polar, Implicit, Inequality, Contour, HeatMap, VectorField]
 groups: [Plot, Graphics, Exact]
 permissions: []
 requires: [rix.numerics@1]
-provides: [rix.plot@1, rix.plot.refinement-policy@1]
+provides: [rix.plot@1, rix.plot.poi@1, rix.plot.refinement-policy@1]
+schemas: [rix.plot@1, rix.plot.poi@1]
 snapshot: true
 deterministic: true
 defaultEnabled: false
@@ -42,6 +43,64 @@ PlotStyle(settings, fallbackStroke, fallbackWidth) -> {;
 };
 
 PlotEvaluate(coefficients, x) -> coefficients.Reduce((total, coefficient) -> total * @x + coefficient, 0);
+
+PlotIntegerSqrtFloor(value) -> {;
+    n=value ~!: :Integer;
+    n>=0 ?: _ ?_ .Error("plot square root requires a nonnegative integer");
+    n<2 ?: n ?_ {;
+        x:=@n; next:=(x+1)//2;
+        {@ step=1; @next<@x; {; @x~=@next; @next~=(@x+(@n//@x))//2; }; step+=1 };
+        x;
+    };
+};
+
+PlotExactSqrt(value) -> {;
+    exact=value ~!: :Rational;
+    exact<0 ?: _ ?_ {;
+        numerator=PlotIntegerSqrtFloor(@exact.Numerator()); denominator=PlotIntegerSqrtFloor(@exact.Denominator());
+        numerator^2==@exact.Numerator()&&denominator^2==@exact.Denominator() ?: numerator/denominator ?_ _;
+    };
+};
+
+PlotPOI(kind,point,label,evidence ?= {= }) -> .DeepMutable({=
+    schema="rix.plot.poi@1",kind=kind,status=:exact,evidenceLevel=:proof,
+    point=point,label=label,evidence=evidence
+},_);
+
+PlotPolynomialPOI(coefficientsValue,domain,options ?= {= }) -> {;
+    coefficients=PlotExactArray(coefficientsValue,"Polynomial POI coefficients");
+    coefficients.Len()>=2 ?: _ ?_ .Error("plot.PolynomialPOI requires at least two coefficients");
+    domain ? :Array ?: _ ?_ .Error("Polynomial POI domain must be an Array");
+    domain.Len()==2 ?: _ ?_ .Error("Polynomial POI domain must have a lower and upper bound");
+    xMin=PlotExact(domain[1],"Polynomial POI lower bound"); xMax=PlotExact(domain[2],"Polynomial POI upper bound");
+    xMin<xMax ?: _ ?_ .Error("Polynomial POI domain must increase");
+    result:=[];
+    (xMin<=0&&xMax>=0) ?: {;
+        y=PlotEvaluate(@coefficients,0);
+        @result ~= @result.Push(PlotPOI(:y_intercept,[0,y],@"y-intercept (0, @{y})",{= identity=:evaluation,x=0 }));
+    } ?_ _;
+    coefficients.Len()==2 ?: {;
+        a=@coefficients[1]; b=@coefficients[2];
+        a!=0 ?: {; root=-@b/@a; (root>=@xMin&&root<=@xMax) ?: {;
+            @result ~= @result.Push(PlotPOI(:root,[@root,0],@"root x = @{@root}",{= identity=:linear_formula }));
+        } ?_ _; } ?_ _;
+    } ?_ coefficients.Len()==3 ?: {;
+        a=@coefficients[1]; b=@coefficients[2]; c=@coefficients[3];
+        a!=0 ?: {;
+            vertexX=-@b/(2*@a); vertexY=PlotEvaluate(@coefficients,vertexX);
+            (vertexX>=@xMin&&vertexX<=@xMax) ?: {;
+                @result ~= @result.Push(PlotPOI(:extremum,[@vertexX,@vertexY],@"vertex (@{@vertexX}, @{@vertexY})",{= identity=:quadratic_vertex,classification=@a>0 ?: :minimum ?_ :maximum }));
+            } ?_ _;
+            discriminant=@b^2-4*@a*@c; squareRoot=PlotExactSqrt(discriminant);
+            squareRoot!=_ ?: {;
+                first=(-@b-@squareRoot)/(2*@a); second=(-@b+@squareRoot)/(2*@a);
+                (first>=@xMin&&first<=@xMax) ?: {; @result ~= @result.Push(PlotPOI(:root,[@first,0],@"root x = @{@first}",{= identity=:quadratic_formula,discriminant=@discriminant })); } ?_ _;
+                (second!=first&&second>=@xMin&&second<=@xMax) ?: {; @result ~= @result.Push(PlotPOI(:root,[@second,0],@"root x = @{@second}",{= identity=:quadratic_formula,discriminant=@discriminant })); } ?_ _;
+            } ?_ _;
+        } ?_ _;
+    } ?_ _;
+    result;
+};
 
 PlotReadSeries(coefficientsValue, settings, index, samples, xMin, xMax, primary) -> {;
     coefficients = PlotExactArray(coefficientsValue, @"Polynomial plot series @{index} coefficients");
@@ -150,6 +209,15 @@ PlotPolynomial(coefficientsValue, domain, options ?= {= }) -> {;
     {@ index = 1; index <= @markEntries.Len(); {;
         @marks ~= @marks.Push(PlotReadMark(@markEntries[index], index));
     }; index += 1 };
+    pointsOfInterest=PlotOption(options,"pointsofinterest",0)==1 ?: PlotPolynomialPOI(coefficients,domain,options) ?_ [];
+    {@ index=1; index<=@pointsOfInterest.Len(); {;
+        poi=@pointsOfInterest[index];
+        @marks ~= @marks.Push({=
+            point=poi[:point],label=poi[:label],radius=PlotExact(PlotOption(@options,"poiradius",5),"Polynomial POI radius"),
+            style=PlotOption(@options,"poistyle",{= fill="#7c3aed",stroke="#fff",width=2 }),
+            labelStyle=PlotOption(@options,"poilabelstyle",{= size=13 })
+        });
+    }; index+=1 };
 
     ticks := [];
     tickEntries = PlotOption(options, "ticks", []);
@@ -212,6 +280,7 @@ PlotPolynomial(coefficientsValue, domain, options ?= {= }) -> {;
             series=series,
             ticks=ticks,
             marks=marks,
+            pointsOfInterest=pointsOfInterest,
             title=PlotOption(options,"title"),
             xLabel=PlotOption(options,"xlabel"),
             yLabel=PlotOption(options,"ylabel")
@@ -1004,6 +1073,7 @@ PlotDataCall(data, options, kind) -> PlotGeneral(data, options, kind);
 plotNamespace = {= };
 plotNamespace._proto = {=
     Polynomial=(self, coefficients, domain, options ?= {= })->PlotPolynomial(coefficients, domain, options),
+    PolynomialPOI=(self, coefficients, domain, options ?= {= })->PlotPolynomialPOI(coefficients, domain, options),
     Function=(self, fn, domain, options ?= {= })->PlotFunction(fn, domain, options),
     Parametric=(self, fn, domain, options ?= {= })->PlotParametric(fn, domain, options),
     Scatter=(self, data, options ?= {= })->PlotDataCall(data, options, :scatter),

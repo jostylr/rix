@@ -9,6 +9,7 @@ Implemented constructors:
 - `Scene(children, options?)`
 - `Group(children, options?)`
 - `Transform(children, {= matrix?, translate?, scale? })`
+- `ClipPlane(normal, offset?)` and `Clip(children, planes)`
 - `Mesh(vertices, triangles, options?)` with 1-based triangle indices
 - `Polyline(points, {= closed?, color?, width?, opacity?, material? })`
 - `PointCloud(points, {= radius?, color?, opacity?, material? })`
@@ -18,7 +19,7 @@ Implemented constructors:
 - `Annotation(position, text, {= id?, label?, policy?, color?, size?, anchor?, weight? })`
 - `AnnotationPolicy({= offset?, leader?, priority?, collision?, occlusion? })`
 - `Interaction({= events?, cursor?, tooltip?, selection?, payload? })`
-- `Material({= color?, opacity?, width? })`
+- `Material({= color?, opacity?, width?, roughness?, metallic?, emissive? })`
 - `AmbientLight(color?, intensity?)`
 - `DirectionalLight(direction, {= color?, intensity? })`
 - `PointLight(position, {= color?, intensity? })`
@@ -33,9 +34,16 @@ deterministic flat Lambert shading and painter's ordering over retained mesh
 triangles. It returns an
 adaptive-result map whose `value` is a core Graphic and whose `work`, `source`,
 `uncertainty`, and `diagnostics` fields make the boundary inspectable. Shadows,
-triangle clipping, certified hidden-surface removal, implicit surfaces/volumes,
+geometric splitting of triangles that cross retained clip planes, certified hidden-surface removal, implicit surfaces/volumes,
 texture, and pointer event handling are not silently approximated; they remain
 future modes or host behavior.
+
+`ClipPlane` stores an exact half-space equation and `Clip` propagates its planes
+to each realized descendant primitive. WebGL plans retain those equations on
+their draw calls. The portable flat executor currently reports the policy but
+does not split crossing geometry. Advanced material values are handled the same
+way: capable hosts receive `rix.scene3d.material@1` roughness, metallic, and
+emissive intent, while flat snapshots keep deterministic color/opacity output.
 
 Phase 2 includes exact bounded parametric-curve sampling, reusable axes,
 projected text annotations, rational Cayley orbit-camera descriptions, and

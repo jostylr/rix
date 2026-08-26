@@ -171,6 +171,59 @@ function timelineMarkers(value, count) {
     }));
 }
 
+export function createTimelineTrack(args) {
+    const entry = spec(args, ["kind", "keyframes"], "Timeline.Track");
+    const kind = (asString(get(entry, "kind")) || "").toLowerCase();
+    if (!new Set(["camera", "caption", "narration", "state"]).has(kind)) {
+        throw new Error("Timeline.Track kind must be camera, caption, narration, or state");
+    }
+    const seen = new Set();
+    const keyframes = sequence(get(entry, "keyframes"), "Timeline.Track keyframes").map((keyframe, index) => {
+        const fields = map(keyframe, `Timeline.Track keyframe ${index + 1}`);
+        const frame = exactPositiveIndex(get(fields, "frame"), `Timeline.Track keyframe ${index + 1} frame`);
+        if (seen.has(frame)) throw new Error(`Timeline.Track has duplicate keyframe ${frame}`);
+        seen.add(frame);
+        const value = get(fields, "value");
+        if (value === null || value === undefined) throw new Error(`Timeline.Track keyframe ${index + 1} requires a value`);
+        if ((kind === "caption" || kind === "narration") && asString(value) === null) {
+            throw new Error(`Timeline.Track ${kind} keyframe values must be Strings`);
+        }
+        return Object.freeze({ frame, value, label: asString(get(fields, "label")) });
+    }).sort((left, right) => left.frame - right.frame);
+    if (!keyframes.length) throw new Error("Timeline.Track requires at least one keyframe");
+    const interpolation = (asString(get(entry, "interpolation")) || "step").toLowerCase();
+    if (!new Set(["step", "linear", "cubic"]).has(interpolation)) {
+        throw new Error("Timeline.Track interpolation must be step, linear, or cubic");
+    }
+    if ((kind === "caption" || kind === "narration") && interpolation !== "step") {
+        throw new Error(`Timeline.Track ${kind} interpolation must be step`);
+    }
+    return output("timeline_track", {
+        schema: "rix.timeline-track@1",
+        id: requiredString(get(entry, "id"), "Timeline.Track id"),
+        trackKind: kind,
+        interpolation,
+        keyframes: Object.freeze(keyframes),
+        title: asString(get(entry, "title")),
+    });
+}
+
+function timelineTracks(value, count) {
+    if (value === null || value === undefined) return Object.freeze([]);
+    const ids = new Set();
+    return Object.freeze(sequence(value, "Timeline.Sequence tracks").map((track, index) => {
+        if (!isOutputValue(track) || track.kind !== "timeline_track" || track.schema !== "rix.timeline-track@1") {
+            throw new Error(`Timeline.Sequence track ${index + 1} must come from Timeline.Track`);
+        }
+        if (ids.has(track.id)) throw new Error(`Timeline.Sequence track id '${track.id}' is duplicated`);
+        ids.add(track.id);
+        if (track.keyframes.some((keyframe) => keyframe.frame > count)) {
+            throw new Error(`Timeline.Sequence track '${track.id}' has a keyframe outside 1…${count}`);
+        }
+        return track;
+    }));
+}
+
 function exactRational(value, label) {
     if (value instanceof Rational) return value;
     if (value instanceof Integer) return new Rational(value);
@@ -498,6 +551,7 @@ export function createTimelineSequence(args, runtime = null) {
         duration: duration === null || duration === undefined ? null : positiveExactNumber(duration, "Timeline.Sequence duration"),
         frameDurations,
         markers: timelineMarkers(get(entry, "markers"), frames.length),
+        tracks: timelineTracks(get(entry, "tracks"), frames.length),
         preferencesKey: asString(get(entry, "preferencesKey")),
         easing: asString(get(entry, "easing")) || "linear",
         transition: timelineTransition(get(entry, "transition")),
@@ -2819,7 +2873,9 @@ export function formatOutputText(value, format) {
             .filter(Boolean).join("\n\n");
     }
     if (value.kind === "timeline") {
-        return [value.title || `Timeline: ${value.frames.length} frames`, ...value.frames.map((frame, index) =>
+        const tracks = (value.tracks || []).map((track) =>
+            `Track ${track.id} (${track.trackKind}, ${track.interpolation}): ${track.keyframes.map((keyframe) => `frame ${keyframe.frame} = ${cellText(keyframe.value, format)}`).join("; ")}`);
+        return [value.title || `Timeline: ${value.frames.length} frames`, ...tracks, ...value.frames.map((frame, index) =>
             `Frame ${index + 1} of ${value.frames.length} · exact state ${cellText(frame.state, format)}\n${formatOutputText(frame.content, format)}`)]
             .join("\n\n");
     }
@@ -3009,7 +3065,8 @@ export function renderOutputHtml(value, format = (item) => String(item ?? "")) {
             `<li data-rix-timeline-text-frame="${index + 1}"${index === 0 ? ' aria-current="true"' : ""}><b>Frame ${index + 1}${value.markers?.find((marker) => marker.frame === index + 1) ? ` · marker ${escapeHtml(value.markers.find((marker) => marker.frame === index + 1).label)}` : ""} · exact state ${escapeHtml(cellText(frame.state, format))}</b><pre>${escapeHtml(formatOutputText(frame.content, format))}</pre></li>`).join("");
         const duration = value.frameDurations ? "variable exact frame timing" : value.duration === null ? "host default" : `${escapeHtml(cellText(value.duration, format))} seconds total`;
         const markerOptions = (value.markers || []).map((marker) => `<option value="${marker.frame}">${escapeHtml(marker.label)} · frame ${marker.frame}</option>`).join("");
-        return `<section class="rix-output-timeline" data-rix-timeline-length="${value.frames.length}" data-rix-timeline-transition="${escapeHtml(transition.mode)}" data-rix-timeline-transition-schema="${escapeHtml(transition.schema)}"${value.preferencesKey ? ` data-rix-timeline-preferences-key="${escapeHtml(value.preferencesKey)}"` : ""} tabindex="0" role="region" aria-label="${escapeHtml(value.title || "Mathematical timeline")}">${value.title ? `<h2>${escapeHtml(value.title)}</h2>` : ""}<p class="rix-output-timeline-meta">${value.frames.length} exact frames · ${duration} · ${escapeHtml(value.easing)} easing · ${escapeHtml(transition.mode)} changes</p><div class="rix-output-timeline-toolbar" role="toolbar" aria-label="Timeline playback controls"><button type="button" data-rix-timeline-action="previous" aria-label="Previous frame">←</button><button type="button" data-rix-timeline-action="play" aria-pressed="false">Play</button><button type="button" data-rix-timeline-action="next" aria-label="Next frame">→</button><label>Frame <input type="range" min="1" max="${value.frames.length}" step="1" value="1" data-rix-timeline-scrubber aria-label="Timeline frame"></label><label>Speed <select data-rix-timeline-speed aria-label="Playback speed"><option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option></select></label><label><input type="checkbox" data-rix-timeline-loop> Loop</label><label>Start <input type="number" min="1" max="${value.frames.length}" step="1" value="1" data-rix-timeline-range-start></label><label>End <input type="number" min="1" max="${value.frames.length}" step="1" value="${value.frames.length}" data-rix-timeline-range-end></label><label>Compare <select data-rix-timeline-compare><option value="none">None</option><option value="previous">Previous</option><option value="frame">Chosen frame</option><option value="onion">Onion skin</option></select></label><label>Comparison frame <input type="number" min="1" max="${value.frames.length}" step="1" value="1" data-rix-timeline-compare-frame></label>${markerOptions ? `<label>Marker <select data-rix-timeline-marker><option value="">Choose…</option>${markerOptions}</select></label>` : ""}<button type="button" data-rix-timeline-action="record">Record frame</button><button type="button" data-rix-timeline-action="export">Export recording</button><button type="button" data-rix-timeline-action="clear-recording">Clear recording</button></div><div class="rix-output-timeline-stage" data-rix-timeline-stage>${frameArticles}</div><output class="rix-output-timeline-status" data-rix-timeline-status aria-live="polite">Frame 1 of ${value.frames.length} · exact state ${escapeHtml(cellText(value.frames[0].state, format))}</output><pre class="rix-output-timeline-export" data-rix-timeline-export hidden></pre><details class="rix-output-timeline-diagnostics"><summary>Transition diagnostics</summary><ul data-rix-timeline-diagnostics></ul></details><details class="rix-output-timeline-inspector"><summary>Exact current frame</summary><dl><dt>State</dt><dd data-rix-timeline-exact-state>${escapeHtml(cellText(value.frames[0].state, format))}</dd><dt>Origin</dt><dd data-rix-timeline-exact-origin>entry ${exactInteger(value.frames[0].origin.entries.get("entry"), "Timeline origin entry")}, state ${exactInteger(value.frames[0].origin.entries.get("state"), "Timeline origin state")}, ordinal ${exactInteger(value.frames[0].origin.entries.get("ordinal"), "Timeline origin ordinal")}</dd></dl><pre data-rix-timeline-exact-text>${escapeHtml(formatOutputText(value.frames[0].content, format))}</pre></details><details class="rix-output-timeline-text-track"><summary>Complete text track (${value.frames.length} frames)</summary><ol>${textTrack}</ol></details><p class="rix-output-timeline-help">Keyboard: Space play/pause; Left/Right step; Home/End jump; L loop; M next marker; R record exact frame.</p></section>`;
+        const semanticTracks = (value.tracks || []).map((track) => `<section class="rix-output-timeline-semantic-track" data-rix-timeline-track="${escapeHtml(track.id)}" data-rix-timeline-track-kind="${escapeHtml(track.trackKind)}"><b>${escapeHtml(track.title || track.id)} · ${escapeHtml(track.trackKind)} · ${escapeHtml(track.interpolation)}</b>${track.keyframes.map((keyframe, index) => `<output data-rix-timeline-track-keyframe="${keyframe.frame}"${index === 0 && keyframe.frame <= 1 ? "" : " hidden"}>${escapeHtml(cellText(keyframe.value, format))}</output>`).join("")}</section>`).join("");
+        return `<section class="rix-output-timeline" data-rix-timeline-length="${value.frames.length}" data-rix-timeline-track-count="${(value.tracks || []).length}" data-rix-timeline-transition="${escapeHtml(transition.mode)}" data-rix-timeline-transition-schema="${escapeHtml(transition.schema)}"${value.preferencesKey ? ` data-rix-timeline-preferences-key="${escapeHtml(value.preferencesKey)}"` : ""} tabindex="0" role="region" aria-label="${escapeHtml(value.title || "Mathematical timeline")}">${value.title ? `<h2>${escapeHtml(value.title)}</h2>` : ""}<p class="rix-output-timeline-meta">${value.frames.length} exact frames · ${(value.tracks || []).length} semantic tracks · ${duration} · ${escapeHtml(value.easing)} easing · ${escapeHtml(transition.mode)} changes</p><div class="rix-output-timeline-toolbar" role="toolbar" aria-label="Timeline playback controls"><button type="button" data-rix-timeline-action="previous" aria-label="Previous frame">←</button><button type="button" data-rix-timeline-action="play" aria-pressed="false">Play</button><button type="button" data-rix-timeline-action="next" aria-label="Next frame">→</button><label>Frame <input type="range" min="1" max="${value.frames.length}" step="1" value="1" data-rix-timeline-scrubber aria-label="Timeline frame"></label><label>Speed <select data-rix-timeline-speed aria-label="Playback speed"><option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option></select></label><label><input type="checkbox" data-rix-timeline-loop> Loop</label><label>Start <input type="number" min="1" max="${value.frames.length}" step="1" value="1" data-rix-timeline-range-start></label><label>End <input type="number" min="1" max="${value.frames.length}" step="1" value="${value.frames.length}" data-rix-timeline-range-end></label><label>Compare <select data-rix-timeline-compare><option value="none">None</option><option value="previous">Previous</option><option value="frame">Chosen frame</option><option value="onion">Onion skin</option></select></label><label>Comparison frame <input type="number" min="1" max="${value.frames.length}" step="1" value="1" data-rix-timeline-compare-frame></label>${markerOptions ? `<label>Marker <select data-rix-timeline-marker><option value="">Choose…</option>${markerOptions}</select></label>` : ""}<button type="button" data-rix-timeline-action="record">Record frame</button><button type="button" data-rix-timeline-action="export">Export recording</button><button type="button" data-rix-timeline-action="clear-recording">Clear recording</button></div><div class="rix-output-timeline-stage" data-rix-timeline-stage>${frameArticles}</div>${semanticTracks ? `<div class="rix-output-timeline-semantic-tracks" aria-live="polite">${semanticTracks}</div>` : ""}<output class="rix-output-timeline-status" data-rix-timeline-status aria-live="polite">Frame 1 of ${value.frames.length} · exact state ${escapeHtml(cellText(value.frames[0].state, format))}</output><pre class="rix-output-timeline-export" data-rix-timeline-export hidden></pre><details class="rix-output-timeline-diagnostics"><summary>Transition diagnostics</summary><ul data-rix-timeline-diagnostics></ul></details><details class="rix-output-timeline-inspector"><summary>Exact current frame</summary><dl><dt>State</dt><dd data-rix-timeline-exact-state>${escapeHtml(cellText(value.frames[0].state, format))}</dd><dt>Origin</dt><dd data-rix-timeline-exact-origin>entry ${exactInteger(value.frames[0].origin.entries.get("entry"), "Timeline origin entry")}, state ${exactInteger(value.frames[0].origin.entries.get("state"), "Timeline origin state")}, ordinal ${exactInteger(value.frames[0].origin.entries.get("ordinal"), "Timeline origin ordinal")}</dd></dl><pre data-rix-timeline-exact-text>${escapeHtml(formatOutputText(value.frames[0].content, format))}</pre></details><details class="rix-output-timeline-text-track"><summary>Complete text track (${value.frames.length} frames)</summary><ol>${textTrack}</ol></details><p class="rix-output-timeline-help">Keyboard: Space play/pause; Left/Right step; Home/End jump; L loop; M next marker; R record exact frame.</p></section>`;
     }
     if (value.kind === "timeline_render") return `<section class="rix-output-timeline-render" data-rix-timeline-frame="${value.frame}" data-rix-timeline-length="${value.timeline.frames.length}">${value.title ? `<h2>${escapeHtml(value.title)}</h2>` : ""}${renderOutputHtml(value.content, format)}<p class="rix-output-timeline-caption">Frame ${value.frame} of ${value.timeline.frames.length}</p></section>`;
     if (value.kind === "control_slider") {
@@ -3202,6 +3259,7 @@ export function createGraphicsOutputCollection() {
 
 export function createTimelineOutputCollection() {
     const methods = new Map([
+        ["Track", createTimelineTrack],
         ["Sequence", createTimelineSequence],
         ["Render", createTimelineRender],
     ]);

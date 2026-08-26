@@ -180,6 +180,68 @@ export function graphicSpatialTarget(catalog, currentId, direction) {
         .sort((left, right) => left.score - right.score || left.forward - right.forward || left.entry.id.localeCompare(right.entry.id))[0]?.entry || null;
 }
 
+/** Build a bounded screen-space bucket index for dense semantic SVG scenes. */
+export function createGraphicHitIndex(entries, cellSize = 64) {
+    const size = Number(cellSize);
+    if (!(size > 0) || !Number.isFinite(size)) throw new Error("Graphic hit-index cell size must be positive");
+    const normalized = [];
+    const buckets = new Map();
+    const overflow = [];
+    for (const [order, entry] of Array.from(entries || []).entries()) {
+        const bounds = entry?.bounds;
+        if (!bounds) continue;
+        const left = Number(bounds.left);
+        const right = Number(bounds.right);
+        const top = Number(bounds.top);
+        const bottom = Number(bounds.bottom);
+        if (![left, right, top, bottom].every(Number.isFinite) || right < left || bottom < top) continue;
+        const item = Object.freeze({ ...entry, bounds: Object.freeze({ left, right, top, bottom }), order });
+        const index = normalized.push(item) - 1;
+        const firstX = Math.floor(left / size);
+        const lastX = Math.floor(right / size);
+        const firstY = Math.floor(top / size);
+        const lastY = Math.floor(bottom / size);
+        if ((lastX - firstX + 1) * (lastY - firstY + 1) > 4096) {
+            overflow.push(index);
+            continue;
+        }
+        for (let x = firstX; x <= lastX; x += 1) {
+            for (let y = firstY; y <= lastY; y += 1) {
+                const key = `${x}:${y}`;
+                if (!buckets.has(key)) buckets.set(key, []);
+                buckets.get(key).push(index);
+            }
+        }
+    }
+    return Object.freeze({ schema: "rix.graphics.hit-index@1", cellSize: size, entries: Object.freeze(normalized), buckets, overflow: Object.freeze(overflow) });
+}
+
+/** Query only nearby buckets, returning the nearest entry within tolerance. */
+export function queryGraphicHitIndex(index, point, tolerance = 0) {
+    if (index?.schema !== "rix.graphics.hit-index@1") throw new Error("Graphic hit query requires a Graphic hit index");
+    const x = Number(point?.[0]);
+    const y = Number(point?.[1]);
+    const radius = Number(tolerance);
+    if (![x, y, radius].every(Number.isFinite) || radius < 0) throw new Error("Graphic hit query requires finite coordinates and a nonnegative tolerance");
+    const candidates = new Set(index.overflow || []);
+    for (let column = Math.floor((x - radius) / index.cellSize); column <= Math.floor((x + radius) / index.cellSize); column += 1) {
+        for (let row = Math.floor((y - radius) / index.cellSize); row <= Math.floor((y + radius) / index.cellSize); row += 1) {
+            for (const entry of index.buckets.get(`${column}:${row}`) || []) candidates.add(entry);
+        }
+    }
+    let best = null;
+    for (const entryIndex of candidates) {
+        const entry = index.entries[entryIndex];
+        const dx = Math.max(entry.bounds.left - x, 0, x - entry.bounds.right);
+        const dy = Math.max(entry.bounds.top - y, 0, y - entry.bounds.bottom);
+        const distance = Math.hypot(dx, dy);
+        if (distance <= radius && (!best || distance < best.distance || (distance === best.distance && entry.order < best.entry.order))) {
+            best = { entry, distance };
+        }
+    }
+    return best ? Object.freeze(best) : null;
+}
+
 function plotInspection(graphic, scenePoint, format) {
     const plot = mapField(graphic?.metadata, "plot");
     const frame = mapField(plot, "frame");
@@ -850,8 +912,18 @@ function installNavigation(graphic, svg, status, options) {
         const box = graphicViewBox(state);
         return `${box.x} ${box.y} ${box.width} ${box.height}`;
     };
+    let hitIndex = null;
+    const invalidateHitIndex = () => { hitIndex = null; };
+    const indexedHitTarget = (x, y) => {
+        if (!hitIndex) hitIndex = createGraphicHitIndex(scopedSelectable().map((element) => ({
+            element,
+            bounds: element.getBoundingClientRect?.(),
+        })), Math.max(32, state.navigation.hitTolerance * 4));
+        return queryGraphicHitIndex(hitIndex, [x, y], state.navigation.hitTolerance)?.entry?.element || null;
+    };
     const applyViewport = () => {
         svg.setAttribute("viewBox", viewBoxText());
+        invalidateHitIndex();
         graphic.dataset.rixGraphicZoom = String(state.viewport.zoom);
         if (inspector && !inspector.dataset.rixPointerActive) inspector.textContent = `Zoom ${Math.round(state.viewport.zoom * 100)}%`;
     };
@@ -919,6 +991,7 @@ function installNavigation(graphic, svg, status, options) {
 
     scopeSelect?.addEventListener?.("change", () => {
         state.navigation.scope = scopeSelect.value || "all";
+        invalidateHitIndex();
         refreshObjectOptions();
         const count = scopedSelectable().length;
         if (status) status.textContent = `${count} ${state.navigation.scope === "all" ? "mathematical" : state.navigation.scope.replaceAll("_", " ")} object${count === 1 ? "" : "s"} available`;
@@ -926,6 +999,7 @@ function installNavigation(graphic, svg, status, options) {
     });
     searchInput?.addEventListener?.("input", () => {
         state.navigation.query = searchInput.value || "";
+        invalidateHitIndex();
         refreshObjectOptions();
         const count = scopedSelectable().length;
         if (status) status.textContent = `${count} mathematical object${count === 1 ? "" : "s"} match “${state.navigation.query}”`;
@@ -933,6 +1007,7 @@ function installNavigation(graphic, svg, status, options) {
     });
     toleranceSelect?.addEventListener?.("change", () => {
         state.navigation.hitTolerance = HIT_TOLERANCES.includes(Number(toleranceSelect.value)) ? Number(toleranceSelect.value) : 8;
+        invalidateHitIndex();
         if (status) status.textContent = `Pointer hit area set to ${state.navigation.hitTolerance} pixels`;
         savePreferences();
     });
@@ -1009,16 +1084,7 @@ function installNavigation(graphic, svg, status, options) {
         if (svg.hasPointerCapture?.(event.pointerId)) svg.releasePointerCapture(event.pointerId);
         if (!cancelled && wasOnlyPointer && !gestureChanged && !completed.moved) {
             let target = completed.target;
-            if (!target) {
-                const candidates = scopedSelectable().map((element) => {
-                    const bounds = element.getBoundingClientRect?.();
-                    if (!bounds) return null;
-                    const dx = Math.max(bounds.left - event.clientX, 0, event.clientX - bounds.right);
-                    const dy = Math.max(bounds.top - event.clientY, 0, event.clientY - bounds.bottom);
-                    return { element, distance: Math.hypot(dx, dy) };
-                }).filter(Boolean).sort((left, right) => left.distance - right.distance);
-                if (candidates[0]?.distance <= state.navigation.hitTolerance) target = candidates[0].element;
-            }
+            if (!target) target = indexedHitTarget(event.clientX, event.clientY);
             setSelection(target, "pointer", pointerPoint(event));
         }
         if (!pointers.size) {

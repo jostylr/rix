@@ -136,7 +136,7 @@ continues to require an explicit user play action and performs no evaluator I/O.
 `.Timeline.Sequence` accepts the same scene tuples and materializes the same
 provenance-carrying ordered frame records. `.Timeline.Render(timeline, frame)`
 selects a one-based frame for static renderers. `duration` or exact
-`frameDurations`, `markers`, `preferencesKey`, `easing`, `transition`, and
+`frameDurations`, `markers`, semantic `tracks`, `preferencesKey`, `easing`, `transition`, and
 `title` remain part of the portable timeline descriptor.
 
 ```rix
@@ -144,6 +144,10 @@ motion := .Timeline.Sequence({=
     frameDurations=[1/2,1,1/2],
     markers=[{= frame=1,label="start" },{= frame=2,label="center" }],
     preferencesKey="center-motion",
+    tracks=[.Timeline.Track({=
+        id="captions",kind="caption",
+        keyframes=[{= frame=1,value="start"},{= frame=2,value="center"}]
+    })],
     easing="ease-in-out",
     transition={= mode=:crossfade, duration=1/5, properties=[:opacity,:position,:fill,:stroke] },
     entries=[{: scene, [{= center=-3}, {= center=0}, {= center=3}]}]
@@ -158,6 +162,12 @@ deterministic JSON export, and keyed preference persistence. The current-frame i
 complete text track always report the retained exact state and exact frame
 output. Stable `data-rix-semantic-id` values are matched between adjacent
 frames for host inspection.
+
+`rix.timeline-track@1` supports stable camera, caption, narration, and state
+tracks with ordered exact keyframes and step, linear, or cubic interpolation
+intent. Caption and narration tracks are deliberately stepwise. The HTML host
+publishes every retained keyframe and displays the latest applicable textual
+cue without changing the discrete exact frame model.
 
 The `rix.timeline-transition@1` contract defaults to discrete changes and
 declares opacity, position, fill, and stroke safe for presentation-only
