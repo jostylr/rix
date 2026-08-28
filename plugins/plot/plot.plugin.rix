@@ -3,12 +3,12 @@ id: plot
 description: Pure-RiX exact and numerics-backed 2D plotting that lowers to portable core Graphics scenes.
 kind: rix
 mount: plot
-exports: [Polynomial, PolynomialPOI, Function, Parametric, Scatter, Line, Bar, Step, Polar, Implicit, Inequality, Contour, HeatMap, VectorField]
+exports: [Polynomial, PolynomialPOI, Function, Parametric, Scatter, Line, Bar, Step, Polar, ErrorBand, Interval, Implicit, Inequality, Contour, HeatMap, VectorField]
 groups: [Plot, Graphics, Exact]
 permissions: []
 requires: [rix.numerics@1]
 provides: [rix.plot@1, rix.plot.poi@1, rix.plot.refinement-policy@1]
-schemas: [rix.plot@1, rix.plot.poi@1]
+schemas: [rix.plot@1, rix.plot.poi@1, rix.plot.band-evidence@1]
 snapshot: true
 deterministic: true
 defaultEnabled: false
@@ -620,6 +620,100 @@ PlotPolar(fn, angleDomain, options ?= {= }) -> {;
     graphic;
 };
 
+PlotBandRows(data, kind) -> {;
+    data ? :Array ?: _ ?_ .Error("plot band data must be an Array");
+    data.Len() >= 2 ?: _ ?_ .Error("plot band data must contain at least two rows");
+    rows := [];
+    previousX := _;
+    {@ index=1; index<=@data.Len(); {;
+        row=@data[index];
+        row ? :Array ?: _ ?_ .Error(@"plot band row @{index} must be an Array");
+        x=PlotExact(row[1],@"plot band row @{index} x value");
+        @previousX==_||x>@previousX ?: _ ?_ .Error("plot band x values must increase strictly");
+        @previousX ~= x;
+        @kind==:interval
+          ?: {;
+              @row.Len()==2 ?: _ ?_ .Error(@"interval plot row @{@index} must contain [x, interval]");
+              interval=@row[2] ~!: :RationalInterval;
+              low=interval.Low(); high=interval.High(); center=(low+high)/2;
+              @rows ~= @rows.Push({=
+                  id=@"interval-sample-@{@index}",x=@x,low=low,center=center,high=high,
+                  interval=interval,status=:enclosed,evidenceLevel=:exactInterval
+              });
+          }
+          ?_ {;
+              @row.Len()==3 ?: _ ?_ .Error(@"error-band row @{@index} must contain [x, estimate, error]");
+              center=PlotExact(@row[2],@"error-band row @{@index} estimate");
+              error=PlotExact(@row[3],@"error-band row @{@index} error");
+              error>=0 ?: _ ?_ .Error(@"error-band row @{@index} error must be nonnegative");
+              @rows ~= @rows.Push({=
+                  id=@"error-band-sample-@{@index}",x=@x,low=center-error,center=center,high=center+error,
+                  error=error,status=:declared,evidenceLevel=:declaredError
+              });
+          };
+    }; index+=1 };
+    rows;
+};
+
+PlotBandBounds(rows,settings) -> {;
+    xmin:=rows[1][:x]; xmax:=rows.Last()[:x];
+    ymin:=rows[1][:low]; ymax:=rows[1][:high];
+    {@ index=2; index<=@rows.Len(); {;
+        @ymin ~= @rows[index][:low]<@ymin ?: @rows[index][:low] ?_ @ymin;
+        @ymax ~= @rows[index][:high]>@ymax ?: @rows[index][:high] ?_ @ymax;
+    }; index+=1 };
+    xDomain=PlotOption(settings,"xdomain"); yDomain=PlotOption(settings,"ydomain");
+    xDomain==_ ?: {;
+        xPadding=(@xmax-@xmin)/20; @xmin-=xPadding; @xmax+=xPadding;
+    } ?_ {; fixed=PlotFixedYBounds(@xDomain); @xmin=fixed[1]; @xmax=fixed[2]; };
+    yDomain==_ ?: {;
+        @ymin==@ymax ?: {; @ymin-=1; @ymax+=1; } ?_ {; yPadding=(@ymax-@ymin)*2/25; @ymin-=yPadding; @ymax+=yPadding; };
+    } ?_ {; fixed=PlotFixedYBounds(@yDomain); @ymin=fixed[1]; @ymax=fixed[2]; };
+    {= xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax };
+};
+
+PlotBand(data,settings,kind) -> {;
+    settings ? :Map ?: _ ?_ .Error("plot band options must be a map");
+    rows=PlotBandRows(data,kind); bounds=PlotBandBounds(rows,settings);
+    size=PlotOption(settings,"size",[640,360]);
+    size ? :Array ?: _ ?_ .Error("plot band size must be an Array");
+    size.Len()==2 ?: _ ?_ .Error("plot band size must contain width and height");
+    width=PlotExact(size[1],"plot band width"); height=PlotExact(size[2],"plot band height");
+    margin=PlotExact(PlotOption(settings,"margin",42),"plot band margin");
+    (width>0&&height>0&&margin>=0&&margin*2<.Min(width,height)) ?: _ ?_ .Error("plot band size and margin do not leave a positive viewport");
+    config={=
+        xmin=bounds[:xmin],xmax=bounds[:xmax],ymin=bounds[:ymin],ymax=bounds[:ymax],
+        columns=rows.Len()-1,rows=1,width=width,height=height,margin=margin
+    };
+    lower=rows.Map((row)->PlotProject([row[:x],row[:low]],config));
+    upper=rows.Map((row)->PlotProject([row[:x],row[:high]],config));
+    center=rows.Map((row)->PlotProject([row[:x],row[:center]],config));
+    polygon=upper.Concat(lower.Reverse());
+    bandStyle=PlotOption(settings,"bandstyle",{= fill="#93c5fd",stroke="#2563eb",width=1,opacity=2/5 });
+    lineStyle=PlotOption(settings,"linestyle",{= fill="none",stroke="#1d4ed8",width=2 });
+    children=[
+        .Graphics.Path(polygon,bandStyle.Merge({= closed=1,hitId=@"@{kind}-region" })),
+        .Graphics.Path(lower,{= fill="none",stroke=PlotOption(settings,"boundarystroke","#60a5fa"),width=1,hitId=@"@{kind}-lower" }),
+        .Graphics.Path(upper,{= fill="none",stroke=PlotOption(settings,"boundarystroke","#60a5fa"),width=1,hitId=@"@{kind}-upper" }),
+        .Graphics.Path(center,lineStyle.Merge({= hitId=@"@{kind}-center" }))
+    ];
+    PlotFieldGraphic(kind,config,settings,children,{=
+        status=kind==:interval ?: :enclosed ?_ :declared,
+        evidence={=
+            schema="rix.plot.band-evidence@1",samples=rows.Len(),
+            level=kind==:interval ?: :exactInterval ?_ :declaredError,
+            interpretation=kind==:interval ?: :enclosure ?_ :symmetricDeclaredError
+        },
+        records=rows,
+        series=[
+            {= kind=:lower,data=rows.Map((row)->[row[:x],row[:low]]),style=bandStyle },
+            {= kind=:center,data=rows.Map((row)->[row[:x],row[:center]]),style=lineStyle },
+            {= kind=:upper,data=rows.Map((row)->[row[:x],row[:high]]),style=bandStyle }
+        ],
+        sampling={= method=:providedIntervals,samples=rows.Len() },rendering=:intervalBand
+    });
+};
+
 PlotGridCount(value,label) -> {;
     count=value ~!: :Integer;
     (count>=2&&count<=100) ?: count ?_ .Error(@"@{label} must be between 2 and 100");
@@ -1149,6 +1243,8 @@ plotNamespace._proto = {=
     Bar=(self, data, options ?= {= })->PlotDataCall(data, options, :bar),
     Step=(self, data, options ?= {= })->PlotDataCall(data, options, :step),
     Polar=(self, fn, angleDomain, options ?= {= })->PlotPolar(fn, angleDomain, options),
+    ErrorBand=(self, data, options ?= {= })->PlotBand(data, options, :error_band),
+    Interval=(self, data, options ?= {= })->PlotBand(data, options, :interval),
     Implicit=(self, fn, xDomain, yDomain, options ?= {= })->PlotContourBuild(fn,xDomain,yDomain,options,:implicit),
     Inequality=(self, fn, xDomain, yDomain, options ?= {= })->PlotInequality(fn,xDomain,yDomain,options),
     Contour=(self, fn, xDomain, yDomain, options ?= {= })->PlotContourBuild(fn,xDomain,yDomain,options,:contour),

@@ -60,6 +60,27 @@ Polar curves use radians and retain their angle/radius source samples:
 .plot.Polar(t -> 2, [0,6], {= samples=81,title="A sampled polar circle" });
 ```
 
+Exact interval measurements and declared symmetric errors use different APIs
+so the retained evidence cannot be confused:
+
+```rix
+.Plugin.Load("plot");
+.Fragment([
+  .Figure(
+    .plot.Interval([[0,1:2],[1,2:4],[2,3:5]], {= title="Exact interval values" }),
+    "Each vertical extent is an exact RationalInterval"
+  ),
+  .Figure(
+    .plot.ErrorBand([[0,2,1/2],[1,3,1/4],[2,4,3/4]]),
+    "Caller-declared symmetric error radii"
+  )
+]);
+```
+
+Both results are portable Graphics. Their metadata keeps lower, center, and
+upper series plus stable hit identities; `Interval` reports exact-interval
+evidence while `ErrorBand` labels its bounds as declared.
+
 Scalar and vector fields share exact domains and a bounded cell grid:
 
 ```rix

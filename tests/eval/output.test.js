@@ -1331,6 +1331,51 @@ describe("portable structured output", () => {
         expect(renderOutputHtml(vectorField, formatValue)).toContain('data-rix-semantic-id="vector-1-1"');
     });
 
+    test("plot Phase 3 renders exact interval series and declared symmetric error bands", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("plot");
+            [
+                .plot.Interval([[0,1:2],[1,2:4],[2,3:5]], {= title="Exact enclosures" }),
+                .plot.ErrorBand([[0,2,1/2],[1,3,1/4],[2,4,3/4]])
+            ];
+        `);
+        const [intervalPlot, errorBand] = result.values;
+        const metadata = (graphic) => graphic.metadata.get("plot").entries;
+        const text = (value) => value?.value ?? String(value);
+        const interval = metadata(intervalPlot);
+        const declared = metadata(errorBand);
+
+        expect(text(interval.get("kind"))).toBe("interval");
+        expect(text(interval.get("status"))).toBe("enclosed");
+        expect(text(interval.get("rendering"))).toBe("intervalBand");
+        expect(text(interval.get("evidence").entries.get("level"))).toBe("exactInterval");
+        expect(interval.get("records").values).toHaveLength(3);
+        expect(interval.get("series").values).toHaveLength(3);
+        expect(intervalPlot.children.filter(({ kind }) => kind === "path").length).toBeGreaterThanOrEqual(4);
+        expect(renderOutputHtml(intervalPlot, formatValue)).toContain('data-rix-semantic-id="interval-region"');
+
+        expect(text(declared.get("kind"))).toBe("error_band");
+        expect(text(declared.get("status"))).toBe("declared");
+        expect(text(declared.get("evidence").entries.get("interpretation"))).toBe("symmetricDeclaredError");
+        expect(declared.get("records").values[0].entries.get("low").toString()).toBe("3/2");
+        expect(declared.get("records").values[2].entries.get("high").toString()).toBe("19/4");
+    });
+
+    test("plot interval and error bands reject ambiguous or malformed rows", () => {
+        expect(() => parseAndEvaluate(`
+            .Plugin.Load("plot");
+            .plot.Interval([[1,1:2],[0,2:3]]);
+        `)).toThrow("x values must increase strictly");
+        expect(() => parseAndEvaluate(`
+            .Plugin.Load("plot");
+            .plot.Interval([[0,1],[1,2:3]]);
+        `)).toThrow();
+        expect(() => parseAndEvaluate(`
+            .Plugin.Load("plot");
+            .plot.ErrorBand([[0,1,-1],[1,2,1]]);
+        `)).toThrow("error must be nonnegative");
+    });
+
     test("plot Phase 3 validates field grids, domains, relations, and vector results", () => {
         expect(() => parseAndEvaluate(`
             .Plugin.Load("plot");

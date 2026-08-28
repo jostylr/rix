@@ -28,6 +28,8 @@ to SVG by a web or notebook host.
 | `.plot.Bar(data, options?)` | Bars with a zero baseline. |
 | `.plot.Step(data, options?)` | Horizontal-then-vertical step path. |
 | `.plot.Polar(fn, angleDomain, options?)` | Polar curve whose function returns a radius. |
+| `.plot.Interval(data, options?)` | Exact interval-valued rows written as `[x, low:high]`. |
+| `.plot.ErrorBand(data, options?)` | Symmetric declared-error rows written as `[x, estimate, error]`. |
 | `.plot.Implicit(fn, xDomain, yDomain, options?)` | Sample the boundary `fn(x,y) = level` with marching squares. |
 | `.plot.Inequality(fn, xDomain, yDomain, options?)` | Classify and fill cells using `:le`, `:lt`, `:ge`, or `:gt`. |
 | `.plot.Contour(fn, xDomain, yDomain, options?)` | Draw one or more scalar-field levels. |
@@ -56,6 +58,16 @@ Plot Graphics also retain their resolved view, source-coordinate series, ticks,
 marks, and labels as semantic `rix.plot@1` metadata. Portable renderers may
 ignore it and paint the ordinary Graphics children; `.tikz` uses it to emit
 editable PGFPlots axes and series.
+
+`Interval` and `ErrorBand` retain three semantic series (lower, center, upper)
+and draw one closed band plus those boundary/center paths. Interval rows carry
+the exact `RationalInterval` and `evidenceLevel=:exactInterval`; an error-band
+row records `evidenceLevel=:declaredError` because its radius is caller-supplied
+rather than certified by Plot. Input x values must increase strictly so the
+closed band cannot silently self-intersect. The stable `interval-region`,
+`interval-lower`, `interval-upper`, and `interval-center` hit identities (and
+their `error_band-*` counterparts) are ordinary Graphics `hitId` values, so
+Canvas and SVG hosts can inspect the same retained plot without changing it.
 
 Field functions receive two arguments, `(x,y)`. Their common `grid=[columns,rows]`
 option describes cells, so the sampler evaluates `(columns+1) × (rows+1)`

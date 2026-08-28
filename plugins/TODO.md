@@ -194,11 +194,11 @@ newline normalization.
    - [x] Detect likely discontinuities and expose unresolved samples.
    - [x] Add scales, legends, ticks, labels, and explicit/fitted view policies.
 3. **Phase 3 — Fields and adaptive plots**
-   - [ ] Add implicit curves, contours, heat maps, vector fields, error bands,
+   - [x] Add implicit curves, contours, heat maps, vector fields, error bands,
      and interval-valued plots.
-   - [ ] Use adaptive subdivision and certified sign/range requests.
+   - [x] Use adaptive subdivision and certified sign/range requests.
    - [ ] Share color-scale values with `.complexViz` and `.stats`.
-   - [ ] Add interactive Canvas hit testing without changing the plot value.
+   - [x] Add interactive Canvas hit testing without changing the plot value.
 4. **Phase 4 — Statistical and large-data plotting**
    - [ ] Add streaming/downsampled plots and GPU-oriented scene lowering.
    - [ ] Support linked views and declarative interaction descriptions.
