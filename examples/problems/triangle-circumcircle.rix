@@ -8,15 +8,16 @@ a := .geometry.Point(0, 0);
 b := .geometry.Point(6, 0);
 c := .geometry.Point(2, 4);
 circle := .geometry.Circumcircle(a, b, c);
-center := circle[:center];
+center := .geometry.Center(circle);
+radiusSquared := .geometry.RadiusSquared(circle);
 distances := [a, b, c].Map((point) -> .geometry.SquaredDistance(center, point));
 center[:x] == 3 && center[:y] == 1 ##@ == 1;
-circle[:radiusSquared] ##@ == 10;
+radiusSquared ##@ == 10;
 distances.All((value) -> value == 10) ##@ == 1;
 {=
     problem = :triangleCircumcircle,
     center = [center[:x], center[:y]],
-    radiusSquared = circle[:radiusSquared],
+    radiusSquared = radiusSquared,
     vertexSquaredDistances = distances,
-    allVerticesOnCircle = distances.All((value) -> value == circle[:radiusSquared])
+    allVerticesOnCircle = distances.All((value) -> value == radiusSquared)
 };

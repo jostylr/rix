@@ -29,7 +29,7 @@ describe("mathematical and computer-science problem probes", () => {
             }
         }
 
-        expect(files.length).toBe(8);
+        expect(files.length).toBeGreaterThanOrEqual(14);
         expect(failures).toEqual([]);
     }, 30_000);
 });

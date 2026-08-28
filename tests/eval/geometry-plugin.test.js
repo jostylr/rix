@@ -14,9 +14,10 @@ describe("geometry plugin", () => {
             c := .geometry.Point(2, 4);
             bisector := .geometry.PerpendicularBisector(a, b);
             circle := .geometry.Circumcircle(a, b, c);
-            [a, bisector, circle, .geometry.Draw([bisector, circle, a, b, c], {= view=[-1,-2,7,6], size=[560,560] })];
+            [a, bisector, circle, .geometry.Center(circle), .geometry.RadiusSquared(circle),
+             .geometry.Draw([bisector, circle, a, b, c], {= view=[-1,-2,7,6], size=[560,560] })];
         `);
-        const [point, bisector, circle, graphic] = result.values;
+        const [point, bisector, circle, publicCenter, publicRadiusSquared, graphic] = result.values;
         expect([text(field(point, "type")), text(field(point, "kind")), text(field(point, "schema"))])
             .toEqual(["geometry", "point", "rix.geometry@1"]);
         expect(field(point, "x")).toBeInstanceOf(Rational);
@@ -29,6 +30,13 @@ describe("geometry plugin", () => {
         expect(String(field(center, "x"))).toBe("3");
         expect(String(field(center, "y"))).toBe("1");
         expect(String(field(circle, "radiusSquared"))).toBe("10");
+        expect(String(field(publicCenter, "x"))).toBe("3");
+        expect(String(field(publicCenter, "y"))).toBe("1");
+        expect(String(publicRadiusSquared)).toBe("10");
+        expect(() => parseAndEvaluate(`
+            .Plugin.Load("geometry");
+            .geometry.Center(.geometry.Point(0,0));
+        `)).toThrow(/geometry\.Center value must be a geometry circle/i);
         const provenance = field(circle, "provenance").values[0];
         expect(text(field(provenance, "operation"))).toBe("Circumcircle");
         expect(field(provenance, "inputs").values).toHaveLength(6);

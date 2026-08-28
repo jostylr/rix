@@ -1,0 +1,24 @@
+/**
+plugins: [fractals]
+**/
+## Problem: iterate x[n+1] = 4*x[n]*(1-x[n]) from x[0]=1/2 using exact
+## arithmetic. Detect only a period established by equality in the retained
+## tail, rather than inferring one from approximate samples.
+logistic := .fractals.Logistic(4);
+orbit := .fractals.Orbit(logistic, 1/2, 6);
+period := .fractals.DetectPeriod(orbit, 4);
+orbit[:values][1] == 1/2 && orbit[:values][2] == 1
+    && orbit[:values].Len() == 7
+    && orbit[:values].Slice(3).All((value) -> value == 0) ##@ == 1;
+orbit[:final] ##@ == 0;
+period[:status] ##@ == :detected;
+period[:period] ##@ == 1;
+{=
+    problem = :exactLogisticDynamics,
+    parameter = 4,
+    seed = 1/2,
+    orbit = orbit[:values],
+    final = orbit[:final],
+    detectedPeriod = period[:period],
+    evidence = period
+};

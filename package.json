@@ -15,6 +15,7 @@
     "examples/geometry/",
     "examples/newton/",
     "examples/plugins/",
+    "examples/problems/",
     "examples/quadratic/*.rix",
     "examples/quadratic/README.md",
     "examples/renderers/",

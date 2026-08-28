@@ -19,12 +19,18 @@ b1 := .geometry.Point(6, 0);
 c1 := .geometry.Point(2, 4);
 abBisector1 := .geometry.PerpendicularBisector(a1, b1);
 circumcircle1 := .geometry.Circumcircle(a1, b1, c1);
+center1 := .geometry.Center(circumcircle1);
+radiusSquared1 := .geometry.RadiusSquared(circumcircle1);
 construction1 := .geometry.Draw(
     [abBisector1, circumcircle1, a1, b1, c1],
     {= view=[-1,-2,7,6], size=[560,560] }
 );
 construction1;
 ```
+
+`Center` and `RadiusSquared` validate that their argument is a circle before
+returning its exact defining measurements. This keeps consumers independent of
+the circle record's storage layout.
 
 ## Explore a retained construction interactively
 

@@ -1,0 +1,28 @@
+/**
+plugins: [continued-fraction, radix]
+**/
+## Problem 1: find the certified best second-kind rational approximation to
+## sqrt(2) whose denominator is at most 10.
+## Problem 2: describe the exact repeating decimal expansion of 1/7.
+root := .cf.Sqrt2();
+best := root.BestApproximation(10);
+period := (1/7).PeriodInfo(10);
+best[:status] ##@ == :certified;
+best[:approximation] ##@ == 7/5;
+best[:nextDenominator] ##@ == 12;
+period[:status] ##@ == :complete;
+period[:periodLength] ##@ == 6;
+{=
+    problem = :exactNumberRepresentation,
+    sqrtTwo = {=
+        denominatorBound = best[:denominatorBound],
+        approximation = best[:approximation],
+        certified = best[:certified],
+        nextConvergentDenominator = best[:nextDenominator]
+    },
+    oneSeventh = {=
+        decimal = (1/7).RadixString(10),
+        periodLength = period[:periodLength],
+        status = period[:status]
+    }
+};

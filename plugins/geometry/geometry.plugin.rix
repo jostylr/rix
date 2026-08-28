@@ -3,7 +3,7 @@ id: geometry
 description: Pure-RiX exact geometry, transformations, conics, constraints, and bounded portable Graphics refinement.
 kind: rix
 mount: geometry
-exports: [Point, Line, Segment, Ray, Polygon, Circle, Conic, Ellipse, Parabola, Hyperbola, Locus, Implicit, Affine, Projective, Transform, Constraint, Constraints, SquaredDistance, Distance, Length, Area, CircularAngle, Angle, Centroid, Incenter, Orthocenter, AngleBisector, Perpendicular, ParallelThrough, Midpoint, PerpendicularBisector, Circumcircle, Translate, RotateQuarterTurns, Rotate, ReflectAcross, Intersect, Points, Status, UncertainPoint, UncertainBounds, TransformUncertain, ConstructionGraph, ConstructionRecord, ImportConstruction, AddPoint, AddLine, AddCircle, AddIntersection, AddTransform, AddMeasurement, Drag, DragMany, ConstrainedDrag, RepairSuggestions, Undo, Redo, Refine, Draw, Workbench, AuthoringWorkbench]
+exports: [Point, Line, Segment, Ray, Polygon, Circle, Center, RadiusSquared, Conic, Ellipse, Parabola, Hyperbola, Locus, Implicit, Affine, Projective, Transform, Constraint, Constraints, SquaredDistance, Distance, Length, Area, CircularAngle, Angle, Centroid, Incenter, Orthocenter, AngleBisector, Perpendicular, ParallelThrough, Midpoint, PerpendicularBisector, Circumcircle, Translate, RotateQuarterTurns, Rotate, ReflectAcross, Intersect, Points, Status, UncertainPoint, UncertainBounds, TransformUncertain, ConstructionGraph, ConstructionRecord, ImportConstruction, AddPoint, AddLine, AddCircle, AddIntersection, AddTransform, AddMeasurement, Drag, DragMany, ConstrainedDrag, RepairSuggestions, Undo, Redo, Refine, Draw, Workbench, AuthoringWorkbench]
 groups: [Geometry, Graphics, Exact]
 permissions: []
 requires: [rix.numerics@1, rix.polynomial.algorithms@1, rix.algebraic-real@1]
@@ -96,9 +96,10 @@ GeometryApproximateSqrt(value) ->
 
 GeometryRequire(value, kind ?= _, label ?= "geometry value") -> {;
     valid = (value ? :Map) && value.Has("schema") && value[:schema] == "rix.geometry@1";
+    expected = kind == _ ?: "value" ?_ kind;
     valid && (kind == _ || value[:kind] == kind)
       ?: value
-      ?_ .Error(@"@{label} must be a geometry @{kind == _ ?: "value" ?_ kind}");
+      ?_ .Error(@"@{label} must be a geometry @{expected}");
 };
 
 GeometryProvenance(operation, inputs, details ?= _) -> {=
@@ -293,6 +294,10 @@ GeometryCircle(first, second ?= _, options ?= {= }) -> {;
         through != _ ?: [center, through] ?_ [center, radiusSquared],
         GeometryOption(settings, "metadata"), GeometryOption(settings, "style"));
 };
+
+GeometryCenter(value) -> GeometryRequire(value, :circle, "geometry.Center value")[:center];
+
+GeometryRadiusSquared(value) -> GeometryRequire(value, :circle, "geometry.RadiusSquared value")[:radiusSquared];
 
 GeometryConic(coefficients, options ?= {= }) -> {;
     settings = ((coefficients ? :Map) && coefficients.Has("coefficients"))
@@ -1834,6 +1839,8 @@ geometryNamespace._proto = {=
     Ray=(self, first, second ?= _, options ?= {= })->GeometryRay(first, second, options),
     Polygon=(self, points, options ?= {= })->GeometryPolygon(points, options),
     Circle=(self, first, second ?= _, options ?= {= })->GeometryCircle(first, second, options),
+    Center=(self, value)->GeometryCenter(value),
+    RadiusSquared=(self, value)->GeometryRadiusSquared(value),
     Conic=(self, coefficients, options ?= {= })->GeometryConic(coefficients, options),
     Ellipse=(self, center, radii ?= _, options ?= {= })->GeometryEllipse(center, radii, options),
     Parabola=(self, vertex, parameter ?= _, options ?= {= })->GeometryParabola(vertex, parameter, options),

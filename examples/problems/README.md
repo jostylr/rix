@@ -33,9 +33,15 @@ solution needs substantial general-purpose plumbing.
 | `bayesian-quality-control.rix` | Probability | `probability` | 5/5 | Finite distributions and Bayes updates stay exact rather than becoming binary floats. |
 | `exact-regression.rix` | Statistics | `stats` | 5/5 | Least-squares coefficients, predictions, residuals, and R-squared are exact and compact. |
 | `projectile-polynomial.rix` | Algebra/calculus | `poly` | 5/5 | Differentiation and rational critical-point discovery preserve polynomial identity. |
-| `triangle-circumcircle.rix` | Geometry | `geometry` | 4/5 | The construction is natural and exact, although consumers inspect generic record fields for the center and squared radius. |
+| `triangle-circumcircle.rix` | Geometry | `geometry` | 5/5 | The exact construction and validated circle observations now map directly to the problem. |
 | `geometric-series.rix` | Real analysis | `analysis` | 4/5 | The result includes an effective convergence witness, but the proof-oriented API is more elaborate than a numerical sum. |
 | `shortest-path.rix` | Graph algorithms | core RiX | 2/5 | Arrays and bounded loops suffice for Dijkstra, but the algorithm needs manual infinity, queue selection, and adjacency-matrix plumbing. |
+| `markov-stationary-distribution.rix` | Stochastic processes | `linalg` | 4/5 | Exact linear solving is direct; the user still constructs the stationarity-plus-normalization system manually. |
+| `relational-sales-analysis.rix` | Relational data | `data` | 5/5 | Typed relations, grouping, and exact rational aggregates match the problem closely. |
+| `rational-approximation-and-radix.rix` | Number representation | `continued-fraction`, `radix` | 5/5 | Certified denominator-bounded approximation and repeating-radix analysis are explicit and exact. |
+| `exact-logistic-dynamics.rix` | Dynamical systems | `fractals` | 5/5 | Exact iteration and conservatively stated finite-tail period evidence are compact. |
+| `symbolic-resource-system.rix` | Symbolic constraints | `solve` | 5/5 | Definitions, inequalities, an objective, substitution checks, and an LP certificate live in one result. |
+| `four-queens-search.rix` | Constraint search | `probability`, core RiX | 3/5 | Finite products and filtering work, but candidate generation is eager and unexpectedly located in probability. |
 
 ## Capability conclusions
 
@@ -63,7 +69,14 @@ could accept an explicit host-approved plugin set without exposing runtime
 `.Plugin.Load`; until then, direct CLI execution plus inline checks is the
 appropriate verification path.
 
-A smaller geometry improvement would be named `Center()` and
-`RadiusSquared()` accessors for circles. Direct record access is stable enough
-for this example, but it is less discoverable than the plugin's construction
-methods.
+The smaller geometry improvement is now implemented as `.geometry.Center()`
+and `.geometry.RadiusSquared()`. The updated probe no longer depends on the
+circle record's storage layout, and both functions validate the input kind.
+
+The four-queens probe adds a weaker signal for a combinatorics namespace.
+`CartesianPower` is useful outside probability, but eager construction and its
+current location make finite searches harder to discover and scale. More such
+probes should precede a full constraint-solver proposal.
+
+Concrete proposed contracts, staged scope, and acceptance cases are collected
+in [`recommendation-sketches.md`](recommendation-sketches.md).

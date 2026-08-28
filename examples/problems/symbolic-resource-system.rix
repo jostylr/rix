@@ -1,0 +1,22 @@
+/**
+plugins: [solve]
+**/
+## Problem: maximize x subject to a definition y=2*x+1 and resource bounds
+## x>=0 and y<=7. Preserve both the symbolic solution and the optimizer's
+## exact certificate.
+answer := .solve.System({#:x,y# y=2*x+1; x>=0; y<=7 }, {=
+    objective={= x=1 },
+    sense=:max
+});
+solution := answer[:solution];
+solution[:x] ##@ == 3;
+solution[:y] ##@ == 7;
+answer.Check() ##@ == 1;
+answer[:optimizationResult][:certificate].Verify() ##@ == 1;
+{=
+    problem = :mixedSymbolicResourceSystem,
+    kind = answer[:kind],
+    solution = solution,
+    constraintsVerified = answer.Check(),
+    certificateVerified = answer[:optimizationResult][:certificate].Verify()
+};

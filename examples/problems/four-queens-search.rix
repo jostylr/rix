@@ -1,0 +1,25 @@
+/**
+plugins: [probability]
+**/
+## Problem: place four queens on a 4x4 board so no two share a column or
+## diagonal. CartesianPower supplies the finite candidate space; the search
+## predicate and filtering are ordinary RiX.
+Nonattacking(positions) ->
+    positions[1] != positions[2] && (positions[1]-positions[2]).Abs() != 1
+    && positions[1] != positions[3] && (positions[1]-positions[3]).Abs() != 2
+    && positions[1] != positions[4] && (positions[1]-positions[4]).Abs() != 3
+    && positions[2] != positions[3] && (positions[2]-positions[3]).Abs() != 1
+    && positions[2] != positions[4] && (positions[2]-positions[4]).Abs() != 2
+    && positions[3] != positions[4] && (positions[3]-positions[4]).Abs() != 1;
+
+candidates := .probability.CartesianPower([1,2,3,4], 4);
+solutions := candidates.Filter((positions) -> Nonattacking(positions));
+solutions.Len() ##@ == 2;
+solutions.Includes([2,4,1,3]) ##@ == 1;
+solutions.Includes([3,1,4,2]) ##@ == 1;
+{=
+    problem = :fourQueensConstraintSearch,
+    candidateCount = candidates.Len(),
+    solutionCount = solutions.Len(),
+    solutions = solutions
+};

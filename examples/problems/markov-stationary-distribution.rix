@@ -1,0 +1,29 @@
+/**
+plugins: [linalg]
+**/
+## Problem: a two-state Markov chain has transition matrix
+##
+##     [1/2  1/2]
+##     [1/4  3/4]
+##
+## Find the exact stationary row distribution pi satisfying pi*P = pi and
+## pi[1] + pi[2] = 1.
+transition := [1/2, 1/2; 1/4, 3/4];
+system := [-1/2, 1/4; 1, 1];
+result := .linalg.Solve(system, [0, 1]);
+stationary := result[:solution];
+advanced := [
+    stationary[1] * transition[1,1] + stationary[2] * transition[2,1],
+    stationary[1] * transition[1,2] + stationary[2] * transition[2,2]
+];
+stationary[1] == 1/3 && stationary[2] == 2/3 ##@ == 1;
+advanced[1] == stationary[1] && advanced[2] == stationary[2] ##@ == 1;
+stationary.Sum() ##@ == 1;
+{=
+    problem = :stationaryMarkovDistribution,
+    transition = transition,
+    stationary = stationary,
+    oneStepDistribution = advanced,
+    invariant = advanced[1] == stationary[1] && advanced[2] == stationary[2],
+    normalized = stationary.Sum() == 1
+};

@@ -1,0 +1,27 @@
+/**
+plugins: [data]
+**/
+## Problem: group exact fractional sales by team and compute counts, totals,
+## and means without converting the data to binary floating point.
+sales := .data.Relation(["team", {= id="amount", type=:Rational }], [
+    ["red", 1/3],
+    ["blue", 2/3],
+    ["red", 5/3]
+]);
+summary := .data.Aggregate(.data.Group(sales, ["team"]), [
+    {= id="count", op=:count },
+    {= id="total", column="amount", op=:sum },
+    {= id="average", column="amount", op=:mean }
+]);
+rows := .data.Rows(summary);
+red := rows.Filter((row) -> row[:team] == "red")[1];
+blue := rows.Filter((row) -> row[:team] == "blue")[1];
+red[:count] == 2 && red[:total] == 2 && red[:average] == 1 ##@ == 1;
+blue[:count] == 1 && blue[:total] == 2/3 && blue[:average] == 2/3 ##@ == 1;
+{=
+    problem = :exactRelationalAggregation,
+    inputRows = .data.Rows(sales),
+    groupedRows = rows,
+    redTotal = red[:total],
+    blueAverage = blue[:average]
+};
