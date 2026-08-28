@@ -1,0 +1,21 @@
+/**
+plugins: [stats]
+**/
+## Problem: fit y = a + b*x to four exact observations, predict at x=5,
+## and retain the residual diagnostics.
+xValues := [1, 2, 3, 4];
+yValues := [3, 5, 7, 9];
+model := .stats.LinearRegression(xValues, yValues);
+model[:intercept] ##@ == 1;
+model[:slope] ##@ == 2;
+.stats.Predict(model, 5) ##@ == 11;
+model[:residuals].All((value) -> value == 0) ##@ == 1;
+{=
+    problem = :exactLinearRegression,
+    intercept = model[:intercept],
+    slope = model[:slope],
+    predictionAtFive = .stats.Predict(model, 5),
+    residuals = model[:residuals],
+    rSquared = model[:rSquared],
+    exactCoefficients = model[:exactCoefficients]
+};

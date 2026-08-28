@@ -1,0 +1,22 @@
+/**
+plugins: [poly]
+**/
+## Problem: a projectile has exact height h(t) = -5*t^2 + 20*t + 1.
+## Differentiate symbolically, find the rational critical time, and evaluate
+## the maximum height without finite differences or floating point.
+height := .p`-5*t^2 + 20*t + 1`;
+velocity := height.Derivative();
+criticalTimes := velocity.RationalRoots();
+peakTime := criticalTimes[1];
+criticalTimes.Len() == 1 && criticalTimes[1] == 2 ##@ == 1;
+height.Evaluate(peakTime) ##@ == 21;
+velocity.Evaluate(peakTime) ##@ == 0;
+{=
+    problem = :projectileMaximum,
+    heightPolynomial = height,
+    velocityPolynomial = velocity,
+    criticalTimes = criticalTimes,
+    peakTime = peakTime,
+    peakHeight = height.Evaluate(peakTime),
+    derivativeVanishes = velocity.Evaluate(peakTime) == 0
+};

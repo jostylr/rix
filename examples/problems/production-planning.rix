@@ -1,0 +1,28 @@
+/**
+plugins: [optimize]
+**/
+## Problem: choose nonnegative production quantities x and y to maximize
+## 3*x + 5*y subject to three resource limits:
+##
+##   x       <= 4
+##       2*y <= 12
+## 3*x + 2*y <= 18
+program := .optimize.LinearProgram(
+    [3, 5],
+    [1, 0; 0, 2; 3, 2],
+    [4, 12, 18],
+    {= name="two-product production plan" }
+);
+result := program.Solve({= twoPhase = 1 });
+result[:solution][1] == 2 && result[:solution][2] == 6 ##@ == 1;
+result[:objectiveValue] ##@ == 36;
+result[:status] ##@ == "optimal";
+result[:certificate].Verify() ##@ == 1;
+{=
+    problem = :productionPlanning,
+    quantities = result[:solution],
+    profit = result[:objectiveValue],
+    status = result[:status],
+    slacks = result[:slacks],
+    certificateVerified = result[:certificate].Verify()
+};

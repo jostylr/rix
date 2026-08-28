@@ -65,4 +65,25 @@ describe("agent-facing RiX editor CLI", () => {
         expect(result.stderr).toBe("");
         expect(result.stdout.trim()).toBe("1");
     });
+
+    test("native test files can preload plugins from their source header", () => {
+        const filename = fixture(`/**
+plugins: [linalg]
+**/
+.Test("plugin-backed native test", {; }, {=
+    determinant = .linalg.Determinant([1,2;3,4]) == -2
+})
+`);
+        const testFilename = path.join(path.dirname(filename), "native-plugin.test.rix");
+        writeFileSync(testFilename, readFileSync(filename, "utf8"));
+        const result = spawnSync(
+            "bun",
+            [path.join(rixRoot, "bin/rix.js"), "test", path.dirname(filename)],
+            { cwd: rixRoot, encoding: "utf8" },
+        );
+        expect(result.status).toBe(0);
+        expect(result.stderr).toBe("");
+        expect(result.stdout).toContain("PASS");
+        expect(result.stdout).toContain("plugin-backed native test");
+    });
 });

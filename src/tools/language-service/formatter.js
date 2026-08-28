@@ -20,6 +20,13 @@ function rawToken(source, token) {
     return source.slice(token.pos[1], token.pos[2]);
 }
 
+function printableToken(source, token) {
+    // String token spans begin after their opening delimiter, while `original`
+    // retains the complete quote/backtick spelling (and any leading trivia).
+    if (token.type === "String") return String(token.original || rawToken(source, token)).trimStart();
+    return rawToken(source, token);
+}
+
 function isComment(token) {
     return token?.type === "String" && token.kind === "comment";
 }
@@ -179,7 +186,9 @@ export function formatRix(source, options = {}) {
             continue;
         }
 
-        if (previous && !previousWasUnary && !atLineStart
+        const attachedBacktick = token.type === "String" && token.kind === "backtick"
+            && previous?.type === "Identifier";
+        if (previous && !attachedBacktick && !previousWasUnary && !atLineStart
             && !OPENERS.has(previous.value)
             && previous.value !== "."
             && previous.value !== "@"
@@ -188,7 +197,7 @@ export function formatRix(source, options = {}) {
             && !TIGHT_OPERATORS.has(previous.value)) {
             space();
         }
-        write(rawToken(input, token));
+        write(printableToken(input, token));
         previous = token;
         previousWasUnary = false;
     }

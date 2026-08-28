@@ -1,0 +1,22 @@
+/**
+plugins: [geometry]
+**/
+## Problem: construct the circumcircle of the triangle (0,0), (6,0), (2,4)
+## and verify that all vertices have the same exact squared distance from its
+## center.
+a := .geometry.Point(0, 0);
+b := .geometry.Point(6, 0);
+c := .geometry.Point(2, 4);
+circle := .geometry.Circumcircle(a, b, c);
+center := circle[:center];
+distances := [a, b, c].Map((point) -> .geometry.SquaredDistance(center, point));
+center[:x] == 3 && center[:y] == 1 ##@ == 1;
+circle[:radiusSquared] ##@ == 10;
+distances.All((value) -> value == 10) ##@ == 1;
+{=
+    problem = :triangleCircumcircle,
+    center = [center[:x], center[:y]],
+    radiusSquared = circle[:radiusSquared],
+    vertexSquaredDistances = distances,
+    allVerticesOnCircle = distances.All((value) -> value == circle[:radiusSquared])
+};

@@ -1,0 +1,27 @@
+/**
+plugins: [probability]
+**/
+## Problem 1: a component has defect probability 1/10. Find the exact chance
+## of at least two defects in a batch of five.
+##
+## Problem 2: a rare fault has prior probability 1/100. A detector has 99/100
+## sensitivity and 1/100 false-positive probability. Find P(fault | alarm).
+defects := .probability.Binomial(5, 1/10);
+atLeastTwo := 1 - defects.PMF(0) - defects.PMF(1);
+alarm := .probability.Bayes(1/100, 99/100, 1/100);
+atLeastTwo ##@ == 4073/50000;
+defects.Mean() ##@ == 1/2;
+alarm[:posterior] ##@ == 1/2;
+{=
+    problem = :bayesianQualityControl,
+    batch = {=
+        probabilityAtLeastTwoDefects = atLeastTwo,
+        expectedDefects = defects.Mean(),
+        variance = defects.Variance()
+    },
+    detector = {=
+        evidenceProbability = alarm[:evidence],
+        posteriorFaultProbability = alarm[:posterior],
+        exact = alarm[:exact]
+    }
+};

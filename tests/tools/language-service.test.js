@@ -129,4 +129,12 @@ total ##@ > 0;
         const formatted = formatRix("## Keep this comment\nvalue:=1 ##@ > 0;");
         expect(formatted).toBe("## Keep this comment\nvalue := 1 ##@ > 0;\n");
     });
+
+    test("preserves quoted strings and structural backtick literals", () => {
+        const source = 'label := "two product plan"; polynomial := .p`x^2 + 1`;\n';
+        const formatted = 'label := "two product plan";\npolynomial := .p`x^2 + 1`;\n';
+        expect(formatRix(source)).toBe(formatted);
+        expect(formatRix(formatted)).toBe(formatted);
+        expect(() => parse(formatRix(source))).not.toThrow();
+    });
 });

@@ -4,6 +4,8 @@ The supported RiX programs are grouped by purpose:
 
 - `eval/` — self-contained language examples; every file is smoke-tested.
 - `newton/` and `quadratic/` — import/export and native `.test.rix` examples.
+- `problems/` — wide-ranging mathematical and computer-science capability
+  probes, with executable answers, assertions, ergonomics scores, and gap notes.
 - `algebra/`, `geometry/` (including interactive Scene3D/nD labs), `complex/`, `documents/`, `renderers/`,
   `rixcel/`, and `stern-brocot/` — plugin, output, and renderer examples.
 - `plugins/` — small third-party-plugin teaching fixtures.

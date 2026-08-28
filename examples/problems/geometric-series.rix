@@ -1,0 +1,20 @@
+/**
+plugins: [analysis]
+**/
+## Problem: sum 1 + 1/2 + 1/4 + ... exactly and find an effective index whose
+## remaining tail is below 1/1000. The proof witness is part of the result.
+series := .analysis.GeometricScalarSeries(1, 1/2, {= name = :binaryGeometricSeries });
+checked := series.Check({= epsilon = 1/1000, maxWork = 20 });
+witness := checked[:witness];
+series.Sum() ##@ == 2;
+checked[:status] ##@ == :converged;
+witness[:tailBound] < witness[:epsilon] ##@ == 1;
+{=
+    problem = :effectiveGeometricSeries,
+    exactSum = series.Sum(),
+    status = checked[:status],
+    effectiveIndex = witness[:index],
+    tailBound = witness[:tailBound],
+    requestedEpsilon = witness[:epsilon],
+    boundMeetsRequest = witness[:tailBound] < witness[:epsilon]
+};

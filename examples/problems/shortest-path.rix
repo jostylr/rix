@@ -1,0 +1,74 @@
+## Problem: compute single-source shortest paths in a nonnegative weighted
+## graph. RiX has no graph-algorithms plugin yet, so this bounded Dijkstra
+## implementation uses core one-based Arrays and loops.
+##
+## A zero off the diagonal means "no edge". This representation is compact
+## for a probe, but a future graph plugin should make that policy explicit.
+Dijkstra(weights, source) -> {;
+    vertexCount := weights.Len();
+    infinity := 10^100;
+    distances := [];
+    previous := [];
+    visited := [];
+
+    {@ index = 1; index <= @vertexCount; {;
+            @distances ~= @distances.Push(@infinity);
+            @previous ~= @previous.Push(_);
+            @visited ~= @visited.Push(_);
+    }; index += 1 };
+    distances ~= distances.Set(source, 0);
+
+    {@ step = 1; step <= @vertexCount; {;
+        current := _;
+        best := @infinity;
+        {@ candidate = 1; candidate <= @vertexCount; {;
+            (@visited[candidate] == _ && @distances[candidate] < @best)
+                ?: {; @current ~= @candidate; @best ~= @distances[@candidate]; }
+                ?_ _;
+        }; candidate += 1 };
+
+        current != _ ?: {;
+            @visited ~= @visited.Set(@current, 1);
+            {@ neighbor = 1; neighbor <= @vertexCount; {;
+                weight := @weights[@current][neighbor];
+                alternative := @distances[@current] + weight;
+                (weight > 0 && @visited[neighbor] == _ && alternative < @distances[neighbor])
+                    ?: {;
+                        @distances ~= @distances.Set(@neighbor, @alternative);
+                        @previous ~= @previous.Set(@neighbor, @current);
+                    }
+                    ?_ _;
+            }; neighbor += 1 };
+        } ?_ _;
+    }; step += 1 };
+
+    {= distances=distances, previous=previous, visited=visited }
+};
+
+weights := [
+    [0, 4, 1, 0, 0],
+    [4, 0, 2, 1, 0],
+    [1, 2, 0, 5, 8],
+    [0, 1, 5, 0, 3],
+    [0, 0, 8, 3, 0]
+];
+result := Dijkstra(weights, 1);
+
+result[:distances][1] == 0
+    && result[:distances][2] == 3
+    && result[:distances][3] == 1
+    && result[:distances][4] == 4
+    && result[:distances][5] == 7 ##@ == 1;
+result[:previous][1] == _
+    && result[:previous][2] == 3
+    && result[:previous][3] == 1
+    && result[:previous][4] == 2
+    && result[:previous][5] == 4 ##@ == 1;
+result[:visited].All((value) -> value == 1) ##@ == 1;
+{=
+    problem = :singleSourceShortestPaths,
+    source = 1,
+    distances = result[:distances],
+    previous = result[:previous],
+    allVerticesReached = result[:visited].All((value) -> value == 1)
+};

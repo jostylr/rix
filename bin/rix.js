@@ -962,15 +962,29 @@ function discoverTestFiles(baseDir, filters) {
     });
 }
 
-function runTestFile(filePath) {
+function runTestFile(filePath, { pluginCatalog, pluginIds = [] } = {}) {
     const context = new Context();
     const registry = createDefaultRegistry();
-    const systemContext = createDefaultSystemContext();
+    const systemContext = createDefaultSystemContext({ pluginCatalog });
 
     context.setEnv("__current_file__", filePath);
     context.setEnv("scriptBaseDir", path.resolve(TOOL_DIR, ".."));
 
     const source = readFileSync(filePath, "utf-8");
+    const sourceHeader = readSourceHeader(source, filePath);
+    parseAndEvaluate("", { context, registry, systemContext });
+    for (const id of [...new Set([...pluginIds, ...sourceHeader.plugins.map(String)])]) {
+        pluginCatalog.load(id, {
+            context,
+            registry,
+            systemContext,
+            loadRix: context.getEnv("__plugin_load_rix__"),
+        });
+    }
+    // Pure-RiX plugin evaluation temporarily points diagnostics at the plugin
+    // source. Restore the test file so .Test results are attributed correctly.
+    context.setEnv("__current_file__", filePath);
+    context.setEnv("scriptBaseDir", path.resolve(TOOL_DIR, ".."));
     const tokens = tokenize(source);
     const ast = parse(tokens);
     const irNodes = lower(ast);
@@ -1102,7 +1116,7 @@ function printTrace(traceEvent) {
     console.log(`--- End Trace [${label}] (Returned: ${formatResult(finalVal)}) ---\n`);
 }
 
-async function runTests(filters) {
+async function runTests(filters, options = {}) {
     const baseDir = process.cwd();
     const testFiles = discoverTestFiles(baseDir, filters);
 
@@ -1124,7 +1138,7 @@ async function runTests(filters) {
         let diag;
         let fileError = null;
         try {
-            diag = runTestFile(filePath);
+            diag = runTestFile(filePath, options);
         } catch (err) {
             if (isRixAbort(err)) {
                 diag = null;
@@ -1276,7 +1290,12 @@ async function main() {
     if (args.length > 0 && args[0] === "test") {
         // Test runner mode
         const filters = args.slice(1);
-        return runTests(filters);
+        const pluginIds = selectedPluginIds(pluginCatalog, {
+            plugins,
+            allPlugins,
+            allBuiltPlugins,
+        });
+        return runTests(filters, { pluginCatalog, pluginIds });
     }
 
     if (args.length > 0) {

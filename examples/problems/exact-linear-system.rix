@@ -1,0 +1,23 @@
+/**
+plugins: [linalg]
+**/
+## Problem: solve the exact system
+##
+##   2x +  y -  z =   8
+##  -3x -  y + 2z = -11
+##  -2x +  y + 2z =  -3
+##
+## Reuse an LU factorization and retain evidence that P*A = L*U.
+matrix := [2, 1, -1; -3, -1, 2; -2, 1, 2];
+rightHandSide := [8, -11, -3];
+factorization := .linalg.LU(matrix);
+solution := factorization.Solve(rightHandSide);
+solution[1] == 2 && solution[2] == 3 && solution[3] == -1 ##@ == 1;
+factorization.Determinant() ##@ == -1;
+factorization.Verify() ##@ == 1;
+{=
+    problem = :exactLinearSystem,
+    solution = solution,
+    determinant = factorization.Determinant(),
+    factorizationVerified = factorization.Verify()
+};
