@@ -64,6 +64,7 @@ describe("standalone package", () => {
       "schemas/function-facts.schema.json",
       "schemas/rix.schema.json",
       "src/index.js",
+      "styles/output-widgets.css",
     ]) {
       expect(packed.has(required), required).toBe(true);
     }

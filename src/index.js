@@ -6,8 +6,9 @@ export {
 export { createSystemManifest, createSystemLookup } from "./runtime/system-manifest.js";
 export { complete, REPL_COMMANDS } from "./repl/completion.js";
 export {
-    lower, lowerNode, ir, IR, Registry, evaluate, evaluateAsync,
+    lower, lowerNode, ir, IR, Registry, evaluate, evaluateAsync, evaluateObserved, evaluateObservedAsync,
     createDefaultRegistry, createDefaultSystemContext, parseAndEvaluate, parseAndEvaluateAsync,
+    parseAndEvaluateObserved, parseAndEvaluateObservedAsync,
     drainBackgroundTasks, irToText, irListToText, formatValue, formatValueSource, formatNumberWithProfile,
     RIX_LINT_LEVELS, RIX_LINT_PROFILES, RIX_LINT_RULES,
     analyzeRix, lintRix, explainRixScopes, formatLintDiagnostic,
@@ -103,9 +104,15 @@ export {
 export { WidgetSession, GraphicWidgetSession, ControlPanelWidgetSession, createWidgetSession } from "./tools/widget-session.js";
 export {
     createGraphicDensityPlan, enhanceGraphicViews, graphicPointFromClient,
-    graphicSelectionCatalog,
+    graphicSelectionCatalog, serializeGeometryConstructionRecord,
     updateGraphicGesture,
 } from "./tools/graphic-view.js";
+export {
+    GEOMETRY_CONSTRUCTION_RECORD_SCHEMA, GEOMETRY_CONSTRUCTION_SOURCE_SCHEMA,
+    GeometryConstructionSource, createGeometryAuthoringProgram,
+    decodeGeometryConstructionRecord, encodeGeometryConstructionSource,
+    geometryConstructionRecordFromGraph, validateGeometryConstructionRecord,
+} from "./tools/geometry-construction-codec.js";
 export {
     createAudioTracePlan, createGraphicsTextPlan, graphicValueExactness,
     renderGraphicAccessibilityHtml,

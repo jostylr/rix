@@ -209,11 +209,23 @@ The kernel also provides dependency-bearing authoring operations:
 - `RepairSuggestions` returns deterministic, non-mutating advice for parallel,
   coincident, undecided, or unsupported intersection nodes.
 
-Derived construction records remain deliberately explicit: importing one still
-requires a constructor map for every id in `replayRequires`. This avoids
-pretending executable construction callbacks are portable JSON. The current
-browser toolbar and other hosts can bind further kernel tools through the same
-semantic `Graphics.Action` payload and retained graph.
+Public authoring constructors retain serializable recipes in the construction
+record. Lines, circles, intersections, measurements, and transforms therefore
+reopen through `ImportConstruction(record)` without executable callbacks;
+custom derived nodes remain listed in `replayRequires` and still require an
+explicit constructor map. Constrained-drag history retains the exact supplied
+target, projected result, constraint id, and mode.
+
+The pre-release record keeps `rix.geometry.construction-record@1`: `recipe` is
+an optional additive node field, and import continues to accept older records
+that provide constructor callbacks for derived nodes.
+
+Host code can use `encodeGeometryConstructionSource(record)` from the RiX
+JavaScript entry point to produce deterministic, rerunnable namespaced source.
+It preserves exact fractions and stable ids, accepts the portable JSON record,
+retains algebraic-real coordinates and pending redo events, and reports
+unsupported custom recipes instead of omitting them. The shared workbench
+offers separate **Export record** and **Export source** controls.
 
 ## Bounded refinement
 

@@ -4,10 +4,14 @@ export { Registry } from "./registry.js";
 export {
     evaluate,
     evaluateAsync,
+    evaluateObserved,
+    evaluateObservedAsync,
     createDefaultRegistry,
     createDefaultSystemContext,
     parseAndEvaluate,
     parseAndEvaluateAsync,
+    parseAndEvaluateObserved,
+    parseAndEvaluateObservedAsync,
     drainBackgroundTasks,
 } from "./evaluator.js";
 export { irToText, irListToText } from "./ir-to-text.js";

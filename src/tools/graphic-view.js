@@ -1,5 +1,7 @@
 /** Host-side pan, zoom, inspection, selection, drag, and action support for Graphics. */
 
+import { encodeGeometryConstructionSource } from "./geometry-construction-codec.js";
+
 const MIN_ZOOM = 1 / 8;
 const MAX_ZOOM = 64;
 const HIT_TOLERANCES = [4, 8, 16, 24];
@@ -592,8 +594,9 @@ function installGeometryWorkbench(graphic, status, options, navigation, actionAc
     controls.className = "rix-output-geometry-controls";
     const undo = makeButton(document, "geometry-undo", "Undo last point movement", "Undo");
     const redo = makeButton(document, "geometry-redo", "Redo point movement", "Redo");
-    const exportButton = makeButton(document, "geometry-export", "Export portable construction record", "Export");
-    controls.append(undo, redo, exportButton);
+    const exportRecordButton = makeButton(document, "geometry-export-record", "Export portable construction record", "Export record");
+    const exportSourceButton = makeButton(document, "geometry-export-source", "Export rerunnable RiX construction source", "Export source");
+    controls.append(undo, redo, exportRecordButton, exportSourceButton);
     if (authoringEnabled) {
         const activateTool = (tool) => {
             activeTool = tool;
@@ -772,7 +775,7 @@ function installGeometryWorkbench(graphic, status, options, navigation, actionAc
     };
     undo.addEventListener("click", () => replay(-1));
     redo.addEventListener("click", () => replay(1));
-    exportButton.addEventListener("click", () => {
+    exportRecordButton.addEventListener("click", () => {
         const record = mapField(workbench, "construction");
         const text = serializeGeometryConstructionRecord(record, options.format || String);
         exported.textContent = text;
@@ -780,6 +783,19 @@ function installGeometryWorkbench(graphic, status, options, navigation, actionAc
         document.defaultView?.navigator?.clipboard?.writeText?.(text).catch?.(() => {});
         dispatchGraphicEvent(graphic, "rix-geometry-export", { schema: "rix.geometry.construction-record@1", record, text });
         if (status) status.textContent = "Portable construction record exported";
+    });
+    exportSourceButton.addEventListener("click", () => {
+        const record = mapField(workbench, "construction");
+        const encoded = encodeGeometryConstructionSource(record);
+        if (!encoded.supported) {
+            if (status) status.textContent = `Source export is unavailable: ${encoded.unsupported.map((item) => item.reason).join("; ")}`;
+            return;
+        }
+        exported.textContent = encoded.source;
+        exported.hidden = false;
+        document.defaultView?.navigator?.clipboard?.writeText?.(encoded.source).catch?.(() => {});
+        dispatchGraphicEvent(graphic, "rix-geometry-source-export", encoded);
+        if (status) status.textContent = "Rerunnable RiX construction source exported";
     });
     const svg = graphic.querySelector("svg.rix-output-svg");
     svg?.addEventListener?.("click", (event) => {

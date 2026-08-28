@@ -78,6 +78,12 @@ import {
     REACTIVE_OUTPUT_READ_ENV,
 } from "./functions/reactive-bindings.js";
 import {
+    captureObservedEvaluation,
+    captureObservedEvaluationAsync,
+    createObservedEvaluationResult,
+    observedReadsFromSources,
+} from "./observed-result.js";
+import {
     createPolySystemValue,
     embeddedFunctions,
     notationParserFunction,
@@ -4406,6 +4412,33 @@ export async function evaluateAsync(irNode, context, registry, systemContext) {
 }
 
 /**
+ * Evaluate one lowered IR node and retain observation only when its returned
+ * value came directly from one unambiguous reactive source.
+ */
+export function evaluateObserved(irNode, context, registry, systemContext, options = {}) {
+    const captured = captureObservedEvaluation(
+        context,
+        () => evaluate(irNode, context, registry, systemContext),
+    );
+    const value = typeof options.selectValue === "function"
+        ? options.selectValue(captured.value)
+        : captured.value;
+    return createObservedEvaluationResult(value, captured.reads);
+}
+
+/** Promise-aware counterpart to evaluateObserved. */
+export async function evaluateObservedAsync(irNode, context, registry, systemContext, options = {}) {
+    const captured = await captureObservedEvaluationAsync(
+        context,
+        () => evaluateAsyncInternal(irNode, context, registry, systemContext, null),
+    );
+    const value = typeof options.selectValue === "function"
+        ? options.selectValue(captured.value)
+        : captured.value;
+    return createObservedEvaluationResult(value, captured.reads);
+}
+
+/**
  * Convenience: parse RiX source code, lower to IR, and evaluate.
  *
  * @param {string} code - RiX source code
@@ -4613,6 +4646,31 @@ export async function parseAndEvaluateAsync(code, options = {}) {
     } finally {
         budgetScope.leave();
     }
+}
+
+/**
+ * Parse and evaluate source while exposing an owned observed-result handle.
+ * Existing parseAndEvaluate behavior remains unchanged.
+ */
+export function parseAndEvaluateObserved(code, options = {}) {
+    const reactiveReads = new Set();
+    const value = parseAndEvaluate(code, { ...options, reactiveReads });
+    if (options.reactiveReads instanceof Set) {
+        options.reactiveReads.clear();
+        for (const source of reactiveReads) options.reactiveReads.add(source);
+    }
+    return createObservedEvaluationResult(value, observedReadsFromSources(reactiveReads));
+}
+
+/** Promise-aware counterpart to parseAndEvaluateObserved. */
+export async function parseAndEvaluateObservedAsync(code, options = {}) {
+    const reactiveReads = new Set();
+    const value = await parseAndEvaluateAsync(code, { ...options, reactiveReads });
+    if (options.reactiveReads instanceof Set) {
+        options.reactiveReads.clear();
+        for (const source of reactiveReads) options.reactiveReads.add(source);
+    }
+    return createObservedEvaluationResult(value, observedReadsFromSources(reactiveReads));
 }
 
 export { drainBackgroundTasks };

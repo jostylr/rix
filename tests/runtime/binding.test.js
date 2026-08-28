@@ -559,7 +559,7 @@ describe("WidgetSession", () => {
         });
         let graph = state.context.get("graph").peek();
         expect(formatValue(graph.entries.get("values").entries.get("p1").entries.get("coordinates"))).toBe("[3, 1]");
-        expect(graph.entries.get("history").values.at(-1).entries.get("operation").value).toBe("drag");
+        expect(graph.entries.get("history").values.at(-1).entries.get("operation").value).toBe("constrained_drag");
         const authoring = graphic.metadata.get("workbench").entries.get("authoring").entries;
         expect(authoring.get("tools").values.map((tool) => tool.value).at(-1)).toBe("constrainedMove");
         expect(authoring.get("toolspecs").values.at(-1).entries.get("selectionkind").value).toBe("objectThenCanvas");

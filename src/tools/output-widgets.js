@@ -156,6 +156,11 @@ function restoreOutputFocus(root, request) {
     return restoreSheetFocus(root, request);
 }
 
+/**
+ * Mount portable output interaction. `options.observe`, when supplied, must
+ * accept listener(nextValue, event) and return an unsubscribe function. The
+ * disposer returned here owns that subscription and is idempotent.
+ */
 export function mountOutputWidgets(root, value, options = {}) {
     const format = options.format || ((item) => String(item ?? ""));
     const render = options.render || ((item) => renderOutputHtml(item, format));
