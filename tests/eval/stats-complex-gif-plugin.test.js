@@ -180,6 +180,48 @@ describe("Phase 1 and 2 complex visualization plugin", () => {
     });
 });
 
+describe("shared Phase 3 color scales", () => {
+    test("Plot color-scale values drive Plot, Stats, and ComplexViz without private renderer state", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("plot");
+            .Plugin.Load("stats");
+            .Plugin.Load("complex-viz");
+            scale := .plot.ColorScale({=
+                colors=["#111111","#eeeeee"],minimum=0,maximum=4
+            });
+            [
+                scale,
+                .plot.HeatMap((x,y)->x^2+y^2,[-1,1],[-1,1],{= grid=[2,2],colorScale=scale }),
+                .stats.HistogramGraphic([1,2,2,3,4],{= bins=2,colorScale=scale }),
+                .complexViz.DomainColoring({=
+                    fn=(z)->z,domain={= re=[-1,1],im=[-1,1] },resolution=[2,2],colorScale=scale
+                })
+            ];
+        `, runtime());
+        const [scale, heatMap, histogram, coloring] = result.values;
+        expect(scale.entries.get("schema").value).toBe("rix.color-scale@1");
+        expect(heatMap.metadata.get("plot").entries.get("colorscale").entries.get("schema").value)
+            .toBe("rix.color-scale@1");
+        expect(histogram.metadata.get("colorscale").entries.get("schema").value)
+            .toBe("rix.color-scale@1");
+        expect(coloring.metadata.get("colorscale").entries.get("schema").value)
+            .toBe("rix.color-scale@1");
+        expect(histogram.children.filter(({ kind }) => kind === "rectangle")
+            .every(({ style }) => ["#111111", "#eeeeee"].includes(style.get("fill").value))).toBe(true);
+    });
+
+    test("shared color scales reject incomplete bounds and foreign records", () => {
+        expect(() => parseAndEvaluate(`
+            .Plugin.Load("plot");
+            .plot.ColorScale({= minimum=0 });
+        `, runtime())).toThrow("minimum and maximum must be supplied together");
+        expect(() => parseAndEvaluate(`
+            .Plugin.Load("stats");
+            .stats.HistogramGraphic([1,2],{= colorScale={= schema="foreign" } });
+        `, runtime())).toThrow("must use schema rix.color-scale@1");
+    });
+});
+
 describe("Phase 1 GIF renderer", () => {
     test("expands a deterministic timeline through PNG with exact delays", () => {
         const registry = new RendererRegistry();

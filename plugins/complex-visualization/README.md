@@ -17,6 +17,11 @@ This discrete convention avoids inventing an approximate angle inside an
 otherwise exact plugin. Future continuous/Cayley color maps can perform an
 explicit numerical lowering.
 
+`DomainColoring` may instead receive a portable `rix.color-scale@1` record in
+`colorScale`. The scale maps exact `NormSquared` values and is retained in the
+Graphic metadata. This is the same value accepted by Plot heat maps and Stats
+histograms; poles and unresolved samples keep their explicit diagnostic colors.
+
 ```rix
 .Plugin.Load("complex-viz");
 f := .complexViz.RationalFunction((z) -> z^2 - 1, (z) -> z);

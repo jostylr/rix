@@ -113,3 +113,20 @@ processed cells and must cover the base grid. With `certifyIntervals=1`, interva
 certify whole-cell exclusion or inequality classification. The plotted crossing
 itself remains sampled unless a separate mathematical continuity/existence
 contract certifies it.
+
+## Share a color policy
+
+One portable scale can drive a heat map, a statistics graphic, and a complex
+magnitude coloring without becoming renderer state:
+
+```rix
+.Plugin.Load("plot");
+.Plugin.Load("stats");
+scale := .plot.ColorScale({=
+  colors=["#172554","#38bdf8","#f8fafc"],minimum=0,maximum=4
+});
+.Fragment([
+  .plot.HeatMap((x,y)->x^2+y^2,[-1,1],[-1,1],{= grid=[8,8],colorScale=scale }),
+  .stats.HistogramGraphic([1,2,2,3,4],{= bins=3,colorScale=scale })
+]);
+```

@@ -238,6 +238,29 @@ StatsHistogram(values, binCount ?= 5) -> {;
     };
 };
 
+StatsColorScaleColor(scale,value,fallbackMinimum,fallbackMaximum) -> {;
+    scale ? :Map ?: _ ?_ .Error("HistogramGraphic colorScale must be a map");
+    scale[:schema]=="rix.color-scale@1" ?: _ ?_ .Error("HistogramGraphic colorScale must use schema rix.color-scale@1");
+    colors=scale[:colors];
+    colors ? :Array ?: _ ?_ .Error("HistogramGraphic colorScale colors must be an Array");
+    colors.Len()>=2 ?: _ ?_ .Error("HistogramGraphic colorScale requires at least two colors");
+    minimum=scale[:minimum]==_ ?: fallbackMinimum ?_ scale[:minimum];
+    maximum=scale[:maximum]==_ ?: fallbackMaximum ?_ scale[:maximum];
+    minimum<maximum ?: _ ?_ .Error("HistogramGraphic colorScale bounds must increase");
+    value<=minimum ?: scale[:underflow]
+      ?_ value>=maximum ?: scale[:overflow]
+      ?_ scale[:kind]==:continuous
+           ?: {;
+               hues=scale[:hueRange];
+               hue=hues[1]+(@value-@minimum)/(@maximum-@minimum)*(hues[2]-hues[1]);
+               @"hsl(@{hue//1}, 80%, 50%)";
+           }
+           ?_ {;
+               index=((@value-@minimum)/(@maximum-@minimum)*(@colors.Len()-1))//1+1;
+               @colors[.Max(1,.Min(@colors.Len(),index))];
+           };
+};
+
 StatsHistogramGraphic(value, options ?= {= }) -> {;
     histogram = value ? :Array
       ?: StatsHistogram(value, StatsOption(options, "bins", 5))
@@ -245,6 +268,7 @@ StatsHistogramGraphic(value, options ?= {= }) -> {;
     histogram[:schema] == "rix.stats.histogram@1" ?: _ ?_ .Error("HistogramGraphic expects values or a stats histogram");
     size = StatsOption(options, "size", [420, 220]);
     fill = StatsOption(options, "fill", "#2563eb");
+    paletteSpec = StatsOption(options, "colorscale", _);
     margin = 28;
     chartWidth = size[1] - 2 * margin;
     chartHeight = size[2] - 2 * margin;
@@ -256,15 +280,19 @@ StatsHistogramGraphic(value, options ?= {= }) -> {;
     ];
     {@ index = 1; index <= @bins.Len(); {;
         height = @chartHeight * @bins[index][:count] / @maximumCount;
+        selectedFill = @paletteSpec==_
+          ?: @fill
+          ?_ StatsColorScaleColor(@paletteSpec,@bins[index][:count],0,@maximumCount);
         @children ~= @children.Push(.Graphics.Rectangle(
             [@margin + (index - 1) * @cellWidth + 1, @margin + @chartHeight - height],
             [@cellWidth - 2, height],
-            {= fill=@fill, stroke="#1e3a8a", width=1 }
+            {= fill=selectedFill, stroke="#1e3a8a", width=1,hitId=@"histogram-bin-@{index}" }
         ));
     }; index += 1 };
     .Graphics.Graphic(size, children, {=
         schema="rix.stats.histogram-graphic@1",
         histogram=histogram,
+        colorScale=paletteSpec,
         alt="Exact histogram"
     });
 };

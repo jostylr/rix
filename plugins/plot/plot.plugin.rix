@@ -3,12 +3,12 @@ id: plot
 description: Pure-RiX exact and numerics-backed 2D plotting that lowers to portable core Graphics scenes.
 kind: rix
 mount: plot
-exports: [Polynomial, PolynomialPOI, Function, Parametric, Scatter, Line, Bar, Step, Polar, ErrorBand, Interval, Implicit, Inequality, Contour, HeatMap, VectorField]
+exports: [Polynomial, PolynomialPOI, Function, Parametric, Scatter, Line, Bar, Step, Polar, ErrorBand, Interval, Implicit, Inequality, Contour, HeatMap, VectorField, ColorScale]
 groups: [Plot, Graphics, Exact]
 permissions: []
 requires: [rix.numerics@1]
 provides: [rix.plot@1, rix.plot.poi@1, rix.plot.refinement-policy@1]
-schemas: [rix.plot@1, rix.plot.poi@1, rix.plot.band-evidence@1]
+schemas: [rix.plot@1, rix.plot.poi@1, rix.plot.band-evidence@1, rix.color-scale@1]
 snapshot: true
 deterministic: true
 defaultEnabled: false
@@ -1152,21 +1152,55 @@ PlotContinuousColor(value,minimum,maximum,hues) -> {;
     @"hsl(@{hue//1}, 80%, 50%)";
 };
 
+PlotColorScale(spec ?= {= }) -> {;
+    spec ? :Map ?: _ ?_ .Error("ColorScale specification must be a map");
+    kind=PlotOption(spec,"kind",:discrete);
+    (kind==:discrete||kind==:continuous) ?: _ ?_ .Error("ColorScale kind must be :discrete or :continuous");
+    colors=PlotOption(spec,"colors",["#312e81","#2563eb","#06b6d4","#f8fafc","#facc15","#f97316","#be123c"]);
+    colors ? :Array ?: _ ?_ .Error("ColorScale colors must be an Array");
+    colors.Len()>=2 ?: _ ?_ .Error("ColorScale colors must contain at least two colors");
+    hues=PlotExactArray(PlotOption(spec,"huerange",[240,0]),"ColorScale hueRange");
+    hues.Len()==2 ?: _ ?_ .Error("ColorScale hueRange must contain two exact hue values");
+    minimum=PlotOption(spec,"minimum"); maximum=PlotOption(spec,"maximum");
+    (minimum==_)==(maximum==_) ?: _ ?_ .Error("ColorScale minimum and maximum must be supplied together");
+    minimum==_ ?: _ ?_ {;
+        @minimum ~= PlotExact(@minimum,"ColorScale minimum");
+        @maximum ~= PlotExact(@maximum,"ColorScale maximum");
+        @minimum<@maximum ?: _ ?_ .Error("ColorScale minimum must be less than maximum");
+    };
+    {=
+        valueKind=:colorScale,schema="rix.color-scale@1",kind=kind,
+        minimum=minimum,maximum=maximum,colors=colors,hueRange=hues,
+        quantization=kind==:continuous ?: :oneDegreeHsl ?_ :palette,
+        underflow=PlotOption(spec,"underflow",colors[1]),overflow=PlotOption(spec,"overflow",colors.Last())
+    };
+};
+
+PlotReadColorScale(settings) -> {;
+    supplied=PlotOption(settings,"colorscale");
+    supplied==_
+      ?: PlotColorScale({=
+          kind=PlotOption(@settings,"colormode",:discrete),
+          colors=PlotOption(@settings,"colors",["#312e81","#2563eb","#06b6d4","#f8fafc","#facc15","#f97316","#be123c"]),
+          hueRange=PlotOption(@settings,"huerange",[240,0])
+      })
+      ?_ {;
+          @supplied ? :Map ?: _ ?_ .Error("heat-map colorScale must be a map");
+          @supplied[:schema]=="rix.color-scale@1" ?: @supplied ?_ .Error("heat-map colorScale must use schema rix.color-scale@1");
+      };
+};
+
 PlotHeatMap(fn,xDomain,yDomain,settings ?= {= }) -> {;
     config=PlotFieldConfig(xDomain,yDomain,settings); field=PlotFieldSample(fn,config,settings);
-    palette=PlotOption(settings,"colors",["#312e81","#2563eb","#06b6d4","#f8fafc","#facc15","#f97316","#be123c"]);
-    palette ? :Array ?: _ ?_ .Error("heat-map colors must be an Array");
-    palette.Len()>=2 ?: _ ?_ .Error("heat-map colors must contain at least two colors");
-    colorMode=PlotOption(settings,"colormode",:discrete);
-    (colorMode==:discrete||colorMode==:continuous) ?: _ ?_ .Error("heat-map colorMode must be :discrete or :continuous");
-    hues=PlotExactArray(PlotOption(settings,"huerange",[240,0]),"heat-map hueRange");
-    hues.Len()==2 ?: _ ?_ .Error("heat-map hueRange must contain two exact hue values");
+    paletteSpec=PlotReadColorScale(settings); palette=paletteSpec[:colors];
+    colorMode=paletteSpec[:kind]; hues=paletteSpec[:hueRange];
     values=field[:samples].Filter((sample)->sample[:usable]).Map((sample)->sample[:value]);
     values.Len()>0 ?: _ ?_ .Error("heat-map has no resolved samples");
     minimum:=values[1]; maximum:=values[1];
     {@ index=2; index<=@values.Len(); {; @minimum ~= @values[index]<@minimum ?: @values[index] ?_ @minimum; @maximum ~= @values[index]>@maximum ?: @values[index] ?_ @maximum; }; index+=1 };
     scale=PlotOption(settings,"colordomain");
     scale!=_ ?: {; fixed=PlotFixedYBounds(@scale); @minimum=fixed[1]; @maximum=fixed[2]; } ?_ _;
+    paletteSpec[:minimum]!=_ ?: {; @minimum=@paletteSpec[:minimum]; @maximum=@paletteSpec[:maximum]; } ?_ _;
     children := []; records := []; unresolved := [];
     {@ row=1; row<=@config[:rows]; {;
         {@ column=1; column<=@config[:columns]; {;
@@ -1190,7 +1224,7 @@ PlotHeatMap(fn,xDomain,yDomain,settings ?= {= }) -> {;
     PlotFieldGraphic(:heatmap,config,settings,children,{=
         records=records,unresolvedRegions=unresolved,evidence=field[:evidence],status=field[:status],
         legend=[{= label="minimum",value=minimum,color=palette[1] },{= label="maximum",value=maximum,color=palette.Last() }],
-        colorScale={= kind=colorMode,minimum=minimum,maximum=maximum,colors=palette,hueRange=hues,quantization=colorMode==:continuous ?: :one_degree ?_ :palette },
+        colorScale=paletteSpec.Merge({= minimum=minimum,maximum=maximum }),
         sampling={= method=:cell_corner_mean,certification=:sampled_values }
     });
 };
@@ -1249,6 +1283,7 @@ plotNamespace._proto = {=
     Inequality=(self, fn, xDomain, yDomain, options ?= {= })->PlotInequality(fn,xDomain,yDomain,options),
     Contour=(self, fn, xDomain, yDomain, options ?= {= })->PlotContourBuild(fn,xDomain,yDomain,options,:contour),
     HeatMap=(self, fn, xDomain, yDomain, options ?= {= })->PlotHeatMap(fn,xDomain,yDomain,options),
-    VectorField=(self, fn, xDomain, yDomain, options ?= {= })->PlotVectorField(fn,xDomain,yDomain,options)
+    VectorField=(self, fn, xDomain, yDomain, options ?= {= })->PlotVectorField(fn,xDomain,yDomain,options),
+    ColorScale=(self, spec ?= {= })->PlotColorScale(spec)
 };
 .Host.RegisterValue("plot", plotNamespace, "Exact and numerics-backed 2D plots lowered into portable Graphics", ["Plot", "Graphics", "Exact"]);

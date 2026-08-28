@@ -35,6 +35,7 @@ to SVG by a web or notebook host.
 | `.plot.Contour(fn, xDomain, yDomain, options?)` | Draw one or more scalar-field levels. |
 | `.plot.HeatMap(fn, xDomain, yDomain, options?)` | Color scalar-field cells with a discrete color scale. |
 | `.plot.VectorField(fn, xDomain, yDomain, options?)` | Draw normalized vectors returned as `[u,v]`. |
+| `.plot.ColorScale(options?)` | A portable `rix.color-scale@1` value shared by Plot, Stats, and ComplexViz. |
 
 Coefficients are in descending-power order. The options map controls output
 size, sample count, margin, fixed or fitted vertical domain, additional series,
@@ -111,6 +112,13 @@ regions, adaptive work, budget exhaustion, interval classifications, and
 evidence status. The structured text projection consumes proof-bearing records:
 an IVT edge-existence proof is described separately from the sampled location
 of its displayed contour segment.
+
+`ColorScale` separates scalar-to-color policy from any renderer. It accepts
+`:discrete` palette or `:continuous` HSL modes, optional exact `minimum` and
+`maximum` bounds (which must be supplied together), underflow/overflow colors,
+and a hue range. Pass the resulting `rix.color-scale@1` map as `colorScale` to
+`HeatMap`, `.stats.HistogramGraphic`, or `.complexViz.DomainColoring`; each
+consumer retains the same record in its output metadata.
 
 ## Dependencies
 

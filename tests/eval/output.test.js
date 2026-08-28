@@ -1507,6 +1507,7 @@ describe("portable structured output", () => {
         expect(plot(discontinuous).get("ambiguousregions").values
             .some((region) => text(region.entries.get("status")) === "suspected_discontinuity")).toBe(true);
         expect(text(plot(heatMap).get("colorscale").entries.get("kind"))).toBe("continuous");
+        expect(text(plot(heatMap).get("colorscale").entries.get("schema"))).toBe("rix.color-scale@1");
         expect(plot(heatMap).get("records").values.some((record) =>
             record.entries.get("color").value.startsWith("hsl("))).toBe(true);
     });

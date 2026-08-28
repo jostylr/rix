@@ -238,3 +238,15 @@ summary := .stats.SimulationSummary(run);
 theory := .stats.DistributionSummary(.probability.Dice(2,6));
 [summary[:mean], summary[:sourceFamily], summary[:sourceSeed], summary[:sourceSamplingPolicy], theory[:mean], theory[:variance]];
 ```
+
+## Reuse a portable color scale
+
+```rix
+.Plugin.Load("plot");
+.Plugin.Load("stats");
+scale := .plot.ColorScale({= colors=["#172554","#38bdf8","#f8fafc"],minimum=0,maximum=6 });
+.stats.HistogramGraphic([1,2,2,3,4,4,4],{= bins=3,colorScale=scale });
+```
+
+The histogram retains the complete `rix.color-scale@1` value, including its
+exact bounds, so another plot family can apply the same policy.

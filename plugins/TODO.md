@@ -197,7 +197,7 @@ newline normalization.
    - [x] Add implicit curves, contours, heat maps, vector fields, error bands,
      and interval-valued plots.
    - [x] Use adaptive subdivision and certified sign/range requests.
-   - [ ] Share color-scale values with `.complexViz` and `.stats`.
+   - [x] Share color-scale values with `.complexViz` and `.stats`.
    - [x] Add interactive Canvas hit testing without changing the plot value.
 4. **Phase 4 — Statistical and large-data plotting**
    - [ ] Add streaming/downsampled plots and GPU-oriented scene lowering.

@@ -41,6 +41,18 @@ f := .complexViz.RationalFunction((z) -> z^2 - 1, (z) -> z);
 
 The exact octant/three-band convention is stable across SVG and Canvas.
 
+A shared Plot color scale can deliberately replace the default phase palette
+with exact magnitude-squared coloring:
+
+```rix
+.Plugin.Load("plot");
+.Plugin.Load("complex-viz");
+scale := .plot.ColorScale({= colors=["#172554","#38bdf8","#f8fafc"],minimum=0,maximum=4 });
+.complexViz.DomainColoring({=
+  fn=(z)->z,domain={= re=[-1,1],im=[-1,1] },resolution=[9,9],colorScale=scale
+});
+```
+
 ## Color a certified enclosure
 
 ```rix

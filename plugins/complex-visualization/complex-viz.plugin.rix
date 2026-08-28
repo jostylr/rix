@@ -81,30 +81,55 @@ CVPalette(sector, band) -> {;
     band == :small ?: small[sector + 1] ?_ band == :medium ?: medium[sector + 1] ?_ large[sector + 1];
 };
 
-CVEnclosureColor(enclosure) -> {;
+CVScaleColor(scale,value) -> {;
+    scale ? :Map ?: _ ?_ .Error("complexViz colorScale must be a map");
+    scale[:schema]=="rix.color-scale@1" ?: _ ?_ .Error("complexViz colorScale must use schema rix.color-scale@1");
+    colors=scale[:colors];
+    colors ? :Array ?: _ ?_ .Error("complexViz colorScale colors must be an Array");
+    colors.Len()>=2 ?: _ ?_ .Error("complexViz colorScale requires at least two colors");
+    minimum=scale[:minimum]==_ ?: 0 ?_ scale[:minimum];
+    maximum=scale[:maximum]==_ ?: 4 ?_ scale[:maximum];
+    minimum<maximum ?: _ ?_ .Error("complexViz colorScale bounds must increase");
+    magnitude=.Complex.NormSquared(value) ~!: :Rational;
+    magnitude<=minimum ?: scale[:underflow]
+      ?_ magnitude>=maximum ?: scale[:overflow]
+      ?_ scale[:kind]==:continuous
+           ?: {;
+               hues=scale[:hueRange];
+               hue=hues[1]+(@magnitude-@minimum)/(@maximum-@minimum)*(hues[2]-hues[1]);
+               @"hsl(@{hue//1}, 80%, 50%)";
+           }
+           ?_ {;
+               index=((@magnitude-@minimum)/(@maximum-@minimum)*(@colors.Len()-1))//1+1;
+               @colors[.Max(1,.Min(@colors.Len(),index))];
+           };
+};
+
+CVExactColor(value,scale ?= _) -> scale==_
+  ?: {; sector=CVPhaseSector(@value); sector==:zero ?: "#111827" ?_ CVPalette(sector,CVMagnitudeBand(@value)); }
+  ?_ CVScaleColor(scale,value);
+
+CVEnclosureColor(enclosure,scale ?= _) -> {;
     real=enclosure[:realInterval]; imaginary=enclosure[:imaginaryInterval];
     corners=[
         .Complex.FromParts(real.Low(),imaginary.Low()),.Complex.FromParts(real.Low(),imaginary.High()),
         .Complex.FromParts(real.High(),imaginary.Low()),.Complex.FromParts(real.High(),imaginary.High())
     ];
-    colors=corners.Map((corner)->{; sector=CVPhaseSector(corner); sector==:zero ?: "#111827" ?_ CVPalette(sector,CVMagnitudeBand(corner)); });
+    colors=corners.Map((corner)->CVExactColor(corner,@scale));
     selected=colors[1]; stable:=1;
     {@ index=2;index<=@colors.Len()&&@stable;{; @colors[index]==@selected ?: _ ?_ {; @stable=_; }; };index+=1};
     stable ?: selected ?_ "#64748b";
 };
 
-CVColor(sampleValue) -> {;
+CVColor(sampleValue,scale ?= _) -> {;
     sample = CVNormalizeSample(sampleValue);
     sample[:status] == :pole
       ?: "#ffffff"
       ?_ sample[:status] == :unresolved
            ?: "#64748b"
            ?_ sample[:status] == :enclosure
-                ?: CVEnclosureColor(sample[:enclosure])
-           ?_ {;
-               sector = CVPhaseSector(@sample[:value]);
-               sector == :zero ?: "#111827" ?_ CVPalette(sector, CVMagnitudeBand(@sample[:value]));
-           };
+                ?: CVEnclosureColor(sample[:enclosure],scale)
+           ?_ CVExactColor(sample[:value],scale);
 };
 
 CVCayleyColor(value) -> {;
@@ -133,6 +158,7 @@ CVDomainColoring(spec) -> {;
     columns = CVPositiveInteger(resolution[1], "DomainColoring columns");
     rows = CVPositiveInteger(resolution[2], "DomainColoring rows");
     size = CVOption(spec, "size", [360, 360]);
+    paletteSpec = CVOption(spec, "colorscale", _);
     cellWidth = size[1] / columns;
     cellHeight = size[2] / rows;
     reStep = (re[2] - re[1]) / columns;
@@ -150,7 +176,7 @@ CVDomainColoring(spec) -> {;
             sample[:status] == :pole ?: {; @poles += 1; } ?_ _;
             sample[:status] == :unresolved ?: {; @unresolved += 1; } ?_ _;
             (sample[:status] == :value && .Complex.NormSquared(sample[:value]) == 0) ?: {; @zeros += 1; } ?_ _;
-            color = CVColor(sample);
+            color = CVColor(sample,@paletteSpec);
             @children ~= @children.Push(.Graphics.Rectangle(
                 [(column - 1) * @cellWidth, (@row - 1) * @cellHeight],
                 [@cellWidth, @cellHeight],
@@ -167,6 +193,7 @@ CVDomainColoring(spec) -> {;
         poleColor="#ffffff",
         unresolvedColor="#64748b",
         zeroColor="#111827",
+        colorScale=paletteSpec,
         domain=domain,
         resolution=resolution,
         samples=rows * columns,

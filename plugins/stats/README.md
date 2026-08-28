@@ -42,6 +42,10 @@ ordinary core `Graphic` values, so SVG, Canvas, TikZ, PNG, and document
 renderers can consume them without knowing about statistics. A constant
 dataset becomes one zero-width semantic histogram bin and a centered box plot.
 `Count([])` is zero; other summaries reject an empty dataset explicitly.
+When Plot is loaded, `HistogramGraphic(...,{= colorScale=scale })` accepts the
+portable `rix.color-scale@1` value returned by `.plot.ColorScale`. Bin counts
+select colors while the unchanged scale is retained in Graphic metadata; the
+statistics plugin does not depend on a renderer or on Plot internals.
 
 The normal functions accept any certified refinable real for the value,
 location, or probability. An optional exact positive Rational standard
