@@ -197,17 +197,28 @@ OptimizeRequireProgram(value) -> {;
 };
 
 OptimizeResult(program, fields) -> {;
+    certificate = fields.Has("certificate") ?: fields[:certificate] ?_ _;
     result = {=
         valueKind = :optimizationResult,
         schema = "rix.optimize.result@1",
         program = program,
-        method = :exactPrimalSimplex,
+        method = :standardPrimalSimplex,
+        certificate = certificate,
+        certificateStatus = certificate == _ ?: :notAvailable ?_ :verified,
         exact = 1
     }.Merge(fields);
+    (result[:method]==:standardPrimalSimplex&&result[:certificate]==_)
+      ?: {;
+          diagnostics=@result[:diagnostics]==_ ?: [] ?_ @result[:diagnostics];
+          @result~=@result.Set("diagnostics",diagnostics.Push("Request twoPhase=1 for a portable optimality certificate"));
+      }
+      ?_ _;
     result.__type = "OptimizationResult";
     result.schema = result[:schema];
     result.program = result[:program];
     result.method = result[:method];
+    result.certificate = result[:certificate];
+    result.certificateStatus = result[:certificateStatus];
     result.exact = result[:exact];
     result.status = result[:status];
     result.solution = result[:solution];

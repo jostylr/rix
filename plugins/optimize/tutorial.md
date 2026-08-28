@@ -10,8 +10,12 @@ status: implemented
 .Plugin.Load("optimize");
 program := .optimize.LinearProgram([3, 2], [1, 1; 1, 0; 0, 1], [4, 2, 3]);
 result := .optimize.Solve(program);
-{: result.solution, result.objectiveValue, result.status };
+{: result.solution, result.objectiveValue, result.status,
+   result[:method],result[:certificateStatus],result[:diagnostics] };
 ```
+
+The fast standard path reports `certificateStatus=:notAvailable` and points to
+the exact two-phase option rather than silently omitting evidence.
 
 ## Equalities, greater-than constraints, and Phase I
 
@@ -26,12 +30,16 @@ result := program.Solve({= twoPhase=1 });
   result[:solution],
   result[:objectivevalue],
   result[:dualsolution],
+  result[:method],
+  result[:certificateStatus],
   result[:certificate].Verify()
 };
 ```
 
 The exact solution is `(2,1)`. Phase I introduces and then removes artificial
 variables; Phase II returns matching primal and dual objective values.
+This path reports `method=:twoPhaseExactSimplex` and
+`certificateStatus=:verified`.
 
 ## Free and bounded variables
 

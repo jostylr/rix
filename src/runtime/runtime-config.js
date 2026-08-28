@@ -44,6 +44,8 @@ export const runtimeDefaults = Object.freeze({
     Notation: Object.freeze(["SArith", "Poly", "NotationParser"]),
     Random: Object.freeze(["RNG", "RANDOMSEED", "RandomSeed", "RAND_NAME"]),
     Probability: Object.freeze(["probability"]),
+    Graph: Object.freeze(["graph"]),
+    Combinatorics: Object.freeze(["combinatorics", "comb"]),
     RiXCel: Object.freeze(["FORMULASHEET", "REACTIVEGRAPH", "RIXCELEXPORT", "RIXCELIMPORT", "RIXCELIMPORTCSV", "RIXCELIMPORTTSV", "RIXCELEXPORTCSV", "RIXCELEXPORTTSV"]),
   }),
 });

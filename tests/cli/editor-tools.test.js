@@ -58,6 +58,25 @@ describe("agent-facing RiX editor CLI", () => {
         expect(report.events.map(({ kind }) => kind)).toEqual(["run-start", "check", "result", "run-end"]);
     });
 
+    test("verify requires host approval for source-header plugins and preloads approved plugins", () => {
+        const filename = fixture(`/**
+plugins: [linalg]
+**/
+.linalg.Determinant([1,2;3,4]) ##@ == -2;
+`);
+        const denied = cli("verify", "--json", filename);
+        expect(denied.status).toBe(1);
+        expect(JSON.parse(denied.stdout).events.find(({ kind }) => kind === "diagnostic")?.payload.message)
+            .toMatch(/host did not approve/i);
+
+        const approved = cli("verify", "--json", "--plugins=linalg", filename);
+        expect(approved.status).toBe(0);
+        const report = JSON.parse(approved.stdout);
+        expect(report.summary).toMatchObject({ state: "passed", checks: { passed: 1 } });
+        expect(report.events[0].payload.plugins.approved).toEqual(["linalg"]);
+        expect(report.events[0].payload.plugins.loaded).toContain("linalg");
+    });
+
     test("--all-built-plugins loads every plugin shipped by this repository", () => {
         const filename = fixture("1\n");
         const result = cli("--all-built-plugins", "--no-config", filename);

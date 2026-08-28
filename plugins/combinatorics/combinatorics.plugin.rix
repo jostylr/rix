@@ -1,0 +1,99 @@
+/**
+id: combinatorics
+description: Lazy finite Cartesian products, permutations, combinations, and exact counting.
+kind: rix
+mount: combinatorics
+aliases: [comb]
+exports: [CartesianPower, Permutations, Combinations, CountPermutations, CountCombinations]
+groups: [Combinatorics, Algorithms, Exact]
+permissions: []
+provides: [rix.combinatorics@1]
+schemas: []
+snapshot: true
+deterministic: true
+defaultEnabled: false
+**/
+
+CombInteger(value,label,minimum ?= 0) -> {;
+    exact=value ~!: :Integer;
+    exact!=_&&exact>=minimum ?: exact ?_ .Error(@"@{label} must be an Integer at least @{minimum}");
+};
+
+CombValues(value,label ?= "Combinatorics values") ->
+    value ? :Array ?: value ?_ .Error(@"@{label} must be an Array");
+
+CombCartesianValue(values,count,index) -> {;
+    offset:=index-1;result:=[];base=values.Len();
+    {@ position=1;position<=@count;{;
+        digit=(@offset%@base)+1;@result~=@result.Unshift(@values[digit]);@offset~=@offset//@base;
+    };position+=1};
+    result;
+};
+
+CombCartesianPower(valuesValue,countValue,options ?= {= }) -> {;
+    values=CombValues(valuesValue,"CartesianPower values");count=CombInteger(countValue,"CartesianPower count");
+    values.Len()>0||count==0 ?: _ ?_ .Error("CartesianPower needs at least one source value when count is positive");
+    total=values.Len()^count;maxOutcomes=options[:maxOutcomes]==_ ?: 1000000 ?_ CombInteger(options[:maxOutcomes],"CartesianPower maxOutcomes",1);
+    total<=maxOutcomes ?: _ ?_ .Error(@"CartesianPower has @{total} outcomes, exceeding maxOutcomes @{maxOutcomes}");
+    indices=[1 |+ 1 |^ (count==0 ?: 1 ?_ total)];
+    indices |>> (index)->count==0 ?: [] ?_ CombCartesianValue(@values,@count,index);
+};
+
+CombPermutationValue(values,count,index) -> {;
+    pool:=values.Map((value)->value);rank:=index-1;result:=[];n=values.Len();
+    {@ position=1;position<=@count;{;
+        block=CombCountPermutations(@n-position,@count-position);choice=(@rank//block)+1;
+        @rank~=@rank%block;@result~=@result.Push(@pool[choice]);@pool~=@pool.RemoveAt(choice);
+    };position+=1};
+    result;
+};
+
+CombPermutations(valuesValue,countValue ?= _,options ?= {= }) -> {;
+    values=CombValues(valuesValue,"Permutations values");count=countValue==_ ?: values.Len() ?_ CombInteger(countValue,"Permutations count");
+    count<=values.Len() ?: _ ?_ .Error("Permutations count cannot exceed the number of values");
+    total=CombCountPermutations(values.Len(),count);maxOutcomes=options[:maxOutcomes]==_ ?: 1000000 ?_ CombInteger(options[:maxOutcomes],"Permutations maxOutcomes",1);
+    total<=maxOutcomes ?: _ ?_ .Error(@"Permutations has @{total} outcomes, exceeding maxOutcomes @{maxOutcomes}");
+    indices=[1 |+ 1 |^ total];indices |>> (index)->CombPermutationValue(@values,@count,index);
+};
+
+CombCombinationValue(values,count,index) -> {;
+    rank:=index-1;start:=1;result:=[];n=values.Len();
+    {@ position=1;position<=@count;{;
+        candidate:=@start;chosen:=_;
+        {@ scan=1;@chosen==_&&@candidate<=@n-(@count-@position);{;
+            block=CombCountCombinations(@n-@candidate,@count-@position);
+            @rank<block ?: {; @chosen~=@candidate; } ?_ {; @rank-=@block;@candidate+=1; };
+        };scan+=1};
+        chosen!=_ ?: _ ?_ .Error("Combination rank is outside the finite space");
+        @result~=@result.Push(@values[chosen]);@start~=chosen+1;
+    };position+=1};
+    result;
+};
+
+CombCombinations(valuesValue,countValue,options ?= {= }) -> {;
+    values=CombValues(valuesValue,"Combinations values");count=CombInteger(countValue,"Combinations count");
+    count<=values.Len() ?: _ ?_ .Error("Combinations count cannot exceed the number of values");
+    total=CombCountCombinations(values.Len(),count);maxOutcomes=options[:maxOutcomes]==_ ?: 1000000 ?_ CombInteger(options[:maxOutcomes],"Combinations maxOutcomes",1);
+    total<=maxOutcomes ?: _ ?_ .Error(@"Combinations has @{total} outcomes, exceeding maxOutcomes @{maxOutcomes}");
+    indices=[1 |+ 1 |^ total];indices |>> (index)->CombCombinationValue(@values,@count,index);
+};
+
+CombCountPermutations(nValue,kValue ?= _) -> {;
+    n=CombInteger(nValue,"CountPermutations n");k=kValue==_ ?: n ?_ CombInteger(kValue,"CountPermutations k");
+    k<=n ?: n!/(n-k)! ?_ 0;
+};
+
+CombCountCombinations(nValue,kValue) -> {;
+    n=CombInteger(nValue,"CountCombinations n");k=CombInteger(kValue,"CountCombinations k");
+    k<=n ?: n!/(k!*(n-k)!) ?_ 0;
+};
+
+combinatoricsNamespace={= };
+combinatoricsNamespace._proto={=
+    CartesianPower=(self,values,count,options ?= {= })->CombCartesianPower(values,count,options),
+    Permutations=(self,values,count ?= _,options ?= {= })->CombPermutations(values,count,options),
+    Combinations=(self,values,count,options ?= {= })->CombCombinations(values,count,options),
+    CountPermutations=(self,n,k ?= _)->CombCountPermutations(n,k),
+    CountCombinations=(self,n,k)->CombCountCombinations(n,k)
+};
+.Host.RegisterValue("combinatorics",combinatoricsNamespace,"Lazy finite combinatorial enumeration and exact counting",["Combinatorics","Algorithms","Exact"]);

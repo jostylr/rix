@@ -2,9 +2,10 @@
  * Generated first-pass editor execution allowlist.
  *
  * This is deliberately explicit. `scripts/generate-editor-policy.js --check`
- * compares it with the filtered default runtime and CI fails on drift. Host
- * plugin mounts are empty in the first release; they require a later reviewed
- * snapshot addition.
+ * compares it with the filtered default runtime and CI fails on drift. Plugin
+ * mounts are not ambient snapshot capabilities: the host approves them per
+ * execution request and `createStandardSystemContext` admits only that loaded
+ * dependency closure.
  */
 export const STANDARD_CAPABILITY_NAMES = Object.freeze([
     "Abs", "Add", "AffineBoxRange", "Algebra", "All", "And", "Any", "Array", "ASSET", "Assign",
@@ -45,11 +46,16 @@ export const STANDARD_DENIED_NAMES = Object.freeze([
     "NET", "Out", "Plugin", "Render", "Renderer", "TraitRegister", "TypeInstall", "TypeRegister",
 ]);
 
-export function createStandardSystemContext(createDefaultSystemContext) {
-    const full = createDefaultSystemContext();
+export function createStandardSystemContext(source, { pluginIds = [], pluginNames = [] } = {}) {
+    const full = typeof source === "function" ? source() : source;
     const allowed = new Set(STANDARD_CAPABILITY_NAMES.map((name) => name.toUpperCase()));
+    const allowedPlugins = new Set(pluginIds.map(String));
+    const allowedHostNames = new Set(pluginNames.map((name) => String(name).toLowerCase()));
     const withheld = full.getAllEntries()
-        .filter((entry) => entry.namespace !== "core" || !allowed.has(entry.displayName.toUpperCase()))
+        .filter((entry) => entry.namespace === "core"
+            ? !allowed.has(entry.displayName.toUpperCase())
+            : !(entry.pluginId && allowedPlugins.has(entry.pluginId))
+                && !allowedHostNames.has(entry.displayName.toLowerCase()))
         .map((entry) => entry.displayName);
     return full.withhold(...withheld);
 }

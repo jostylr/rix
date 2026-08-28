@@ -8,7 +8,7 @@ import {
     parseAndEvaluate,
     parseAndEvaluateAsync,
     readSourceHeader,
-} from "../../src/index.js";
+} from "../../src/index-node.js";
 import { NodePluginCatalog } from "../../src/runtime/plugin-catalog-node.js";
 import { install as installArrayJsExample } from "../../examples/plugins/example-array-js/array-js.plugin.rix.js";
 

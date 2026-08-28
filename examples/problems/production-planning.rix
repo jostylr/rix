@@ -17,12 +17,16 @@ result := program.Solve({= twoPhase = 1 });
 result[:solution][1] == 2 && result[:solution][2] == 6 ##@ == 1;
 result[:objectiveValue] ##@ == 36;
 result[:status] ##@ == "optimal";
+result[:method] ##@ == :twoPhaseExactSimplex;
+result[:certificateStatus] ##@ == :verified;
 result[:certificate].Verify() ##@ == 1;
 {=
     problem = :productionPlanning,
     quantities = result[:solution],
     profit = result[:objectiveValue],
     status = result[:status],
+    method = result[:method],
+    certificateStatus = result[:certificateStatus],
     slacks = result[:slacks],
     certificateVerified = result[:certificate].Verify()
 };

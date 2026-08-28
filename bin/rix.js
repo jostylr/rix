@@ -82,7 +82,7 @@ const EXAMPLE_PLUGINS_DIR = path.resolve(EXAMPLES_DIR, "plugins");
 const WEB_PAGE_ENTRY = path.resolve(TOOL_DIR, "web-page.js");
 const WEB_PAGE_STYLE = path.resolve(TOOL_DIR, "web-page.css");
 const RENDERER_PLUGIN_IDS = ["svg", "canvas", "webgl", "terminal-ascii", "tikz", "markdown", "html", "quarto", "latex", "png", "pdf", "gif", "gltf", "csv"];
-const STANDARD_PLUGIN_IDS = new Set(["exact-algebras", "algebra", "draw", "plot", "scene3d", "nd", "geometry", "data", "document", "float", ...RENDERER_PLUGIN_IDS]);
+const STANDARD_PLUGIN_IDS = new Set(["exact-algebras", "algebra", "draw", "plot", "scene3d", "nd", "geometry", "graph", "combinatorics", "data", "document", "float", ...RENDERER_PLUGIN_IDS]);
 
 function pathIsWithin(root, candidate) {
     const relative = path.relative(root, candidate);
@@ -147,7 +147,7 @@ function editorToolUsage(command) {
         parse: "rix parse --json file.rix",
         symbols: "rix symbols --json file.rix",
         format: "rix format [--check] [--profile=readable|compact] file.rix [...]",
-        verify: "rix verify --json file.rix",
+        verify: "rix verify --json [--plugins=a,b] file.rix",
     };
     return `Usage: ${usages[command]}`;
 }
@@ -157,12 +157,27 @@ async function runEditorTool(command, rawArgs) {
         console.log(editorToolUsage(command));
         return;
     }
-    const json = rawArgs.includes("--json");
-    const check = rawArgs.includes("--check");
-    const profileArg = rawArgs.find((argument) => argument.startsWith("--profile="));
+    const approvedPlugins = [];
+    const editorArgs = [];
+    for (let index = 0; index < rawArgs.length; index++) {
+        const argument = rawArgs[index];
+        if (argument === "--plugin") {
+            const id = rawArgs[++index];
+            if (!id) throw new Error("--plugin requires a plugin id");
+            approvedPlugins.push(id);
+        } else if (argument.startsWith("--plugin=")) {
+            approvedPlugins.push(argument.slice("--plugin=".length));
+        } else if (argument.startsWith("--plugins=")) {
+            approvedPlugins.push(...argument.slice("--plugins=".length).split(",").map((id) => id.trim()).filter(Boolean));
+        } else editorArgs.push(argument);
+    }
+    if (approvedPlugins.length && command !== "verify") throw new Error("Editor plugin preloads are only available to verify");
+    const json = editorArgs.includes("--json");
+    const check = editorArgs.includes("--check");
+    const profileArg = editorArgs.find((argument) => argument.startsWith("--profile="));
     const profile = profileArg?.slice("--profile=".length) || "readable";
     if (!["readable", "compact"].includes(profile)) throw new Error(`Unknown formatter profile '${profile}'`);
-    const files = rawArgs.filter((argument) => !argument.startsWith("--"));
+    const files = editorArgs.filter((argument) => !argument.startsWith("--"));
     if (files.length === 0 || ((command === "parse" || command === "symbols" || command === "verify") && files.length !== 1)) {
         throw new Error(editorToolUsage(command));
     }
@@ -203,7 +218,10 @@ async function runEditorTool(command, rawArgs) {
 
     const events = [];
     const session = createExecutionSession({ emit: (event) => events.push(event) });
-    await session.run({ command: "run", requestId: "verify", uri, version: 0, filePath: file, source, mode: "isolated" });
+    await session.run({
+        command: "run", requestId: "verify", uri, version: 0, filePath: file,
+        source, mode: "isolated", plugins: [...new Set(approvedPlugins)],
+    });
     const summary = events.findLast(({ kind }) => kind === "run-end")?.payload || { state: "failed" };
     const result = { protocol: "rix.verify/1", uri, diagnostics: analysis.diagnostics, events, summary };
     if (json) console.log(JSON.stringify(result, null, 2));

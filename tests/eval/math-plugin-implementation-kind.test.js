@@ -9,7 +9,7 @@ describe("math plugin implementation boundary", () => {
     test("computational exact and certified plugins load from RiX source", () => {
         const ids = [
             "algebra", "algebraic-real", "analysis", "ball", "cauchy", "continued-fraction",
-            "complex", "complex-viz", "exact-algebras", "fraction", "fractals", "geometry", "numerics", "oracle", "plot", "poly", "radix",
+            "combinatorics", "complex", "complex-viz", "exact-algebras", "fraction", "fractals", "geometry", "graph", "numerics", "oracle", "plot", "poly", "radix",
             "ratfun", "stats", "stern-brocot", "symbolic", "linalg", "optimize", "solve", "scene3d", "nd",
         ];
         expect(pluginKinds(ids)).toEqual(ids.map(() => "rix"));

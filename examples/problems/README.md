@@ -17,8 +17,12 @@ bun test tests/cli/problems.test.js
 
 Each source also carries inline `##@` checks. They run with the program, so a
 zero exit status means both evaluation and the stated invariants succeeded.
-The restricted editor `verify` command intentionally withholds plugins and is
-therefore not the runner for these host-approved plugin examples.
+The restricted editor `verify` command accepts an explicit host-approved plugin
+list while continuing to withhold dynamic `.Plugin.Load`, for example:
+
+```sh
+bun bin/rix.js verify --plugins=graph examples/problems/shortest-path.rix
+```
 
 ## Coverage and ergonomics
 
@@ -35,13 +39,13 @@ solution needs substantial general-purpose plumbing.
 | `projectile-polynomial.rix` | Algebra/calculus | `poly` | 5/5 | Differentiation and rational critical-point discovery preserve polynomial identity. |
 | `triangle-circumcircle.rix` | Geometry | `geometry` | 5/5 | The exact construction and validated circle observations now map directly to the problem. |
 | `geometric-series.rix` | Real analysis | `analysis` | 4/5 | The result includes an effective convergence witness, but the proof-oriented API is more elaborate than a numerical sum. |
-| `shortest-path.rix` | Graph algorithms | core RiX | 2/5 | Arrays and bounded loops suffice for Dijkstra, but the algorithm needs manual infinity, queue selection, and adjacency-matrix plumbing. |
+| `shortest-path.rix` | Graph algorithms | `graph` | 5/5 | A validated graph, exact Dijkstra result, recovered path, and independently checkable certificate map directly to the problem. |
 | `markov-stationary-distribution.rix` | Stochastic processes | `linalg` | 4/5 | Exact linear solving is direct; the user still constructs the stationarity-plus-normalization system manually. |
 | `relational-sales-analysis.rix` | Relational data | `data` | 5/5 | Typed relations, grouping, and exact rational aggregates match the problem closely. |
 | `rational-approximation-and-radix.rix` | Number representation | `continued-fraction`, `radix` | 5/5 | Certified denominator-bounded approximation and repeating-radix analysis are explicit and exact. |
 | `exact-logistic-dynamics.rix` | Dynamical systems | `fractals` | 5/5 | Exact iteration and conservatively stated finite-tail period evidence are compact. |
 | `symbolic-resource-system.rix` | Symbolic constraints | `solve` | 5/5 | Definitions, inequalities, an objective, substitution checks, and an LP certificate live in one result. |
-| `four-queens-search.rix` | Constraint search | `probability`, core RiX | 3/5 | Finite products and filtering work, but candidate generation is eager and unexpectedly located in probability. |
+| `four-queens-search.rix` | Constraint search | `combinatorics`, core RiX | 4/5 | Lazy permutations remove column conflicts directly; the problem-specific diagonal predicate remains ordinary code. |
 
 ## Capability conclusions
 
@@ -55,28 +59,24 @@ example's optimum but does not attach an optimality certificate. That is a
 reasonable performance/API distinction, but a more discoverable result field
 or diagnostic would make the choice easier for users.
 
-The clearest addition is a graph plugin. A useful first slice would provide a
-validated weighted graph value plus `ShortestPaths`, `ShortestPath`, breadth-
-first search, connected components, and topological sort. Results should retain
-predecessors, traversal order, and optimality/reachability evidence. The
-hand-written Dijkstra example is deliberately kept here as the acceptance case
-for that future API.
+The graph gap is now closed by the first `graph` plugin slice: validated exact
+nonnegative weighted graphs, shortest paths and certificates, breadth-first
+traversal, connected components, and topological sorting. The former hand-
+written Dijkstra probe has become its acceptance example.
 
-The probes also found a tooling distinction worth keeping visible. Native
-`.test.rix` execution can now preload host-approved plugins from a source
-header, but the restricted editor worker does not. A future editor protocol
-could accept an explicit host-approved plugin set without exposing runtime
-`.Plugin.Load`; until then, direct CLI execution plus inline checks is the
-appropriate verification path.
+Native `.test.rix` and restricted editor verification now both support
+host-approved plugin preloads. In editor verification the source header is only
+a request: the host must supply the same plugin identifier explicitly, plugin
+dependencies must be permission-free, and `.Plugin.Load` remains unavailable.
 
 The smaller geometry improvement is now implemented as `.geometry.Center()`
 and `.geometry.RadiusSquared()`. The updated probe no longer depends on the
 circle record's storage layout, and both functions validate the input kind.
 
-The four-queens probe adds a weaker signal for a combinatorics namespace.
-`CartesianPower` is useful outside probability, but eager construction and its
-current location make finite searches harder to discover and scale. More such
-probes should precede a full constraint-solver proposal.
+The four-queens signal is addressed by the lazy `combinatorics` plugin, which
+provides Cartesian powers, permutations, combinations, and exact counts. It
+does not introduce a full constraint solver; the diagonal rule remains visible
+problem code.
 
 Concrete proposed contracts, staged scope, and acceptance cases are collected
 in [`recommendation-sketches.md`](recommendation-sketches.md).

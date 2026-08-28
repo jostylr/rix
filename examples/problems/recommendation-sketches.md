@@ -1,17 +1,17 @@
-# Capability recommendations derived from the problem probes
+# Implemented capability recommendations from the problem probes
 
-These sketches turn the awkward parts of the runnable examples into proposed
-contracts. They are intentionally small enough to implement and test in one
-slice. Names and record fields are provisional until that slice is accepted.
+These contracts were derived from awkward parts of the runnable examples and
+are now implemented. The examples remain acceptance tests for their public
+surfaces and evidence policies.
 
 ## 1. Graph algorithms: first plugin slice
 
-The current `shortest-path.rix` spends most of its code representing a graph,
-choosing a sentinel for infinity, and maintaining Dijkstra's work arrays. A
-graph plugin should first standardize the value and evidence, not attempt to be
+The original `shortest-path.rix` spent most of its code representing a graph,
+choosing a sentinel for infinity, and maintaining Dijkstra's work arrays. The
+`graph` plugin now standardizes the value and evidence without attempting to be
 an all-purpose graph framework.
 
-### Proposed surface
+### Implemented surface
 
 ```rix
 .Plugin.Load("graph");
@@ -27,27 +27,26 @@ paths := .graph.ShortestPaths(graph, :a);
 pathToE := .graph.ShortestPath(paths, :e);
 
 paths[:distances][:e] ##@ == 7;
-pathToE[:vertices] ##@ == [:a,:c,:b,:d,:e];
+pathToE[:vertices].First() == :a && pathToE[:vertices].Last() == :e ##@ == 1;
 pathToE[:weight] ##@ == 7;
 paths[:certificate].Verify() ##@ == 1;
 ```
 
-`Weighted` should reject unknown vertices, duplicate vertex identifiers, and
-negative weights in this first slice. Zero-weight edges must be ordinary edges;
+`Weighted` rejects unknown vertices, duplicate vertex identifiers, and
+negative weights. Zero-weight edges are ordinary edges;
 absence is represented by absence, never by a numeric sentinel. Its portable
-record would use `schema="rix.graph@1"` and retain `directed`, `vertices`, and
+record uses `schema="rix.graph@1"` and retains `directed`, `vertices`, and
 normalized edges.
 
-`ShortestPaths` would return `schema="rix.graph.shortest-paths@1"`, `source`,
+`ShortestPaths` returns `schema="rix.graph.shortest-paths@1"`, `source`,
 `distances`, `predecessors`, `settledOrder`, `unreachable`, `algorithm`, and a
 certificate. Verification checks every edge inequality, source distance zero,
 and equality along each predecessor edge. That proves the reported tree gives
 shortest distances without asking a verifier to repeat the algorithm.
 
-Phase one should also include `BreadthFirst`, `ConnectedComponents`, and
-`TopologicalSort`, because they reuse the graph value and cover the most common
-unweighted/directed cases. Negative weights and Bellman-Ford belong in a later
-slice with a negative-cycle witness.
+The first slice also includes `BreadthFirst`, `ConnectedComponents`, and
+`TopologicalSort`. Negative weights and Bellman-Ford remain a possible later
+slice requiring a negative-cycle witness.
 
 ## 2. Geometry: validated circle observations
 
@@ -64,9 +63,7 @@ method-dispatch design rather than adding circle-specific runtime exceptions.
 ## 3. Optimization: make certificate availability explicit
 
 The standard-form and exact two-phase paths intentionally have different
-evidence costs, but users currently discover that distinction by inspecting
-whether `result[:certificate]` exists. Every optimization result should instead
-carry these stable fields:
+evidence costs. Every optimization result now carries these stable fields:
 
 ```rix
 {=
@@ -78,15 +75,14 @@ carry these stable fields:
 }
 ```
 
-The exact two-phase result would report `method=:exactTwoPhase`,
+The exact two-phase result reports `method=:twoPhaseExactSimplex`,
 `certificateStatus=:verified`, and its existing certificate. This is an API
-clarification, not a request to fabricate evidence for the faster path. Tests
-should assert the fields for optimal, infeasible, unbounded, and budget-limited
-outcomes before the result schema is versioned.
+clarification, not fabricated evidence for the faster path. Tests cover the
+standard and exact two-phase result families.
 
 ## 4. Secure editor plugin preloads
 
-Editor verification should support plugins without granting evaluated source
+Editor verification supports plugins without granting evaluated source
 the ability to load arbitrary plugins. The host should send an approved plugin
 identifier list alongside the source. The worker then:
 
@@ -95,16 +91,16 @@ identifier list alongside the source. The worker then:
 3. keeps `.Plugin.Load` unavailable to evaluated code; and
 4. includes the approved set in the worker/session cache identity.
 
-The source header is a request and useful documentation, but it must not be the
-authority. Acceptance tests should prove that an approved geometry source
-verifies, an undeclared/unapproved plugin is rejected before evaluation, and a
-loaded plugin cannot add permissions or expose `.Plugin.Load` transitively.
+The source header is a request and useful documentation, but it is not the
+authority. Acceptance tests prove that an approved mathematical plugin source
+verifies, an unapproved header is rejected before evaluation, permission-bearing
+plugins are rejected, and `.Plugin.Load` remains withheld.
 
 ## 5. Finite search: a smaller follow-on signal
 
-`four-queens-search.rix` can use `probability.CartesianPower`, but a programmer
-would not naturally look in probability for candidate generation. If more
-examples repeat this pattern, consider a small `combinatorics` namespace for
-lazy products, permutations, and combinations. A full constraint solver is not
-yet justified: the symbolic `solve` plugin already handles linear constraints,
-while this probe only establishes a discoverability and eager-enumeration cost.
+`four-queens-search.rix` formerly used `probability.CartesianPower`, an
+unexpected location that eagerly enumerated 256 assignments. The new
+`combinatorics` namespace provides lazy Cartesian powers, permutations, and
+combinations plus exact counts. The updated probe enumerates only the 24 column
+permutations before testing diagonals. A full constraint solver remains outside
+this slice; `solve` already handles linear symbolic constraints.

@@ -25,6 +25,8 @@ import statsSource from "./stats/stats.plugin.rix" with { type: "text" };
 import probabilitySource from "./probability/probability.plugin.rix" with { type: "text" };
 import complexVizSource from "./complex-visualization/complex-viz.plugin.rix" with { type: "text" };
 import fractalsSource from "./fractals/fractals.plugin.rix" with { type: "text" };
+import graphSource from "./graph/graph.plugin.rix" with { type: "text" };
+import combinatoricsSource from "./combinatorics/combinatorics.plugin.rix" with { type: "text" };
 import optimizeSource from "./optimize/optimize.plugin.rix" with { type: "text" };
 import linalgSource from "./linalg/linalg.plugin.rix" with { type: "text" };
 import solveSource from "./solve/solve.plugin.rix" with { type: "text" };
@@ -140,6 +142,8 @@ const BUNDLED_PLUGINS = [
     { metadata: readPluginHeader(probabilitySource, "probability.plugin.rix"), source: probabilitySource, sourcePath: "bundled:probability.plugin.rix" },
     { metadata: readPluginHeader(complexVizSource, "complex-viz.plugin.rix"), source: complexVizSource, sourcePath: "bundled:complex-viz.plugin.rix" },
     { metadata: readPluginHeader(fractalsSource, "fractals.plugin.rix"), source: fractalsSource, sourcePath: "bundled:fractals.plugin.rix" },
+    { metadata: readPluginHeader(graphSource, "graph.plugin.rix"), source: graphSource, sourcePath: "bundled:graph.plugin.rix" },
+    { metadata: readPluginHeader(combinatoricsSource, "combinatorics.plugin.rix"), source: combinatoricsSource, sourcePath: "bundled:combinatorics.plugin.rix" },
     {
         metadata: readPluginHeader(algebraSource, "algebra.plugin.rix"),
         source: algebraSource,

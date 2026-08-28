@@ -293,13 +293,18 @@ describe("optimize Phase 1 plugin", () => {
             program := .optimize.LinearProgram([3, 2], [1, 1; 1, 0; 0, 1], [4, 2, 3]);
             solved := .optimize.Solve(program);
             unbounded := .optimize.Maximize([1], {:1x1: 0}, [1]);
-            [solved.status, solved.solution, solved.objectiveValue, solved.feasible, unbounded.status];
+            [solved.status, solved.solution, solved.objectiveValue, solved.feasible, unbounded.status,
+             solved[:method],solved[:certificatestatus],solved[:certificate],solved[:diagnostics]];
         `);
         expect(result.values[0].value).toBe("optimal");
         expect(flat(result.values[1])).toEqual(["2", "2"]);
         expect(String(result.values[2])).toBe("10");
         expect(String(result.values[3])).toBe("1");
         expect(result.values[4].value).toBe("unbounded");
+        expect(result.values[5].value).toBe("standardPrimalSimplex");
+        expect(result.values[6].value).toBe("notAvailable");
+        expect(result.values[7]).toBeNull();
+        expect(result.values[8].values.at(-1).value).toMatch(/twoPhase=1/i);
     });
 
     test("keeps evaluation, minimization, and bounded-work results in pure RiX", () => {
@@ -343,7 +348,7 @@ describe("optimize Phase 2 general exact LP", () => {
             minimum := .optimize.LinearProgram([1],{:1x1: 1},[2],{= sense=:min,relations=[:ge] });
             a := equality.Solve({= twoPhase=1 }); b := minimum.Solve();
             {:
-                a[:status],a[:solution],a[:objectivevalue],a[:dualsolution],a[:certificate].Verify(),
+                a[:status],a[:solution],a[:objectivevalue],a[:dualsolution],a[:certificate].Verify(),a[:method],a[:certificatestatus],
                 b[:status],b[:solution],b[:objectivevalue],b[:dualsolution],b[:certificate].Verify()
             };
         `);
@@ -352,11 +357,13 @@ describe("optimize Phase 2 general exact LP", () => {
         expect(String(result.values[2])).toBe("2");
         expect(flat(result.values[3])).toEqual(["0", "1"]);
         expect(String(result.values[4])).toBe("1");
-        expect(result.values[5].value).toBe("optimal");
-        expect(flat(result.values[6])).toEqual(["2"]);
-        expect(String(result.values[7])).toBe("2");
-        expect(flat(result.values[8])).toEqual(["-1"]);
-        expect(String(result.values[9])).toBe("1");
+        expect(result.values[5].value).toBe("twoPhaseExactSimplex");
+        expect(result.values[6].value).toBe("verified");
+        expect(result.values[7].value).toBe("optimal");
+        expect(flat(result.values[8])).toEqual(["2"]);
+        expect(String(result.values[9])).toBe("2");
+        expect(flat(result.values[10])).toEqual(["-1"]);
+        expect(String(result.values[11])).toBe("1");
     });
 
     test("canonicalizes free and bounded variables without losing original coordinates", () => {

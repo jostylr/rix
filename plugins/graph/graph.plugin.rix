@@ -1,0 +1,280 @@
+/**
+id: graph
+description: Exact validated weighted graphs with shortest paths, traversal, components, and topological sorting.
+kind: rix
+mount: graph
+exports: [Weighted, ShortestPaths, ShortestPath, BreadthFirst, ConnectedComponents, TopologicalSort, CheckCertificate]
+groups: [Graph, Algorithms, Exact]
+permissions: []
+provides: [rix.graph@1, rix.graph.algorithms@1]
+schemas: [rix.graph@1, rix.graph.shortest-paths@1, rix.graph.shortest-path@1, rix.graph.certificate@1, rix.graph.traversal@1, rix.graph.components@1, rix.graph.topological-sort@1]
+snapshot: true
+deterministic: true
+defaultEnabled: false
+**/
+
+GraphOption(options,key,fallback ?= _) -> options.Has(key) ?: options[key] ?_ fallback;
+
+GraphRequire(value) ->
+    (value ? :Map) && value[:schema]=="rix.graph@1"
+      ?: value
+      ?_ .Error("Expected a graph.Weighted value");
+
+GraphVertex(graph,vertex,label ?= "Graph vertex") ->
+    graph[:vertices].Includes(vertex)
+      ?: vertex
+      ?_ .Error(@"@{label} is not present in the graph");
+
+GraphWeighted(verticesValue,edgesValue,options ?= {= }) -> {;
+    verticesValue ? :Array ?: _ ?_ .Error("graph.Weighted vertices must be an Array");
+    verticesValue.Len()>0 ?: _ ?_ .Error("graph.Weighted requires at least one vertex");
+    vertices:=[];
+    {@ index=1;index<=@verticesValue.Len();{;
+        vertex=@verticesValue[index];
+        @vertices.Includes(vertex) ?: .Error("graph.Weighted vertex identifiers must be unique") ?_ _;
+        @vertices~=@vertices.Push(vertex);
+    };index+=1};
+    edgesValue ? :Array ?: _ ?_ .Error("graph.Weighted edges must be an Array");
+    edges:=[];
+    {@ index=1;index<=@edgesValue.Len();{;
+        edge=@edgesValue[index];
+        ((edge ? :Array)||(edge ? :Tuple)) && edge.Len()==3
+          ?: _
+          ?_ .Error("Each graph edge must be [from,to,weight]");
+        from=GraphVertex({= vertices=@vertices},edge[1],"Edge source");
+        to=GraphVertex({= vertices=@vertices},edge[2],"Edge target");
+        weight=edge[3] ~!: :Rational;
+        weight!=_ ?: _ ?_ .Error("Graph edge weights must be exact Integers or Rationals");
+        weight>=0 ?: _ ?_ .Error("graph.Weighted does not accept negative weights");
+        @edges~=@edges.Push({= from=from,to=to,weight=weight});
+    };index+=1};
+    directed=GraphOption(options,"directed",0);
+    (directed==0||directed==1) ?: _ ?_ .Error("graph.Weighted directed must be 0 or 1");
+    graph={=
+        valueKind=:weightedGraph,schema="rix.graph@1",vertices=vertices,edges=edges,
+        directed=directed,exact=1
+    };
+    graph._proto={=
+        Vertices=(self)->self[:vertices],Edges=(self)->self[:edges],
+        ShortestPaths=(self,source)->GraphShortestPaths(self,source),
+        BreadthFirst=(self,source)->GraphBreadthFirst(self,source),
+        ConnectedComponents=(self)->GraphConnectedComponents(self),
+        TopologicalSort=(self)->GraphTopologicalSort(self),
+        Record=(self)->{= schema=self[:schema],vertices=self[:vertices],edges=self[:edges],directed=self[:directed]}
+    };
+    .ImmutableValue(graph);
+};
+
+GraphNeighbor(graph,edge,current) ->
+    edge[:from]==current
+      ?: edge[:to]
+      ?_ (graph[:directed]==0 && edge[:to]==current) ?: edge[:from] ?_ _;
+
+GraphEdgeWeight(graph,from,to) -> {;
+    found:=_;
+    {@ index=1;index<=@graph[:edges].Len();{;
+        edge=@graph[:edges][index];
+        matches=edge[:from]==@from&&edge[:to]==@to;
+        reverse=@graph[:directed]==0&&edge[:from]==@to&&edge[:to]==@from;
+        ((matches||reverse)&&(@found==_||edge[:weight]<@found)) ?: {; @found~=@edge[:weight]; } ?_ _;
+    };index+=1};
+    found;
+};
+
+GraphCertificate(graph,source,distances,predecessors) -> {;
+    certificate={=
+        valueKind=:graphCertificate,schema="rix.graph.certificate@1",kind=:shortestPaths,
+        graph=graph,source=source,distances=distances,predecessors=predecessors,exact=1
+    };
+    certificate._proto={= Verify=(self)->GraphCheckCertificate(self),Record=(self)->self};
+    .ImmutableValue(certificate);
+};
+
+GraphCheckCertificate(value) -> {;
+    (value ? :Map)&&value[:schema]=="rix.graph.certificate@1"&&value[:kind]==:shortestPaths
+      ?: _ ?_ .Error("Expected a graph shortest-path certificate");
+    graph=GraphRequire(value[:graph]);source=GraphVertex(graph,value[:source],"Certificate source");
+    distances=value[:distances];predecessors=value[:predecessors];valid:=distances[source]==0;
+    {@ edgeIndex=1;edgeIndex<=@graph[:edges].Len();{;
+        edge=@graph[:edges][edgeIndex];fromDistance=@distances[edge[:from]];toDistance=@distances[edge[:to]];
+        (fromDistance!=_&&toDistance==_) ?: {; @valid~=_; } ?_ _;
+        (@graph[:directed]==0&&fromDistance==_&&toDistance!=_) ?: {; @valid~=_; } ?_ _;
+        (fromDistance!=_&&toDistance!=_&&toDistance>fromDistance+edge[:weight]) ?: {; @valid~=_; } ?_ _;
+        (@graph[:directed]==0&&fromDistance!=_&&toDistance!=_&&fromDistance>toDistance+edge[:weight]) ?: {; @valid~=_; } ?_ _;
+    };edgeIndex+=1};
+    {@ vertexIndex=1;vertexIndex<=@graph[:vertices].Len();{;
+        vertex=@graph[:vertices][vertexIndex];distance=@distances[vertex];
+        (vertex!=@source&&distance!=_) ?: {;
+            predecessor=@predecessors[@vertex];weight=predecessor==_ ?: _ ?_ GraphEdgeWeight(@graph,predecessor,@vertex);
+            (predecessor==_||weight==_||@distances[predecessor]==_||@distance!=@distances[predecessor]+weight)
+              ?: {; @valid~=_; } ?_ _;
+            cursor:=@vertex;steps:=0;
+            {@ chain=1;@cursor!=@source&&@cursor!=_&&@steps<@graph[:vertices].Len();{;
+                @cursor~=@predecessors[@cursor];@steps+=1;
+            };chain+=1};
+            cursor==@source ?: _ ?_ {; @valid~=_; };
+        } ?_ _;
+    };vertexIndex+=1};
+    valid;
+};
+
+GraphShortestPaths(value,sourceValue) -> {;
+    graph=GraphRequire(value);source=GraphVertex(graph,sourceValue,"Shortest-path source");
+    distances:={= };predecessors:={= };visited:=[];settled:=[];
+    {@ index=1;index<=@graph[:vertices].Len();{;
+        vertex=@graph[:vertices][index];@distances~=@distances.Set(vertex,_);@predecessors~=@predecessors.Set(vertex,_);
+    };index+=1};
+    distances~=distances.Set(source,0);
+    {@ step=1;step<=@graph[:vertices].Len();{;
+        current:=_;best:=_;
+        {@ index=1;index<=@graph[:vertices].Len();{;
+            vertex=@graph[:vertices][index];distance=@distances[vertex];
+            (!(@visited.Includes(vertex))&&distance!=_&&(@best==_||distance<@best))
+              ?: {; @current~=@vertex;@best~=@distance; } ?_ _;
+        };index+=1};
+        current!=_ ?: {;
+            @visited~=@visited.Push(@current);@settled~=@settled.Push(@current);
+            {@ edgeIndex=1;edgeIndex<=@graph[:edges].Len();{;
+                edge=@graph[:edges][edgeIndex];neighbor=GraphNeighbor(@graph,edge,@current);
+                (neighbor!=_&&!(@visited.Includes(neighbor))) ?: {;
+                    alternative=@distances[@current]+@edge[:weight];known=@distances[@neighbor];
+                    (known==_||alternative<known) ?: {;
+                        @distances~=@distances.Set(@neighbor,@alternative);
+                        @predecessors~=@predecessors.Set(@neighbor,@current);
+                    } ?_ _;
+                } ?_ _;
+            };edgeIndex+=1};
+        } ?_ _;
+    };step+=1};
+    unreachableVertices:=[];
+    {@ index=1;index<=@graph[:vertices].Len();{;
+        vertex=@graph[:vertices][index];@distances[vertex]==_ ?: {; @unreachableVertices~=@unreachableVertices.Push(@vertex); } ?_ _;
+    };index+=1};
+    result={=
+        valueKind=:graphShortestPaths,schema="rix.graph.shortest-paths@1",graph=graph,
+        source=source,distances=distances,predecessors=predecessors,settledOrder=settled,
+        unreachable=unreachableVertices,algorithm=:dijkstraExactNonnegative,
+        certificate=GraphCertificate(graph,source,distances,predecessors),exact=1
+    };
+    result._proto={=
+        PathTo=(self,target)->GraphShortestPath(self,target),
+        Verify=(self)->self[:certificate].Verify(),Record=(self)->self
+    };
+    .ImmutableValue(result);
+};
+
+GraphShortestPath(paths,targetValue) -> {;
+    (paths ? :Map)&&paths[:schema]=="rix.graph.shortest-paths@1"
+      ?: _ ?_ .Error("graph.ShortestPath expects a ShortestPaths result");
+    target=GraphVertex(paths[:graph],targetValue,"Shortest-path target");distance=paths[:distances][target];
+    distance==_
+      ?: .ImmutableValue({= valueKind=:graphShortestPath,schema="rix.graph.shortest-path@1",status=:unreachable,source=paths[:source],target=target,vertices=[],weight=_,exact=1})
+      ?_ {;
+          reversed:=[@target];cursor:=@target;
+          {@ step=1;@cursor!=@paths[:source]&&step<=@paths[:graph][:vertices].Len();{;
+              @cursor~=@paths[:predecessors][@cursor];@cursor!=_ ?: {; @reversed~=@reversed.Push(@cursor); } ?_ _;
+          };step+=1};
+          cursor==@paths[:source] ?: _ ?_ .Error("Shortest-path predecessor chain is invalid");
+          .ImmutableValue({=
+              valueKind=:graphShortestPath,schema="rix.graph.shortest-path@1",status=:reachable,
+              source=@paths[:source],target=@target,vertices=reversed.Reverse(),weight=@distance,exact=1
+          });
+      };
+};
+
+GraphBreadthFirst(value,sourceValue) -> {;
+    graph=GraphRequire(value);source=GraphVertex(graph,sourceValue,"Breadth-first source");
+    queue:=[source];cursor:=1;order:=[];distances:={= }.Set(source,0);predecessors:={= }.Set(source,_);
+    {@ step=1;@cursor<=@queue.Len();{;
+        current=@queue[@cursor];@cursor+=1;@order~=@order.Push(current);
+        {@ edgeIndex=1;edgeIndex<=@graph[:edges].Len();{;
+            neighbor=GraphNeighbor(@graph,@graph[:edges][edgeIndex],@current);
+            (neighbor!=_&&!(@distances.Has(neighbor))) ?: {;
+                @distances~=@distances.Set(@neighbor,@distances[@current]+1);
+                @predecessors~=@predecessors.Set(@neighbor,@current);@queue~=@queue.Push(@neighbor);
+            } ?_ _;
+        };edgeIndex+=1};
+    };step+=1};
+    unreachable:=[];
+    {@ index=1;index<=@graph[:vertices].Len();{;
+        vertex=@graph[:vertices][index];!(@distances.Has(vertex)) ?: {; @unreachable~=@unreachable.Push(@vertex); } ?_ _;
+    };index+=1};
+    .ImmutableValue({=
+        valueKind=:graphTraversal,schema="rix.graph.traversal@1",kind=:breadthFirst,
+        graph=graph,source=source,order=order,distances=distances,predecessors=predecessors,
+        unreachable=unreachable,exact=1
+    });
+};
+
+GraphComponentFrom(graph,source,seenValue) -> {;
+    queue:=[source];cursor:=1;members:=[];seen:=seenValue;
+    {@ step=1;@cursor<=@queue.Len();{;
+        current=@queue[@cursor];@cursor+=1;
+        !(@seen.Includes(current)) ?: {;
+            @seen~=@seen.Push(@current);@members~=@members.Push(@current);
+            {@ edgeIndex=1;edgeIndex<=@graph[:edges].Len();{;
+                neighbor=GraphNeighbor(@graph,@graph[:edges][edgeIndex],@current);
+                (neighbor!=_&&!(@seen.Includes(neighbor))&&!(@queue.Includes(neighbor))) ?: {; @queue~=@queue.Push(@neighbor); } ?_ _;
+            };edgeIndex+=1};
+        } ?_ _;
+    };step+=1};
+    {= members=members,seen=seen};
+};
+
+GraphConnectedComponents(value) -> {;
+    graph=GraphRequire(value);graph[:directed]==0 ?: _ ?_ .Error("ConnectedComponents requires an undirected graph");
+    seen:=[];components:=[];
+    {@ index=1;index<=@graph[:vertices].Len();{;
+        vertex=@graph[:vertices][index];
+        !(@seen.Includes(vertex)) ?: {;
+            found=GraphComponentFrom(@graph,@vertex,@seen);@seen~=found[:seen];@components~=@components.Push(found[:members]);
+        } ?_ _;
+    };index+=1};
+    .ImmutableValue({= valueKind=:graphComponents,schema="rix.graph.components@1",graph=graph,components=components,count=components.Len(),exact=1});
+};
+
+GraphTopologicalSort(value) -> {;
+    graph=GraphRequire(value);graph[:directed]==1 ?: _ ?_ .Error("TopologicalSort requires a directed graph");
+    indegrees:={= };
+    {@ index=1;index<=@graph[:vertices].Len();{; @indegrees~=@indegrees.Set(@graph[:vertices][index],0); };index+=1};
+    {@ index=1;index<=@graph[:edges].Len();{;
+        target=@graph[:edges][index][:to];@indegrees~=@indegrees.Set(target,@indegrees[target]+1);
+    };index+=1};
+    queue:=[];
+    {@ index=1;index<=@graph[:vertices].Len();{;
+        vertex=@graph[:vertices][index];@indegrees[vertex]==0 ?: {; @queue~=@queue.Push(@vertex); } ?_ _;
+    };index+=1};
+    cursor:=1;order:=[];
+    {@ step=1;@cursor<=@queue.Len();{;
+        current=@queue[@cursor];@cursor+=1;@order~=@order.Push(current);
+        {@ edgeIndex=1;edgeIndex<=@graph[:edges].Len();{;
+            edge=@graph[:edges][edgeIndex];
+            edge[:from]==@current ?: {;
+                next=@edge[:to];@indegrees~=@indegrees.Set(next,@indegrees[next]-1);
+                @indegrees[next]==0 ?: {; @queue~=@queue.Push(@next); } ?_ _;
+            } ?_ _;
+        };edgeIndex+=1};
+    };step+=1};
+    acyclic=order.Len()==graph[:vertices].Len();
+    remaining:=[];
+    {@ index=1;index<=@graph[:vertices].Len();{;
+        vertex=@graph[:vertices][index];@indegrees[vertex]>0 ?: {; @remaining~=@remaining.Push(@vertex); } ?_ _;
+    };index+=1};
+    .ImmutableValue({=
+        valueKind=:graphTopologicalSort,schema="rix.graph.topological-sort@1",
+        graph=graph,status=acyclic ?: :sorted ?_ :cycleDetected,order=order,
+        remaining=remaining,exact=1
+    });
+};
+
+graphNamespace={= };
+graphNamespace._proto={=
+    Weighted=(self,vertices,edges,options ?= {= })->GraphWeighted(vertices,edges,options),
+    ShortestPaths=(self,graph,source)->GraphShortestPaths(graph,source),
+    ShortestPath=(self,paths,target)->GraphShortestPath(paths,target),
+    BreadthFirst=(self,graph,source)->GraphBreadthFirst(graph,source),
+    ConnectedComponents=(self,graph)->GraphConnectedComponents(graph),
+    TopologicalSort=(self,graph)->GraphTopologicalSort(graph),
+    CheckCertificate=(self,certificate)->GraphCheckCertificate(certificate)
+};
+.Host.RegisterValue("graph",graphNamespace,"Exact validated weighted graphs and graph algorithms",["Graph","Algorithms","Exact"]);

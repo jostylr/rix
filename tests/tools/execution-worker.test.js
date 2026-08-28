@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { createDefaultSystemContext } from "../../src/eval/evaluator.js";
 import { createExecutionSession, RIX_EXECUTION_PROTOCOL } from "../../src/tools/execution/worker.js";
 import { createStandardSystemContext, STANDARD_CAPABILITY_NAMES } from "../../src/tools/execution/standard-policy.js";
+import { PluginCatalog } from "../../src/runtime/plugin-catalog.js";
 
 describe("RiX editor execution worker", () => {
     test("emits ordered source-linked success events", async () => {
@@ -107,5 +108,65 @@ describe("RiX editor execution worker", () => {
         }
         expect(standard.has("Add")).toBe(true);
         expect(standard.has("Exact")).toBe(true);
+    });
+
+    test("preloads only host-approved source-header plugins and still withholds dynamic loading", async () => {
+        const events = [];
+        const session = createExecutionSession({ emit: (event) => events.push(event) });
+        await session.run({
+            command: "run", requestId: "approved-plugin", uri: "file:///plugin.rix",
+            plugins: ["linalg"],
+            source: `/**
+plugins: [linalg]
+**/
+.linalg.Determinant([1,2;3,4]) ##@ == -2;`,
+        });
+        expect(events.at(-1)).toMatchObject({ kind: "run-end", payload: { state: "passed" } });
+        expect(events[0].payload.plugins.loaded).toEqual(["poly", "linalg"]);
+
+        await session.run({
+            command: "run", requestId: "dynamic-load", uri: "file:///dynamic.rix",
+            plugins: ["linalg"], source: `.Plugin.Load("geometry");`,
+        });
+        expect(events.find(({ requestId, kind }) => requestId === "dynamic-load" && kind === "diagnostic")?.payload.message)
+            .toMatch(/Plugin|capability/i);
+        expect(events.findLast(({ requestId, kind }) => requestId === "dynamic-load" && kind === "run-end")?.payload.state)
+            .toBe("failed");
+
+        await session.run({
+            command: "run", requestId: "approved-host-plugin", uri: "file:///data.rix",
+            plugins: ["data"],
+            source: `/**\nplugins: [data]\n**/\n.data.Rows(.data.Relation(["x"],[[1]])).Len() ##@ == 1;`,
+        });
+        expect(events.findLast(({ requestId, kind }) => requestId === "approved-host-plugin" && kind === "run-end")?.payload.state)
+            .toBe("passed");
+    });
+
+    test("rejects unapproved headers and permission-bearing plugin manifests before evaluation", async () => {
+        const events = [];
+        const session = createExecutionSession({
+            emit: (event) => events.push(event),
+            createPluginCatalog() {
+                const catalog = new PluginCatalog();
+                catalog.addMetadata({
+                    id: "unsafe-editor", description: "permission test", kind: "host", mount: "unsafeEditor",
+                    exports: [], groups: [], permissions: ["net"], provides: [], schemas: [],
+                }, { kind: "host" });
+                return catalog;
+            },
+        });
+        await session.run({
+            command: "run", requestId: "header-denied", uri: "file:///denied.rix",
+            source: `/**\nplugins: [linalg]\n**/\n1;`,
+        });
+        expect(events.find(({ requestId, kind }) => requestId === "header-denied" && kind === "diagnostic")?.payload.message)
+            .toMatch(/host did not approve/i);
+
+        await session.run({
+            command: "run", requestId: "permission-denied", uri: "file:///unsafe.rix",
+            plugins: ["unsafe-editor"], source: "1;",
+        });
+        expect(events.find(({ requestId, kind }) => requestId === "permission-denied" && kind === "diagnostic")?.payload.message)
+            .toMatch(/forbidden permissions.*net/i);
     });
 });

@@ -182,13 +182,15 @@ function namespaceEntry(context, namespace) {
                 },
                 doc,
             };
+            const owner = evaluationContext?.getEnv?.("__plugin_owner__", null);
+            const registration = { namespace, groups, pluginId: owner?.pluginId || null };
             const register = namespace === "core" ? registryContext.registerTrusted.bind(registryContext) : registryContext.registerHost.bind(registryContext);
-            register(name, definition, { namespace, groups });
+            register(name, definition, registration);
             // A plugin attached by an imported script is global to its host,
             // but it must also be visible in that script's already-derived
             // capability frame for the remainder of the script.
             if (namespace === "host" && registryContext !== context) {
-                context.registerHost(name, definition, { namespace, groups });
+                context.registerHost(name, definition, registration);
             }
             return stringValue(name);
         },
@@ -205,14 +207,16 @@ function namespaceEntry(context, namespace) {
             const registeredValue = args[2];
             const doc = args[3]?.type === "string" ? args[3].value : "";
             const groups = rixStringList(args[4], `.${title}.RegisterValue groups`);
+            const owner = evaluationContext?.getEnv?.("__plugin_owner__", null);
+            const registration = { namespace, doc, groups, pluginId: owner?.pluginId || null };
             if (namespace === "core") {
-                context.registerValue(name, registeredValue, { namespace, doc, groups });
+                context.registerValue(name, registeredValue, registration);
             } else {
-                registryContext.registerHostValue(name, registeredValue, { namespace, doc, groups });
+                registryContext.registerHostValue(name, registeredValue, registration);
                 // Keep the newly registered value visible inside a derived
                 // plugin/script capability frame for the rest of that source.
                 if (registryContext !== context) {
-                    context.registerHostValue(name, registeredValue, { namespace, doc, groups });
+                    context.registerHostValue(name, registeredValue, registration);
                 }
             }
             return stringValue(name);
@@ -236,12 +240,14 @@ function namespaceEntry(context, namespace) {
                 },
                 doc,
             };
+            const owner = evaluationContext?.getEnv?.("__plugin_owner__", null);
+            const registration = { namespace, doc, groups, pluginId: owner?.pluginId || null };
             if (namespace === "core") {
-                context.registerCallableValue(name, callableValue, definition, { namespace, doc, groups });
+                context.registerCallableValue(name, callableValue, definition, registration);
             } else {
-                registryContext.registerHostCallableValue(name, callableValue, definition, { namespace, doc, groups });
+                registryContext.registerHostCallableValue(name, callableValue, definition, registration);
                 if (registryContext !== context) {
-                    context.registerHostCallableValue(name, callableValue, definition, { namespace, doc, groups });
+                    context.registerHostCallableValue(name, callableValue, definition, registration);
                 }
             }
             return stringValue(name);
@@ -570,6 +576,8 @@ export class SystemContext {
             namespace,
             displayName: options.displayName || name,
             groups: [...new Set(options.groups || [])],
+            pluginId: options.pluginId || null,
+            pluginDisabled: options.pluginDisabled === true,
         };
         this._capabilities.set(normalised, entry);
         this._addEntryToGroups(normalised, entry.groups);
