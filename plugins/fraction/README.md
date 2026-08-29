@@ -85,4 +85,22 @@ whole := .fraction.Interval(.fraction.Infinity(-1), .fraction.Infinity());
 The exceptional mediant of `[-1/0,1/0]` is the signed-tree root `0/1`. A zero
 sign and the indeterminate pair `0/0` are always rejected.
 
+## Continued fractions and bounded Farey search
+
+`value.ContinuedFraction()` (or `.fraction.ContinuedFraction(value)`) returns
+a finite `rix.fraction.continued-fraction@1` adapter. It retains the written
+numerator and denominator alongside the reduced exact value and Euclidean
+coefficients. `.fraction.FromContinuedFraction(source)` accepts that adapter or
+a finite `rix.continued-fraction.finite@1` value without importing the
+continued-fraction plugin. Its exact result record includes the reconstructed
+Fraction, source, recurrence evidence, and component provenance.
+When `.continuedFraction` is loaded, its callable constructor accepts the
+adapter directly and retains that provenance as transformation evidence.
+
+`FareySearch(value,{= maxSteps=...,maxDenominator=... })` walks the signed
+Stern–Brocot/Farey tree deterministically. It returns `:found`,
+`:budgetExhausted`, or `:denominatorLimit`, plus the best reached Fraction,
+path, exact bounds, every attempted mediant, and the target's original written
+pair. A bounded miss is ordinary inspectable output rather than an exception.
+
 See [tutorial.md](tutorial.md).

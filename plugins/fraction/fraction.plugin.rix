@@ -4,11 +4,11 @@ description: Representation-sensitive fractions, fraction intervals, mediants, a
 kind: rix
 mount: fraction
 aliases: [frac, f]
-exports: [Fraction, Interval, Infinity, Parse, FromSternBrocotPath]
+exports: [Fraction, Interval, Infinity, Parse, FromSternBrocotPath, ContinuedFraction, FromContinuedFraction, FareySearch]
 groups: [Algebra, Exact, Symbolic]
 permissions: []
-provides: [rix.fraction@1, rix.fraction-interval@1]
-schemas: [rix.fraction@1, rix.fraction-interval@1]
+provides: [rix.fraction@1, rix.fraction-interval@1, rix.fraction-cf-adapter@1]
+schemas: [rix.fraction@1, rix.fraction-interval@1, rix.fraction.continued-fraction@1, rix.fraction.continued-fraction-result@1, rix.fraction.farey-search@1]
 snapshot: true
 deterministic: true
 defaultEnabled: false
@@ -18,6 +18,8 @@ FractionInteger(value, label) -> {;
     exact = value ~!: :Integer;
     exact == _ ?: .Error(@"@{label} must be an exact integer") ?_ exact;
 };
+
+FractionOption(options, key, fallback) -> options.Has(key) ?: options[key] ?_ fallback;
 
 FractionParts(value) -> .SArith.FractionParts(value);
 FractionNumerator(value) -> FractionParts(value)[1];
@@ -274,6 +276,131 @@ FractionRecord(value) -> {;
     };
 };
 
+FractionContinuedFraction(value) -> {;
+    source = FractionFinite(value);
+    reduced = FractionReduce(source);
+    exact = FractionNumerator(reduced) / FractionDenominator(reduced);
+    {=
+        valueKind=:fractionContinuedFraction,
+        schema="rix.fraction.continued-fraction@1",
+        kind=:finite,
+        coefficients=exact.ToContinuedFraction(),
+        length=exact.ToContinuedFraction().Len(),
+        exactValue=exact,
+        sourceFraction=source,
+        componentProvenance={=
+            numerator=FractionNumerator(source),
+            denominator=FractionDenominator(source),
+            reducedNumerator=FractionNumerator(reduced),
+            reducedDenominator=FractionDenominator(reduced)
+        },
+        evidence={= kind=:euclideanAlgorithm, property=:exactFiniteContinuedFraction }
+    };
+};
+
+FractionFromContinuedFraction(source, options ?= {= }) -> {;
+    schema = source[:schema];
+    finite = schema == "rix.fraction.continued-fraction@1" ||
+      schema == "rix.continued-fraction.finite@1" ||
+      (source[:valueKind] == :continuedFraction && source[:kind] == :finite);
+    finite ?: _ ?_ .Error("FromContinuedFraction requires a finite continued-fraction protocol value");
+    coefficients = source[:coefficients];
+    coefficients.Len() >= 1 ?: _ ?_ .Error("Finite continued fraction requires at least one coefficient");
+    p0 := 0;
+    p1 := 1;
+    q0 := 1;
+    q1 := 0;
+    {@ index=1; index<=@coefficients.Len(); {;
+        coefficient = FractionInteger((@coefficients)[index], "Continued-fraction coefficient");
+        index == 1 || coefficient > 0
+          ?: _ ?_ .Error("Continued-fraction tail coefficients must be positive integers");
+        nextP = coefficient*@p1+@p0;
+        nextQ = coefficient*@q1+@q0;
+        @p0 = @p1;
+        @p1 = nextP;
+        @q0 = @q1;
+        @q1 = nextQ;
+    }; index+=1 };
+    fraction = FractionRaw(p1,q1);
+    {=
+        valueKind=:fractionContinuedFractionResult,
+        schema="rix.fraction.continued-fraction-result@1",
+        status=:exact,
+        fraction=fraction,
+        coefficients=coefficients,
+        source=source,
+        componentProvenance={=
+            numerator=p1,
+            denominator=q1,
+            policy=FractionOption(options,"policy",:convergentComponents),
+            sourceSchema=schema
+        },
+        evidence={= kind=:continuantRecurrence, property=:exactConvergent }
+    };
+};
+
+FractionFareySearch(value, options ?= {= }) -> {;
+    target = FractionFinite(value,"Farey search target");
+    reducedTarget = FractionReduce(target);
+    maxSteps = FractionInteger(FractionOption(options,"maxsteps",100),"Farey search maxSteps");
+    maxDenominator = FractionInteger(FractionOption(options,"maxdenominator",1000),"Farey search maxDenominator");
+    maxSteps >= 0 ?: _ ?_ .Error("Farey search maxSteps must be nonnegative");
+    maxDenominator >= 1 ?: _ ?_ .Error("Farey search maxDenominator must be positive");
+    left := FractionRaw(-1,0);
+    right := FractionRaw(1,0);
+    current := FractionRaw(0,1);
+    path := [];
+    trace := [];
+    steps := 0;
+    found := FractionCompare(current,reducedTarget) == 0;
+    blocked := _;
+    {@ iteration=1; !@found && !@blocked && @steps<@maxSteps; {;
+        direction = FractionCompare(@reducedTarget,@current) < 0 ?: "L" ?_ "R";
+        next = direction == "L"
+          ?: FractionMediant(@left,@current)
+          ?_ FractionMediant(@current,@right);
+        permitted = FractionDenominator(next) <= @maxDenominator;
+        @trace = @trace.Push({=
+            step=iteration,
+            direction=direction,
+            candidate=next,
+            permitted=permitted,
+            left=@left,
+            right=@right
+        });
+        permitted
+          ?: {;
+              @path = @path.Push(@direction);
+              @right = @direction == "L" ?: @current ?_ @right;
+              @left = @direction == "R" ?: @current ?_ @left;
+              @current = @next;
+              @steps += 1;
+              @found = FractionCompare(@current,@reducedTarget) == 0;
+          }
+          ?_ {; @blocked = 1; };
+    }; iteration+=1 };
+    status = found ?: :found ?_ (blocked ?: :denominatorLimit ?_ :budgetExhausted);
+    {=
+        valueKind=:fractionFareySearch,
+        schema="rix.fraction.farey-search@1",
+        status=status,
+        target=target,
+        reducedTarget=reducedTarget,
+        result=current,
+        exact=found,
+        path=path,
+        bounds=FractionIntervalRaw(left,right),
+        trace=trace,
+        work={= steps=steps,maxSteps=maxSteps,maxDenominator=maxDenominator,exhausted=!found },
+        componentProvenance={=
+            numerator=FractionNumerator(target),
+            denominator=FractionDenominator(target),
+            reducedNumerator=FractionNumerator(reducedTarget),
+            reducedDenominator=FractionDenominator(reducedTarget)
+        }
+    };
+};
+
 FractionString(value) -> {;
     numerator = FractionNumerator(value);
     denominator = FractionDenominator(value);
@@ -402,6 +529,8 @@ FractionF = (value) -> FractionPromote(value);
 .Host.RegisterMethod("Fraction", "IsInfinite", (value)->FractionIsInfinite(value) ?: 1 ?_ _, "fraction", "fraction");
 .Host.RegisterMethod("Fraction", "ToString", FractionString, "fraction", "fraction");
 .Host.RegisterMethod("Fraction", "Record", FractionRecord, "fraction", "fraction");
+.Host.RegisterMethod("Fraction", "ContinuedFraction", FractionContinuedFraction, "fraction", "fraction");
+.Host.RegisterMethod("Fraction", "FareySearch", FractionFareySearch, "fraction", "fraction");
 .Host.RegisterMethod("FractionInterval", "Low", FractionIntervalLow, "fraction", "fraction");
 .Host.RegisterMethod("FractionInterval", "High", FractionIntervalHigh, "fraction", "fraction");
 .Host.RegisterMethod("FractionInterval", "Mediant", FractionIntervalMediant, "fraction", "fraction");
@@ -426,7 +555,10 @@ fractionNamespace._proto = {=
     Fraction = (self, first, second ?= _) -> second == _ ?: FractionPromote(first) ?_ FractionRaw(first,second),
     Interval = (self, first, second) -> FractionIntervalRaw(first,second),
     Infinity = (self, sign ?= 1) -> FractionInfinity(sign),
-    FromSternBrocotPath = (self, path) -> FractionFromPath(path)
+    FromSternBrocotPath = (self, path) -> FractionFromPath(path),
+    ContinuedFraction = (self, value) -> FractionContinuedFraction(value),
+    FromContinuedFraction = (self, source, options ?= {= }) -> FractionFromContinuedFraction(source,options),
+    FareySearch = (self, value, options ?= {= }) -> FractionFareySearch(value,options)
 };
 
 .Host.RegisterCallableValue("fraction", fractionNamespace, "Representation-sensitive unreduced fractions", ["Algebra", "Exact", "Symbolic"]);

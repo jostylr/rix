@@ -105,3 +105,45 @@ whole := .fraction.Interval(
 
 Calling `whole.RationalInterval()` is intentionally an error because core
 RationalInterval has only finite Rational endpoints. `0/0` is never admitted.
+
+## Round-trip through a finite continued fraction
+
+The adapter keeps the original written pair even though continued-fraction
+coefficients describe its reduced value:
+
+```rix
+.Plugin.Load("fraction");
+written := .frac(42,56);
+adapter := written.ContinuedFraction();
+restored := .fraction.FromContinuedFraction(adapter);
+{: adapter[:coefficients],adapter[:componentProvenance],restored[:fraction] };
+```
+
+It also consumes the finite protocol owned by `.continuedFraction`:
+
+```rix
+.Plugin.Load("continued-fraction");
+external := .continuedFraction.FromRational(7/11);
+.fraction.FromContinuedFraction(external);
+```
+
+The other direction is direct as well:
+
+```rix
+asContinuedFraction := .continuedFraction(adapter);
+{: asContinuedFraction.Value(),asContinuedFraction.Record()[:evidence] };
+```
+
+## Bound a Farey search
+
+```rix
+found := .fraction.FareySearch(.frac(42,56),
+  {= maxSteps=20,maxDenominator=20 });
+partial := .fraction.FareySearch(.frac(355,113),
+  {= maxSteps=3,maxDenominator=1000 });
+{: found[:status],found[:path],found[:componentProvenance],
+   partial[:status],partial[:result],partial[:bounds] };
+```
+
+The partial result remains usable and its trace records every represented
+mediant considered before the explicit work limit.

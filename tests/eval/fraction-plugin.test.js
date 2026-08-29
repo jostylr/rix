@@ -165,4 +165,57 @@ describe("representation-sensitive Fraction plugin", () => {
             .fraction.Interval(.fraction.Infinity(-1), .frac(1,2)).RationalInterval();
         `)).toThrow("unbounded FractionInterval");
     });
+
+    test("Phase 3 round-trips finite continued fractions with component provenance", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("fraction");
+            source := .frac(42,56);
+            adapter := source.ContinuedFraction();
+            restored := .fraction.FromContinuedFraction(adapter);
+            .Plugin.Load("continued-fraction");
+            external := .fraction.FromContinuedFraction(.continuedFraction.FromRational(7/11));
+            adaptedCf := .continuedFraction(adapter);
+            {: adapter,restored,external,adaptedCf.Value(),adaptedCf.Record() };
+        `);
+        const [adapter, restored, external, adaptedValue, adaptedRecord] = result.values;
+        expect(adapter.entries.get("schema").value).toBe("rix.fraction.continued-fraction@1");
+        expect(adapter.entries.get("coefficients").values.map(String)).toEqual(["0", "1", "3"]);
+        expect(String(adapter.entries.get("sourcefraction"))).toBe("42/56");
+        expect(String(restored.entries.get("fraction"))).toBe("3/4");
+        expect(restored.entries.get("componentprovenance").entries.get("numerator").value).toBe(3n);
+        expect(String(external.entries.get("fraction"))).toBe("7/11");
+        expect(external.entries.get("componentprovenance").entries.get("sourceschema").value)
+            .toBe("rix.continued-fraction.finite@1");
+        expect(String(adaptedValue)).toBe("3/4");
+        expect(adaptedRecord.entries.get("evidence").entries.get("kind").value)
+            .toBe("fractionContinuedFractionAdapter");
+
+        expect(() => parseAndEvaluate(`
+            .Plugin.Load("fraction");
+            .fraction.FromContinuedFraction({=
+                schema="rix.fraction.continued-fraction@1",coefficients=[1,0]
+            });
+        `)).toThrow("tail coefficients must be positive");
+    });
+
+    test("Phase 3 Farey search is bounded and retains the written target pair", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("fraction");
+            found := .fraction.FareySearch(.frac(42,56),{= maxSteps=20,maxDenominator=20 });
+            exhausted := .fraction.FareySearch(.frac(355,113),{= maxSteps=3,maxDenominator=1000 });
+            limited := .fraction.FareySearch(.frac(355,113),{= maxSteps=100,maxDenominator=5 });
+            {: found,exhausted,limited };
+        `);
+        const [found, exhausted, limited] = result.values;
+        expect(found.entries.get("status").value).toBe("found");
+        expect(String(found.entries.get("result"))).toBe("3/4");
+        expect(found.entries.get("path").values.map((value) => value.value).join("")).toBe("RLRR");
+        const provenance = found.entries.get("componentprovenance").entries;
+        expect([provenance.get("numerator").value, provenance.get("denominator").value]).toEqual([42n, 56n]);
+        expect(found.entries.get("trace").values.every((step) => step.entries.get("candidate") instanceof Fraction)).toBe(true);
+        expect(exhausted.entries.get("status").value).toBe("budgetExhausted");
+        expect(exhausted.entries.get("work").entries.get("steps").value).toBe(3n);
+        expect(limited.entries.get("status").value).toBe("denominatorLimit");
+        expect(limited.entries.get("exact")).toBeNull();
+    });
 });

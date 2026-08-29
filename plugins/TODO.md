@@ -577,7 +577,7 @@ tracked in
      render them as `-1/0` or `1/0`, reject their conversion to RationalInterval,
      and continue rejecting `0/0` at the trusted construction bridge.
 3. **Phase 3 — Representation-aware algorithms**
-   - [ ] Add continued-fraction/Farey interoperability and bounded searches
+   - [x] Add continued-fraction/Farey interoperability and bounded searches
      that retain component provenance.
 4. **Phase 4 — Evidence and interchange**
    - [ ] Add portable representations and verification records for fraction

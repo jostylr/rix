@@ -623,9 +623,18 @@ CFFromRefinable(value, options ?= {= }) -> {;
 
 CFConstruct(value, options ?= {= }) -> {;
     alreadyContinuedFraction = value ? :Map ?: value[:valueKind] == :continuedFraction ?_ _;
+    fractionAdapter = (value ? :Map) && value[:schema] == "rix.fraction.continued-fraction@1";
     alreadyContinuedFraction
       ?: value
-      ?_ (value ? :Array ?: CFFinite(value, options) ?_ CFFromRational(value, options));
+      ?_ (fractionAdapter
+           ?: CFFinite(value[:coefficients], options.Merge({=
+               evidence={=
+                   kind=:fractionContinuedFractionAdapter,
+                   property=:exactRationalValue,
+                   source=value[:componentProvenance]
+               }
+           }))
+           ?_ (value ? :Array ?: CFFinite(value, options) ?_ CFFromRational(value, options)));
 };
 
 CFRequireCoefficientStream(real, label ?= "Continued-fraction operation") -> {;
