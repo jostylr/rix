@@ -258,14 +258,14 @@ newline normalization.
    - [x] Implement coarse oracles and distinguish `eta` resolution from host
      resource exhaustion.
 3. **Phase 3 — Ordering, arithmetic, and evidence**
-   - [ ] Implement epsilon-trichotomy, compatibility, and bounded comparison.
-   - [ ] Implement funnel negation, addition, multiplication, reciprocal, and
+   - [x] Implement epsilon-trichotomy, compatibility, and bounded comparison.
+   - [x] Implement funnel negation, addition, multiplication, reciprocal, and
      division.
    - [x] Implement bounded immutable Oracle enclosure recipes for negation,
      absolute value, addition, subtraction, multiplication, division, and
      integer powers, with actualized trace steps.
-   - [ ] Add testing/nth-root oracles under explicit uniqueness evidence.
-   - [ ] Represent equivalence, Yes/No, root, and property evidence without
+   - [x] Add testing/nth-root oracles under explicit uniqueness evidence.
+   - [x] Represent equivalence, Yes/No, root, and property evidence without
      promoting finite sampling to proof.
 4. **Phase 4 — Completed relations and proof integration**
    - [ ] Add rational betweenness relation and maximal-fonsi proof adapters.

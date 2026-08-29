@@ -3,11 +3,11 @@ id: oracle
 description: Exact rational-betweenness oracles, certified refinement funnels, and coarse eta-resolution models.
 kind: rix
 mount: oracle
-exports: [Rational, Coarse, From, Operation, ToFunnel, FromFunnel, FunnelRefine, NthRootFunnel, NthRoot, Cauchy, Query, Answer, Decision, Prophecy, WorkPolicy, Evidence, Ask, AskAll, CheckRange, Refine]
+exports: [Rational, Coarse, From, Operation, Negate, Add, Subtract, Multiply, Reciprocal, Divide, FunnelOperation, ToFunnel, FromFunnel, FunnelRefine, NthRootFunnel, NthRoot, Cauchy, Testing, Query, Answer, Decision, Prophecy, WorkPolicy, Evidence, TruthEvidence, RootEvidence, PropertyEvidence, Compatible, Equivalent, CompareWithin, Ask, AskAll, CheckRange, Refine]
 groups: [Numerics, Exact]
 permissions: []
 provides: [rix.oracle@1, rix.enclosable-real@1]
-schemas: [rix.oracle@1, rix.oracle.query@1, rix.oracle.answer@1, rix.oracle.prophecy@1, rix.oracle.refinement@1, rix.oracle.funnel@1]
+schemas: [rix.oracle@1, rix.oracle.query@1, rix.oracle.answer@1, rix.oracle.prophecy@1, rix.oracle.refinement@1, rix.oracle.funnel@1, rix.oracle.comparison@1, rix.oracle.equivalence@1, rix.oracle.truth-evidence@1, rix.oracle.root-evidence@1, rix.oracle.property-evidence@1]
 defaultEnabled: false
 **/
 
@@ -88,6 +88,58 @@ OracleEvidence(property, level, subject, witness ?= _, diagnostics ?= []) -> {=
     subject = subject,
     witness = witness,
     diagnostics = diagnostics
+};
+
+OracleTruthEvidence(status, property, subject, witness ?= _, level ?= :observed) -> {;
+    {| :yes, :no, :undecided |}.Has(status)
+      ?: {=
+          valueKind=:oracleTruthEvidence,
+          schema="rix.oracle.truth-evidence@1",
+          status=status,
+          property=property,
+          subject=subject,
+          witness=witness,
+          level=level,
+          certified=(status != :undecided) && (level == :proof || level == :constructorGuarantee)
+      }
+      ?_ .Error("Oracle truth evidence status must be :yes, :no, or :undecided");
+};
+
+OraclePropertyEvidence(property, subject, witness ?= _, level ?= :observed) -> {=
+    valueKind=:oraclePropertyEvidence,
+    schema="rix.oracle.property-evidence@1",
+    property=property,
+    subject=subject,
+    witness=witness,
+    level=level,
+    certified=level == :proof || level == :constructorGuarantee
+};
+
+OracleRootEvidence(options) -> {;
+    domain = AsInterval(options[:domain]);
+    level = Option(options, "level", :assumed);
+    rootExists = Option(options, "rootexists", _);
+    unique = Option(options, "unique", _);
+    continuous = Option(options, "continuous", _);
+    endpointSigns = Option(options, "endpointsigns", _);
+    signsComplete = endpointSigns != _ && endpointSigns.Len() == 2 &&
+      {| :negative, :zero, :positive |}.Has(endpointSigns[1]) &&
+      {| :negative, :zero, :positive |}.Has(endpointSigns[2]) &&
+      (endpointSigns[1] == :zero || endpointSigns[2] == :zero || endpointSigns[1] != endpointSigns[2]);
+    complete = rootExists && unique && continuous && signsComplete;
+    {=
+        valueKind=:oracleRootEvidence,
+        schema="rix.oracle.root-evidence@1",
+        property=:uniqueRoot,
+        domain=domain,
+        rootExists=rootExists,
+        unique=unique,
+        continuous=continuous,
+        endpointSigns=endpointSigns,
+        level=level,
+        certified=complete && (level == :proof || level == :constructorGuarantee),
+        source=Option(options, "source", :declaredEvidence)
+    };
 };
 
 OracleQuery(interval, delta, auxiliary ?= _) -> {;
@@ -250,6 +302,134 @@ OracleOperation(operation, left, right ?= _) -> {?
     operation == :div ? BuildArithmeticOracle(:div, left, right);
     operation == :pow ? BuildArithmeticOracle(:pow, left, right);
     .Error("Unsupported Oracle arithmetic operation")
+};
+
+OracleNamedReciprocal(value) -> OracleOperation(:div, 1, value);
+
+OracleFunnelOperation(operation, left, right ?= _, options ?= {= }) ->
+    BuildProviderFunnel(OracleOperation(operation, left, right), options.Set("name", :arithmeticFunnel));
+
+BuildTestingOracle(spec) -> {;
+    F = spec[:function];
+    evidence = spec[:rootEvidence];
+    evidence[:schema] == "rix.oracle.root-evidence@1"
+      ?: _ ?_ .Error("Oracle Testing requires rix.oracle.root-evidence@1 rootEvidence");
+    evidence[:certified]
+      ?: _ ?_ .Error("Oracle Testing requires explicit proof or constructor-guarantee uniqueness evidence");
+    domain = AsInterval(spec[:domain]);
+    evidenceDomain = evidence[:domain];
+    domain.Low() == evidenceDomain.Low() && domain.High() == evidenceDomain.High()
+      ?: _ ?_ .Error("Oracle Testing domain must match its root evidence domain");
+    lowValue = F(domain.Low()) ~!: :Rational;
+    highValue = F(domain.High()) ~!: :Rational;
+    lowValue == 0 || highValue == 0 || lowValue * highValue < 0
+      ?: _ ?_ .Error("Oracle Testing evidence requires endpoint values that bracket a root");
+    real = {=
+        valueKind=:oracle,
+        schema="rix.oracle@1",
+        kind=:testingRoot,
+        constructor=:testingRoot,
+        procedure=:evidenceBisection,
+        parameters={= function=F, domain=domain, rootEvidence=evidence },
+        declaredProperties=[:range, :existence, :separation, :consistency, :singularity, :closure, :uniqueRoot],
+        provenance={= plugin=:oracle, version=3, source=:testingRoot, evidence=evidence }
+    };
+    real._proto = {=
+        Enclose=(self, request ?= {= })->OracleProtocolEnclose(self, request, :enclose),
+        Refine=(self, request ?= {= })->OracleProtocolEnclose(self, request, :refine),
+        NumericsCapabilities=(self)->OracleNumericsCapabilities(self)
+    };
+    .ImmutableValue(real ~!: :Oracle);
+};
+
+OracleCompatible(left, right) -> {;
+    leftInterval = (left ? :Map) && left[:valueKind] == :oracleProphecy ?: left[:interval] ?_ AsInterval(left);
+    rightInterval = (right ? :Map) && right[:valueKind] == :oracleProphecy ?: right[:interval] ?_ AsInterval(right);
+    compatible = leftInterval.Overlaps(rightInterval);
+    OracleTruthEvidence(
+        compatible ?: :yes ?_ :no,
+        :prophecyCompatibility,
+        [left, right],
+        {= left=leftInterval, right=rightInterval, intersection=compatible ?: leftInterval.Intersection(rightInterval) ?_ _ },
+        :proof
+    );
+};
+
+OracleCompareWithin(left, right, epsilon, options ?= {= }) -> {;
+    target = RequirePositive(epsilon, "Oracle comparison epsilon");
+    policy = OracleWorkPolicy(options);
+    leftReal = OracleFrom(left);
+    rightReal = OracleFrom(right);
+    leftBudget = policy[:maxCalls] // 2;
+    rightBudget = policy[:maxCalls] - leftBudget;
+    leftResult = OracleOperandRefinement(leftReal, target / 4, leftBudget, policy[:trace]);
+    rightResult = OracleOperandRefinement(rightReal, target / 4, rightBudget, policy[:trace]);
+    a = leftResult[:interval];
+    b = rightResult[:interval];
+    separatedLeft = a.High() < b.Low();
+    separatedRight = b.High() < a.Low();
+    hull = (.Min(a.Low(), b.Low())):(.Max(a.High(), b.High()));
+    compatible = !separatedLeft && !separatedRight && hull.Width() <= target;
+    status = separatedLeft ?: :less ?_ (separatedRight ?: :greater ?_ (compatible ?: :compatible ?_ :undecided));
+    evidenceLevel = OracleWeakerEvidence(leftResult[:evidenceLevel], rightResult[:evidenceLevel]);
+    {=
+        valueKind=:oracleComparison,
+        schema="rix.oracle.comparison@1",
+        status=status,
+        epsilon=target,
+        left=leftReal,
+        right=rightReal,
+        leftInterval=a,
+        rightInterval=b,
+        commonInterval=compatible ?: hull ?_ _,
+        certified=(status == :less || status == :greater || status == :compatible) && leftResult[:certified] && rightResult[:certified],
+        evidenceLevel=evidenceLevel,
+        evidence=OracleTruthEvidence(
+            status == :undecided ?: :undecided ?_ :yes,
+            status == :compatible ?: :epsilonCompatibility ?_ :strictOrdering,
+            [leftReal, rightReal],
+            {= status=status, left=a, right=b, epsilon=target },
+            evidenceLevel
+        ),
+        work={=
+            calls=Option(leftResult[:work], "calls", 0) + Option(rightResult[:work], "calls", 0),
+            maxCalls=policy[:maxCalls],
+            exhausted=status == :undecided && (
+                Option(leftResult[:work], "exhausted", _) || Option(rightResult[:work], "exhausted", _)
+            )
+        },
+        diagnostics=status == :undecided ?: [:comparisonResolutionNotReached] ?_ []
+    };
+};
+
+OracleEquivalent(left, right, options ?= {= }) -> {;
+    epsilon = RequirePositive(Option(options, "epsilon", 1/1000), "Oracle equivalence epsilon");
+    a = OracleFrom(left);
+    b = OracleFrom(right);
+    bothExact = a[:constructor] == :rational && b[:constructor] == :rational;
+    exactEqual = bothExact && a[:parameters][:value] == b[:parameters][:value];
+    comparison = bothExact ?: _ ?_ OracleCompareWithin(a, b, epsilon, options);
+    status = bothExact
+      ?: (exactEqual ?: :equal ?_ :different)
+      ?_ ((comparison[:status] == :less || comparison[:status] == :greater) ?: :different ?_ :undecided);
+    level = bothExact ?: :proof ?_ comparison[:evidenceLevel];
+    {=
+        valueKind=:oracleEquivalence,
+        schema="rix.oracle.equivalence@1",
+        status=status,
+        left=a,
+        right=b,
+        epsilon=epsilon,
+        comparison=comparison,
+        certified=status == :equal || status == :different,
+        evidence=OracleTruthEvidence(
+            status == :equal ?: :yes ?_ (status == :different ?: :no ?_ :undecided),
+            :equivalence,
+            [a,b],
+            bothExact ?: {= exactLeft=a[:parameters][:value], exactRight=b[:parameters][:value] } ?_ comparison,
+            level
+        )
+    };
 };
 
 OracleCertifiedRefinableSource(source, label ?= "Oracle funnel source") -> {;
@@ -661,7 +841,9 @@ OracleAsk(real, interval, delta, auxiliary ?= _) -> {;
        };
        real[:kind] == :funnel ? OracleAskFunnel(real, query);
        real[:kind] == :coarse ? OracleAskCoarse(real, query);
-       .Error("Ask requires a rational, funnel-derived, or coarse Oracle")
+       (real[:kind] == :adapter || real[:kind] == :arithmetic || real[:kind] == :testingRoot)
+         ? OracleAskRefinable(real, query);
+       .Error("Ask requires a rational, refinable, funnel-derived, or coarse Oracle")
     };
 };
 
@@ -676,6 +858,22 @@ OracleUnknownFunnelAnswer(query, result) -> {;
         source=result[:evidence]
     };
     answer;
+};
+
+OracleAskRefinable(real, query) -> {;
+    result = OracleRefine(real, {= width=query[:delta]/2, maxCalls=100, maxIterations=100, trace=1 });
+    result[:status] == :enclosed
+      ?: {;
+          prophecy = OracleProphecy(@real, @result[:interval], @query, :refinement);
+          intersects = prophecy[:interval].Overlaps(@query[:interval]);
+          answer = intersects
+            ?: OracleAnswer(:yes, @query, prophecy, :refinedIntersection, :refinableOracle)
+            ?_ OracleAnswer(:no, @query, prophecy, :refinedSeparation, :refinableOracle);
+          answer["work"] = @result[:work];
+          answer["evidence"] = @result[:evidence];
+          CheckedAnswer(answer);
+      }
+      ?_ OracleUnknownFunnelAnswer(query, result);
 };
 
 OracleAskFunnel(real, query) -> {;
@@ -808,6 +1006,72 @@ OraclePointRefinement(value, requestedWidth) -> {;
         work={= calls=0, iterations=0, exhausted=_ },
         evidence=OracleEvidence(:enclosure, :proof, value, interval),
         source={= plugin=:oracle, source=:exactScalar }
+    };
+};
+
+OracleRefineTestingRoot(real, options ?= {= }) -> {;
+    requestedWidth = RequirePositive(Option(options, "width", 1/1000), "width");
+    maxCalls = RequireNonnegativeInteger(Option(options, "maxcalls", 100), "maxCalls");
+    keepTrace = Option(options, "trace", 1);
+    F = real[:parameters][:function];
+    evidence = real[:parameters][:rootEvidence];
+    initial = real[:parameters][:domain];
+    low = initial.Low();
+    high = initial.High();
+    lowValue = F(low) ~!: :Rational;
+    highValue = F(high) ~!: :Rational;
+    calls = 0;
+    trace = [];
+    achievedWidth = high - low;
+
+    {@ iteration = 1; @achievedWidth > @requestedWidth && @calls < @maxCalls; {;
+        midpoint = (@low + @high) / 2;
+        midpointValue = @F(midpoint) ~!: :Rational;
+        exactRoot = midpointValue == 0;
+        leftBracket = @lowValue == 0 || @lowValue * midpointValue < 0;
+        nextLow = exactRoot ?: midpoint ?_ (leftBracket ?: @low ?_ midpoint);
+        nextHigh = exactRoot ?: midpoint ?_ (leftBracket ?: midpoint ?_ @high);
+        nextLowValue = exactRoot ?: midpointValue ?_ (leftBracket ?: @lowValue ?_ midpointValue);
+        nextHighValue = exactRoot ?: midpointValue ?_ (leftBracket ?: midpointValue ?_ @highValue);
+        @low = nextLow;
+        @high = nextHigh;
+        @lowValue = nextLowValue;
+        @highValue = nextHighValue;
+        @calls += 1;
+        @achievedWidth = @high - @low;
+        @trace = @keepTrace ?: @trace.Push({=
+            iteration=iteration,
+            split=midpoint,
+            value=midpointValue,
+            interval=@low:@high,
+            width=@achievedWidth,
+            evidence=@evidence
+        }) ?_ @trace;
+      };
+      iteration += 1
+    };
+
+    enclosed = achievedWidth <= requestedWidth;
+    interval = low:high;
+    {=
+        valueKind=:oracleRefinement,
+        schema="rix.oracle.refinement@1",
+        status=enclosed ?: :enclosed ?_ :budgetExhausted,
+        interval=interval,
+        certified=1,
+        requestedWidth=requestedWidth,
+        achievedWidth=achievedWidth,
+        approximation=.CertifiedApproximation(interval.Midpoint(), interval, {=
+            provider=:oracle,
+            reason=enclosed ?: :refined ?_ :budgetExhausted,
+            constructor=:testingRoot
+        }),
+        evidenceLevel=evidence[:level],
+        trace=trace,
+        work={= calls=calls, iterations=calls, maxCalls=maxCalls, exhausted=!enclosed },
+        diagnostics=enclosed ?: [] ?_ [:rootRefinementBudgetExhausted],
+        evidence=evidence,
+        source=real[:provenance]
     };
 };
 
@@ -1048,6 +1312,7 @@ OracleRefineArithmetic(real, options) -> {;
 OracleRefine(real, options ?= {= }) -> {?
     real[:kind] == :adapter ? OracleRefineSource(real, options);
     real[:kind] == :arithmetic ? OracleRefineArithmetic(real, options);
+    real[:kind] == :testingRoot ? OracleRefineTestingRoot(real, options);
     real[:kind] == :funnel ? OracleRefineFunnel(real, options);
     real[:kind] == :coarse ? OracleRefineCoarse(real, options);
     OracleRefineRational(real, options)
@@ -1059,16 +1324,20 @@ OracleNumericsCapabilities(real) -> {;
       ?: :certifiedSingletonAdapter
       ?_ (real[:kind] == :arithmetic
            ?: :exactIntervalArithmeticRecipe
-           ?_ (real[:kind] == :funnel
+           ?_ (real[:kind] == :testingRoot
+                ?: :evidenceBisectionRoot
+                ?_ (real[:kind] == :funnel
                 ?: :refinementFunnelOracle
-                ?_ (real[:kind] == :coarse ?: :etaCoarseInterval ?_ :rationalBetweennessOracle)));
+                ?_ (real[:kind] == :coarse ?: :etaCoarseInterval ?_ :rationalBetweennessOracle))));
     selectedEvidenceLevels = real[:kind] == :adapter
       ?: sourceCapabilities[:evidenceLevels]
       ?_ (real[:kind] == :arithmetic
            ?: [:constructorGuarantee, :proof]
-           ?_ (real[:kind] == :funnel
+           ?_ (real[:kind] == :testingRoot
+                ?: [real[:parameters][:rootEvidence][:level]]
+                ?_ (real[:kind] == :funnel
                 ?: [real[:source][:evidenceLevel]]
-                ?_ [:constructorGuarantee]));
+                ?_ [:constructorGuarantee])));
     coarse = real[:kind] == :coarse;
     {=
         valueKind = :numericsCapabilities,
@@ -1160,11 +1429,20 @@ oracleNamespace._proto = {=
     Coarse = (self, interval, eta, options ?= {= }) -> BuildCoarseOracle(interval, eta, options),
     From = (self, value) -> OracleFrom(value),
     Operation = (self, operation, left, right ?= _) -> OracleOperation(operation, left, right),
+    Negate = (self, value) -> OracleOperation(:neg, value),
+    Add = (self, left, right) -> OracleOperation(:add, left, right),
+    Subtract = (self, left, right) -> OracleOperation(:sub, left, right),
+    Multiply = (self, left, right) -> OracleOperation(:mul, left, right),
+    Reciprocal = (self, value) -> OracleNamedReciprocal(value),
+    Divide = (self, left, right) -> OracleOperation(:div, left, right),
+    FunnelOperation = (self, operation, left, right ?= _, options ?= {= }) ->
+        OracleFunnelOperation(operation, left, right, options),
     ToFunnel = (self, source, options ?= {= }) -> BuildProviderFunnel(source, options),
     FromFunnel = (self, funnel) -> BuildFunnelOracle(funnel),
     FunnelRefine = (self, funnel, options ?= {= }) -> OracleFunnelRefine(funnel, options, :refine),
     NthRootFunnel = (self, value, degree, options ?= {= }) -> BuildNthRootFunnel(value, degree, options),
     NthRoot = (self, value, degree, options ?= {= }) -> BuildFunnelOracle(BuildNthRootFunnel(value, degree, options)),
+    Testing = (self, specification) -> BuildTestingOracle(specification),
     Cauchy = (self, source, options ?= {= }) -> {;
         capabilities = OracleCertifiedRefinableSource(source, "Oracle Cauchy adapter source");
         capabilities[:backend] == :cauchy
@@ -1177,6 +1455,15 @@ oracleNamespace._proto = {=
     Prophecy = (self, real, interval, query ?= _) -> OracleProphecy(real, interval, query),
     WorkPolicy = (self, options ?= {= }) -> OracleWorkPolicy(options),
     Evidence = (self, property, level, subject, witness ?= _) -> OracleEvidence(property, level, subject, witness),
+    TruthEvidence = (self, status, property, subject, witness ?= _, level ?= :observed) ->
+        OracleTruthEvidence(status, property, subject, witness, level),
+    RootEvidence = (self, options) -> OracleRootEvidence(options),
+    PropertyEvidence = (self, property, subject, witness ?= _, level ?= :observed) ->
+        OraclePropertyEvidence(property, subject, witness, level),
+    Compatible = (self, left, right) -> OracleCompatible(left, right),
+    Equivalent = (self, left, right, options ?= {= }) -> OracleEquivalent(left, right, options),
+    CompareWithin = (self, left, right, epsilon, options ?= {= }) ->
+        OracleCompareWithin(left, right, epsilon, options),
     Ask = (self, real, interval, delta, auxiliary ?= _) -> OracleAsk(real, interval, delta, auxiliary),
     AskAll = (self, real, interval, delta, options ?= {= }) -> OracleAskAll(real, interval, delta, options),
     CheckRange = (self, answer) -> OracleCheckRange(answer),

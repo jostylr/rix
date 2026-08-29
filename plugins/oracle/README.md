@@ -99,3 +99,29 @@ When a request is finer than that fixed certified interval,
 `:etaResolutionFloor` diagnostics. Its work record is not exhausted. This is
 different from `:budgetExhausted`, where a refinable procedure could have
 continued with more resources.
+
+## Phase 3 ordering, arithmetic, and evidence
+
+`CompareWithin(left, right, epsilon, policy?)` performs bounded
+epsilon-trichotomy. Certified disjoint enclosures produce `:less` or
+`:greater`; overlapping enclosures whose common hull is no wider than epsilon
+produce `:compatible`. Compatibility is deliberately not equality.
+`Equivalent` proves equality for identical exact Rational constructors and
+difference from separated certified enclosures, but returns `:undecided` when
+finite refinement only establishes compatibility. `Compatible` checks two
+prophecy intervals exactly.
+
+Named `Negate`, `Add`, `Subtract`, `Multiply`, `Reciprocal`, and `Divide`
+construct the same immutable interval-arithmetic recipes used by operators.
+`FunnelOperation` adapts a recipe to `rix.oracle.funnel@1`; for example,
+`FunnelOperation(:mul, x, y)` can be passed to `FunnelRefine`. Reciprocal and
+division never use a midpoint when zero has not been excluded: refinement
+returns structured `:unknown` evidence instead.
+
+`RootEvidence` records domain, existence, uniqueness, continuity, endpoint
+signs, and evidence level. `Testing` accepts an exact Rational-valued function
+only with proof or constructor-guarantee root evidence whose domain matches
+the testing interval. Its bisection trace is then certified by those explicit
+hypotheses. Merely observed or assumed evidence is retained by
+`TruthEvidence` and `PropertyEvidence` but cannot silently authorize a testing
+root. These records use the versioned `rix.oracle.*-evidence@1` schemas.

@@ -338,4 +338,103 @@ describe("pure RiX Oracle plugin", () => {
         expect(() => parseAndEvaluate('.oracle.Coarse(0:1, 1/10)', options))
             .toThrow("must not exceed 2*eta");
     });
+
+    test("Phase 3 compares within epsilon without promoting compatibility to equality", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("oracle");
+            third := .oracle.Rational(1/3);
+            same := .oracle.Rational(1/3,{= procedure=:halo });
+            root := .oracle.NthRoot(2,2);
+            p := .oracle.Prophecy(third,(1/4):(1/2));
+            q := .oracle.Prophecy(same,(1/3):(2/3));
+            {:
+                .oracle.CompareWithin(third,.oracle.Rational(2/3),1/100),
+                .oracle.CompareWithin(root,root,1/100,{= maxCalls=40 }),
+                .oracle.Equivalent(third,same),
+                .oracle.Equivalent(third,.oracle.Rational(2/3)),
+                .oracle.Equivalent(root,root,{= epsilon=1/100,maxCalls=40 }),
+                .oracle.Compatible(p,q)
+            };
+        `, options);
+        const [less, compatible, equal, different, undecided, prophecies] = result.values;
+        expect(textValue(entry(less, "status"))).toBe("less");
+        expect(entry(less, "certified").value).toBe(1n);
+        expect(textValue(entry(compatible, "status"))).toBe("compatible");
+        const common = entry(compatible, "commonInterval");
+        expect(common.high.subtract(common.low).lessThanOrEqual(new Rational(1n, 100n))).toBe(true);
+        expect(textValue(entry(equal, "status"))).toBe("equal");
+        expect(textValue(entry(different, "status"))).toBe("different");
+        expect(textValue(entry(undecided, "status"))).toBe("undecided");
+        expect(entry(undecided, "certified")).toBeNull();
+        expect(textValue(entry(prophecies, "status"))).toBe("yes");
+        expect(entry(prophecies, "certified").value).toBe(1n);
+    });
+
+    test("Phase 3 exposes named arithmetic and certified arithmetic funnels", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("oracle");
+            x := .oracle.Rational(2/3);
+            y := .oracle.Rational(3/5);
+            funnel := .oracle.FunnelOperation(:mul,x,y);
+            {:
+                .oracle.Refine(.oracle.Negate(x)),
+                .oracle.Refine(.oracle.Add(x,y)),
+                .oracle.Refine(.oracle.Subtract(x,y)),
+                .oracle.Refine(.oracle.Multiply(x,y)),
+                .oracle.Refine(.oracle.Reciprocal(x)),
+                .oracle.Refine(.oracle.Divide(x,y)),
+                .oracle.FunnelRefine(funnel,{= absoluteWidth=1/1000,maxCalls=20 })
+            };
+        `, options);
+        const expected = ["-2/3:-2/3", "19/15:19/15", "1/15:1/15", "2/5:2/5", "3/2:3/2", "10/9:10/9", "2/5:2/5"];
+        expect(result.values.map((value) => entry(value, "interval").toString())).toEqual(expected);
+        expect(result.values.every((value) => entry(value, "certified")?.value === 1n)).toBe(true);
+        const unresolved = parseAndEvaluate(
+            ".oracle.Refine(.oracle.Reciprocal(.oracle.Rational(0)))",
+            options,
+        );
+        expect(textValue(entry(unresolved, "status"))).toBe("unknown");
+        expect(entry(unresolved, "diagnostics").values.map(textValue)).toContain("divisorNotSeparatedFromZero");
+    });
+
+    test("Phase 3 testing roots require explicit certified uniqueness evidence", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("oracle");
+            evidence := .oracle.RootEvidence({=
+                domain=1:2,
+                rootExists=1,
+                unique=1,
+                continuous=1,
+                endpointSigns=[:negative,:positive],
+                level=:proof,
+                source=:tutorialHypotheses
+            });
+            root := .oracle.Testing({= function=(x)->x^2-2,domain=1:2,rootEvidence=evidence });
+            {:
+                evidence,
+                .oracle.Refine(root,{= width=1/1000,maxCalls=20,trace=1 }),
+                .oracle.TruthEvidence(:undecided,:rootAt,root,_,:observed),
+                .oracle.PropertyEvidence(:continuous,(x)->x^2-2,1:2,:proof)
+            };
+        `, options);
+        const [evidence, refined, undecided, property] = result.values;
+        expect(entry(evidence, "certified").value).toBe(1n);
+        expect(textValue(entry(refined, "status"))).toBe("enclosed");
+        expect(entry(refined, "interval").low.multiply(entry(refined, "interval").low).lessThanOrEqual(new Rational(2n))).toBe(true);
+        expect(entry(refined, "interval").high.multiply(entry(refined, "interval").high).greaterThanOrEqual(new Rational(2n))).toBe(true);
+        expect(entry(refined, "trace").values.length).toBeGreaterThan(0);
+        expect(entry(undecided, "certified")).toBeNull();
+        expect(entry(property, "certified").value).toBe(1n);
+
+        expect(() => parseAndEvaluate(`
+            assumed := .oracle.RootEvidence({=
+                domain=1:2,rootExists=1,unique=1,continuous=1,
+                endpointSigns=[:negative,:positive],level=:assumed
+            });
+            .oracle.Testing({= function=(x)->x^2-2,domain=1:2,rootEvidence=assumed });
+        `, options)).toThrow("explicit proof or constructor-guarantee");
+    });
 });

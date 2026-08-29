@@ -192,3 +192,54 @@ fine := .oracle.Refine(coarse, {= width=1/1000, maxCalls=0 });
 The wide request is `:enclosed`. The fine request is `:resolutionFloor`, not
 `:budgetExhausted`: more host work cannot extract precision that this coarse
 model never claimed. Both results retain the exact certified interval.
+
+## Compare without guessing equality
+
+Bounded comparison distinguishes strict order from epsilon compatibility:
+
+```rix
+.Plugin.Load("oracle");
+third := .oracle.Rational(1/3);
+sqrt2 := .oracle.NthRoot(2,2);
+ordered := .oracle.CompareWithin(third,sqrt2,1/100,{= maxCalls=40 });
+selfCheck := .oracle.Equivalent(sqrt2,sqrt2,{= epsilon=1/100,maxCalls=40 });
+{: ordered[:status],selfCheck[:status],selfCheck[:evidence] };
+```
+
+The first status is `:less`. The second is `:undecided`, because two compatible
+finite enclosures are not a proof of equality.
+
+Arithmetic recipes can also be exposed as certified funnels:
+
+```rix
+x := .oracle.Rational(2/3);
+y := .oracle.Rational(3/5);
+productFunnel := .oracle.FunnelOperation(:mul,x,y);
+.oracle.FunnelRefine(productFunnel,{= absoluteWidth=1/1000,maxCalls=20 });
+```
+
+## A testing root with explicit evidence
+
+The testing constructor refuses to infer a theorem from sampled signs. Supply
+the existence, uniqueness, and continuity evidence separately:
+
+```rix
+rootEvidence := .oracle.RootEvidence({=
+  domain=1:2,
+  rootExists=1,
+  unique=1,
+  continuous=1,
+  endpointSigns=[:negative,:positive],
+  level=:proof,
+  source=:declaredTutorialHypotheses
+});
+testingRoot := .oracle.Testing({=
+  function=(x)->x^2-2,
+  domain=1:2,
+  rootEvidence=rootEvidence
+});
+.oracle.Refine(testingRoot,{= width=1/1000,maxCalls=20,trace=1 });
+```
+
+An `:assumed` or `:observed` record remains useful metadata but cannot authorize
+certified testing-root bisection.
