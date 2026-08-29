@@ -32,6 +32,7 @@ describe("introductory Logic plugin", () => {
             "rix.logic.truth-table@1",
             "rix.logic.normal-form@1",
             "rix.logic.proof@1",
+            "rix.logic.tree@1",
         ]);
     });
 
@@ -122,5 +123,114 @@ describe("introductory Logic plugin", () => {
             q := .logic.Atom(:q);
             .logic.And(p,q).TruthTable({= maxAtoms=1 });
         `, runtime())).toThrow("exceeding maxAtoms");
+    });
+
+    test("checks implication introduction through an accepted scoped subproof", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("logic");
+            p := .logic.Atom(:p);
+            inner := .logic.Subproof(p,[],p);
+            proof := .logic.Proof([
+              .logic.Step(:implicationIntro,p.Implies(p),[],{= subproofs=[inner] })
+            ],p.Implies(p));
+            {: inner,proof,proof.Tree() };
+        `, runtime());
+        expect(text(entry(result.values[0], "proofkind"))).toBe("subproof");
+        expect(entry(result.values[0], "accepted").value).toBe(1n);
+        expect(entry(result.values[1], "accepted").value).toBe(1n);
+        const tree = result.values[2];
+        expect(text(entry(tree, "treekind"))).toBe("naturalDeduction");
+        expect(entry(entry(tree, "root"), "subproofs").values).toHaveLength(1);
+    });
+
+    test("checks disjunction elimination with two independently scoped cases", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("logic");
+            p := .logic.Atom(:p);
+            q := .logic.Atom(:q);
+            conclusion := p.Or(q);
+            fromP := .logic.Subproof(p,[
+              .logic.Step(:orIntroLeft,conclusion,[1])
+            ],conclusion);
+            fromQ := .logic.Subproof(q,[
+              .logic.Step(:orIntroRight,conclusion,[1])
+            ],conclusion);
+            proof := .logic.Proof([
+              .logic.Step(:premise,conclusion),
+              .logic.Step(:orElim,conclusion,[1],{= subproofs=[fromP,fromQ] })
+            ],conclusion);
+            {: proof,proof[:checks][2][:discharged] };
+        `, runtime());
+        expect(entry(result.values[0], "accepted").value).toBe(1n);
+        expect(result.values[1].values).toHaveLength(2);
+    });
+
+    test("checks negation rules, bottom elimination, and syntax trees", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("logic");
+            p := .logic.Atom(:p);
+            impossible := p.And(p.Not());
+            contradiction := .logic.Subproof(impossible,[
+              .logic.Step(:andElimLeft,p,[1]),
+              .logic.Step(:andElimRight,p.Not(),[1]),
+              .logic.Step(:notElim,.logic.Bottom(),[2,3])
+            ],.logic.Bottom());
+            negation := .logic.Proof([
+              .logic.Step(:notIntro,impossible.Not(),[],{= subproofs=[contradiction] })
+            ],impossible.Not());
+            explosion := .logic.Proof([
+              .logic.Step(:premise,.logic.Bottom()),
+              .logic.Step(:bottomElim,p,[1])
+            ],p);
+            tree := p.Implies(p.Not()).SyntaxTree();
+            {: negation,explosion,tree };
+        `, runtime());
+        expect(entry(result.values[0], "accepted").value).toBe(1n);
+        expect(entry(result.values[1], "accepted").value).toBe(1n);
+        expect(text(entry(result.values[2], "treekind"))).toBe("syntaxTree");
+        expect(entry(entry(result.values[2], "root"), "children").values).toHaveLength(2);
+    });
+
+    test("retains a rejected discharge when the subproof conclusion mismatches", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("logic");
+            p := .logic.Atom(:p);
+            q := .logic.Atom(:q);
+            inner := .logic.Subproof(p,[],p);
+            .logic.Proof([
+              .logic.Step(:implicationIntro,p.Implies(q),[],{= subproofs=[inner] })
+            ],p.Implies(q));
+        `, runtime());
+        expect(entry(result, "accepted")).toBeNull();
+        expect(text(entry(entry(result, "checks").values[0], "reason")))
+            .toBe("implicationIntroductionSubproofMismatch");
+    });
+
+    test("rejects leaked free premises inside a discharged subproof", () => {
+        expect(() => parseAndEvaluate(`
+            .Plugin.Load("logic");
+            p := .logic.Atom(:p);
+            q := .logic.Atom(:q);
+            .logic.Subproof(p,[.logic.Step(:premise,q)],q);
+        `, runtime())).toThrow("cannot introduce additional premise or assumption lines");
+    });
+
+    test("replays attached subproofs instead of trusting a stored accepted flag", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("logic");
+            p := .logic.Atom(:p);
+            q := .logic.Atom(:q);
+            inner := .logic.Subproof(p,[],p);
+            forged := {=
+              schema="rix.logic.proof@1",proofKind=:subproof,assumption=p,
+              steps=inner[:steps],goal=q,accepted=1
+            };
+            .logic.Proof([
+              .logic.Step(:implicationIntro,p.Implies(q),[],{= subproofs=[forged] })
+            ],p.Implies(q));
+        `, runtime());
+        expect(entry(result, "accepted")).toBeNull();
+        expect(text(entry(entry(result, "checks").values[0], "reason")))
+            .toBe("implicationIntroductionSubproofMismatch");
     });
 });

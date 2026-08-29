@@ -1,9 +1,9 @@
 # `.logic`
 
 `.logic` is a browser-safe introductory logic laboratory. Formulas, truth
-tables, normal forms, and proof attempts are portable RiX records. The plugin
-does not invoke SAT/SMT software and does not claim unbounded first-order
-theorems.
+tables, normal forms, proof attempts, and educational trees are portable RiX
+records. The plugin does not invoke SAT/SMT software and does not claim
+unbounded first-order theorems.
 
 ## Formulas and semantics
 
@@ -44,22 +44,52 @@ formula merely looks like CNF.
 
 - premises and assumptions;
 - conjunction introduction and left/right elimination;
-- disjunction introduction on either side; and
-- implication elimination (`modusPonens`).
+- disjunction introduction on either side;
+- implication elimination (`modusPonens`);
+- implication introduction through one discharged `Subproof`;
+- disjunction elimination through two independently checked `Subproof`s;
+- negation introduction and elimination; and
+- elimination from `Bottom`.
 
 Every premise must refer to an earlier line. Each local check and the failed
 reason remain in `rix.logic.proof@1`. `CheckProof` replays a proof record.
 
-The current proof language intentionally omits discharged subproofs,
-implication introduction, disjunction elimination, quantifiers, equality, and
-induction. Those require explicit scope and substitution contracts rather than
-being smuggled into labels.
+`Subproof(assumption, steps, goal)` creates a separate proof record whose first
+line is the local assumption. Outer line numbers are unavailable inside it;
+only an accepted subproof record may be attached to a discharge rule through
+`{= subproofs=[...] }`. Consequently an assumption cannot leak into the outer
+derivation merely because a label says it was discharged. This first scoped
+core also rejects additional `premise` or `assumption` lines inside a subproof.
+It is deliberately self-contained until an explicit, replayable contract for
+importing outer lines is added.
+
+```rix
+p := .logic.Atom(:p);
+caseP := .logic.Subproof(p,[],p);
+identity := .logic.Proof([
+  .logic.Step(:implicationIntro,p.Implies(p),[],{= subproofs=[caseP] })
+],p.Implies(p));
+```
+
+The current proof language intentionally omits quantifiers, equality,
+induction, separate sequent-calculus rules, and automated proof search. Those
+need explicit scope, substitution, and search-completeness contracts.
+
+## Educational tree views
+
+`SyntaxTree(formula)` (also `formula.SyntaxTree()`) returns the connective tree
+for a formula. `ProofTree(proof)` (also `proof.Tree()`) recursively replaces
+line-number references with premise nodes and retains nested subproof trees.
+Both use `rix.logic.tree@1`; they are data for renderers and courses, not a
+second proof checker. The proof record remains the replayable authority.
 
 ## Next educational rung
 
-The next useful additions are scoped subproofs with discharge, semantic
-tableaux, and bounded finite-model exploration for a carefully defined
-first-order subset. SAT/SMT integration, proof-assistant exchange, and general
-automated theorem proving remain optional later work.
+The next useful additions are semantic tableaux with open/closed branch
+evidence, followed by bounded finite-model exploration for a carefully defined
+first-order subset. A separate sequent presentation is useful pedagogically but
+should share formulas and evidence rather than pretending a natural-deduction
+tree is already a sequent proof. SAT/SMT integration, proof-assistant exchange,
+and general automated theorem proving remain optional later work.
 
 See [tutorial.md](tutorial.md) for runnable examples.

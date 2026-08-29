@@ -1,13 +1,13 @@
 /**
 id: logic
-description: Portable propositional formulas, bounded truth tables, checked normal forms, and introductory derivation checking.
+description: Portable propositional formulas, bounded truth tables, checked normal forms, scoped natural deduction, and educational tree views.
 kind: rix
 mount: logic
-exports: [Atom, Top, Bottom, Not, And, Or, Implies, Iff, Evaluate, Valuations, TruthTable, Classify, NNF, CNF, DNF, CheckNormalForm, Step, Proof, CheckProof, IsFormula, Capabilities]
+exports: [Atom, Top, Bottom, Not, And, Or, Implies, Iff, Evaluate, Valuations, TruthTable, Classify, NNF, CNF, DNF, CheckNormalForm, Step, Subproof, Proof, CheckProof, SyntaxTree, ProofTree, IsFormula, Capabilities]
 groups: [Logic, Education, Exact]
 permissions: []
-provides: [rix.logic@1, rix.logic.formula@1, rix.logic.truth-table@1, rix.logic.normal-form@1, rix.logic.proof@1]
-schemas: [rix.logic.formula@1, rix.logic.truth-table@1, rix.logic.normal-form@1, rix.logic.proof@1]
+provides: [rix.logic@1, rix.logic.formula@1, rix.logic.truth-table@1, rix.logic.normal-form@1, rix.logic.proof@1, rix.logic.tree@1]
+schemas: [rix.logic.formula@1, rix.logic.truth-table@1, rix.logic.normal-form@1, rix.logic.proof@1, rix.logic.tree@1]
 snapshot: false
 deterministic: true
 defaultEnabled: false
@@ -284,19 +284,43 @@ LogicStep(rule,conclusion,premises ?= [],options ?= {= }) -> {;
     rule ? :String ?: _ ?_ .Error("Logic proof rule must be a string or colon-string");
     premises ? :Array ?: _ ?_ .Error("Logic proof premises must be an Array of prior line numbers");
     options = LogicRequireOptions(options,"Logic Step options");
+    subproofs = LogicOption(options,"subproofs",[]);
+    subproofs ? :Array ?: _ ?_ .Error("Logic Step subproofs must be an Array");
+    subproofs.Filter((proof)->(proof ? :Map) && proof[:schema]=="rix.logic.proof@1" && proof[:proofKind]==:subproof).Len()==subproofs.Len()
+      ?: _
+      ?_ .Error("Logic Step subproofs must be checked Logic Subproof records");
     .ImmutableValue({=
         valueKind=:logicProofStep,
         rule=rule,
         conclusion=LogicRequireFormula(conclusion,"Logic proof conclusion"),
         premises=premises.Map((line)->line ~!: :Integer),
         label=LogicOption(options,"label",_),
-        discharges=LogicOption(options,"discharges",[])
+        discharges=LogicOption(options,"discharges",[]),
+        subproofs=subproofs
     });
+};
+
+LogicSubproof(assumption,steps,goal,options ?= {= }) -> {;
+    exactAssumption = LogicRequireFormula(assumption,"Logic subproof assumption");
+    steps ? :Array ?: _ ?_ .Error("Logic Subproof steps must be an Array");
+    options = LogicRequireOptions(options,"Logic Subproof options");
+    freeSteps = steps.Filter((step)->(step ? :Map) && (step[:rule]==:premise || step[:rule]==:assumption));
+    freeSteps.Len()==0
+      ?: _
+      ?_ .Error("Logic Subproof cannot introduce additional premise or assumption lines");
+    combined = [LogicStep(:assumption,exactAssumption)].Concat(steps);
+    proofOptions = options.Set("proofkind",:subproof).Set("assumption",exactAssumption);
+    LogicProof(combined,goal,proofOptions);
 };
 
 LogicPriorStep(steps,line,current) -> {;
     line>=1 && line<current ?: _ ?_ .Error("Logic proof premise must name an earlier line");
     steps[line];
+};
+LogicAcceptedSubproof(proof) -> {;
+    valid = (proof ? :Map) && proof[:schema]=="rix.logic.proof@1"
+      && proof[:proofKind]==:subproof;
+    valid ?: LogicCheckProof(proof)[:accepted]==1 ?_ _;
 };
 LogicRuleCheck(step,steps,index) -> {;
     rule = step[:rule];
@@ -347,7 +371,67 @@ LogicRuleCheck(step,steps,index) -> {;
           @reason ~= @accepted ?: _ ?_ :modusPonensMismatch;
       }
       ?_ _;
-    .ImmutableValue({= line=index,accepted=accepted,reason=reason,step=step });
+    rule==:implicationIntro && premises.Len()==0 && step[:subproofs].Len()==1
+      ?: {;
+          subproof = @step[:subproofs][1];
+          matches = LogicAcceptedSubproof(subproof) && @conclusion[:kind]==:implies
+            && LogicSame(subproof[:assumption],@conclusion[:left])
+            && LogicSame(subproof[:goal],@conclusion[:right]);
+          @accepted ~= matches ?: 1 ?_ _;
+          @reason ~= @accepted ?: _ ?_ :implicationIntroductionSubproofMismatch;
+      }
+      ?_ _;
+    rule==:orElim && premises.Len()==1 && step[:subproofs].Len()==2
+      ?: {;
+          disjunction = LogicPriorStep(@steps,@premises[1],@index)[:conclusion];
+          firstSubproof = @step[:subproofs][1];
+          secondSubproof = @step[:subproofs][2];
+          direct = disjunction[:kind]==:or
+            && LogicAcceptedSubproof(firstSubproof) && LogicAcceptedSubproof(secondSubproof)
+            && LogicSame(firstSubproof[:assumption],disjunction[:left])
+            && LogicSame(secondSubproof[:assumption],disjunction[:right]);
+          reversed = disjunction[:kind]==:or
+            && LogicAcceptedSubproof(firstSubproof) && LogicAcceptedSubproof(secondSubproof)
+            && LogicSame(firstSubproof[:assumption],disjunction[:right])
+            && LogicSame(secondSubproof[:assumption],disjunction[:left]);
+          goalsMatch = LogicSame(firstSubproof[:goal],@conclusion)
+            && LogicSame(secondSubproof[:goal],@conclusion);
+          @accepted ~= (direct || reversed) && goalsMatch ?: 1 ?_ _;
+          @reason ~= @accepted ?: _ ?_ :disjunctionEliminationSubproofMismatch;
+      }
+      ?_ _;
+    rule==:notIntro && premises.Len()==0 && step[:subproofs].Len()==1
+      ?: {;
+          subproof = @step[:subproofs][1];
+          matches = LogicAcceptedSubproof(subproof) && @conclusion[:kind]==:not
+            && LogicSame(subproof[:assumption],@conclusion[:operand])
+            && subproof[:goal][:kind]==:bottom;
+          @accepted ~= matches ?: 1 ?_ _;
+          @reason ~= @accepted ?: _ ?_ :negationIntroductionSubproofMismatch;
+      }
+      ?_ _;
+    rule==:notElim && premises.Len()==2
+      ?: {;
+          first = LogicPriorStep(@steps,@premises[1],@index)[:conclusion];
+          second = LogicPriorStep(@steps,@premises[2],@index)[:conclusion];
+          pair = first[:kind]==:not
+            ?: LogicSame(first[:operand],second)
+            ?_ (second[:kind]==:not && LogicSame(second[:operand],first));
+          @accepted ~= @conclusion[:kind]==:bottom && pair ?: 1 ?_ _;
+          @reason ~= @accepted ?: _ ?_ :negationEliminationMismatch;
+      }
+      ?_ _;
+    rule==:bottomElim && premises.Len()==1
+      ?: {;
+          source = LogicPriorStep(@steps,@premises[1],@index)[:conclusion];
+          @accepted ~= source[:kind]==:bottom ?: 1 ?_ _;
+          @reason ~= @accepted ?: _ ?_ :bottomEliminationRequiresBottom;
+      }
+      ?_ _;
+    discharged = (rule==:implicationIntro || rule==:notIntro || rule==:orElim)
+      ?: step[:subproofs].Map((proof)->proof[:assumption])
+      ?_ [];
+    .ImmutableValue({= line=index,accepted=accepted,reason=reason,step=step,discharged=discharged });
 };
 
 LogicProof(steps,goal,options ?= {= }) -> {;
@@ -365,9 +449,18 @@ LogicProof(steps,goal,options ?= {= }) -> {;
     }; index += 1 };
     finalMatches = steps.Len()>0 && LogicSame(steps.Last()[:conclusion],exactGoal);
     accepted = !stopped && finalMatches;
-    .ImmutableValue({=
+    proofKind = LogicOption(options,"proofkind",:derivation);
+    [:derivation,:subproof].Includes(proofKind)
+      ?: _
+      ?_ .Error("Logic proofKind must be derivation or subproof");
+    assumption = LogicOption(options,"assumption",_);
+    proofKind==:subproof && assumption==_
+      ?: .Error("Logic subproof requires its assumption")
+      ?_ _;
+    proof = {=
         valueKind=:logicProof,
         schema="rix.logic.proof@1",
+        proofKind=proofKind,
         system=:introductoryNaturalDeduction,
         steps=steps,
         goal=exactGoal,
@@ -375,15 +468,76 @@ LogicProof(steps,goal,options ?= {= }) -> {;
         accepted=accepted ?: 1 ?_ _,
         complete=accepted ?: 1 ?_ _,
         reason=stopped ?: :invalidStep ?_ (finalMatches ?: _ ?_ :goalMismatch),
+        assumption=assumption,
         assumptions=steps.Filter((step)->step[:rule]==:premise || step[:rule]==:assumption),
-        supportedRules=[:premise,:assumption,:andIntro,:andElimLeft,:andElimRight,:orIntroLeft,:orIntroRight,:modusPonens]
-    });
+        supportedRules=[:premise,:assumption,:andIntro,:andElimLeft,:andElimRight,:orIntroLeft,:orIntroRight,:modusPonens,:implicationIntro,:orElim,:notIntro,:notElim,:bottomElim]
+    };
+    proof .= {= _proto=@logicProofProto };
+    .ImmutableValue(proof);
 };
 LogicCheckProof(proof) -> {;
     valid = (proof ? :Map) && proof[:schema]=="rix.logic.proof@1";
     valid
-      ?: LogicProof(proof[:steps],proof[:goal])
+      ?: LogicProof(proof[:steps],proof[:goal],{=
+          proofKind=proof[:proofKind] ?| :derivation,assumption=proof[:assumption]
+      })
       ?_ .ImmutableValue({= accepted=_,complete=_,reason=:malformedLogicProof });
+};
+
+LogicSyntaxTreeNode(value) -> {;
+    formula = LogicRequireFormula(value);
+    kind = formula[:kind];
+    children = kind==:not
+      ?: [LogicSyntaxTreeNode(formula[:operand])]
+      ?_ (kind==:and || kind==:or || kind==:implies || kind==:iff)
+      ?: [LogicSyntaxTreeNode(formula[:left]),LogicSyntaxTreeNode(formula[:right])]
+      ?_ [];
+    .ImmutableValue({=
+        nodeKind=:formula,
+        connective=kind,
+        label=kind==:atom ?: formula[:name] ?_ kind,
+        formula=formula,
+        children=children
+    });
+};
+
+LogicSyntaxTree(value) -> .ImmutableValue({=
+    valueKind=:logicTree,
+    schema="rix.logic.tree@1",
+    treeKind=:syntaxTree,
+    root=LogicSyntaxTreeNode(value),
+    portable=1
+});
+
+LogicProofTreeLine(steps,line) -> {;
+    step = steps[line];
+    premiseTrees = step[:premises].Map((premise)->LogicProofTreeLine(@steps,premise));
+    subproofTrees = step[:subproofs].Map((proof)->LogicProofTree(proof));
+    .ImmutableValue({=
+        nodeKind=:proofLine,
+        line=line,
+        rule=step[:rule],
+        conclusion=step[:conclusion],
+        premises=premiseTrees,
+        subproofs=subproofTrees
+    });
+};
+
+LogicProofTree(proof) -> {;
+    valid = (proof ? :Map) && proof[:schema]=="rix.logic.proof@1";
+    valid ?: _ ?_ .Error("Logic ProofTree expects a Logic proof");
+    root = proof[:steps].Len()>0 ?: LogicProofTreeLine(proof[:steps],proof[:steps].Len()) ?_ _;
+    .ImmutableValue({=
+        valueKind=:logicTree,
+        schema="rix.logic.tree@1",
+        treeKind=:naturalDeduction,
+        system=proof[:system],
+        proofKind=proof[:proofKind] ?| :derivation,
+        goal=proof[:goal],
+        accepted=proof[:accepted],
+        root=root,
+        portable=1
+    });
 };
 
 logicFormulaProto = {=
@@ -397,14 +551,23 @@ logicFormulaProto = {=
     NNF=(self,options ?= {= })->LogicNNF(self,options),
     CNF=(self,options ?= {= })->LogicCNF(self,options),
     DNF=(self,options ?= {= })->LogicDNF(self,options),
+    SyntaxTree=(self)->LogicSyntaxTree(self),
+    Record=(self)->self
+};
+
+logicProofProto = {=
+    Check=(self)->LogicCheckProof(self),
+    Tree=(self)->LogicProofTree(self),
     Record=(self)->self
 };
 
 logicCapabilities = .ImmutableValue({=
     semantics=[:propositionalEvaluation,:truthTables,:models,:countermodels,:validity,:satisfiability],
     normalForms=[:nnf,:canonicalCNF,:canonicalDNF],
-    proofRules=[:premise,:assumption,:andIntro,:andElimLeft,:andElimRight,:orIntroLeft,:orIntroRight,:modusPonens],
-    next=[:dischargedSubproofs,:semanticTableaux,:boundedFirstOrderModels]
+    proofRules=[:premise,:assumption,:andIntro,:andElimLeft,:andElimRight,:orIntroLeft,:orIntroRight,:modusPonens,:implicationIntro,:orElim,:notIntro,:notElim,:bottomElim],
+    proofStructure=[:scopedSubproofs,:explicitDischarge,:naturalDeductionTrees],
+    views=[:syntaxTree,:proofTree],
+    next=[:semanticTableaux,:boundedFirstOrderModels]
 });
 
 logicNamespace = {= };
@@ -426,9 +589,12 @@ logicNamespace._proto = {=
     DNF=(self,value,options ?= {= })->LogicDNF(value,options),
     CheckNormalForm=(self,value,options ?= {= })->LogicCheckNormalForm(value,options),
     Step=(self,rule,conclusion,premises ?= [],options ?= {= })->LogicStep(rule,conclusion,premises,options),
+    Subproof=(self,assumption,steps,goal,options ?= {= })->LogicSubproof(assumption,steps,goal,options),
     Proof=(self,steps,goal,options ?= {= })->LogicProof(steps,goal,options),
     CheckProof=(self,proof)->LogicCheckProof(proof),
+    SyntaxTree=(self,value)->LogicSyntaxTree(value),
+    ProofTree=(self,proof)->LogicProofTree(proof),
     IsFormula=(self,value)->LogicIsFormulaValue(value) ?: 1 ?_ _,
     Capabilities=(self)->logicCapabilities
 };
-.Host.RegisterValue("logic",logicNamespace,"Portable propositional logic and introductory checked derivations",["Logic","Education","Exact"]);
+.Host.RegisterValue("logic",logicNamespace,"Portable propositional logic, scoped natural deduction, and educational trees",["Logic","Education","Exact"]);

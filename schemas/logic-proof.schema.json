@@ -8,12 +8,19 @@
   "properties": {
     "schema": { "const": "rix.logic.proof@1" },
     "valueKind": { "const": "logicProof" },
+    "proofKind": { "enum": ["derivation", "subproof"] },
     "system": { "const": "introductoryNaturalDeduction" },
     "steps": { "type": "array" },
     "goal": { "$ref": "logic-formula.schema.json" },
     "checks": { "type": "array" },
     "accepted": { "type": ["boolean", "null"] },
     "complete": { "type": ["boolean", "null"] },
+    "assumption": {
+      "anyOf": [
+        { "$ref": "logic-formula.schema.json" },
+        { "type": "null" }
+      ]
+    },
     "supportedRules": { "type": "array" }
   }
 }

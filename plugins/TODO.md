@@ -49,7 +49,7 @@ its first useful future increment rather than treating it as abandoned.
 | 13 | `.fracfun` | Multivariate forms and declared coefficient domains | **Waiting:** multivariate Polynomial/coefficient-domain support |
 | 14 | `.cas` | Trigonometric power/product reductions, selected radicals, and definite-integral symmetries | **Ready:** absolute-value, affine trig, and quadratic partial fractions are implemented |
 | 15 | `.symbolic` | Shared assumptions and restricted-domain wrappers | **Decision:** one portable assumption/branch-obligation contract |
-| 16 | `.logic` | Scoped subproof discharge and implication introduction, then proof-tree/tableau views | **Ready:** propositional semantics and basic checked derivations exist |
+| 16 | `.logic` | Semantic tableaux with replayable open/closed branch evidence, then bounded finite models | **Ready:** scoped natural deduction and portable syntax/proof trees exist |
 | 17 | `.calculus` | Absolute-value/domain graphs and portable differential, boundary, and integral equation specifications | **Ready:** coordinate with `.cas`; solver execution stays elsewhere |
 | 18 | `.analysis` | Metric, normed, Banach, Hilbert, and selected `L^p` records | **Phase 4:** abstract function-space program |
 | 19 | `.ball` | Polynomial evaluation, interval Newton, and validated linear algebra over balls | **Waiting:** shared validated linear-algebra API from `.numerics` |
@@ -881,16 +881,20 @@ tracked in
    - [x] Add replayable line-by-line checks for premises/assumptions,
      conjunction introduction/elimination, disjunction introduction, and
      modus ponens; retain every local result and failed goal.
-   - [ ] Add scoped subproof discharge, implication introduction, disjunction
-     elimination, negation rules, and separate natural-deduction/sequent tree
-     presentations for small classical and intuitionistic cores.
+   - [x] Add scoped subproof discharge, implication introduction, disjunction
+     elimination, negation rules, and a natural-deduction tree presentation for
+     the small intuitionistic-compatible propositional core.
+   - [ ] Add a separate sequent-calculus rule set and tree presentation rather
+     than relabeling natural-deduction evidence as sequents.
    - [ ] Provide finite-model exploration for a bounded first-order subset,
      clearly separating a found model/countermodel from an unbounded theorem.
 3. **Phase 3 — Educational integration**
    - [x] Add portable truth-table, normal-form, and checked-derivation records
      plus a runnable introductory tutorial.
-   - [ ] Add syntax-tree, semantic-tableau, and scoped proof-tree views suitable
-     for an eventual `rix-ed` undergraduate logic course.
+   - [x] Add portable syntax-tree and scoped natural-deduction proof-tree views
+     suitable for an eventual `rix-ed` undergraduate logic course.
+   - [ ] Add semantic tableaux with replayable open/closed branch evidence and
+     explicit countervaluations from open propositional branches.
    - [ ] Connect algebraic/interval certificates to logic only through explicit
      proposition and evidence adapters; do not build a general research prover.
 4. **Phase 4 — Automated and external proving**

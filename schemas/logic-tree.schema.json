@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/logic-tree/v1.schema.json",
+  "title": "RiX educational logic tree v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema", "valueKind", "treeKind", "root", "portable"],
+  "properties": {
+    "schema": { "const": "rix.logic.tree@1" },
+    "valueKind": { "const": "logicTree" },
+    "treeKind": { "enum": ["syntaxTree", "naturalDeduction"] },
+    "root": { "type": ["object", "null"] },
+    "portable": { "type": "boolean" }
+  }
+}
