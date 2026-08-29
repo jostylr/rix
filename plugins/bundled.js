@@ -21,6 +21,7 @@ import ratfunSource from "./ratfun/ratfun.plugin.rix" with { type: "text" };
 import symbolicSource from "./symbolic/symbolic.plugin.rix" with { type: "text" };
 import calculusSource from "./calculus/calculus.plugin.rix" with { type: "text" };
 import analysisSource from "./analysis/analysis.plugin.rix" with { type: "text" };
+import odeSource from "./ode/ode.plugin.rix" with { type: "text" };
 import statsSource from "./stats/stats.plugin.rix" with { type: "text" };
 import probabilitySource from "./probability/probability.plugin.rix" with { type: "text" };
 import complexVizSource from "./complex-visualization/complex-viz.plugin.rix" with { type: "text" };
@@ -138,6 +139,7 @@ const BUNDLED_PLUGINS = [
     { metadata: readPluginHeader(symbolicSource, "symbolic.plugin.rix"), source: symbolicSource, sourcePath: "bundled:symbolic.plugin.rix" },
     { metadata: readPluginHeader(calculusSource, "calculus.plugin.rix"), source: calculusSource, sourcePath: "bundled:calculus.plugin.rix" },
     { metadata: readPluginHeader(analysisSource, "analysis.plugin.rix"), source: analysisSource, sourcePath: "bundled:analysis.plugin.rix" },
+    { metadata: readPluginHeader(odeSource, "ode.plugin.rix"), source: odeSource, sourcePath: "bundled:ode.plugin.rix" },
     { metadata: readPluginHeader(statsSource, "stats.plugin.rix"), source: statsSource, sourcePath: "bundled:stats.plugin.rix" },
     { metadata: readPluginHeader(probabilitySource, "probability.plugin.rix"), source: probabilitySource, sourcePath: "bundled:probability.plugin.rix" },
     { metadata: readPluginHeader(complexVizSource, "complex-viz.plugin.rix"), source: complexVizSource, sourcePath: "bundled:complex-viz.plugin.rix" },

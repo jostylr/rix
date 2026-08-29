@@ -424,16 +424,20 @@ newline normalization.
      excluded/unique/unresolved results.
    - [ ] Add interval-Newton linear solves and bounded box subdivision on the
      same contracts, retaining every unresolved box when work ends.
-   - [ ] Define `rix.ode.problem@1`, `rix.ode.solution@1`, and dense-output
-     segment records for first-order systems, higher-order reductions, events,
-     parameters, initial-value problems, and boundary-value problems. Keep the
-     independent variable, state order, domains, units, and regularity
-     assumptions explicit.
-   - [ ] Establish an educational solver ladder: exact recognized solutions;
-     deterministic approximate Euler/RK demonstrations; adaptive embedded
-     Runge-Kutta with disclosed local-error estimates; then validated Picard/
-     Taylor or interval Runge-Kutta segments with truncation and enclosure
-     evidence. Approximate and validated results must not share a status label.
+   - [x] Define `rix.ode.problem@1`, `rix.ode.solution@1`, and dense-output/tube
+     segment records for forward IVPs. Preserve the independent variable,
+     ordered state, parameters, units, inert events, and regularity assumptions;
+     accept vector records while keeping the first executable solver scalar.
+   - [ ] Extend those records with higher-order reductions, checked event
+     specifications, backward intervals, and a distinct boundary-value problem
+     kind.
+   - [x] Start the educational solver ladder with deterministic exact-rational
+     fixed-step Euler/RK4 demonstrations and a separately labeled validated
+     Picard self-map/Lipschitz tube. Preserve partial certified segments when a
+     tube search exhausts its budget.
+   - [ ] Add exact recognized solutions, adaptive embedded Runge-Kutta with
+     disclosed local-error estimates, then validated Taylor-model or interval
+     Runge-Kutta segments with sharper truncation evidence.
    - [ ] Control wrapping and dependency growth with bounded subdivision,
      interval Jacobians, Taylor models, and explicit resolution floors. Preserve
      partial trajectories and unresolved event-time intervals when the budget
@@ -455,6 +459,35 @@ newline normalization.
    - [ ] Add optional JavaScript, WebAssembly, and native acceleration providers
      behind the same RiX request/result protocol; accelerated paths must not
      change evidence semantics.
+
+### `.ode`
+
+1. **Phase 1 — Portable IVPs and educational trajectories**
+   - [x] Add a pure-RiX browser-safe plugin over public Calculus expressions
+     and Numerics evidence, with portable problem, solution, and segment
+     records.
+   - [x] Add deterministic fixed-step scalar Euler and classical RK4 while
+     labeling their missing discretization-error bounds explicitly.
+   - [x] Reject interval initial states in approximate solvers rather than
+     silently taking midpoints; preserve them in validated calculations.
+2. **Phase 2 — First validated scalar flow**
+   - [x] Add bounded rational Picard self-map tubes, checked symbolic state
+     derivatives, Lipschitz uniqueness, endpoint enclosures, and partial-work
+     results.
+   - [x] Add a runnable tutorial contrasting exact arithmetic, approximation,
+     validation, and bounded failure.
+3. **Phase 3 — Systems, adaptation, and events**
+   - [ ] Add vector IVP execution using checked Jacobian boxes and
+     Taylor-model/affine wrapping control.
+   - [ ] Add adaptive embedded RK demonstrations with local-error estimates and
+     a separately certified Taylor/Picard method with truncation remainders.
+   - [ ] Isolate event times as intervals, add higher-order reductions, dense
+     certified output, backward integration, and Plot/Scene3D adapters.
+   - [ ] Add shooting/collocation-oriented boundary-value problem records and
+     solvers after vector IVPs and nonlinear box services stabilize.
+4. **Phase 4 — Advanced differential equations**
+   - [ ] Add stiff methods, differential-algebraic equations, delay equations,
+     continuation, symplectic methods, and selected PDE method-of-lines tools.
 
 ### `.algebra`
 

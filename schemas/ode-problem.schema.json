@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/ode-problem/v1.schema.json",
+  "title": "RiX ODE initial-value problem v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema",
+    "valueKind",
+    "problemKind",
+    "independent",
+    "stateNames",
+    "dimension",
+    "rhs",
+    "initialTime",
+    "initialState",
+    "interval",
+    "parameters",
+    "units",
+    "events",
+    "assumptions"
+  ],
+  "properties": {
+    "schema": { "const": "rix.ode.problem@1" },
+    "valueKind": { "const": "odeProblem" },
+    "problemKind": { "const": "initialValueProblem" },
+    "independent": { "type": "string" },
+    "stateNames": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string" }
+    },
+    "dimension": { "type": "integer", "minimum": 1 },
+    "rhs": { "type": "array", "minItems": 1 },
+    "initialState": { "type": "array", "minItems": 1 },
+    "parameters": { "type": "object" },
+    "units": { "type": "object" },
+    "events": { "type": "array" },
+    "assumptions": { "type": "array" },
+    "direction": { "const": "forward" }
+  }
+}
