@@ -3,12 +3,12 @@ id: cauchy
 description: Rational Cauchy sequences with explicit certified tail bounds and moduli.
 kind: rix
 mount: cauchy
-exports: [Sequence, Certified, Geometric, Terms, Funnel, Term, TailBound, Modulus, Enclosure, Record]
+exports: [Sequence, Certified, Geometric, LimitProof, Limit, Aitken, Subsequence, Diagnose, Terms, Funnel, Term, TailBound, Modulus, Enclosure, Record]
 groups: [Numerics, Exact]
 permissions: []
 requires: [rix.oracle@1]
 provides: [rix.cauchy@1, rix.refinable@1, rix.enclosable-real@1]
-schemas: [rix.cauchy.sequence@1, rix.cauchy.real@1, rix.cauchy.arithmetic-real@1]
+schemas: [rix.cauchy.sequence@1, rix.cauchy.real@1, rix.cauchy.arithmetic-real@1, rix.cauchy.limit-proof@1, rix.cauchy.diagnosis@1]
 snapshot: false
 deterministic: true
 defaultEnabled: false
@@ -167,6 +167,8 @@ CauchyAttachBareProtocol(real) -> {;
     real._proto = {=
         Term = (self, index) -> CauchyTermAt(self, index),
         Terms = (self, start ?= 0, count ?= 10) -> CauchyTerms(self, start, count),
+        Aitken = (self, proof, options ?= {= }) -> CauchyAitken(self, proof, options),
+        Diagnose = (self, options ?= {= }) -> CauchyDiagnose(self, options),
         Funnel = (self, options ?= {= }) -> CauchyFunnel(self, options),
         Record = (self) -> CauchyRecord(self),
         NumericsCapabilities = (self) -> CauchyCapabilities(self),
@@ -183,6 +185,10 @@ CauchyAttachCertifiedProtocol(real) -> {;
         Modulus = (self, radius) -> CauchyModulusAt(self, radius),
         Enclosure = (self, index) -> CauchyWitnessAt(self, index)[:interval],
         Terms = (self, start ?= 0, count ?= 10) -> CauchyTerms(self, start, count),
+        Aitken = (self, proof, options ?= {= }) -> CauchyAitken(self, proof, options),
+        Subsequence = (self, stride ?= 2, offset ?= 0, options ?= {= }) ->
+            CauchySubsequence(self, stride, offset, options),
+        Diagnose = (self, options ?= {= }) -> CauchyDiagnose(self, options),
         Funnel = (self, options ?= {= }) -> CauchyFunnel(self, options),
         InitialEnclosure = (self) -> self[:initialWitness][:interval],
         Record = (self) -> CauchyRecord(self),
@@ -215,7 +221,7 @@ BuildCertifiedCauchy(termFunction, tailFunction, modulusFunction, options) -> {;
         modulusFunction = modulusFunction,
         evidence = CauchyOption(options, "evidence", :declaredTailModulus),
         initialWitness = CauchyWitness(initialTerm, initialTail, 0),
-        provenance = {= plugin=:cauchy, version=1, source=:declaredTailModulus }
+        provenance = CauchyOption(options, "provenance", {= plugin=:cauchy, version=1, source=:declaredTailModulus })
     });
 };
 
@@ -254,6 +260,126 @@ CauchyGeometricConstructor(first, ratio, options ?= {= }) -> {;
         },
         initialWitness = initial,
         provenance = {= plugin=:cauchy, version=1, source=:geometricTail }
+    });
+};
+
+CauchyLimitProof(tailFunction, modulusFunction, options ?= {= }) -> {;
+    level = CauchyOption(options,"level",:proof);
+    {=
+        valueKind=:cauchyLimitProof,
+        schema="rix.cauchy.limit-proof@1",
+        tailFunction=tailFunction,
+        modulusFunction=modulusFunction,
+        level=level,
+        theorem=CauchyOption(options,"theorem",:effectiveCauchyTail),
+        assumptions=CauchyOption(options,"assumptions",[]),
+        witness=CauchyOption(options,"witness",_),
+        certified=level == :proof || level == :constructorGuarantee,
+        provenance=CauchyOption(options,"provenance",{= plugin=:cauchy,source=:declaredLimitProof })
+    };
+};
+
+CauchyLimit(termFunction, proof, options ?= {= }) -> {;
+    proof[:schema] == "rix.cauchy.limit-proof@1"
+      ?: _ ?_ .Error("Cauchy Limit requires a rix.cauchy.limit-proof@1 value");
+    proof[:certified]
+      ?: _ ?_ .Error("Cauchy Limit requires proof or constructor-guarantee tail evidence");
+    BuildCertifiedCauchy(
+        termFunction,
+        proof[:tailFunction],
+        proof[:modulusFunction],
+        options.Merge({=
+            evidence={= kind=:proofCarryingLimit,level=proof[:level],theorem=proof[:theorem],proof=proof },
+            provenance=CauchyOption(options,"provenance",{=
+                plugin=:cauchy,version=3,source=:proofCarryingLimit,proof=proof[:provenance]
+            })
+        })
+    );
+};
+
+CauchyAitken(real, proof, options ?= {= }) -> {;
+    TermFunction = (index) -> {;
+        first = CauchyTermAt(@real,index);
+        second = CauchyTermAt(@real,index+1);
+        third = CauchyTermAt(@real,index+2);
+        delta = second-first;
+        secondDifference = third-2*second+first;
+        secondDifference == 0
+          ?: .Error("Cauchy Aitken transform requires a nonzero second difference")
+          ?_ first-delta^2/secondDifference;
+    };
+    CauchyLimit(TermFunction,proof,options.Merge({=
+        name=CauchyOption(options,"name",:aitkenDeltaSquared),
+        provenance={=
+            plugin=:cauchy,
+            version=3,
+            source=:aitkenDeltaSquared,
+            parent=real[:provenance],
+            proof=proof[:provenance]
+        }
+    }));
+};
+
+CauchySubsequence(real, strideValue ?= 2, offsetValue ?= 0, options ?= {= }) -> {;
+    stride = CauchyRequireIndex(strideValue,"Cauchy subsequence stride");
+    offset = CauchyRequireIndex(offsetValue,"Cauchy subsequence offset");
+    stride >= 1 ?: _ ?_ .Error("Cauchy subsequence stride must be positive");
+    supported = real[:kind] == :geometric || real[:kind] == :declared || real[:kind] == :computed;
+    supported ?: _ ?_ .Error("Cauchy Subsequence requires an effective term/tail/modulus sequence");
+    TermFunction = (index) -> CauchyTermAt(@real,@stride*index+@offset);
+    TailFunction = (index) -> CauchyTailBoundAt(@real,@stride*index+@offset);
+    ModulusFunction = (radius) -> {;
+        required = CauchyModulusAt(@real,radius);
+        required <= @offset ?: 0 ?_ (required-@offset+@stride-1)//@stride;
+    };
+    BuildCertifiedCauchy(TermFunction,TailFunction,ModulusFunction,options.Merge({=
+        name=CauchyOption(options,"name",:subsequence),
+        evidence={=
+            kind=:monotoneSubsequence,
+            property=:sameLimit,
+            stride=stride,
+            offset=offset,
+            sourceEvidence=real[:evidence]
+        },
+        provenance={=
+            plugin=:cauchy,
+            version=3,
+            source=:monotoneSubsequence,
+            stride=stride,
+            offset=offset,
+            parent=real[:provenance]
+        }
+    }));
+};
+
+CauchyDiagnose(real, options ?= {= }) -> {;
+    count = CauchyRequireCount(CauchyOption(options,"count",6),"Cauchy diagnosis count");
+    bare = real[:kind] == :bare;
+    sampledTerms = bare ?: CauchyTerms(real,0,count).Materialize() ?_ [];
+    sampledDifferences := [];
+    {@ index=2; index<=@sampledTerms.Len(); {;
+        @sampledDifferences = @sampledDifferences.Push((@sampledTerms[index]-@sampledTerms[index-1]).Abs());
+    }; index+=1 };
+    capabilities = real.NumericsCapabilities();
+    observationRecord = {= };
+    observationRecord["terms"] = sampledTerms;
+    observationRecord["successiveDifferences"] = sampledDifferences;
+    observationRecord["count"] = count;
+    .ImmutableValue({=
+        valueKind=:cauchyDiagnosis,
+        schema="rix.cauchy.diagnosis@1",
+        status=bare ?: :missingEffectiveTailInformation ?_ :effective,
+        certified=bare ?: _ ?_ capabilities[:certified],
+        sequence=real,
+        capabilities=capabilities,
+        observations=observationRecord,
+        required=bare ?: [:tailBound,:modulus] ?_ [],
+        diagnostics=bare
+          ?: [:finiteTermsDoNotProveCauchy,:missingCertifiedTailBound,:missingEffectiveModulus]
+          ?_ [],
+        evidence=bare
+          ?: {= level=:observed,property=:sampledSuccessiveDifferences,proof=_ }
+          ?_ real[:evidence]
     });
 };
 
@@ -630,6 +756,13 @@ cauchyNamespace._proto = {=
     Certified = (self, termFunction, tailFunction, modulusFunction, options ?= {= }) ->
         CauchyCertifiedConstructor(termFunction, tailFunction, modulusFunction, options),
     Geometric = (self, first, ratio, options ?= {= }) -> CauchyGeometricConstructor(first, ratio, options),
+    LimitProof = (self, tailFunction, modulusFunction, options ?= {= }) ->
+        CauchyLimitProof(tailFunction,modulusFunction,options),
+    Limit = (self, termFunction, proof, options ?= {= }) -> CauchyLimit(termFunction,proof,options),
+    Aitken = (self, real, proof, options ?= {= }) -> CauchyAitken(real,proof,options),
+    Subsequence = (self, real, stride ?= 2, offset ?= 0, options ?= {= }) ->
+        CauchySubsequence(real,stride,offset,options),
+    Diagnose = (self, real, options ?= {= }) -> CauchyDiagnose(real,options),
     Terms = (self, real, start ?= 0, count ?= 10) -> CauchyTerms(real, start, count),
     Funnel = (self, real, options ?= {= }) -> CauchyFunnel(real, options),
     Term = (self, real, index) -> CauchyTermAt(real, index),

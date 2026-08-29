@@ -770,8 +770,8 @@ tracked in
    - [x] Implement the paper-compatible funnel adapter.
    - [x] Preserve lazy terms and bounded work.
 3. **Phase 3 — Limits of generated sequences**
-   - [ ] Add convergence transformations and proof-carrying limit constructors.
-   - [ ] Diagnose sequences without effective tail information.
+   - [x] Add convergence transformations and proof-carrying limit constructors.
+   - [x] Diagnose sequences without effective tail information.
 4. **Phase 4 — Advanced sequence analysis**
    - [ ] Explore constructive completeness and exchanges with theorem/proof
      systems.

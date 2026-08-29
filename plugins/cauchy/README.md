@@ -58,6 +58,51 @@ This works for positive and alternating ratios. Although a geometric sum is
 itself Rational, the constructor deliberately retains the sequence and tail
 proof so the refinement process remains visible.
 
+## Proof-carrying limits and transformations
+
+`LimitProof(tailBound, modulus, options)` packages effective tail evidence.
+`Limit(term, proof, options?)` accepts only evidence marked `:proof` or
+`:constructorGuarantee`; an `:assumed` claim remains non-certifying. As with
+`Certified`, RiX validates every exact witness it uses, while the named theorem
+and assumptions make the source of the global claim explicit.
+
+```rix
+.Plugin.Load("cauchy");
+proof := .cauchy.LimitProof((n)->0, (radius)->0, {=
+  level=:proof,
+  theorem=:constantSequenceLimit,
+  witness=5
+});
+five := .cauchy.Limit((n)->5, proof);
+five.Enclosure(0); ## 5:5
+```
+
+`Aitken(proof, options?)` applies the Aitken delta-squared transform to three
+successive terms. It rejects a zero second difference and requires separate
+tail evidence for the transformed sequence: numerical acceleration alone is
+not a convergence proof. For a geometric partial-sum sequence the transform is
+exact after one step:
+
+```rix
+g := .cauchy.Geometric(1,1/2);
+exact := .cauchy.LimitProof((n)->0, (radius)->0, {=
+  level=:proof,
+  theorem=:geometricAitkenExact
+});
+fast := g.Aitken(exact);
+fast.Term(0); ## 2
+```
+
+`Subsequence(stride?, offset?, options?)` derives its term, tail, and modulus
+witnesses from an effective parent, recording a same-limit proof. For example,
+`g.Subsequence(2,1)` selects partial sums 1, 3, 5, ... without losing the
+certified limit.
+
+`Diagnose(options?)` distinguishes effective sequences from bare generators.
+For a bare sequence it returns bounded term observations plus
+`:missingEffectiveTailInformation`, `[:tailBound,:modulus]` requirements, and
+explicit diagnostics that finite samples do not prove the Cauchy property.
+
 ## Refinement
 
 Certified Cauchy reals implement `Enclose`, `Refine`, and
@@ -123,7 +168,8 @@ funnel.Refine({= absoluteWidth=1/1000, maxCalls=20 });
 funnel.ToOracle().Refine({= absoluteWidth=1/1000, maxCalls=20 });
 ```
 
-Convergence accelerators and equivalence proofs remain later work.
+Constructive-completeness results and exchanges with external theorem/proof
+systems remain later work.
 
 The directory also retains [`cauchy.js`](cauchy.js), the earlier host-side
 implementation, as a point of comparison. It is not a plugin manifest, is not

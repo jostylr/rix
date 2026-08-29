@@ -75,6 +75,66 @@ g := .cauchy.Geometric(1, 1/2, {= name="binary geometric" });
 At every row the exact limit `2` lies in the interval. Negative ratios use the
 same absolute remainder theorem and produce certified alternating examples.
 
+## Proof-carrying generated limits
+
+A limit constructor makes the source of its global convergence claim visible.
+Evidence marked `:assumed` is rejected; a proof or constructor guarantee must
+provide both an exact tail bound and a modulus:
+
+```rix
+.Plugin.Load("cauchy");
+constantProof := .cauchy.LimitProof((n)->0, (radius)->0, {=
+  level=:proof,
+  theorem=:constantSequenceLimit,
+  witness=5
+});
+five := .cauchy.Limit((n)->5, constantProof, {= name=:five });
+.Table({=
+  columns=["term", "tail bound", "certified enclosure"],
+  rows=[[five.Term(0), five.TailBound(0), five.Enclosure(0)]]
+});
+```
+
+The Aitken delta-squared transform can accelerate a generated sequence, but the
+new sequence still needs its own limit proof. For geometric partial sums it
+collapses to the exact sum. A derived subsequence, by contrast, reuses the
+parent's effective tail information automatically:
+
+```rix
+.Plugin.Load("cauchy");
+g := .cauchy.Geometric(1,1/2);
+aitkenProof := .cauchy.LimitProof((n)->0, (radius)->0, {=
+  level=:proof,
+  theorem=:geometricAitkenExact
+});
+fast := g.Aitken(aitkenProof);
+odd := g.Subsequence(2,1);
+.Table({=
+  columns=["construction", "first term", "tail bound"],
+  rows=[
+    ["Aitken", fast.Term(0), fast.TailBound(0)],
+    ["odd partial sums", odd.Term(0), odd.TailBound(0)]
+  ]
+});
+```
+
+Use `Diagnose` when a generator lacks effective tail information. Its sample is
+bounded observation, and its structured result states exactly what is missing:
+
+```rix
+.Plugin.Load("cauchy");
+bare := .cauchy.Sequence((n)->1/(n+1));
+diagnosis := bare.Diagnose({= count=4 });
+.Table({=
+  columns=["status", "observed terms", "required evidence"],
+  rows=[[
+    diagnosis[:status],
+    diagnosis[:observations]["terms"],
+    diagnosis[:required]
+  ]]
+});
+```
+
 ## Bounded refinement and Halo decisions
 
 Refinement advances only while its exact work budget permits. The result keeps

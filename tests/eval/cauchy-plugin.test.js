@@ -17,7 +17,11 @@ function runtime() {
 }
 
 function entry(map, key) {
-    return map.entries.get(String(key).toLowerCase());
+    const normalized = String(key).toLowerCase();
+    for (const [candidate, value] of map.entries) {
+        if (String(candidate).toLowerCase() === normalized) return value;
+    }
+    return undefined;
 }
 
 function textValue(value) {
@@ -285,5 +289,87 @@ describe("Cauchy plugin", () => {
         expect(() => parseAndEvaluate("g.Terms(0, -1)", options)).toThrow("nonnegative Integer");
         expect(() => parseAndEvaluate(".cauchy.Sequence((n)->n).Funnel()", options))
             .toThrow("certified effective singleton");
+    });
+
+    test("Phase 3 constructs proof-carrying limits without treating assumptions as certificates", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("cauchy");
+            proof := .cauchy.LimitProof((n)->0,(radius)->0,{=
+                level=:proof,theorem=:constantSequenceLimit,witness=5
+            });
+            limit := .cauchy.Limit((n)->5,proof,{= name=:five });
+            {: proof,limit.Record(),limit.Refine({= absoluteWidth=1/1000,maxCalls=2 }) };
+        `, options);
+        const [proof, record, refined] = result.values;
+        expect(entry(proof, "schema").value).toBe("rix.cauchy.limit-proof@1");
+        expect(entry(proof, "certified").value).toBe(1n);
+        expect(textValue(entry(record, "kind"))).toBe("declared");
+        expect(textValue(entry(entry(record, "evidence"), "kind"))).toBe("proofCarryingLimit");
+        expect(textValue(entry(refined, "status"))).toBe("enclosed");
+        expect(entry(refined, "interval").toString()).toBe("5:5");
+
+        expect(() => parseAndEvaluate(`
+            assumed := .cauchy.LimitProof((n)->0,(radius)->0,{= level=:assumed });
+            .cauchy.Limit((n)->5,assumed);
+        `, options)).toThrow("requires proof or constructor-guarantee");
+    });
+
+    test("Phase 3 applies an evidence-backed Aitken delta-squared transformation", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("cauchy");
+            source := .cauchy.Geometric(1,1/2);
+            exactProof := .cauchy.LimitProof((n)->0,(radius)->0,{=
+                level=:proof,theorem=:geometricAitkenExact
+            });
+            accelerated := source.Aitken(exactProof);
+            {: accelerated.Term(0),accelerated.Term(3),accelerated.Enclosure(0),
+               accelerated[:provenance] };
+        `, options);
+        expect(result.values.slice(0, 3).map(String)).toEqual(["2", "2", "2:2"]);
+        expect(textValue(entry(result.values[3], "source"))).toBe("aitkenDeltaSquared");
+
+        expect(() => parseAndEvaluate(`
+            flat := .cauchy.Sequence((n)->5);
+            flat.Aitken(exactProof);
+        `, options)).toThrow("nonzero second difference");
+    });
+
+    test("Phase 3 derives an effective same-limit subsequence with computed modulus", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("cauchy");
+            source := .cauchy.Geometric(1,1/2);
+            selected := .cauchy.Subsequence(source,2,1,{= name=:oddPartialSums });
+            {: selected.Term(0),selected.Term(1),selected.TailBound(1),
+               selected.Modulus(1/100),selected.Record(),
+               selected.Refine({= absoluteWidth=1/100,maxCalls=10 }) };
+        `, options);
+        expect(result.values.slice(0, 4).map(String)).toEqual(["3/2", "15/8", "1/8", "3"]);
+        const evidence = entry(result.values[4], "evidence");
+        expect(textValue(entry(evidence, "kind"))).toBe("monotoneSubsequence");
+        expect(entry(evidence, "stride").value).toBe(2n);
+        expect(textValue(entry(result.values[5], "status"))).toBe("enclosed");
+        expect(entry(result.values[5], "interval").containsValue(new Rational(2n))).toBe(true);
+    });
+
+    test("Phase 3 diagnoses missing effective tail information as observed, not proved", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("cauchy");
+            bare := .cauchy.Sequence((n)->1/(n+1));
+            effective := .cauchy.Geometric(1,1/2);
+            {: .cauchy.Diagnose(bare,{= count=4 }),.cauchy.Diagnose(effective) };
+        `, options);
+        const [bare, effective] = result.values;
+        expect(textValue(entry(bare, "status"))).toBe("missingEffectiveTailInformation");
+        expect(entry(bare, "certified")).toBeNull();
+        expect(entry(entry(bare, "observations"), "terms").values.map(String))
+            .toEqual(["1", "1/2", "1/3", "1/4"]);
+        expect(entry(bare, "diagnostics").values.map(textValue)).toContain("finiteTermsDoNotProveCauchy");
+        expect(entry(bare, "required").values.map(textValue)).toEqual(["tailBound", "modulus"]);
+        expect(textValue(entry(effective, "status"))).toBe("effective");
+        expect(entry(effective, "certified").value).toBe(1n);
     });
 });
