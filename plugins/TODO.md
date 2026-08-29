@@ -40,7 +40,7 @@ its first useful future increment rather than treating it as abandoned.
 | 4 | `.float` | Typed-array tensors followed by optional SIMD/Wasm acceleration | **Phase 4:** scale/performance layer |
 | 5 | `.oracle` | Exchange exact sign and root evidence with algebraic solvers | **Waiting:** stable multivariate algebra evidence records |
 | 6 | `.numerics` | Validated interval-linear solves and bounded box subdivision | **Ready:** Krawczyk and interval-Newton foundations are present |
-| 7 | `.ode` | Taylor-model or affine-arithmetic wrapping control, then interval-Newton event isolation | **Ready:** validated IVPs, adaptation, and event records are present |
+| 7 | `.ode` | General higher-order Taylor/affine flow with adaptive certified subdivision | **Ready:** second-order recentering and certified interval-Newton events are present |
 | 8 | `.algebra` | Multivariate Polynomial plus Groebner/elimination MVP | **Decision:** start with `Q` coefficients and explicit lex/graded orders |
 | 9 | `.linalg` | Characteristic/minimal polynomials, eigenspaces, and exact canonical forms | **Waiting:** algebraic extension/coefficient-domain contract |
 | 10 | `.optimize` | Bounded branch-and-bound integer and mixed-integer linear optimization | **Ready:** preserve partial bounds and unexplored nodes |
@@ -495,10 +495,11 @@ newline normalization.
    - [ ] Add exact recognized solutions, adaptive embedded Runge-Kutta with
      disclosed local-error estimates, then validated Taylor-model or interval
      Runge-Kutta segments with sharper truncation evidence.
-   - [ ] Control wrapping and dependency growth with bounded subdivision,
-     interval Jacobians, Taylor models, and explicit resolution floors. Preserve
-     partial trajectories and unresolved event-time intervals when the budget
-     ends.
+   - [ ] Generalize wrapping and dependency control beyond the implemented
+     order-two, segmentwise-recentered Taylor remainder to adaptive
+     subdivision, polynomial/affine models, and explicit resolution floors.
+     Preserve partial trajectories and unresolved event-time intervals when
+     the budget ends.
    - [ ] Add multidimensional optimization and implicit-function refinement on
      the same box/work/result vocabulary.
    - [ ] Feed nonlinear and ODE results to Solve, adaptive Geometry, Plot, and
@@ -507,8 +508,9 @@ newline normalization.
      direct interval Newton as alternatives and as complementary stages.
    - [x] Extend the tutorial comparison from scalar Newton to checked
      multidimensional Krawczyk boxes.
-   - [ ] Extend it with approximate ODE trajectories and validated ODE tubes as
-     those services land.
+   - [x] Extend it with approximate ODE trajectories, Picard tubes,
+     second-order Taylor recentering, and certified interval-Newton event
+     isolation.
 4. **Phase 4 — Advanced numerical orchestration**
    - [ ] Add sparse methods, PDE helpers, continuation, and precision
      escalation across multiple backends.
@@ -536,15 +538,19 @@ newline normalization.
 3. **Phase 3 — Systems, adaptation, and events**
    - [x] Add vector Euler/RK4 execution and componentwise validated Picard boxes
      using a checked full Jacobian and an explicit contraction bound.
-   - [ ] Add Taylor-model/affine wrapping control to the validated vector flow.
+   - [x] Add second-order Taylor-remainder wrapping control with segmentwise
+     recentering to the validated scalar and vector flow; retain that general
+     polynomial Taylor models and affine arithmetic are not yet implemented.
    - [x] Add adaptive RK4 step-doubling demonstrations with exact local-error
      estimates, bounded rejection, and no false global certificate.
-   - [ ] Add a separately certified higher-order Taylor/Picard method with
-     truncation remainders and adaptive validated subdivision.
+   - [ ] Generalize the separately certified Taylor/Picard method beyond its
+     implemented order-two remainder to higher-order models and adaptive
+     validated subdivision.
    - [x] Add portable event records, observed sign-change bisection for
      approximate dense output, and certified no-event exclusions over tubes.
-   - [ ] Prove event existence/uniqueness with interval Newton, then add
-     higher-order dense certified output, backward integration, and
+   - [x] Prove event existence/uniqueness on second-order Taylor segments with
+     a checked endpoint bracket, total event derivative, and interval Newton.
+   - [ ] Add higher-order dense certified output, backward integration, and
      Plot/Scene3D adapters.
    - [ ] Add shooting/collocation-oriented boundary-value problem records and
      solvers after vector IVPs and nonlinear box services stabilize.

@@ -19,13 +19,13 @@
     "schema": { "const": "rix.ode.dense-segment@1" },
     "valueKind": { "const": "odeDenseSegment" },
     "segmentKind": {
-      "enum": ["approximate", "validatedTube", "unresolvedTube"]
+      "enum": ["approximate", "validatedTube", "validatedTaylorTube", "unresolvedTube"]
     },
-    "method": { "enum": ["euler", "rk4", "adaptiveRK4", "validatedPicard"] },
+    "method": { "enum": ["euler", "rk4", "adaptiveRK4", "validatedPicard", "validatedTaylor2"] },
     "index": { "type": "integer", "minimum": 1 },
     "stateStart": { "type": "array", "minItems": 1 },
     "stateEnd": { "type": ["array", "null"] },
-    "interpolation": { "enum": ["linear", "intervalTube", "none"] },
+    "interpolation": { "enum": ["linear", "intervalTube", "secondOrderTaylorInterval", "none"] },
     "certified": { "type": ["boolean", "null"] }
   }
 }

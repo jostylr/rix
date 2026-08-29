@@ -1,6 +1,6 @@
 ---
 title: Vector trajectories, adaptive estimates, and validated ODE tubes
-description: Compare fixed and adaptive demonstrations with checked scalar and vector Picard enclosures and honest event candidates.
+description: Compare fixed and adaptive demonstrations with checked Picard/Taylor enclosures and honest or certified event candidates.
 theme: Numbers and numerics
 status: implemented
 ---
@@ -122,6 +122,27 @@ excluded := .ode.IVP(.calculus.Constant(0),0,1,0:1,{= events=[.ode.Event(y)] })
 {: observed[:candidates],excluded[:exclusions] };
 ```
 
+## Tighten the tube and certify one event
+
+The second-order solver first proves the Picard existence tube, then encloses
+the total derivative and recenters a Taylor remainder on every segment. For
+`y'=1`, the remainder is exactly zero, so the half-height event contracts to an
+exact time.
+
+```{.rix exec=true}
+.Plugin.Load("ode");
+y := .calculus.Variable(:y);
+half := .ode.Event(y-1/2,{= name=:half,direction=:rising });
+taylor := .ode.IVP(.calculus.Constant(1),0,0,0:1,{= events=[half] })
+  .ValidatedTaylor2({= steps=1,maxSubintervals=2 });
+eventResult := taylor.IsolateEvents(half,{= eventWidth=1/100000 })[1];
+{: taylor[:wrappingControl],taylor.At(1/2),eventResult[:candidates][1] };
+```
+
+The event proof is not inferred merely from a tube containing zero. It retains
+the endpoint range checks, the checked identity
+`g_t + grad(g) dot f`, and every interval-Newton contraction.
+
 ## Bounded failure preserves useful work
 
 A deliberately inadequate radius budget cannot validate `y'=100y` over one
@@ -149,3 +170,5 @@ self-map, but work exhaustion is never reported as nonexistence.
 5. Change an event direction and observe which endpoint sign changes qualify.
 6. Explain why a validated event range containing zero still needs an
    existence or interval-Newton argument.
+7. Compare `ValidatedPicard` and `ValidatedTaylor2` endpoint widths on
+   `y'=y` as the number of segments changes.

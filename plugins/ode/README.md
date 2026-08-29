@@ -98,23 +98,56 @@ record. `solution.IsolateEvents()` then reports one result per event.
 This distinction leaves room for the later certified event method, which must
 combine a dense validated flow with an interval-Newton derivative test.
 
+## Second-order validated Taylor flow
+
+`ValidatedTaylor2(problem,options?)` starts with the same checked Picard
+self-map used by `ValidatedPicard`, then derives the total derivative
+
+```text
+d f_i/dt = partial_t f_i + sum_j partial_(y_j) f_i * f_j.
+```
+
+Complete graph-range checks bound this derivative over the Picard tube. On
+each segment RiX encloses
+
+```text
+y(t0+s) = y(t0) + s f(t0,y(t0)) + s^2/2 * y''(xi)
+```
+
+and intersects that result with the independently certified Picard tube. This
+is a second-order interval Taylor remainder with segmentwise recentering. It
+reduces dependency growth, but it is not yet a general polynomial Taylor model
+or affine-arithmetic flow. The record says so explicitly through
+`wrappingControl.kind=:secondOrderTaylorRecentering` and
+`affineArithmetic=null`.
+
+For these Taylor segments, event isolation can now certify one event. RiX
+requires certified opposite endpoint signs, checks the total event derivative
+`g_t + grad(g) dot f` away from zero, and contracts the time interval with
+interval Newton. The resulting `:certifiedUniqueEvent` combines the
+intermediate-value existence argument with monotonic uniqueness. If the
+endpoint bracket or derivative test is unavailable, the candidate remains
+unresolved.
+
 ## Deliberate first-release limits
 
 - forward first-order scalar and vector IVPs;
 - fixed rational time steps;
 - unconditional differentiable Calculus graphs with exact rational range
   endpoints;
-- first-order componentwise Picard boxes, so wrapping can grow quickly;
+- second-order interval Taylor recentering, but no general affine or
+  polynomial Taylor-model algebra yet;
 - adaptive RK4 has estimates but no global certificate;
-- event exclusions are certifiable, while event existence/uniqueness is not;
+- event existence/uniqueness is certified only on Taylor segments with a
+  checked endpoint bracket and nonzero total event derivative;
   and
 - no Taylor-model flow, stiffness method, backward integration,
   boundary-value solver, or continuation yet.
 
-The record shapes reserve those extensions. The next validated rung is
-higher-order Taylor segments with affine/Taylor wrapping control, followed by
-interval-Newton event times and adaptive certified subdivision. Boundary-value problems then
-become a separate problem kind rather than being disguised as an IVP.
+The record shapes reserve those extensions. The next validated rung is a
+general higher-order Taylor-model or affine flow with adaptive certified
+subdivision. Boundary-value problems then become a separate problem kind
+rather than being disguised as an IVP.
 
 See [tutorial.md](tutorial.md) for runnable approximate, validated, and
 bounded-failure examples.

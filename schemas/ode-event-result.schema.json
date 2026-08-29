@@ -14,6 +14,6 @@
     "exclusions": { "type": "array" },
     "complete": { "type": ["boolean", "null"] },
     "certified": { "type": ["boolean", "null"] },
-    "evidenceLevel": { "enum": ["observed", "partialProof", "unresolved"] }
+    "evidenceLevel": { "enum": ["observed", "partialProof", "proof", "unresolved"] }
   }
 }

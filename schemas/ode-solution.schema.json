@@ -22,10 +22,10 @@
     "schema": { "const": "rix.ode.solution@1" },
     "valueKind": { "const": "odeSolution" },
     "problem": { "$ref": "ode-problem.schema.json" },
-    "method": { "enum": ["euler", "rk4", "adaptiveRK4", "validatedPicard"] },
+    "method": { "enum": ["euler", "rk4", "adaptiveRK4", "validatedPicard", "validatedTaylor2"] },
     "status": { "enum": ["approximate", "validated", "partial"] },
     "classification": {
-      "enum": ["fixedStepTrajectory", "adaptiveTrajectory", "adaptiveBudgetExhausted", "certifiedTube", "unresolvedTube"]
+      "enum": ["fixedStepTrajectory", "adaptiveTrajectory", "adaptiveBudgetExhausted", "certifiedTube", "unresolvedTube", "certifiedTaylorTube", "unresolvedTaylorTube"]
     },
     "stateNames": { "type": "array", "minItems": 1 },
     "points": { "type": "array", "minItems": 1 },

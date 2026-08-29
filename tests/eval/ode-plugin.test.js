@@ -187,6 +187,57 @@ describe("pure RiX ODE plugin", () => {
         expect(entry(entry(excluded, "exclusions").values[0], "certified").value).toBe(1n);
     });
 
+    test("tightens a Picard existence tube with a checked second-order Taylor remainder", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("ode");
+            y := .calculus.Variable(:y);
+            solution := .ode.IVP(.calculus.Constant(1),0,0,0:1)
+                .ValidatedTaylor2({= steps=1,maxSubintervals=2 });
+            {: solution,solution.At(1/2) };
+        `, runtime());
+        const solution = result.values[0];
+        const segment = entry(solution, "segments").values[0];
+        expect(text(entry(solution, "classification"))).toBe("certifiedTaylorTube");
+        expect(text(entry(segment, "segmentkind"))).toBe("validatedTaylorTube");
+        expect(text(entry(segment, "wrappingcontrol"))).toBe("segmentwiseTaylorRecentering");
+        expect(entry(solution, "finalstate").values[0].toString()).toBe("1:1");
+        expect(result.values[1].toString()).toBe("1/2:1/2");
+    });
+
+    test("applies checked Taylor recentering componentwise to vector flows", () => {
+        const solution = parseAndEvaluate(`
+            .Plugin.Load("ode");
+            x := .calculus.Variable(:x);
+            y := .calculus.Variable(:y);
+            .ode.IVP([y,-x],0,[1,0],0:1/2,{= stateNames=[:x,:y] })
+                .ValidatedTaylor2({= steps=4,maxSubintervals=2 });
+        `, runtime());
+        expect(text(entry(solution, "status"))).toBe("validated");
+        expect(entry(solution, "finalstate").values).toHaveLength(2);
+        const first = entry(solution, "segments").values[0];
+        expect(entry(first, "secondderivativerange").values).toHaveLength(2);
+        expect(text(entry(entry(solution, "wrappingcontrol"), "kind")))
+            .toBe("secondOrderTaylorRecentering");
+    });
+
+    test("certifies a unique event time with trajectory-aware interval Newton", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("ode");
+            y := .calculus.Variable(:y);
+            event := .ode.Event(y-1/2,{= name=:half,direction=:rising });
+            solution := .ode.IVP(.calculus.Constant(1),0,0,0:1,{= events=[event] })
+                .ValidatedTaylor2({= steps=1,maxSubintervals=2 });
+            solution.IsolateEvents()[1];
+        `, runtime());
+        const candidate = entry(result, "candidates").values[0];
+        expect(text(entry(candidate, "classification"))).toBe("certifiedUniqueEvent");
+        expect(entry(candidate, "certified").value).toBe(1n);
+        expect(entry(candidate, "interval").toString()).toBe("1/2:1/2");
+        expect(text(entry(entry(candidate, "evidence"), "theorem")))
+            .toBe("intermediateValuePlusMonotoneIntervalNewton");
+        expect(entry(result, "certified").value).toBe(1n);
+    });
+
     test("rejects midpoint loss for interval initial states in approximate solvers", () => {
         expect(() => parseAndEvaluate(`
             .Plugin.Load("ode");
