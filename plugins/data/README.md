@@ -18,7 +18,8 @@ bestFirst := .data.Sort(scores, ["score"], {= descending=1 });
 
 Public operations are `Relation`, `Project`, `Rename`, `Distinct`, `Filter`,
 `Sort`, `Join`, `Group`, `Aggregate`, `Frequency`, `Contingency`, `Calculate`,
-`Missing`, `RowSource`, `Collect`, `TableView`, `Schema`, and `Rows`. A filter or calculated-column function receives `(row, oneBasedIndex,
+`Missing`, `RowSource`, `ParseJSONL`, `RenderJSONL`, `Collect`, `TableView`,
+`Schema`, and `Rows`. A filter or calculated-column function receives `(row, oneBasedIndex,
 relation)`; `row` is a map keyed by schema ID. Sort is stable, accepts one or
 more column IDs, puts missing values last by default, and supports
 `descending=1` and `missingFirst=1`.
@@ -36,6 +37,30 @@ aggregate missing policies are explicit. Exact sums and means remain exact.
 `Missing` applies `:drop`, `:error`, or `:fill`. `RowSource(schema,producer,
 {= maxRows=... })` plus `Collect` provides a deliberately bounded pull source;
 it does not imply an unbounded or asynchronous stream.
+
+`ParseJSONL(schema,text,options?)` scans line boundaries once and returns the
+same bounded `rix.data.row-source@1` protocol. Individual JSON records are not
+parsed until pulled. `maxRows` defaults to 1000, blank physical lines are
+skipped unless `blankLines=:error`, and diagnostics retain physical line
+numbers. Objects use schema column IDs; arrays use schema order.
+
+`RenderJSONL(relationOrSource,options?)` writes one deterministic object per
+line. Integer, Rational, and Interval cells use `$integer`, `$rational`, and
+`$interval` tags so no exact value passes through a JSON number. Rendering a
+RowSource pulls no more than its bound or the explicit `limit`. The result is a
+string; permission-aware filesystem/network sinks remain host work rather than
+an evaluator side effect.
+
+```rix
+schema := [
+  {= id="n",type=:Integer,nullable=0 },
+  {= id="ratio",type=:Rational,nullable=0 }
+];
+source := .data.ParseJSONL(schema, """{"n":{"$integer":"1"},"ratio":{"$rational":["1","3"]}}
+{"n":{"$integer":"2"},"ratio":{"$rational":["2","3"]}}
+""");
+.data.RenderJSONL(.data.Collect(source,2));
+```
 
 Schema types are `Any`, `Integer`, `Rational`, `Number`, `Interval`, and
 `String`. An `Interval` column accepts `RationalInterval` values and exact

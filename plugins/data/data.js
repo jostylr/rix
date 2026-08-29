@@ -40,6 +40,14 @@ function option(options, name, fallback = null) {
     return options === null || options === undefined ? fallback : field(entries(options, "data options"), name, fallback);
 }
 
+function safeCount(value, label, fallback) {
+    const selected = value === null || value === undefined ? fallback : value;
+    if (!(selected instanceof Integer) || selected.value < 0n || selected.value > BigInt(Number.MAX_SAFE_INTEGER)) {
+        throw new Error(`${label} must be a nonnegative safe Integer`);
+    }
+    return Number(selected.value);
+}
+
 const TYPE_NAMES = new Map([
     ["any", "Any"],
     ["integer", "Integer"],
@@ -748,6 +756,202 @@ export function createRowSource(args) {
         maxRows: Number(maxRowsValue.value),
         _ext: new Map([["_type", stringValue("data_row_source")], ["immutable", new Integer(1n)]]),
     });
+}
+
+const CANONICAL_INTEGER = /^(?:0|-[1-9][0-9]*|[1-9][0-9]*)$/;
+
+function jsonInteger(value, label) {
+    if (typeof value !== "string" || !CANONICAL_INTEGER.test(value)) {
+        throw new Error(`${label} must be a canonical decimal Integer string`);
+    }
+    return BigInt(value);
+}
+
+function taggedExact(value, label) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+    const keys = Object.keys(value);
+    if (keys.length !== 1) return null;
+    if (keys[0] === "$integer") return new Integer(jsonInteger(value.$integer, `${label} $integer`));
+    if (keys[0] === "$rational") {
+        if (!Array.isArray(value.$rational) || value.$rational.length !== 2) {
+            throw new Error(`${label} $rational must contain numerator and denominator strings`);
+        }
+        const numerator = jsonInteger(value.$rational[0], `${label} rational numerator`);
+        const denominator = jsonInteger(value.$rational[1], `${label} rational denominator`);
+        if (denominator <= 0n) throw new Error(`${label} rational denominator must be positive`);
+        return collapseRational(new Rational(numerator, denominator));
+    }
+    if (keys[0] === "$interval") {
+        if (!Array.isArray(value.$interval) || value.$interval.length !== 2) {
+            throw new Error(`${label} $interval must contain two exact endpoints`);
+        }
+        const low = taggedExact(value.$interval[0], `${label} lower endpoint`);
+        const high = taggedExact(value.$interval[1], `${label} upper endpoint`);
+        if (!(low instanceof Integer || low instanceof Rational)
+            || !(high instanceof Integer || high instanceof Rational)) {
+            throw new Error(`${label} interval endpoints must be tagged Integers or Rationals`);
+        }
+        const lowRational = exactRational(low, `${label} lower endpoint`);
+        const highRational = exactRational(high, `${label} upper endpoint`);
+        if (rationalCompare(lowRational, highRational) > 0) throw new Error(`${label} interval endpoints must be ordered`);
+        return new RationalInterval(lowRational, highRational);
+    }
+    return null;
+}
+
+function decodeJsonValue(value, column, label) {
+    if (value === null) return null;
+    const tagged = taggedExact(value, label);
+    if (tagged !== null) return tagged;
+    if (column.type === "String") {
+        if (typeof value !== "string") throw new Error(`${label} must be a JSON string`);
+        return stringValue(value);
+    }
+    if (["Integer", "Rational", "Number", "Interval"].includes(column.type)) {
+        if (typeof value === "number" && Number.isSafeInteger(value)) return new Integer(BigInt(value));
+        throw new Error(`${label} must use an exact $integer, $rational, or $interval tag`);
+    }
+    if (typeof value === "string") return stringValue(value);
+    if (typeof value === "number") {
+        if (!Number.isSafeInteger(value)) throw new Error(`${label} JSON number is not a safe exact Integer; use an exact tag`);
+        return new Integer(BigInt(value));
+    }
+    if (typeof value === "boolean") return value;
+    if (Array.isArray(value)) return sequenceValue(value.map((entry, index) => decodeJsonValue(entry, { type: "Any" }, `${label}[${index + 1}]`)));
+    if (value && typeof value === "object") {
+        return mapValue(Object.keys(value).sort().map((key) => [key, decodeJsonValue(value[key], { type: "Any" }, `${label}.${key}`)]));
+    }
+    throw new Error(`${label} contains unsupported JSON data`);
+}
+
+function encodeJsonValue(value, label, seen = new WeakSet()) {
+    if (value === null || value === undefined) return null;
+    if (value instanceof Integer) return { $integer: value.value.toString() };
+    if (value instanceof Rational) return { $rational: [value.numerator.toString(), value.denominator.toString()] };
+    if (value instanceof RationalInterval) {
+        return { $interval: [encodeJsonValue(value.low, `${label}.low`, seen), encodeJsonValue(value.high, `${label}.high`, seen)] };
+    }
+    if (value?.type === "string") return value.value;
+    if (typeof value === "string" || typeof value === "boolean") return value;
+    if (typeof value === "number") {
+        if (!Number.isSafeInteger(value)) throw new Error(`${label} number is not a safe exact Integer`);
+        return { $integer: String(value) };
+    }
+    if (typeof value !== "object") throw new Error(`${label} contains unsupported ${typeof value} data`);
+    if (seen.has(value)) throw new Error(`${label} contains a circular value`);
+    seen.add(value);
+    try {
+        if (Array.isArray(value) || Array.isArray(value?.values)) {
+            return sequence(value, label).map((entry, index) => encodeJsonValue(entry, `${label}[${index + 1}]`, seen));
+        }
+        const values = value?.type === "map" && value.entries instanceof Map
+            ? value.entries
+            : value instanceof Map ? value : null;
+        if (values) {
+            return Object.fromEntries([...values]
+                .map(([key, entry]) => [String(key), entry])
+                .sort(([left], [right]) => left.localeCompare(right))
+                .map(([key, entry]) => [key, encodeJsonValue(entry, `${label}.${key}`, seen)]));
+        }
+    } finally {
+        seen.delete(value);
+    }
+    throw new Error(`${label} contains unsupported ${value?.type || value?.constructor?.name || "object"} data`);
+}
+
+function jsonlOffsets(source, blankPolicy) {
+    const records = [];
+    let start = 0;
+    let line = 1;
+    for (let index = 0; index <= source.length; index += 1) {
+        if (index !== source.length && source[index] !== "\n") continue;
+        let end = index;
+        if (end > start && source[end - 1] === "\r") end -= 1;
+        const raw = source.slice(start, end);
+        if (raw.trim()) records.push(Object.freeze({ start, end, line }));
+        else if (blankPolicy === "error" && !(index === source.length && start === source.length)) {
+            throw new Error(`data.ParseJSONL found a blank physical line at line ${line}`);
+        }
+        start = index + 1;
+        line += 1;
+    }
+    return Object.freeze(records);
+}
+
+export function parseJsonlSource(args) {
+    if (args.length < 2 || args.length > 3) throw new Error("data.ParseJSONL expects a schema, text, and optional options");
+    const columns = normalizeColumns(args[0]);
+    if (!columns.length) throw new Error("data.ParseJSONL schema must contain at least one column");
+    const source = text(args[1], "data.ParseJSONL text");
+    const blankPolicy = text(option(args[2], "blankLines", stringValue("skip")), "data.ParseJSONL blankLines").replace(/^:/, "").toLowerCase();
+    if (!["skip", "error"].includes(blankPolicy)) throw new Error("data.ParseJSONL blankLines must be skip or error");
+    const records = jsonlOffsets(source, blankPolicy);
+    const maxRows = Math.min(records.length, safeCount(option(args[2], "maxRows", new Integer(1000n)), "data.ParseJSONL maxRows", new Integer(1000n)));
+    const producer = (indexValue) => {
+        if (!(indexValue instanceof Integer) || indexValue.value < 1n || indexValue.value > BigInt(Number.MAX_SAFE_INTEGER)) {
+            throw new Error("data.ParseJSONL row index must be a positive safe Integer");
+        }
+        const record = records[Number(indexValue.value) - 1];
+        if (!record || Number(indexValue.value) > maxRows) return null;
+        let parsed;
+        try {
+            parsed = JSON.parse(source.slice(record.start, record.end));
+        } catch (error) {
+            throw new Error(`data.ParseJSONL invalid JSON at physical line ${record.line}: ${error.message}`);
+        }
+        let rawRow;
+        if (Array.isArray(parsed)) rawRow = parsed;
+        else if (parsed && typeof parsed === "object") {
+            const known = new Set(columns.map(({ id }) => id));
+            const unknown = Object.keys(parsed).find((key) => !known.has(key));
+            if (unknown) throw new Error(`data.ParseJSONL physical line ${record.line} contains unknown column '${unknown}'`);
+            rawRow = columns.map(({ id }) => Object.hasOwn(parsed, id) ? parsed[id] : null);
+        }
+        else throw new Error(`data.ParseJSONL physical line ${record.line} must be a JSON object or array`);
+        if (rawRow.length !== columns.length) {
+            throw new Error(`data.ParseJSONL physical line ${record.line} has ${rawRow.length} cells; expected ${columns.length}`);
+        }
+        const row = rawRow.map((value, columnIndex) => decodeJsonValue(value, columns[columnIndex], `data.ParseJSONL line ${record.line} column '${columns[columnIndex].id}'`));
+        return sequenceValue(row);
+    };
+    return Object.freeze({
+        type: "data_row_source",
+        schema: "rix.data.row-source@1",
+        columns,
+        producer,
+        maxRows,
+        provenance: Object.freeze({ format: "jsonl", physicalLines: records.length, blankLines: blankPolicy }),
+        _ext: new Map([["_type", stringValue("data_row_source")], ["immutable", new Integer(1n)]]),
+    });
+}
+
+export function renderJsonl(args, runtime = {}) {
+    if (args.length < 1 || args.length > 2) throw new Error("data.RenderJSONL expects a Relation or RowSource and optional options");
+    const source = args[0];
+    const finalNewline = truthy(option(args[1], "finalNewline", new Integer(1n)));
+    let columns;
+    let rows;
+    if (source?.type === "data_relation" && source.schema === "rix.data.relation@1") {
+        columns = source.columns;
+        rows = source.rows;
+    } else if (source?.type === "data_row_source" && source.schema === "rix.data.row-source@1") {
+        if (typeof runtime.invoke !== "function") throw new Error("data.RenderJSONL requires an evaluator callback for a RowSource");
+        columns = source.columns;
+        const limit = Math.min(source.maxRows, safeCount(option(args[1], "limit", new Integer(BigInt(source.maxRows))), "data.RenderJSONL limit", new Integer(BigInt(source.maxRows))));
+        rows = [];
+        for (let index = 0; index < limit; index += 1) {
+            const produced = runtime.invoke(source.producer, [new Integer(BigInt(index + 1))], runtime.context, runtime.evaluate);
+            if (produced === null) break;
+            rows.push(normalizeRows(sequenceValue([produced]), columns)[0]);
+        }
+    } else {
+        throw new Error("data.RenderJSONL requires a data Relation or RowSource");
+    }
+    const lines = rows.map((row, rowIndex) => JSON.stringify(Object.fromEntries(columns.map((column, columnIndex) => [
+        column.id,
+        encodeJsonValue(row[columnIndex], `data.RenderJSONL row ${rowIndex + 1} column '${column.id}'`),
+    ]))));
+    return stringValue(lines.join("\n") + (finalNewline && lines.length ? "\n" : ""));
 }
 
 export function collectRowSource(args, runtime = {}) {

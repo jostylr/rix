@@ -111,3 +111,33 @@ summary := .data.Aggregate(.data.Group(measured,["batch"]),[
 
 `Rename` and `Distinct` support cleaning, while `Frequency` and `Contingency`
 produce the standard categorical summaries.
+
+## Stream exact JSON Lines without float conversion
+
+JSONL stores one independent JSON object per physical line. `ParseJSONL`
+returns a bounded pull source: it scans line locations up front but parses only
+records requested by `Collect` or a streaming renderer. Exact numeric cells use
+tags instead of JSON numbers.
+
+```rix
+.Plugin.Load("data");
+schema := [
+  {= id="step",type=:Integer,nullable=0 },
+  {= id="estimate",type=:Rational,nullable=0 },
+  {= id="enclosure",type=:Interval,nullable=0 }
+];
+lines := """{"step":{"$integer":"1"},"estimate":{"$rational":["3","2"]},"enclosure":{"$interval":[{"$integer":"1"},{"$integer":"2"}]}}
+{"step":{"$integer":"2"},"estimate":{"$rational":["17","12"]},"enclosure":{"$interval":[{"$rational":["7","5"]},{"$rational":["3","2"]}]}}
+{"step":{"$integer":"3"},"estimate":{"$rational":["577","408"]},"enclosure":{"$interval":[{"$rational":["140","99"]},{"$rational":["99","70"]}]}}
+""";
+source := .data.ParseJSONL(schema,lines,{= maxRows=3 });
+firstTwo := .data.Collect(source,2);
+[
+  .data.TableView(firstTwo,{= caption="Pulled JSONL records" }),
+  .data.RenderJSONL(firstTwo,{= finalNewline=0 })
+];
+```
+
+Malformed records report their physical line. `blankLines=:error` is available
+when blank lines should invalidate an interchange file; the default `:skip`
+policy is convenient for hand-authored teaching data.

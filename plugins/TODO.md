@@ -1083,13 +1083,13 @@ the certified numerical singleton layer; it does not replace the core exact
      explicit Interval column type with enclosing grouped aggregates.
    - [x] Preserve exact RiX cell values until exporter formatting.
 3. **Phase 3 — Portable exact JSON and bounded streams**
-   - [ ] Add deterministic tagged-JSON relation interchange and streaming
-     JSONL parsing/rendering without lowering Integer, Rational, or Interval
-     cells to binary floating point.
-   - [ ] Reuse bounded `RowSource` pulls for JSONL, include physical line
+   - [x] Add deterministic streaming JSONL parsing/rendering without lowering
+     Integer, Rational, or Interval cells to binary floating point.
+   - [x] Reuse bounded `RowSource` pulls for JSONL, include physical line
      numbers in diagnostics, and make blank-line, missing-value, final-newline,
      and maximum-row policies explicit.
-   - [ ] Define the shared certified/refinable-real JSON envelope described in
+   - [ ] Add single-document tagged-JSON relation interchange and implement the
+     shared certified/refinable-real envelope specified in
      `numerics/refinable-real-json.md`; loading is inert, and unavailable
      refinement recipes degrade to independently useful snapshots.
 4. **Phase 4 — Columnar, external, and large data**
@@ -1481,8 +1481,10 @@ The RiX/host extraction sequence is specified in
    - [x] Add typed import, explicit locale/decimal policy, streaming rows,
      comments/metadata sidecars, and flattening diagnostics.
 3. **Phase 3 — Text data format family**
-   - [ ] Coordinate deterministic tagged JSON/JSONL import and export with
-     `.data`, preserving exact cells and bounded streaming behavior.
+   - [x] Coordinate deterministic tagged JSONL import and export with `.data`,
+     preserving exact cells and bounded streaming behavior.
+   - [ ] Add the corresponding single-document tagged JSON format after the
+     general RiX value envelope is implemented.
 4. **Phase 4 — Columnar, large, and external data**
    - [ ] Coordinate Arrow/Parquet export with `.data` after its extension-type
      and optional-dependency policy is justified by a concrete use case.

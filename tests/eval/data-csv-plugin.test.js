@@ -152,6 +152,52 @@ describe("data and csv plugins", () => {
         expect(() => parseAndEvaluate('.data.Missing(source, ["y"], :error)', options)).toThrow("found 1 row");
     });
 
+    test("JSONL pulls exact tagged records lazily and renders deterministically", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("data");
+            schema := [
+                {= id="n", type=:Integer, nullable=0 },
+                {= id="ratio", type=:Rational, nullable=0 },
+                {= id="band", type=:Interval, nullable=0 }
+            ];
+            lines := """{"n":{"$integer":"1"},"ratio":{"$rational":["1","3"]},"band":{"$interval":[{"$integer":"0"},{"$rational":["1","2"]}]}}
+
+{"n":{"$integer":"2"},"ratio":{"$rational":["2","3"]},"band":{"$interval":[{"$rational":["1","2"]},{"$integer":"1"}]}}
+{"n":
+""";
+            source := .data.ParseJSONL(schema, lines, {= maxRows=3 });
+            firstTwo := .data.Collect(source, 2);
+            [
+                .data.Rows(firstTwo),
+                .data.RenderJSONL(firstTwo, {= finalNewline=0 }),
+                .data.RenderJSONL(source, {= limit=1, finalNewline=0 })
+            ];
+        `, options);
+
+        expect(nativeRows(result.values[0])).toEqual([
+            { n: "1", ratio: "1/3", band: "0:1/2" },
+            { n: "2", ratio: "2/3", band: "1/2:1" },
+        ]);
+        expect(result.values[1].value).toBe([
+            '{"n":{"$integer":"1"},"ratio":{"$rational":["1","3"]},"band":{"$interval":[{"$rational":["0","1"]},{"$rational":["1","2"]}]}}',
+            '{"n":{"$integer":"2"},"ratio":{"$rational":["2","3"]},"band":{"$interval":[{"$rational":["1","2"]},{"$rational":["1","1"]}]}}',
+        ].join("\n"));
+        expect(result.values[2].value).toBe('{"n":{"$integer":"1"},"ratio":{"$rational":["1","3"]},"band":{"$interval":[{"$rational":["0","1"]},{"$rational":["1","2"]}]}}');
+        expect(() => parseAndEvaluate('.data.Collect(source, 3)', options)).toThrow("physical line 4");
+    });
+
+    test("JSONL reports exact-tag, blank-line, and schema diagnostics", () => {
+        const options = runtime();
+        parseAndEvaluate('.Plugin.Load("data"); schema := [{= id="n",type=:Integer,nullable=0 }]', options);
+        expect(() => parseAndEvaluate('.data.Collect(.data.ParseJSONL(schema, """{"n":1.5}"""),1)', options))
+            .toThrow("exact $integer");
+        expect(() => parseAndEvaluate('.data.ParseJSONL(schema, """{"n":1}\n\n{"n":2}""", {= blankLines=:error })', options))
+            .toThrow("blank physical line at line 2");
+        expect(() => parseAndEvaluate('.data.Collect(.data.ParseJSONL(schema, """{"other":1}"""),1)', options))
+            .toThrow("unknown column 'other'");
+    });
+
     test("empty global groups and outer-join key schemas remain valid", () => {
         const options = runtime();
         const result = parseAndEvaluate(`

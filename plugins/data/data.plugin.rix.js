@@ -1,9 +1,9 @@
 /**
 id: data
-description: Immutable typed relations with joins, grouping, exact aggregation, missing-data policy, and bounded row sources.
+description: Immutable typed relations with exact aggregation, bounded row sources, and deterministic tagged JSONL interchange.
 kind: host
 mount: data
-exports: [Relation, Project, Rename, Distinct, Filter, Sort, Join, Group, Aggregate, Frequency, Contingency, Calculate, Missing, RowSource, Collect, TableView, Schema, Rows]
+exports: [Relation, Project, Rename, Distinct, Filter, Sort, Join, Group, Aggregate, Frequency, Contingency, Calculate, Missing, RowSource, ParseJSONL, RenderJSONL, Collect, TableView, Schema, Rows]
 groups: [Data]
 permissions: []
 provides: [rix.data.relation@1, rix.data.groups@1, rix.data.contingency@1, rix.data.row-source@1]
@@ -27,10 +27,12 @@ import {
     groupRelation,
     joinRelations,
     missingRelation,
+    parseJsonlSource,
     projectRelation,
     relationRows,
     relationSchema,
     relationTableView,
+    renderJsonl,
     renameRelation,
     sortRelation,
 } from "./data.js";
@@ -50,6 +52,8 @@ const HELPERS = new Map([
     ["Calculate", calculateRelation],
     ["Missing", missingRelation],
     ["RowSource", createRowSource],
+    ["ParseJSONL", parseJsonlSource],
+    ["RenderJSONL", renderJsonl],
     ["Collect", collectRowSource],
     ["TableView", relationTableView],
     ["Schema", relationSchema],
