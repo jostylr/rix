@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/logic-truth-table/v1.schema.json",
+  "title": "RiX propositional truth table v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema", "valueKind", "formula", "atoms", "rows", "rowCount", "classification", "complete"],
+  "properties": {
+    "schema": { "const": "rix.logic.truth-table@1" },
+    "valueKind": { "const": "logicTruthTable" },
+    "formula": { "$ref": "logic-formula.schema.json" },
+    "atoms": { "type": "array", "items": { "type": "string" } },
+    "rows": { "type": "array" },
+    "rowCount": { "type": "integer", "minimum": 1 },
+    "classification": { "enum": ["valid", "contradiction", "contingent"] },
+    "complete": { "const": true }
+  }
+}

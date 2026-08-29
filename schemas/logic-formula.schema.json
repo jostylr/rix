@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/logic-formula/v1.schema.json",
+  "title": "RiX propositional formula v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema", "valueKind", "kind"],
+  "properties": {
+    "schema": { "const": "rix.logic.formula@1" },
+    "valueKind": { "const": "logicFormula" },
+    "kind": { "enum": ["atom", "top", "bottom", "not", "and", "or", "implies", "iff"] },
+    "name": { "type": "string" }
+  }
+}

@@ -1,0 +1,434 @@
+/**
+id: logic
+description: Portable propositional formulas, bounded truth tables, checked normal forms, and introductory derivation checking.
+kind: rix
+mount: logic
+exports: [Atom, Top, Bottom, Not, And, Or, Implies, Iff, Evaluate, Valuations, TruthTable, Classify, NNF, CNF, DNF, CheckNormalForm, Step, Proof, CheckProof, IsFormula, Capabilities]
+groups: [Logic, Education, Exact]
+permissions: []
+provides: [rix.logic@1, rix.logic.formula@1, rix.logic.truth-table@1, rix.logic.normal-form@1, rix.logic.proof@1]
+schemas: [rix.logic.formula@1, rix.logic.truth-table@1, rix.logic.normal-form@1, rix.logic.proof@1]
+snapshot: false
+deterministic: true
+defaultEnabled: false
+**/
+
+LogicOption(options,key,fallback ?= _) -> options.Has(key) ?: options[key] ?_ fallback;
+LogicRequireOptions(value,label) -> value ? :Map ?: value ?_ .Error(@"@{label} must be a Map");
+LogicIsFormulaValue(value) -> (value ? :Map) && value[:schema]=="rix.logic.formula@1";
+LogicRequireFormula(value,label ?= "Logic value") ->
+    LogicIsFormulaValue(value) ?: value ?_ .Error(@"@{label} must be a Logic formula");
+LogicTruth(value) -> {;
+    result := _;
+    valid := _;
+    value ? :Integer
+      ?: {; @valid ~= 1; @result ~= @value==0 ?: _ ?_ 1; }
+      ?_ _;
+    value ? :String
+      ?: {;
+          @value==:true
+            ?: {; @valid ~= 1; @result ~= 1; }
+            ?_ @value==:false
+            ?: {; @valid ~= 1; @result ~= _; }
+            ?_ _;
+      }
+      ?_ _;
+    value==_ ?: {; @valid ~= 1; @result ~= _; } ?_ _;
+    valid ?: result ?_ .Error("Logic truth values must be 1, 0, true, false, or null");
+};
+LogicSame(left,right) -> LogicKey(left)==LogicKey(right);
+
+LogicFormula(kind,fields ?= {= }) -> {;
+    value = {=
+        valueKind=:logicFormula,
+        schema="rix.logic.formula@1",
+        kind=kind
+    }.Merge(fields);
+    value .= {= _proto=@logicFormulaProto };
+    .ImmutableValue(value);
+};
+
+LogicAtom(name) -> {;
+    name ? :String ?: _ ?_ .Error("Logic atom name must be a string or colon-string");
+    name.Len()>0 ?: _ ?_ .Error("Logic atom name must not be empty");
+    LogicFormula(:atom,{= name=name });
+};
+LogicTop() -> LogicFormula(:top);
+LogicBottom() -> LogicFormula(:bottom);
+LogicNot(value) -> LogicFormula(:not,{= operand=LogicRequireFormula(value) });
+LogicBinary(kind,left,right) -> LogicFormula(kind,{=
+    left=LogicRequireFormula(left),right=LogicRequireFormula(right)
+});
+LogicAnd(left,right) -> LogicBinary(:and,left,right);
+LogicOr(left,right) -> LogicBinary(:or,left,right);
+LogicImplies(left,right) -> LogicBinary(:implies,left,right);
+LogicIff(left,right) -> LogicBinary(:iff,left,right);
+
+LogicKey(value) -> {;
+    formula = LogicRequireFormula(value);
+    kind = formula[:kind];
+    kind==:atom
+      ?: @"atom(@{formula[:name]})"
+      ?_ kind==:top
+      ?: "top"
+      ?_ kind==:bottom
+      ?: "bottom"
+      ?_ kind==:not
+      ?: @"not(@{LogicKey(formula[:operand])})"
+      ?_ @"@{kind}(@{LogicKey(formula[:left])};@{LogicKey(formula[:right])})";
+};
+
+LogicEvaluate(value,valuation) -> {;
+    formula = LogicRequireFormula(value);
+    valuation ? :Map ?: _ ?_ .Error("Logic valuation must be a Map");
+    kind = formula[:kind];
+    kind==:atom
+      ?: {;
+          name = @formula[:name];
+          @valuation.Has(name) ?: _ ?_ .Error(@"Logic valuation has no value for atom @{name}");
+          LogicTruth(@valuation[name]);
+      }
+      ?_ kind==:top
+      ?: 1
+      ?_ kind==:bottom
+      ?: _
+      ?_ kind==:not
+      ?: (LogicEvaluate(formula[:operand],valuation) ?: _ ?_ 1)
+      ?_ kind==:and
+      ?: (LogicEvaluate(formula[:left],valuation) && LogicEvaluate(formula[:right],valuation))
+      ?_ kind==:or
+      ?: (LogicEvaluate(formula[:left],valuation) || LogicEvaluate(formula[:right],valuation))
+      ?_ kind==:implies
+      ?: (LogicEvaluate(formula[:left],valuation) ?: LogicEvaluate(formula[:right],valuation) ?_ 1)
+      ?_ kind==:iff
+      ?: ((LogicEvaluate(formula[:left],valuation) ?: 1 ?_ _) == (LogicEvaluate(formula[:right],valuation) ?: 1 ?_ _) ?: 1 ?_ _)
+      ?_ .Error(@"Unsupported Logic formula kind @{kind}");
+};
+
+LogicUnique(values) -> values.Reduce((result,value)->
+    result.Includes(value) ?: result ?_ result.Push(value),[]
+);
+LogicAtoms(value) -> {;
+    formula = LogicRequireFormula(value);
+    kind = formula[:kind];
+    names = kind==:atom
+      ?: [formula[:name]]
+      ?_ kind==:not
+      ?: LogicAtoms(formula[:operand])
+      ?_ (kind==:and || kind==:or || kind==:implies || kind==:iff)
+      ?: LogicAtoms(formula[:left]).Concat(LogicAtoms(formula[:right]))
+      ?_ [];
+    LogicUnique(names).Sort();
+};
+
+LogicValuationsAt(names,index) -> {;
+    index>names.Len()
+      ?: [{= }]
+      ?_ {;
+          head = @names[@index];
+          smaller = LogicValuationsAt(@names,@index+1);
+          smaller.Reduce((rows,row)->rows.Push(row.Set(@head,0)).Push(row.Set(@head,1)),[]);
+      };
+};
+LogicValuations(names) -> {;
+    names ? :Array ?: _ ?_ .Error("Logic Valuations expects an Array of atom names");
+    LogicValuationsAt(names,1);
+};
+
+LogicRequireAtomBudget(count,options) -> {;
+    maximum = LogicOption(options,"maxatoms",10) ~!: :Integer;
+    maximum>=0 && maximum<=16 ?: _ ?_ .Error("Logic maxAtoms must be from 0 through 16");
+    count<=maximum ?: _ ?_ .Error(@"Logic truth table requires @{count} atoms, exceeding maxAtoms @{maximum}");
+    maximum;
+};
+
+LogicTruthTable(value,options ?= {= }) -> {;
+    formula = LogicRequireFormula(value);
+    options = LogicRequireOptions(options,"Logic TruthTable options");
+    atoms = LogicAtoms(formula);
+    maximum = LogicRequireAtomBudget(atoms.Len(),options);
+    valuations = LogicValuations(atoms);
+    rows = valuations.Map((valuation)->.ImmutableValue({=
+        valuation=valuation,
+        result=LogicEvaluate(@formula,valuation)
+    }));
+    satisfying = rows.Filter((row)->row[:result]);
+    falsifying = rows.Filter((row)->!row[:result]);
+    classification = satisfying.Len()==0
+      ?: :contradiction
+      ?_ falsifying.Len()==0
+      ?: :valid
+      ?_ :contingent;
+    .ImmutableValue({=
+        valueKind=:logicTruthTable,
+        schema="rix.logic.truth-table@1",
+        formula=formula,
+        atoms=atoms,
+        rows=rows,
+        rowCount=rows.Len(),
+        classification=classification,
+        satisfiable=satisfying.Len()>0 ?: 1 ?_ _,
+        valid=falsifying.Len()==0 ?: 1 ?_ _,
+        model=satisfying.Len()>0 ?: satisfying[1][:valuation] ?_ _,
+        countermodel=falsifying.Len()>0 ?: falsifying[1][:valuation] ?_ _,
+        complete=1,
+        boundedBy={= maxAtoms=maximum }
+    });
+};
+LogicClassify(value,options ?= {= }) -> LogicTruthTable(value,options);
+
+LogicEliminateImplications(value) -> {;
+    formula = LogicRequireFormula(value);
+    kind = formula[:kind];
+    kind==:implies
+      ?: LogicOr(LogicNot(LogicEliminateImplications(formula[:left])),LogicEliminateImplications(formula[:right]))
+      ?_ kind==:iff
+      ?: {;
+          left = LogicEliminateImplications(@formula[:left]);
+          right = LogicEliminateImplications(@formula[:right]);
+          LogicAnd(LogicOr(LogicNot(left),right),LogicOr(LogicNot(right),left));
+      }
+      ?_ kind==:not
+      ?: LogicNot(LogicEliminateImplications(formula[:operand]))
+      ?_ (kind==:and || kind==:or)
+      ?: LogicBinary(kind,LogicEliminateImplications(formula[:left]),LogicEliminateImplications(formula[:right]))
+      ?_ formula;
+};
+
+LogicNNFNode(value,negated ?= _) -> {;
+    formula = LogicRequireFormula(value);
+    kind = formula[:kind];
+    kind==:not
+      ?: LogicNNFNode(formula[:operand],!negated)
+      ?_ kind==:top
+      ?: (negated ?: LogicBottom() ?_ LogicTop())
+      ?_ kind==:bottom
+      ?: (negated ?: LogicTop() ?_ LogicBottom())
+      ?_ kind==:atom
+      ?: (negated ?: LogicNot(formula) ?_ formula)
+      ?_ kind==:and
+      ?: (negated
+           ?: LogicOr(LogicNNFNode(formula[:left],1),LogicNNFNode(formula[:right],1))
+           ?_ LogicAnd(LogicNNFNode(formula[:left],_),LogicNNFNode(formula[:right],_)))
+      ?_ kind==:or
+      ?: (negated
+           ?: LogicAnd(LogicNNFNode(formula[:left],1),LogicNNFNode(formula[:right],1))
+           ?_ LogicOr(LogicNNFNode(formula[:left],_),LogicNNFNode(formula[:right],_)))
+      ?_ .Error("Logic NNF expected implications to be eliminated");
+};
+
+LogicFold(kind,values,empty) -> values.Reduce((result,value)->
+    result==_ ?: value ?_ LogicBinary(@kind,result,value),empty
+);
+LogicLiteral(name,value) -> LogicTruth(value) ?: LogicAtom(name) ?_ LogicNot(LogicAtom(name));
+LogicDNFTerm(atoms,valuation) -> LogicFold(:and,atoms.Map((name)->
+    LogicLiteral(name,@valuation[name])
+),_);
+LogicCNFClause(atoms,valuation) -> LogicFold(:or,atoms.Map((name)->
+    LogicLiteral(name,LogicTruth(@valuation[name]) ?: 0 ?_ 1)
+),_);
+
+LogicNormalFormRecord(form,source,expression,table,evidence) ->
+    .ImmutableValue({=
+        valueKind=:logicNormalForm,
+        schema="rix.logic.normal-form@1",
+        form=form,
+        source=source,
+        expression=expression,
+        atoms=table[:atoms],
+        rowCount=table[:rowCount],
+        exact=1,
+        status=:complete,
+        evidence=evidence
+    });
+
+LogicNNF(value,options ?= {= }) -> {;
+    source = LogicRequireFormula(value);
+    table = LogicTruthTable(source,options);
+    expression = LogicNNFNode(LogicEliminateImplications(source));
+    LogicNormalFormRecord(:nnf,source,expression,table,[{= rule=:implicationElimination },{= rule=:deMorganAndDoubleNegation }]);
+};
+LogicDNF(value,options ?= {= }) -> {;
+    source = LogicRequireFormula(value);
+    table = LogicTruthTable(source,options);
+    satisfying = table[:rows].Filter((row)->row[:result]);
+    expression = satisfying.Len()==0
+      ?: LogicBottom()
+      ?_ LogicFold(:or,satisfying.Map((row)->LogicDNFTerm(@table[:atoms],row[:valuation])),_);
+    LogicNormalFormRecord(:dnf,source,expression,table,[{= rule=:canonicalMinterms,modelCount=satisfying.Len() }]);
+};
+LogicCNF(value,options ?= {= }) -> {;
+    source = LogicRequireFormula(value);
+    table = LogicTruthTable(source,options);
+    falsifying = table[:rows].Filter((row)->!row[:result]);
+    expression = falsifying.Len()==0
+      ?: LogicTop()
+      ?_ LogicFold(:and,falsifying.Map((row)->LogicCNFClause(@table[:atoms],row[:valuation])),_);
+    LogicNormalFormRecord(:cnf,source,expression,table,[{= rule=:canonicalMaxterms,countermodelCount=falsifying.Len() }]);
+};
+
+LogicCheckNormalForm(candidate,options ?= {= }) -> {;
+    valid = (candidate ? :Map) && candidate[:schema]=="rix.logic.normal-form@1";
+    valid
+      ?: {;
+          sourceTable = LogicTruthTable(@candidate[:source],@options);
+          same = sourceTable[:rows].Filter((row)->
+              LogicEvaluate(@candidate[:expression],row[:valuation])==row[:result]
+          ).Len()==sourceTable[:rowCount];
+          .ImmutableValue({= accepted=same,certified=same ?: 1 ?_ _,reason=same ?: _ ?_ :normalFormNotEquivalent });
+      }
+      ?_ .ImmutableValue({= accepted=_,certified=_,reason=:malformedNormalForm });
+};
+
+LogicStep(rule,conclusion,premises ?= [],options ?= {= }) -> {;
+    rule ? :String ?: _ ?_ .Error("Logic proof rule must be a string or colon-string");
+    premises ? :Array ?: _ ?_ .Error("Logic proof premises must be an Array of prior line numbers");
+    options = LogicRequireOptions(options,"Logic Step options");
+    .ImmutableValue({=
+        valueKind=:logicProofStep,
+        rule=rule,
+        conclusion=LogicRequireFormula(conclusion,"Logic proof conclusion"),
+        premises=premises.Map((line)->line ~!: :Integer),
+        label=LogicOption(options,"label",_),
+        discharges=LogicOption(options,"discharges",[])
+    });
+};
+
+LogicPriorStep(steps,line,current) -> {;
+    line>=1 && line<current ?: _ ?_ .Error("Logic proof premise must name an earlier line");
+    steps[line];
+};
+LogicRuleCheck(step,steps,index) -> {;
+    rule = step[:rule];
+    premises = step[:premises];
+    conclusion = step[:conclusion];
+    accepted := _;
+    reason := :unsupportedRule;
+    (rule==:premise || rule==:assumption) && premises.Len()==0
+      ?: {; @accepted ~= 1; @reason ~= _; }
+      ?_ _;
+    rule==:andIntro && premises.Len()==2
+      ?: {;
+          left = LogicPriorStep(@steps,@premises[1],@index)[:conclusion];
+          right = LogicPriorStep(@steps,@premises[2],@index)[:conclusion];
+          @accepted ~= LogicSame(@conclusion,LogicAnd(left,right)) ?: 1 ?_ _;
+          @reason ~= @accepted ?: _ ?_ :andIntroMismatch;
+      }
+      ?_ _;
+    (rule==:andElimLeft || rule==:andElimRight) && premises.Len()==1
+      ?: {;
+          source = LogicPriorStep(@steps,@premises[1],@index)[:conclusion];
+          source[:kind]==:and
+            ?: {;
+                selected = @rule==:andElimLeft ?: @source[:left] ?_ @source[:right];
+                @accepted ~= LogicSame(@conclusion,selected) ?: 1 ?_ _;
+                @reason ~= @accepted ?: _ ?_ :andEliminationMismatch;
+            }
+            ?_ {; @reason ~= :andEliminationRequiresConjunction; };
+      }
+      ?_ _;
+    (rule==:orIntroLeft || rule==:orIntroRight) && premises.Len()==1
+      ?: {;
+          source = LogicPriorStep(@steps,@premises[1],@index)[:conclusion];
+          expected = @rule==:orIntroLeft
+            ?: (@conclusion[:kind]==:or && LogicSame(source,@conclusion[:left]))
+            ?_ (@conclusion[:kind]==:or && LogicSame(source,@conclusion[:right]));
+          @accepted ~= expected ?: 1 ?_ _;
+          @reason ~= @accepted ?: _ ?_ :orIntroductionMismatch;
+      }
+      ?_ _;
+    rule==:modusPonens && premises.Len()==2
+      ?: {;
+          first = LogicPriorStep(@steps,@premises[1],@index)[:conclusion];
+          second = LogicPriorStep(@steps,@premises[2],@index)[:conclusion];
+          implication = first[:kind]==:implies ?: first ?_ (second[:kind]==:implies ?: second ?_ _);
+          antecedent = implication==first ?: second ?_ first;
+          @accepted ~= implication!=_ && LogicSame(implication[:left],antecedent) && LogicSame(implication[:right],@conclusion) ?: 1 ?_ _;
+          @reason ~= @accepted ?: _ ?_ :modusPonensMismatch;
+      }
+      ?_ _;
+    .ImmutableValue({= line=index,accepted=accepted,reason=reason,step=step });
+};
+
+LogicProof(steps,goal,options ?= {= }) -> {;
+    steps ? :Array ?: _ ?_ .Error("Logic Proof steps must be an Array");
+    options = LogicRequireOptions(options,"Logic Proof options");
+    exactGoal = LogicRequireFormula(goal,"Logic proof goal");
+    checks := [];
+    stopped := _;
+    {@ index=1; index<=@steps.Len() && !@stopped; {;
+       step = @steps[index];
+       step[:valueKind]==:logicProofStep ?: _ ?_ .Error("Logic Proof contains a non-Step value");
+       check = LogicRuleCheck(step,@steps,index);
+       @checks ~= @checks.Push(check);
+       check[:accepted] ?: _ ?_ {; @stopped ~= 1; };
+    }; index += 1 };
+    finalMatches = steps.Len()>0 && LogicSame(steps.Last()[:conclusion],exactGoal);
+    accepted = !stopped && finalMatches;
+    .ImmutableValue({=
+        valueKind=:logicProof,
+        schema="rix.logic.proof@1",
+        system=:introductoryNaturalDeduction,
+        steps=steps,
+        goal=exactGoal,
+        checks=checks,
+        accepted=accepted ?: 1 ?_ _,
+        complete=accepted ?: 1 ?_ _,
+        reason=stopped ?: :invalidStep ?_ (finalMatches ?: _ ?_ :goalMismatch),
+        assumptions=steps.Filter((step)->step[:rule]==:premise || step[:rule]==:assumption),
+        supportedRules=[:premise,:assumption,:andIntro,:andElimLeft,:andElimRight,:orIntroLeft,:orIntroRight,:modusPonens]
+    });
+};
+LogicCheckProof(proof) -> {;
+    valid = (proof ? :Map) && proof[:schema]=="rix.logic.proof@1";
+    valid
+      ?: LogicProof(proof[:steps],proof[:goal])
+      ?_ .ImmutableValue({= accepted=_,complete=_,reason=:malformedLogicProof });
+};
+
+logicFormulaProto = {=
+    Not=(self)->LogicNot(self),
+    And=(self,right)->LogicAnd(self,right),
+    Or=(self,right)->LogicOr(self,right),
+    Implies=(self,right)->LogicImplies(self,right),
+    Iff=(self,right)->LogicIff(self,right),
+    Evaluate=(self,valuation)->LogicEvaluate(self,valuation),
+    TruthTable=(self,options ?= {= })->LogicTruthTable(self,options),
+    NNF=(self,options ?= {= })->LogicNNF(self,options),
+    CNF=(self,options ?= {= })->LogicCNF(self,options),
+    DNF=(self,options ?= {= })->LogicDNF(self,options),
+    Record=(self)->self
+};
+
+logicCapabilities = .ImmutableValue({=
+    semantics=[:propositionalEvaluation,:truthTables,:models,:countermodels,:validity,:satisfiability],
+    normalForms=[:nnf,:canonicalCNF,:canonicalDNF],
+    proofRules=[:premise,:assumption,:andIntro,:andElimLeft,:andElimRight,:orIntroLeft,:orIntroRight,:modusPonens],
+    next=[:dischargedSubproofs,:semanticTableaux,:boundedFirstOrderModels]
+});
+
+logicNamespace = {= };
+logicNamespace._proto = {=
+    Atom=(self,name)->LogicAtom(name),
+    Top=(self)->LogicTop(),
+    Bottom=(self)->LogicBottom(),
+    Not=(self,value)->LogicNot(value),
+    And=(self,left,right)->LogicAnd(left,right),
+    Or=(self,left,right)->LogicOr(left,right),
+    Implies=(self,left,right)->LogicImplies(left,right),
+    Iff=(self,left,right)->LogicIff(left,right),
+    Evaluate=(self,value,valuation)->LogicEvaluate(value,valuation),
+    Valuations=(self,names)->LogicValuations(names),
+    TruthTable=(self,value,options ?= {= })->LogicTruthTable(value,options),
+    Classify=(self,value,options ?= {= })->LogicClassify(value,options),
+    NNF=(self,value,options ?= {= })->LogicNNF(value,options),
+    CNF=(self,value,options ?= {= })->LogicCNF(value,options),
+    DNF=(self,value,options ?= {= })->LogicDNF(value,options),
+    CheckNormalForm=(self,value,options ?= {= })->LogicCheckNormalForm(value,options),
+    Step=(self,rule,conclusion,premises ?= [],options ?= {= })->LogicStep(rule,conclusion,premises,options),
+    Proof=(self,steps,goal,options ?= {= })->LogicProof(steps,goal,options),
+    CheckProof=(self,proof)->LogicCheckProof(proof),
+    IsFormula=(self,value)->LogicIsFormulaValue(value) ?: 1 ?_ _,
+    Capabilities=(self)->logicCapabilities
+};
+.Host.RegisterValue("logic",logicNamespace,"Portable propositional logic and introductory checked derivations",["Logic","Education","Exact"]);

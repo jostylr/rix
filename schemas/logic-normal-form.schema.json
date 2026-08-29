@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/logic-normal-form/v1.schema.json",
+  "title": "RiX checked propositional normal form v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema", "valueKind", "form", "source", "expression", "atoms", "status", "evidence"],
+  "properties": {
+    "schema": { "const": "rix.logic.normal-form@1" },
+    "valueKind": { "const": "logicNormalForm" },
+    "form": { "enum": ["nnf", "cnf", "dnf"] },
+    "source": { "$ref": "logic-formula.schema.json" },
+    "expression": { "$ref": "logic-formula.schema.json" },
+    "status": { "const": "complete" },
+    "evidence": { "type": "array" }
+  }
+}

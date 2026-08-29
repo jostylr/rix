@@ -809,19 +809,24 @@ tracked in
 ### `.logic`
 
 1. **Phase 1 — Propositional exploration**
-   - [ ] Add inert proposition/formula records, valuations, truth tables,
+   - [x] Add inert proposition/formula records, valuations, truth tables,
      satisfiability/validity checks, and counterexample witnesses.
-   - [ ] Implement checked transformations to negation, conjunctive, and
+   - [x] Implement checked transformations to negation, conjunctive, and
      disjunctive normal forms without treating display rewrites as proofs.
 2. **Phase 2 — Undergraduate proof systems**
-   - [ ] Add replayable natural-deduction and sequent proof trees for a small
-     classical and intuitionistic propositional core. Check every rule locally
-     and retain open assumptions and failed goals for tutorial inspection.
+   - [x] Add replayable line-by-line checks for premises/assumptions,
+     conjunction introduction/elimination, disjunction introduction, and
+     modus ponens; retain every local result and failed goal.
+   - [ ] Add scoped subproof discharge, implication introduction, disjunction
+     elimination, negation rules, and separate natural-deduction/sequent tree
+     presentations for small classical and intuitionistic cores.
    - [ ] Provide finite-model exploration for a bounded first-order subset,
      clearly separating a found model/countermodel from an unbounded theorem.
 3. **Phase 3 — Educational integration**
-   - [ ] Add portable truth-table, syntax-tree, semantic-tableau, and proof-tree
-     views suitable for an eventual `rix-ed` undergraduate logic course.
+   - [x] Add portable truth-table, normal-form, and checked-derivation records
+     plus a runnable introductory tutorial.
+   - [ ] Add syntax-tree, semantic-tableau, and scoped proof-tree views suitable
+     for an eventual `rix-ed` undergraduate logic course.
    - [ ] Connect algebraic/interval certificates to logic only through explicit
      proposition and evidence adapters; do not build a general research prover.
 4. **Phase 4 — Automated and external proving**

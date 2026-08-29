@@ -20,6 +20,7 @@ import fractionSource from "./fraction/fraction.plugin.rix" with { type: "text" 
 import ratfunSource from "./ratfun/ratfun.plugin.rix" with { type: "text" };
 import symbolicSource from "./symbolic/symbolic.plugin.rix" with { type: "text" };
 import casSource from "./cas/cas.plugin.rix" with { type: "text" };
+import logicSource from "./logic/logic.plugin.rix" with { type: "text" };
 import calculusSource from "./calculus/calculus.plugin.rix" with { type: "text" };
 import analysisSource from "./analysis/analysis.plugin.rix" with { type: "text" };
 import odeSource from "./ode/ode.plugin.rix" with { type: "text" };
@@ -139,6 +140,7 @@ const BUNDLED_PLUGINS = [
     },
     { metadata: readPluginHeader(symbolicSource, "symbolic.plugin.rix"), source: symbolicSource, sourcePath: "bundled:symbolic.plugin.rix" },
     { metadata: readPluginHeader(casSource, "cas.plugin.rix"), source: casSource, sourcePath: "bundled:cas.plugin.rix" },
+    { metadata: readPluginHeader(logicSource, "logic.plugin.rix"), source: logicSource, sourcePath: "bundled:logic.plugin.rix" },
     { metadata: readPluginHeader(calculusSource, "calculus.plugin.rix"), source: calculusSource, sourcePath: "bundled:calculus.plugin.rix" },
     { metadata: readPluginHeader(analysisSource, "analysis.plugin.rix"), source: analysisSource, sourcePath: "bundled:analysis.plugin.rix" },
     { metadata: readPluginHeader(odeSource, "ode.plugin.rix"), source: odeSource, sourcePath: "bundled:ode.plugin.rix" },

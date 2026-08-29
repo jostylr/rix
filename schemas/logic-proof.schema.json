@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/logic-proof/v1.schema.json",
+  "title": "RiX introductory propositional proof v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema", "valueKind", "system", "steps", "goal", "checks", "supportedRules"],
+  "properties": {
+    "schema": { "const": "rix.logic.proof@1" },
+    "valueKind": { "const": "logicProof" },
+    "system": { "const": "introductoryNaturalDeduction" },
+    "steps": { "type": "array" },
+    "goal": { "$ref": "logic-formula.schema.json" },
+    "checks": { "type": "array" },
+    "accepted": { "type": ["boolean", "null"] },
+    "complete": { "type": ["boolean", "null"] },
+    "supportedRules": { "type": "array" }
+  }
+}
