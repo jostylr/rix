@@ -1180,9 +1180,9 @@ PlotReadColorScale(settings) -> {;
     supplied=PlotOption(settings,"colorscale");
     supplied==_
       ?: PlotColorScale({=
-          kind=PlotOption(@settings,"colormode",:discrete),
-          colors=PlotOption(@settings,"colors",["#312e81","#2563eb","#06b6d4","#f8fafc","#facc15","#f97316","#be123c"]),
-          hueRange=PlotOption(@settings,"huerange",[240,0])
+          kind=PlotOption(settings,"colormode",:discrete),
+          colors=PlotOption(settings,"colors",["#312e81","#2563eb","#06b6d4","#f8fafc","#facc15","#f97316","#be123c"]),
+          hueRange=PlotOption(settings,"huerange",[240,0])
       })
       ?_ {;
           @supplied ? :Map ?: _ ?_ .Error("heat-map colorScale must be a map");

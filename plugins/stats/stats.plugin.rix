@@ -251,7 +251,7 @@ StatsColorScaleColor(scale,value,fallbackMinimum,fallbackMaximum) -> {;
       ?_ value>=maximum ?: scale[:overflow]
       ?_ scale[:kind]==:continuous
            ?: {;
-               hues=scale[:hueRange];
+               hues=@scale[:hueRange];
                hue=hues[1]+(@value-@minimum)/(@maximum-@minimum)*(hues[2]-hues[1]);
                @"hsl(@{hue//1}, 80%, 50%)";
            }
