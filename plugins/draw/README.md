@@ -35,6 +35,12 @@ the children.
 | `.draw.Label(position, text, style?)` | `.Graphics.Text` |
 | `.draw.Box(origin, size, style?)` | `.Graphics.Rectangle` |
 | `.draw.Circle(center, radius, style?)` | `.Graphics.Circle` |
+| `.draw.From(value, options?)` | Adapt a drawable protocol or supported geometry record to Graphics. |
+| `.draw.Trim(path, start, end)` | Point-based path trimmed to fractional arc-length bounds. |
+| `.draw.Marker(path, at, marker?, style?)` | Circle, label, or reusable symbol placed by fractional arc length. |
+| `.draw.Symbol(name, children, options?)` | Portable reusable `rix.draw.symbol@1` scene fragment. |
+| `.draw.UseSymbol(symbol, position, options?)` | Translated instance of a reusable symbol. |
+| `.draw.PlaceLabels(labels, options?)` | Deterministic collision-aware label group with layout metadata. |
 
 Each command also accepts one `{= ... }` options map with the positional names
 shown above.
@@ -49,6 +55,27 @@ Path, Circle, Rectangle, Text, Group, or Graphic values. `Anchor(value,
 name, offset?)` returns `center`, cardinal, or corner anchors such as
 `"northwest"`. Text bounds are deliberately drafting estimates, since final
 font metrics remain renderer-owned.
+
+## Constraint-aware authoring
+
+`From` is a schema adapter and does not import `.geometry`. It accepts the
+small `rix.draw.geometry@1` protocol (`kind` plus ordinary coordinate fields)
+and the structurally equivalent `rix.geometry@1`, intersection, and uncertain
+point records. Points, segments, polygons, and circles lower directly;
+unsupported finite geometry and unresolved intersections become a visible red
+diagnostic group instead of disappearing. Every unresolved adapter result
+retains `rix.draw.adapter-result@1` metadata with the source uncertainty.
+
+`Trim` and `Marker` measure a point-based path by segment length. Their
+fractions are bounded to `[0,1]`, and zero-length paths fail explicitly.
+`Symbol` stores only portable Graphics children and an anchor; `UseSymbol`
+creates an ordinary Graphics transform, so no global symbol registry or hidden
+renderer state is required.
+
+`PlaceLabels` tries a deterministic list of offsets using drafting text bounds.
+Its `rix.draw.label-layout@1` metadata reports every chosen position and any
+labels that could not be separated. Exact font collision remains a renderer
+responsibility, but unresolved drafting collisions stay inspectable.
 
 ## Dependencies
 

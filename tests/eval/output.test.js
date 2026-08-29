@@ -1135,6 +1135,69 @@ describe("portable structured output", () => {
         expect(arc.points).toHaveLength(13);
     });
 
+    test("draw Phase 3 trims paths, places markers, reuses symbols, and avoids label collisions", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("draw");
+            path := .draw.Polyline([[0,0],[10,0],[10,10]],{= stroke="#2563eb" });
+            trimmed := .draw.Trim(path,1/4,3/4);
+            symbol := .draw.Symbol("target",[
+                .draw.Circle([0,0],3,{= fill="#ef4444" }),
+                .draw.Line([-5,0],[5,0])
+            ]);
+            labels := .draw.PlaceLabels([
+                {= id="a",position=[10,10],text="alpha" },
+                {= id="b",position=[10,10],text="beta" }
+            ]);
+            {: trimmed,.draw.Marker(trimmed,1/2),symbol,.draw.UseSymbol(symbol,[30,40]),labels };
+        `);
+        const [trimmed, marker, symbol, used, labels] = result.values;
+        const pointValues = (value) => Array.isArray(value) ? value : value?.values;
+        expect(trimmed.points.map((entry) => pointValues(entry).map(String)))
+            .toEqual([["5", "0"], ["10", "0"], ["10", "5"]]);
+        expect(marker.kind).toBe("circle");
+        expect(symbol.entries.get("schema").value).toBe("rix.draw.symbol@1");
+        expect(used.kind).toBe("transform");
+        expect(labels.metadata.get("schema").value).toBe("rix.draw.label-layout@1");
+        expect(labels.metadata.get("resolved").value).toBe(1n);
+        const placements = labels.metadata.get("placements").values;
+        expect(placements[0].entries.get("position").values.map(String))
+            .not.toEqual(placements[1].entries.get("position").values.map(String));
+    });
+
+    test("draw Phase 3 consumes drawable geometry protocols and keeps uncertainty visible", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("geometry");
+            .Plugin.Load("draw");
+            view := .draw.Viewport([-2,-2,2,2],[200,200]);
+            a := .geometry.Point(0,0);
+            b := .geometry.Point(1,1);
+            parallel := .geometry.Intersect(
+                .geometry.Line(.geometry.Point(0,0),.geometry.Point(1,0)),
+                .geometry.Line(.geometry.Point(0,1),.geometry.Point(1,1))
+            );
+            uncertain := .geometry.UncertainPoint(a,[{= id="dx",dx=1,dy=0,interval=(-1):1 }]);
+            [
+                .draw.From(.geometry.Segment(a,b),{= viewport=view }),
+                .draw.From(.geometry.Circle(a,1),{= viewport=view }),
+                .draw.From({= schema="rix.draw.geometry@1",kind=:point,coordinates=[3,4] }),
+                .draw.From(parallel),
+                .draw.From(uncertain,{= viewport=view })
+            ];
+        `);
+        const [segment, circle, genericPoint, unresolved, uncertain] = result.values;
+        expect(segment.kind).toBe("path");
+        expect(circle.kind).toBe("circle");
+        expect(circle.radius.toNumber()).toBe(50);
+        expect(genericPoint.kind).toBe("circle");
+        expect(unresolved.kind).toBe("group");
+        expect(unresolved.metadata.get("schema").value).toBe("rix.draw.adapter-result@1");
+        expect(unresolved.metadata.get("resolved").value).toBe(0n);
+        expect(unresolved.children[0].kind).toBe("text_mark");
+        expect(uncertain.metadata.get("resolved").value).toBe(0n);
+        expect(uncertain.metadata.get("uncertainty").entries.get("schema").value)
+            .toBe("rix.geometry.uncertain-point@1");
+    });
+
     test("the plot plugin fits polynomial values, handles constants, and validates ranges", () => {
         const fitted = parseAndEvaluate(`
             .Plugin.Load("plot");

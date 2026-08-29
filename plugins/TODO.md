@@ -166,11 +166,11 @@ newline normalization.
    - [x] Provide bounding boxes and anchors for composed labels.
    - [x] Extend the tutorial with a labeled construction.
 3. **Phase 3 — Constraint-aware authoring**
-   - [ ] Accept geometry objects through a protocol without importing
+   - [x] Accept geometry objects through a protocol without importing
      `.geometry`.
-   - [ ] Support path trimming, marker placement, collision-aware labels, and
+   - [x] Support path trimming, marker placement, collision-aware labels, and
      reusable symbols.
-   - [ ] Preserve unresolved or uncertain geometry as visible scene metadata.
+   - [x] Preserve unresolved or uncertain geometry as visible scene metadata.
 4. **Phase 4 — Advanced drafting ecosystem**
    - [ ] Add extensible symbol libraries and declarative diagram themes.
    - [ ] Explore interactive handles that emit ordinary retained scenes.

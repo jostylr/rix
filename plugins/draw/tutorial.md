@@ -50,3 +50,43 @@ labelBox := .draw.Bounds(triangle);
 
 `Bounds` uses renderer-independent drafting estimates for labels. A final
 renderer still owns exact font metrics.
+
+## Adapt geometry and annotate a path
+
+Draw consumes geometry records by schema; it does not import the Geometry
+plugin or create a second scene representation.
+
+```rix
+.Plugin.Load("geometry");
+.Plugin.Load("draw");
+view := .draw.Viewport([-2,-2,2,2],[420,240],{= margin=24 });
+a := .geometry.Point(-1,-1);
+b := .geometry.Point(1,1);
+segment := .draw.From(.geometry.Segment(a,b),{= viewport=view });
+middle := .draw.Trim(segment,1/4,3/4);
+target := .draw.Symbol("target",[
+  .draw.Circle([0,0],4,{= fill="#f97316" }),
+  .draw.Line([-7,0],[7,0],{= stroke="#7c2d12" })
+]);
+.Graphics.Graphic([420,240],[
+  segment,
+  middle,
+  .draw.Marker(middle,1/2,target),
+  .draw.PlaceLabels([
+    {= id="a",position=view.Point([-1,-1]),text="A" },
+    {= id="near-a",position=view.Point([-1,-1]),text="exact point" }
+  ])
+]);
+```
+
+An unresolved geometry result stays visible and retains its source evidence:
+
+```rix
+.Plugin.Load("geometry");
+.Plugin.Load("draw");
+parallel := .geometry.Intersect(
+  .geometry.Line(.geometry.Point(0,0),.geometry.Point(1,0)),
+  .geometry.Line(.geometry.Point(0,1),.geometry.Point(1,1))
+);
+.Graphics.Graphic([420,80],[.draw.From(parallel)]);
+```

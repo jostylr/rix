@@ -3,9 +3,13 @@ id: draw
 description: Convenient 2D drawing helpers that produce core Graphics nodes.
 kind: host
 mount: draw
-exports: [Line, Polyline, Polygon, Arrow, Arc, Ellipse, Dimension, Grid, Label, Box, Circle, Style, Viewport, ViewportPoint, Bounds, Anchor]
+exports: [Line, Polyline, Polygon, Arrow, Arc, Ellipse, Dimension, Grid, Label, Box, Circle, Style, Viewport, ViewportPoint, Bounds, Anchor, From, Trim, Marker, Symbol, UseSymbol, PlaceLabels]
 groups: [Draw]
 permissions: []
+provides: [rix.draw@1, rix.draw.drawable@1]
+schemas: [rix.draw.symbol@1, rix.draw.adapter-result@1, rix.draw.label-layout@1]
+snapshot: true
+deterministic: true
 defaultEnabled: false
 **/
 
@@ -18,7 +22,7 @@ defaultEnabled: false
  */
 
 import {
-    createCircle, createGroup, createPath, createRectangle, createTextMark,
+    createCircle, createGroup, createPath, createRectangle, createTextMark, createTransform,
 } from "../../src/runtime/output.js";
 import { Integer, Rational } from "@ratmath/core";
 
@@ -333,12 +337,251 @@ function anchor(args) {
     return arrayValue(pointsValue([[positions[name.toLowerCase()][0] + offset[0], positions[name.toLowerCase()][1] + offset[1]]])[0]);
 }
 
+function pathPointAt(path, fraction, label = "draw path") {
+    if (!path || path.kind !== "path" || !Array.isArray(path.points)) {
+        throw new Error(`${label} requires a point-based Graphics.Path`);
+    }
+    const points = path.points.map((entry, index) => pointNumbers(entry, `${label} point ${index + 1}`));
+    if (points.length < 2) throw new Error(`${label} requires at least two points`);
+    if (!(fraction >= 0 && fraction <= 1)) throw new Error(`${label} fraction must be between 0 and 1`);
+    const lengths = points.slice(1).map((entry, index) => Math.hypot(entry[0] - points[index][0], entry[1] - points[index][1]));
+    const total = lengths.reduce((sum, value) => sum + value, 0);
+    if (total === 0) throw new Error(`${label} cannot use a zero-length path`);
+    const target = fraction * total;
+    let consumed = 0;
+    for (let index = 0; index < lengths.length; index += 1) {
+        if (target <= consumed + lengths[index] || index === lengths.length - 1) {
+            const local = lengths[index] === 0 ? 0 : (target - consumed) / lengths[index];
+            return [
+                points[index][0] + (points[index + 1][0] - points[index][0]) * local,
+                points[index][1] + (points[index + 1][1] - points[index][1]) * local,
+            ];
+        }
+        consumed += lengths[index];
+    }
+    return points.at(-1);
+}
+
+function trim(args) {
+    const entries = entriesFor(args, ["path", "start", "end"], "draw.Trim");
+    const path = get(entries, "path");
+    const start = number(get(entries, "start", int(0)), "draw.Trim start");
+    const end = number(get(entries, "end", int(1)), "draw.Trim end");
+    if (!(start >= 0 && end <= 1 && start < end)) throw new Error("draw.Trim requires 0 <= start < end <= 1");
+    const source = path.points.map((entry, index) => pointNumbers(entry, `draw.Trim point ${index + 1}`));
+    const lengths = source.slice(1).map((entry, index) => Math.hypot(entry[0] - source[index][0], entry[1] - source[index][1]));
+    const total = lengths.reduce((sum, value) => sum + value, 0);
+    if (total === 0) throw new Error("draw.Trim cannot trim a zero-length path");
+    const first = pathPointAt(path, start, "draw.Trim");
+    const last = pathPointAt(path, end, "draw.Trim");
+    let consumed = 0;
+    const kept = [first];
+    for (let index = 1; index < source.length - 1; index += 1) {
+        consumed += lengths[index - 1];
+        const fraction = consumed / total;
+        if (fraction > start && fraction < end) kept.push(source[index]);
+    }
+    kept.push(last);
+    return createPath([pointsValue(kept), path.style instanceof Map ? mapValue([...path.style]) : null]);
+}
+
+function symbol(args) {
+    const entries = entriesFor(args, ["name", "children", "options"], "draw.Symbol");
+    const nameValue = get(entries, "name");
+    const name = nameValue?.value ?? (typeof nameValue === "string" ? nameValue : null);
+    if (!name) throw new Error("draw.Symbol name must be a nonempty string");
+    const children = sequence(get(entries, "children"), "draw.Symbol children");
+    if (!children.every((child) => child?.type === "output")) throw new Error("draw.Symbol children must be Graphics nodes");
+    const options = get(entries, "options")?.type === "map" ? get(entries, "options").entries : new Map();
+    return mapValue([
+        ["valueKind", string("drawSymbol")], ["schema", string("rix.draw.symbol@1")], ["name", string(name)],
+        ["children", arrayValue(children)], ["anchor", get(options, "anchor", arrayValue([int(0), int(0)]))],
+        ["metadata", get(options, "metadata")],
+    ]);
+}
+
+function useSymbol(args) {
+    const entries = entriesFor(args, ["symbol", "position", "options"], "draw.UseSymbol");
+    const value = get(entries, "symbol");
+    if (value?.type !== "map" || get(value.entries, "schema")?.value !== "rix.draw.symbol@1") {
+        throw new Error("draw.UseSymbol requires a rix.draw.symbol@1 value");
+    }
+    const position = pointNumbers(get(entries, "position"), "draw.UseSymbol position");
+    const anchorPoint = pointNumbers(get(value.entries, "anchor"), "draw.Symbol anchor");
+    const options = get(entries, "options")?.type === "map" ? get(entries, "options").entries : new Map();
+    const transform = mapValue([
+        ["translate", arrayValue(pointsValue([[position[0] - anchorPoint[0], position[1] - anchorPoint[1]]])[0])],
+    ]);
+    return createTransform([
+        get(value.entries, "children"), transform,
+        get(options, "style"),
+    ]);
+}
+
+function marker(args) {
+    const entries = entriesFor(args, ["path", "at", "marker", "style"], "draw.Marker");
+    const path = get(entries, "path");
+    const at = number(get(entries, "at", exact(0.5)), "draw.Marker at");
+    const position = pathPointAt(path, at, "draw.Marker");
+    const value = get(entries, "marker");
+    if (value?.type === "map" && get(value.entries, "schema")?.value === "rix.draw.symbol@1") {
+        return useSymbol([value, pointsValue([position])[0]]);
+    }
+    if (value?.type === "string" || typeof value === "string") {
+        return createTextMark([pointsValue([position])[0], value, get(entries, "style")]);
+    }
+    const radius = value === null ? 4 : number(value, "draw.Marker radius");
+    if (radius <= 0) throw new Error("draw.Marker radius must be positive");
+    return createCircle([pointsValue([position])[0], exact(radius), get(entries, "style")]);
+}
+
+function intersects(first, second, padding = 0) {
+    return !(first[2] + padding <= second[0] || second[2] + padding <= first[0]
+        || first[3] + padding <= second[1] || second[3] + padding <= first[1]);
+}
+
+function placeLabels(args) {
+    const entries = entriesFor(args, ["labels", "options"], "draw.PlaceLabels");
+    const labels = sequence(get(entries, "labels"), "draw.PlaceLabels labels");
+    const options = get(entries, "options")?.type === "map" ? get(entries, "options").entries : new Map();
+    const offsets = sequence(get(options, "offsets", arrayValue([
+        arrayValue([int(0), int(0)]), arrayValue([int(0), int(-24)]), arrayValue([int(0), int(24)]),
+        arrayValue([int(24), int(0)]), arrayValue([int(-24), int(0)]),
+    ])), "draw.PlaceLabels offsets").map((entry, index) => pointNumbers(entry, `draw.PlaceLabels offset ${index + 1}`));
+    const padding = number(get(options, "padding", int(2)), "draw.PlaceLabels padding");
+    const boxes = [];
+    const children = [];
+    const placements = [];
+    let unresolved = 0;
+    labels.forEach((entry, index) => {
+        if (entry?.type !== "map") throw new Error(`draw.PlaceLabels entry ${index + 1} must be a map`);
+        const position = pointNumbers(get(entry.entries, "position"), `draw.PlaceLabels entry ${index + 1} position`);
+        const textValue = get(entry.entries, "text");
+        const content = textValue?.value ?? String(textValue ?? "");
+        if (!content) throw new Error(`draw.PlaceLabels entry ${index + 1} requires text`);
+        const styleValue = get(entry.entries, "style");
+        const size = number(styleValue?.entries?.get("size") ?? int(14), `draw.PlaceLabels entry ${index + 1} size`);
+        let chosen = null;
+        for (const offset of offsets) {
+            const candidate = [position[0] + offset[0], position[1] + offset[1]];
+            const box = [candidate[0], candidate[1] - size, candidate[0] + content.length * size * 0.6, candidate[1] + size * 0.2];
+            if (!boxes.some((existing) => intersects(existing, box, padding))) {
+                chosen = { position: candidate, box, offset, collided: false };
+                break;
+            }
+        }
+        if (!chosen) {
+            const offset = offsets[0];
+            const candidate = [position[0] + offset[0], position[1] + offset[1]];
+            chosen = { position: candidate, box: [candidate[0], candidate[1] - size, candidate[0] + content.length * size * 0.6, candidate[1] + size * 0.2], offset, collided: true };
+            unresolved += 1;
+        }
+        boxes.push(chosen.box);
+        const id = get(entry.entries, "id")?.value ?? `draw-label-${index + 1}`;
+        children.push(createTextMark([pointsValue([chosen.position])[0], textValue,
+            mergedStyle(styleValue, [["hitId", string(id)]])]));
+        placements.push(mapValue([
+            ["id", string(id)], ["position", arrayValue(pointsValue([chosen.position])[0])],
+            ["offset", arrayValue(pointsValue([chosen.offset])[0])], ["collided", int(chosen.collided ? 1 : 0)],
+        ]));
+    });
+    return createGroup([children, null, mapValue([
+        ["schema", string("rix.draw.label-layout@1")], ["placements", arrayValue(placements)],
+        ["resolved", int(unresolved === 0 ? 1 : 0)], ["unresolved", int(unresolved)],
+    ])]);
+}
+
+function projectProtocolPoint(value, viewportValue, label) {
+    const raw = point(value, label);
+    if (viewportValue === null) return raw;
+    return viewportPoint(raw, viewportValue);
+}
+
+function unresolvedDrawable(source, message, position = [int(8), int(18)]) {
+    return createGroup([[
+        createTextMark([position, string(message), mapValue([["fill", string("#b91c1c")], ["size", int(13)]])]),
+    ], null, mapValue([
+        ["schema", string("rix.draw.adapter-result@1")], ["resolved", int(0)],
+        ["uncertainty", source], ["diagnostic", string(message)],
+    ])]);
+}
+
+function fromDrawable(args) {
+    const entries = args.length === 1 && args[0]?.type === "map"
+        && (args[0].entries.has("value") || args[0].entries.has("options"))
+        ? args[0].entries
+        : new Map([["value", args[0]], ...(args.length > 1 ? [["options", args[1]]] : [])]);
+    if (args.length > 2) throw new Error("draw.From received too many arguments");
+    const source = get(entries, "value");
+    if (source?.type === "output") return source;
+    if (source?.type !== "map") throw new Error("draw.From requires a Graphics node or drawable protocol map");
+    const options = get(entries, "options")?.type === "map" ? get(entries, "options").entries : new Map();
+    const embedded = get(source.entries, "drawProtocol");
+    const record = embedded?.type === "map" ? embedded : source;
+    const schema = get(record.entries, "schema")?.value;
+    const kindValue = get(record.entries, "kind");
+    const kind = kindValue?.value ?? String(kindValue ?? "");
+    const viewportValue = get(options, "viewport");
+    const styleValue = get(options, "style", get(record.entries, "style"));
+    if (schema === "rix.geometry.intersection@1") {
+        const status = get(record.entries, "status")?.value;
+        if (!["one", "two"].includes(status)) {
+            return unresolvedDrawable(source, get(record.entries, "diagnostic")?.value ?? `Intersection status: ${status}`);
+        }
+        const children = sequence(get(record.entries, "points"), "draw.From intersection points")
+            .map((item) => fromDrawable([item, mapValue([...options])]));
+        return createGroup([children, null, mapValue([
+            ["schema", string("rix.draw.adapter-result@1")], ["sourceSchema", string(schema)], ["resolved", int(1)],
+        ])]);
+    }
+    if (schema === "rix.geometry.uncertain-point@1") {
+        const center = get(record.entries, "center");
+        const position = projectProtocolPoint(get(center.entries, "coordinates"), viewportValue, "draw.From uncertain point center");
+        return createGroup([[
+            createCircle([position, int(7), mergedStyle(styleValue, [["fill", string("#fef3c7")], ["stroke", string("#b45309")], ["dash", string("3 2")]])]),
+        ], null, mapValue([
+            ["schema", string("rix.draw.adapter-result@1")], ["sourceSchema", string(schema)],
+            ["resolved", int(0)], ["uncertainty", source],
+        ])]);
+    }
+    if (!["rix.geometry@1", "rix.draw.geometry@1"].includes(schema)) {
+        throw new Error(`draw.From does not support drawable schema '${schema ?? "missing"}'`);
+    }
+    if (kind === "point") {
+        const position = projectProtocolPoint(get(record.entries, "coordinates"), viewportValue, "draw.From point");
+        return createCircle([position, get(options, "radius", int(5)), mergedStyle(styleValue, [["hitId", get(options, "hitId", string("geometry-point"))]])]);
+    }
+    if (kind === "segment" || kind === "polygon") {
+        const rawPoints = kind === "segment"
+            ? [get(get(record.entries, "first").entries, "coordinates"), get(get(record.entries, "second").entries, "coordinates")]
+            : sequence(get(record.entries, "points"), "draw.From polygon points").map((item) => get(item.entries, "coordinates"));
+        const projected = rawPoints.map((item, index) => projectProtocolPoint(item, viewportValue, `draw.From ${kind} point ${index + 1}`));
+        return createPath([projected, mergedStyle(styleValue, [["closed", kind === "polygon"], ["hitId", get(options, "hitId", string(`geometry-${kind}`))]])]);
+    }
+    if (kind === "circle") {
+        const center = get(record.entries, "center");
+        const rawCenter = get(center.entries, "coordinates");
+        const centerPoint = pointNumbers(rawCenter, "draw.From circle center");
+        const radiusSquared = number(get(record.entries, "radiusSquared"), "draw.From circle radiusSquared");
+        if (radiusSquared < 0) throw new Error("draw.From circle radiusSquared must be nonnegative");
+        const radius = Math.sqrt(radiusSquared);
+        const projectedCenter = projectProtocolPoint(rawCenter, viewportValue, "draw.From circle center");
+        const projectedEdge = projectProtocolPoint(pointsValue([[centerPoint[0] + radius, centerPoint[1]]])[0], viewportValue, "draw.From circle edge");
+        const projectedCenterNumbers = pointNumbers(projectedCenter, "draw.From projected circle center");
+        const projectedEdgeNumbers = pointNumbers(projectedEdge, "draw.From projected circle edge");
+        const projectedRadius = Math.hypot(projectedEdgeNumbers[0] - projectedCenterNumbers[0], projectedEdgeNumbers[1] - projectedCenterNumbers[1]);
+        return createCircle([projectedCenter, exact(projectedRadius), mergedStyle(styleValue, [["hitId", get(options, "hitId", string("geometry-circle"))]])]);
+    }
+    return unresolvedDrawable(source, `draw.From has no finite adapter for geometry kind '${kind}'`);
+}
+
 export function createDrawPluginCollection() {
     const methods = new Map([
         ["Line", line], ["Polyline", polyline], ["Polygon", polygon], ["Arrow", arrow], ["Arc", arc],
         ["Ellipse", ellipse], ["Dimension", dimension], ["Grid", grid], ["Label", label], ["Box", box],
         ["Circle", circle], ["Style", style], ["Viewport", viewport], ["ViewportPoint", viewportPointCommand],
-        ["Bounds", bounds], ["Anchor", anchor],
+        ["Bounds", bounds], ["Anchor", anchor], ["From", fromDrawable], ["Trim", trim], ["Marker", marker],
+        ["Symbol", symbol], ["UseSymbol", useSymbol], ["PlaceLabels", placeLabels],
     ]);
     const entries = new Map();
     const extension = new Map([["immutable", new Integer(1n)]]);
