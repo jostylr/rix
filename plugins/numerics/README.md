@@ -410,6 +410,28 @@ initial interval, derivative lower bound, second-derivative upper bound, and
 the Kantorovich condition before creating a real. Subsequent requests use
 interval Newton and retain nested certified enclosures.
 
+`.numerics.IntervalNewton(function,derivative,interval,options?)` exposes the
+box operator directly. It does not require a second-derivative bound. Each
+bounded result separates operational `status` from mathematical
+`classification`: a box may be `:unique`, `:excluded`, `:contracted`,
+`:derivativeContainsZero`, or `:stalled`, while work may independently be
+`:enclosed`, `:budgetExhausted`, `:resolutionFloor`, or `:unknown`.
+
+The callback form records `evidenceLevel=:assumed` because it can check all
+interval arithmetic but cannot prove that an arbitrary supplied derivative
+callable is the derivative of the arbitrary supplied function. It therefore
+sets `conditional=1`, leaves `certified` unset, and retains the explicit
+differentiability and derivative-identity assumptions in the result. A future
+portable Calculus-expression overload will discharge that identity through
+`CheckDerivativeGraph` and may then return an unconditional certificate.
+
+Kantorovich and direct interval Newton may be alternatives or complements.
+Kantorovich uses a derivative lower bound and a derivative-Lipschitz/
+second-derivative bound to establish an initial existence/uniqueness ball.
+Direct interval Newton instead consumes the full first-derivative range on an
+already selected box. A Kantorovich ball can then be passed to
+`IntervalNewton` for an independently visible contraction trace.
+
 The universal algorithms actualize each iteration into exact rational data. With
 `trace=1`, every step reports `actualized=1`, so refinement never builds an
 unbounded linked arithmetic-expression trail.

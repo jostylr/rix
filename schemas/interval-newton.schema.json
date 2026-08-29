@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.rix.ratmath.com/interval-newton.schema.json",
+  "title": "RiX scalar interval Newton result v1",
+  "type": "object",
+  "required": [
+    "schema",
+    "status",
+    "classification",
+    "rootExistence",
+    "inputInterval",
+    "requestedWidth",
+    "achievedWidth",
+    "goalMet",
+    "evidenceLevel",
+    "assumptions",
+    "work",
+    "trace",
+    "diagnostics",
+    "evidence"
+  ],
+  "properties": {
+    "schema": { "const": "rix.numerics.interval-newton@1" },
+    "status": {
+      "enum": ["enclosed", "excluded", "budgetExhausted", "resolutionFloor", "unknown"]
+    },
+    "classification": {
+      "enum": ["unique", "excluded", "contracted", "derivativeContainsZero", "stalled"]
+    },
+    "rootExistence": { "enum": ["unique", "none", "unproved"] },
+    "inputInterval": { "type": "object" },
+    "interval": { "type": ["object", "null"] },
+    "requestedWidth": { "type": "object" },
+    "achievedWidth": { "type": "object" },
+    "goalMet": {},
+    "certified": {},
+    "conditional": {},
+    "evidenceLevel": { "const": "assumed" },
+    "assumptions": {
+      "type": "object",
+      "required": ["derivativeMatchesFunction", "differentiableOnInput", "intervalEvaluation"]
+    },
+    "work": {
+      "type": "object",
+      "required": ["calls", "iterations", "maxCalls", "maxIterations", "exhausted"]
+    },
+    "trace": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "iteration",
+          "input",
+          "midpoint",
+          "functionAtMidpoint",
+          "derivative",
+          "classification",
+          "actualized"
+        ]
+      }
+    },
+    "diagnostics": { "type": "array" },
+    "evidence": {
+      "type": "object",
+      "required": ["kind", "property", "theorem", "assumptions"]
+    }
+  },
+  "additionalProperties": true
+}

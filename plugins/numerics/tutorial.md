@@ -513,19 +513,23 @@ values |>> ((value) -> RefineGamma(value, {=
 evidence. Beta and the polygamma functions likewise report `:unknown` when
 their positive-real domains cannot be certified.
 
-## Kantorovich certification and interval Newton
+## Compare Kantorovich with direct interval Newton
 
-`.numerics.Kantorovich` first checks the supplied initial interval and rational
-bounds. The derivative interval must exclude zero, `derivativeLower` may not
-overstate its certified magnitude, and an optional interval-valued second
-derivative verifies `secondDerivativeUpper`. The Kantorovich inequality then
-certifies an initial root enclosure. Refinement uses interval Newton and
-intersects every new interval with the preceding one:
+Kantorovich establishes an initial existence/uniqueness ball from pointwise
+Newton data, a derivative lower bound, and a derivative-Lipschitz or
+second-derivative bound. Direct interval Newton starts from a box and uses the
+complete first-derivative interval on that box. For `x^2-2`, both routes work:
 
 ```rix
 .Plugin.Load("numerics");
 
-root := .numerics.Kantorovich(
+direct := .numerics.IntervalNewton(
+  (x) -> x^2 - 2,
+  (x) -> 2*x,
+  1:2,
+  {= absoluteWidth=1/100000,maxWork=30,trace=1 }
+);
+entry := .numerics.Kantorovich(
   (x) -> x^2 - 2,
   (x) -> 2*x,
   {=
@@ -536,24 +540,61 @@ root := .numerics.Kantorovich(
     secondDerivative=(x)->2
   }
 );
-
-result := .numerics.Refine(root, {=
+fromKantorovich := .numerics.Refine(entry, {=
   absoluteWidth=1/100000, maxWork=30, trace=1
 });
 .Table({=
-  columns=["status", "evidence", "interval", "calls"],
-  rows=[[
-    result[:status], result[:evidenceLevel],
-    result[:interval], result[:work][:calls]
-  ]]
+  columns=["route","status","classification","interval","calls"],
+  rows=[
+    ["direct interval Newton",direct[:status],direct[:classification],direct[:interval],direct[:work][:calls]],
+    ["Kantorovich + refinement",fromKantorovich[:status],:unique,fromKantorovich[:interval],fromKantorovich[:work][:calls]]
+  ]
 });
 ```
 
-The function and derivative may accept exact points and rational intervals,
-which makes interval evaluation visible and inspectable. Every Newton trace
-step contains the materialized guess, derivative enclosure, new certified
-interval, error radius, and `actualized=1`; there is no retained trail of lazy
-arithmetic expressions between iterations.
+The direct callback form records `evidenceLevel=:assumed`: its interval
+arithmetic and inclusion theorem are exact, but an arbitrary callback pair does
+not prove its own differentiability or derivative identity. Kantorovich checks
+its numeric bounds and condition, while retaining the same function/derivative
+identity assumption.
+
+They also compose. Kantorovich can establish the initial ball; the public box
+operator can then show the contraction separately:
+
+```rix
+.Plugin.Load("numerics");
+entry := .numerics.Kantorovich(
+  (x)->x^2-2,(x)->2*x,
+  {=
+    interval=1:2,initial=3/2,derivativeLower=2,
+    secondDerivativeUpper=2,secondDerivative=(x)->2
+  }
+);
+contracted := .numerics.IntervalNewton(
+  (x)->x^2-2,(x)->2*x,entry[:initialEnclosure],
+  {= absoluteWidth=1/10000,maxWork=20,trace=1 }
+);
+[entry[:initialEnclosure],contracted[:interval],contracted[:classification]];
+```
+
+Interval Newton can prove absence as well as uniqueness. It fails closed when
+the derivative interval contains zero instead of dividing through it:
+
+```rix
+.Plugin.Load("numerics");
+excluded := .numerics.IntervalNewton((x)->x^2+1,(x)->2*x,1:2,{= maxWork=5 });
+unresolved := .numerics.IntervalNewton((x)->x^2,(x)->2*x,(-1):1,{= maxWork=5 });
+.Table({=
+  columns=["box","status","classification","root existence"],
+  rows=[
+    ["1:2 for x^2+1",excluded[:status],excluded[:classification],excluded[:rootExistence]],
+    ["-1:1 for x^2",unresolved[:status],unresolved[:classification],unresolved[:rootExistence]]
+  ]
+});
+```
+
+Every trace step materializes the input box, midpoint value, derivative
+enclosure, Newton image, intersection, and classification with bounded work.
 
 ## Request exact sign and root-count witnesses
 

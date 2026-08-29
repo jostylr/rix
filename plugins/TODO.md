@@ -402,7 +402,7 @@ newline normalization.
    - [x] Add capability negotiation and explain why an algorithm/backend pair
      was selected.
 3. **Phase 3 — Certified nonlinear, differential, and ODE methods**
-   - [ ] Publish scalar `IntervalNewton` as a bounded box-classification and
+   - [x] Publish scalar `IntervalNewton` as a bounded box-classification and
      contraction service independent of the Kantorovich constructor. Distinguish
      excluded, unique, contracted, derivative-zero, stalled, and exhausted
      outcomes; retain every interval step and all differentiability/derivative
@@ -429,9 +429,10 @@ newline normalization.
      the same box/work/result vocabulary.
    - [ ] Feed nonlinear and ODE results to Solve, adaptive Geometry, Plot, and
      Scene3D without requiring those consumers to import a concrete backend.
-   - [ ] Add tutorial contrasts among Kantorovich entry certification, direct
-     interval Newton, Krawczyk boxes, approximate ODE trajectories, and
-     validated ODE tubes.
+   - [x] Add tutorial contrasts between Kantorovich entry certification and
+     direct interval Newton as alternatives and as complementary stages.
+   - [ ] Extend that tutorial with Krawczyk boxes, approximate ODE trajectories,
+     and validated ODE tubes as those services land.
 4. **Phase 4 — Advanced numerical orchestration**
    - [ ] Add sparse methods, PDE helpers, continuation, and precision
      escalation across multiple backends.
