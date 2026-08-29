@@ -26,6 +26,8 @@ import {
     jacobianBoxRangeValue,
     affineBoxRangeValue,
     taylorModelBoxRangeValue,
+    krawczykBoxValue,
+    krawczykCheckValue,
     multivariateRangeCheckValue,
 } from "../../runtime/multivariate-range.js";
 import {
@@ -185,6 +187,26 @@ export const arithmeticFunctions = {
         },
         pure: true,
         doc: "Certify a rational-box range with a multivariate Taylor model and Hessian remainder",
+    },
+
+    KRAWCZYK_BOX: {
+        impl(args, context) {
+            if (args.length < 3 || args.length > 4) {
+                throw new Error("KrawczykBox expects expressions, checked Jacobian, box, and optional options");
+            }
+            return krawczykBoxValue(args[0], args[1], args[2], args[3], context);
+        },
+        pure: true,
+        doc: "Classify and contract a nonlinear rational box with a checked Krawczyk operator",
+    },
+
+    KRAWCZYK_CHECK: {
+        impl(args) {
+            if (args.length !== 1) throw new Error("KrawczykCheck expects one result");
+            return krawczykCheckValue(args[0]);
+        },
+        pure: true,
+        doc: "Independently recompute a checked Krawczyk classification",
     },
 
     MULTIVARIATE_RANGE_CHECK: {

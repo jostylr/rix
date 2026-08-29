@@ -25,6 +25,8 @@ export const JACOBIAN_BOX_RANGE_SCHEMA = "rix.numerics.jacobian-box-range@1";
 export const AFFINE_BOX_RANGE_SCHEMA = "rix.numerics.affine-box-range@1";
 export const TAYLOR_MODEL_BOX_RANGE_SCHEMA = "rix.numerics.taylor-model-box-range@1";
 export const MULTIVARIATE_RANGE_CHECKER = "rix.runtime.multivariate-range-checker@1";
+export const KRAWCZYK_BOX_SCHEMA = "rix.numerics.krawczyk-box@1";
+export const KRAWCZYK_CHECKER = "rix.runtime.krawczyk-checker@1";
 
 const text = (value) => ({ type: "string", value: String(value) });
 const sequence = (values) => ({ type: "sequence", values });
@@ -325,6 +327,35 @@ function checkedHessian(expression, collection, box) {
         throw new Error("uncheckedHessianTransformation");
     }
     return { ...parts, rows, identities };
+}
+
+function checkedJacobian(expressions, collection, box) {
+    const sources = values(expressions);
+    if (!sources || sources.length !== box.dimension) {
+        throw new Error("krawczykSystemDimensionMismatch");
+    }
+    const parts = collectionParts(collection, "jacobian");
+    if (parts.sources.length !== sources.length ||
+        parts.sources.some((source, index) =>
+            calculusGraphStructuralKey(source) !== calculusGraphStructuralKey(sources[index]))) {
+        throw new Error("jacobianSourceMismatch");
+    }
+    if (parts.variables.length !== box.dimension ||
+        parts.variables.some((name, index) => name !== box.variables[index])) {
+        throw new Error("jacobianVariablesMustMatchBox");
+    }
+    const rows = parts.results.map((row) => values(row));
+    if (rows.length !== box.dimension ||
+        rows.some((row) => !row || row.length !== box.dimension)) {
+        throw new Error("jacobianShapeMismatch");
+    }
+    const identities = rows.map((row) => row.map(checkCalculusDerivativeTransformation));
+    if (identities.some((row) => row.some((identity, columnIndex) =>
+        !identity.accepted || identity.order !== 1 ||
+        identity.variable !== parts.variables[columnIndex]))) {
+        throw new Error("uncheckedJacobianTransformation");
+    }
+    return { ...parts, sources, rows, identities };
 }
 
 function checkedGraphRange(expression, axes, options, conventions) {
@@ -630,6 +661,345 @@ export function evaluateTaylorModelBoxRange(
     }
 }
 
+function singletonRational(range, reason) {
+    if (!(range instanceof RationalIntervalSet) || range.componentCount !== 1) {
+        throw new Error(reason);
+    }
+    const component = range.components[0];
+    if (!component.lowClosed || !component.highClosed ||
+        component.low === null || component.high === null ||
+        !component.low.equals(component.high)) {
+        throw new Error(reason);
+    }
+    return component.low;
+}
+
+function closedComponent(range, reason) {
+    if (!(range instanceof RationalIntervalSet) || range.componentCount !== 1) {
+        throw new Error(reason);
+    }
+    const component = range.components[0];
+    if (!component.lowClosed || !component.highClosed ||
+        component.low === null || component.high === null) {
+        throw new Error(reason);
+    }
+    return component;
+}
+
+function rationalIdentity(size) {
+    return Array.from({ length: size }, (_, row) =>
+        Array.from({ length: size }, (_, column) =>
+            row === column ? Rational.one : Rational.zero));
+}
+
+function invertRationalMatrix(source) {
+    const size = source.length;
+    const augmented = source.map((row, rowIndex) => [
+        ...row,
+        ...rationalIdentity(size)[rowIndex],
+    ]);
+    for (let column = 0; column < size; column += 1) {
+        let pivot = column;
+        while (pivot < size && augmented[pivot][column].equals(Rational.zero)) pivot += 1;
+        if (pivot === size) return null;
+        if (pivot !== column) [augmented[pivot], augmented[column]] = [augmented[column], augmented[pivot]];
+        const divisor = augmented[column][column];
+        augmented[column] = augmented[column].map((value) => value.divide(divisor));
+        for (let row = 0; row < size; row += 1) {
+            if (row === column) continue;
+            const factor = augmented[row][column];
+            if (factor.equals(Rational.zero)) continue;
+            augmented[row] = augmented[row].map((value, index) =>
+                value.subtract(factor.multiply(augmented[column][index])));
+        }
+    }
+    return augmented.map((row) => row.slice(size));
+}
+
+function krawczykLimits(options) {
+    const rawIterations = integerValue(
+        mapValue(options, "maxiterations"),
+        integerValue(mapValue(options, "maxwork"), 8n),
+    );
+    if (rawIterations < 1n || rawIterations > 64n) {
+        throw new Error("krawczykMaxIterationsOutOfRange");
+    }
+    const trace = integerValue(mapValue(options, "trace"), 0n) !== 0n;
+    return { maxIterations: Number(rawIterations), trace };
+}
+
+function krawczykFailure(expressions, jacobianCollection, source, options, conventions, reason) {
+    return Object.freeze({
+        schema: KRAWCZYK_BOX_SCHEMA,
+        valueKind: "krawczykResult",
+        strategy: "krawczyk",
+        status: "unknown",
+        classification: "invalidEvidence",
+        rootExistence: "unproved",
+        certified: false,
+        inputBox: null,
+        box: null,
+        operatorBox: null,
+        diagnostics: Object.freeze([reason]),
+        work: Object.freeze({ iterations: 0, graphEvaluations: 0, exhausted: false }),
+        trace: Object.freeze([]),
+        evidence: Object.freeze({
+            kind: "krawczyk",
+            checker: KRAWCZYK_CHECKER,
+            expressions,
+            jacobianCollection,
+            source,
+            options,
+            conventions,
+        }),
+    });
+}
+
+function boxEquals(left, right) {
+    if (!left || !right || left.dimension !== right.dimension ||
+        left.variables.some((name, index) => name !== right.variables[index])) return false;
+    return left.variables.every((name) => left.axes.get(name).equals(right.axes.get(name)));
+}
+
+export function evaluateKrawczykBox(
+    expressions, jacobianCollection, source, options = map([]), conventions = {},
+) {
+    try {
+        conventions = normalizedConventions(conventions);
+        const inputBox = createRationalBox(source);
+        const jacobian = checkedJacobian(expressions, jacobianCollection, inputBox);
+        const limits = krawczykLimits(options);
+        let current = inputBox;
+        let operatorBox = null;
+        let center = null;
+        let functionAtCenter = null;
+        let midpointJacobian = null;
+        let jacobianRange = null;
+        let preconditioner = null;
+        let classification = "contracted";
+        let rootExistence = "unproved";
+        let iterations = 0;
+        let graphEvaluations = 0;
+        let stopped = false;
+        const trace = [];
+        const obligationChecks = [];
+
+        while (!stopped && iterations < limits.maxIterations) {
+            iterations += 1;
+            const centers = centerAxes(current);
+            center = current.variables.map((name) =>
+                singletonRational(centers.get(name), "krawczykCenterMustBeExact"));
+            const deltas = deltaAxes(current);
+
+            functionAtCenter = jacobian.sources.map((expression) => {
+                graphEvaluations += 1;
+                return singletonRational(
+                    checkedGraphRange(expression, centers, options, conventions).range,
+                    "krawczykRequiresExactRationalCenterValues",
+                );
+            });
+
+            midpointJacobian = jacobian.identities.map((row) => row.map((identity) => {
+                obligationChecks.push(...discharge(identity, current.axes, options, conventions));
+                graphEvaluations += 1;
+                return singletonRational(
+                    checkedGraphRange(identity.expression, centers, options, conventions).range,
+                    "krawczykRequiresExactRationalMidpointJacobian",
+                );
+            }));
+            preconditioner = invertRationalMatrix(midpointJacobian);
+            if (!preconditioner) {
+                classification = "singularPreconditioner";
+                stopped = true;
+                if (limits.trace) trace.push(Object.freeze({
+                    iteration: iterations, inputBox: current, center: Object.freeze(center),
+                    functionAtCenter: Object.freeze(functionAtCenter),
+                    midpointJacobian: Object.freeze(midpointJacobian.map(Object.freeze)),
+                    classification,
+                }));
+                break;
+            }
+
+            jacobianRange = jacobian.identities.map((row) => row.map((identity) => {
+                graphEvaluations += 1;
+                return checkedGraphRange(identity.expression, current.axes, options, conventions).range;
+            }));
+
+            const operatorAxes = new Map();
+            for (let row = 0; row < current.dimension; row += 1) {
+                let base = center[row];
+                for (let column = 0; column < current.dimension; column += 1) {
+                    base = base.subtract(preconditioner[row][column].multiply(functionAtCenter[column]));
+                }
+                let operator = point(base);
+                for (let axis = 0; axis < current.dimension; axis += 1) {
+                    let coefficient = point(row === axis ? Rational.one : Rational.zero);
+                    for (let column = 0; column < current.dimension; column += 1) {
+                        coefficient = subtract(
+                            coefficient,
+                            multiply(point(preconditioner[row][column]), jacobianRange[column][axis]),
+                        );
+                    }
+                    operator = add(operator, multiply(
+                        coefficient, deltas.get(current.variables[axis]),
+                    ));
+                }
+                closedComponent(operator, "krawczykOperatorMustBeOneClosedInterval");
+                operatorAxes.set(current.variables[row], operator);
+            }
+            operatorBox = createRationalBox(operatorAxes);
+
+            const intersections = new Map();
+            let excluded = false;
+            let strictInclusion = true;
+            let contracted = false;
+            for (const name of current.variables) {
+                const inputRange = current.axes.get(name);
+                const operatorRange = operatorBox.axes.get(name);
+                const inputComponent = closedComponent(inputRange, "krawczykInputAxisInvalid");
+                const operatorComponent = closedComponent(operatorRange, "krawczykOperatorAxisInvalid");
+                const intersection = inputRange.intersection(operatorRange);
+                if (intersection.isEmpty) {
+                    excluded = true;
+                    strictInclusion = false;
+                    break;
+                }
+                intersections.set(name, intersection);
+                const intersectionComponent = closedComponent(
+                    intersection, "krawczykIntersectionMustBeOneClosedInterval",
+                );
+                if (!(inputComponent.low.lessThan(operatorComponent.low) &&
+                    operatorComponent.high.lessThan(inputComponent.high))) strictInclusion = false;
+                if (axisWidth(intersectionComponent).lessThan(axisWidth(inputComponent))) contracted = true;
+            }
+
+            let next = current;
+            if (excluded) {
+                classification = "excluded";
+                rootExistence = "none";
+                stopped = true;
+            } else {
+                next = createRationalBox(intersections);
+                current = next;
+                if (strictInclusion) {
+                    classification = "unique";
+                    rootExistence = "unique";
+                    stopped = true;
+                } else if (!contracted) {
+                    classification = "stalled";
+                    stopped = true;
+                } else {
+                    classification = "contracted";
+                }
+            }
+            if (limits.trace) trace.push(Object.freeze({
+                iteration: iterations,
+                inputBox: excluded ? current : (trace.length === 0 ? inputBox : trace.at(-1).outputBox),
+                center: Object.freeze(center),
+                functionAtCenter: Object.freeze(functionAtCenter),
+                midpointJacobian: Object.freeze(midpointJacobian.map(Object.freeze)),
+                preconditioner: Object.freeze(preconditioner.map(Object.freeze)),
+                jacobianRange: Object.freeze(jacobianRange.map(Object.freeze)),
+                operatorBox,
+                outputBox: excluded ? null : next,
+                classification,
+            }));
+        }
+
+        const exhausted = !stopped && iterations >= limits.maxIterations;
+        const status = classification === "excluded" || classification === "unique"
+            ? "classified"
+            : exhausted ? "budgetExhausted" : "unknown";
+        const diagnostics = classification === "singularPreconditioner"
+            ? ["singularMidpointJacobian"]
+            : classification === "stalled" ? ["krawczykResolutionFloor"]
+                : exhausted ? ["workBudgetReached"] : [];
+        return Object.freeze({
+            schema: KRAWCZYK_BOX_SCHEMA,
+            valueKind: "krawczykResult",
+            strategy: "krawczyk",
+            status,
+            classification,
+            rootExistence,
+            certified: true,
+            inputBox,
+            box: classification === "excluded" ? null : current,
+            operatorBox,
+            center: center ? Object.freeze(center) : null,
+            functionAtCenter: functionAtCenter ? Object.freeze(functionAtCenter) : null,
+            midpointJacobian: midpointJacobian
+                ? Object.freeze(midpointJacobian.map(Object.freeze)) : null,
+            preconditioner: preconditioner
+                ? Object.freeze(preconditioner.map(Object.freeze)) : null,
+            jacobianRange: jacobianRange
+                ? Object.freeze(jacobianRange.map(Object.freeze)) : null,
+            obligationChecks: Object.freeze(obligationChecks),
+            diagnostics: Object.freeze(diagnostics),
+            work: Object.freeze({
+                iterations,
+                graphEvaluations,
+                maxIterations: limits.maxIterations,
+                exhausted,
+            }),
+            trace: Object.freeze(trace),
+            evidence: Object.freeze({
+                kind: "krawczyk",
+                checker: KRAWCZYK_CHECKER,
+                expressions: jacobian.sources,
+                jacobianCollection,
+                source: inputBox,
+                options,
+                conventions,
+            }),
+        });
+    } catch (error) {
+        return krawczykFailure(
+            expressions, jacobianCollection, source, options, conventions, error.message,
+        );
+    }
+}
+
+export function checkKrawczykResult(candidate) {
+    const evidence = mapValue(candidate, "evidence");
+    if (textValue(mapValue(evidence, "kind")) !== "krawczyk" ||
+        textValue(mapValue(evidence, "checker")) !== KRAWCZYK_CHECKER) {
+        return Object.freeze({ accepted: false, certified: false, reason: "unsupportedKrawczykEvidence" });
+    }
+    const recomputed = evaluateKrawczykBox(
+        mapValue(evidence, "expressions"),
+        mapValue(evidence, "jacobiancollection"),
+        mapValue(evidence, "source"),
+        mapValue(evidence, "options") ?? map([]),
+        mapValue(evidence, "conventions") ?? {},
+    );
+    const candidateBox = mapValue(candidate, "box");
+    let boxMatches = false;
+    if (candidateBox === null && recomputed.box === null) {
+        boxMatches = true;
+    } else if (candidateBox !== null && candidateBox !== undefined && recomputed.box !== null) {
+        try {
+            boxMatches = boxEquals(createRationalBox(candidateBox), recomputed.box);
+        } catch {
+            boxMatches = false;
+        }
+    }
+    const claimedCertified = mapValue(candidate, "certified");
+    const certified = claimedCertified === true ||
+        (claimedCertified instanceof Integer && claimedCertified.value !== 0n);
+    const accepted = textValue(mapValue(candidate, "schema")) === recomputed.schema &&
+        textValue(mapValue(candidate, "status")) === recomputed.status &&
+        textValue(mapValue(candidate, "classification")) === recomputed.classification &&
+        textValue(mapValue(candidate, "rootexistence")) === recomputed.rootExistence &&
+        certified === recomputed.certified && boxMatches;
+    return Object.freeze({
+        accepted,
+        certified: accepted && recomputed.certified,
+        reason: accepted ? null : "krawczykClaimMismatch",
+        checkedBy: KRAWCZYK_CHECKER,
+        strategy: "krawczyk",
+    });
+}
+
 export function checkMultivariateRangeResult(candidate) {
     const evidence = mapValue(candidate, "evidence");
     if (textValue(mapValue(evidence, "kind")) !== "multivariateRange" ||
@@ -713,6 +1083,27 @@ export function taylorModelBoxRangeValue(expression, gradient, hessian, source, 
         expression, gradient, hessian, source, options,
         { zeroPowerZero: policy.zeroPowerZero },
     ));
+}
+
+export function krawczykBoxValue(expressions, jacobian, source, options, context) {
+    const policy = rangeMathPolicy(context);
+    const result = evaluateKrawczykBox(
+        expressions, jacobian, source, options,
+        { zeroPowerZero: policy.zeroPowerZero },
+    );
+    return portable({ ...result, checker: checkKrawczykResult(result) });
+}
+
+export function krawczykCheckValue(candidate) {
+    try {
+        return portable(checkKrawczykResult(candidate));
+    } catch (error) {
+        return portable({
+            accepted: false,
+            certified: false,
+            reason: error.message || "malformedKrawczykResult",
+        });
+    }
 }
 
 export function multivariateRangeCheckValue(candidate) {

@@ -205,6 +205,16 @@ Hessian collections with a second-order remainder. All return
 `.CheckMultivariateRange`. See [the design](multivariate-ranges.md) and the
 [runnable tutorial](multivariate-ranges-tutorial.md).
 
+`.numerics.Krawczyk(expressions,jacobian,box,options?)` classifies a square
+nonlinear system on a rational box. It computes an exact rational inverse of
+the checked midpoint Jacobian, evaluates the complete interval Jacobian, and
+forms the Krawczyk operator with exact outward range arithmetic. Strict
+inclusion proves one root, a disjoint coordinate excludes all roots, and
+otherwise the result retains a contracted, stalled, singular-preconditioner,
+or budget-exhausted box. `.CheckKrawczyk(result)` recomputes the claim. The
+first release intentionally requires exact rational midpoint function and
+Jacobian values; it never substitutes an unreported floating preconditioner.
+
 For an exact interval expression, generic subdivision can reduce dependency
 overestimation while retaining the same input occurrence in each piece:
 

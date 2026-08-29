@@ -1,6 +1,6 @@
 ---
-title: Certified multivariate ranges on rational boxes
-description: Design and proof contracts for Jacobian subdivision, affine arithmetic, and Taylor models.
+title: Certified multivariate ranges and Krawczyk boxes
+description: Design and proof contracts for Jacobian subdivision, affine arithmetic, Taylor models, and nonlinear box classification.
 theme: Numbers and numerics
 status: implemented
 ---
@@ -79,9 +79,38 @@ be wider than the true range because its remainder terms are combined as
 sets. Subdivision trades additional exact work for smaller displacement and
 remainder terms.
 
+## Krawczyk nonlinear boxes
+
+For a square system `F`, a box `X` with midpoint `x0`, a checked interval
+Jacobian `J(X)`, and a rational preconditioner `C`, RiX forms
+
+```text
+K(X) = x0 - C*F(x0) + (I - C*J(X))*(X-x0).
+```
+
+The first implementation chooses `C` as the exact rational inverse of
+`J(x0)`. This deliberately targets polynomial and rational course examples:
+if either the midpoint values are not exact rationals or the midpoint Jacobian
+is singular, the service reports an unresolved limitation instead of
+constructing an invisible floating approximation.
+
+Every derivative transformation is checked against the public Calculus graph,
+and its obligations are discharged on the complete box. Therefore
+`K(X)` strictly inside the interior of `X` certifies one root in `X`; one
+operator coordinate disjoint from its input coordinate certifies no root in
+`X`. Other intersections are retained as contractions and recomputed until
+classification, a resolution floor, or `maxIterations` is reached.
+
+`.numerics.CheckKrawczyk` independently rebuilds the midpoint inverse,
+interval Jacobian, operator, intersection, and classification. This is an
+unconditional certificate for supported expression systems, unlike APIs that
+accept an arbitrary uninspectable derivative callback.
+
 ## Evidence and limitations
 
-The three strategies use `rix.runtime.multivariate-range-checker@1`. Evidence
+The three scalar-range strategies use
+`rix.runtime.multivariate-range-checker@1`. Krawczyk results use the separate
+`rix.runtime.krawczyk-checker@1`. Evidence
 contains the source graph, exact box, derivative collections when applicable,
 options, scoped `0^0` convention, and strategy name. The checker recomputes the
 entire enclosure and rejects a changed range, derivative graph, coordinate
@@ -93,6 +122,8 @@ Current v1-development limits are deliberate:
 - one closed bounded component per axis;
 - at most 256 subboxes per call;
 - real rational interval results;
+- exact rational midpoint values and an invertible exact midpoint Jacobian for
+  the first Krawczyk preconditioner;
 - affine semantic functions require a future registered certified model; and
 - a principal complex branch obligation is left to a future complex checker.
 

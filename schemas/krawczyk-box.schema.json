@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/krawczyk-box/v1.schema.json",
+  "title": "RiX checked Krawczyk box result v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema",
+    "valueKind",
+    "strategy",
+    "status",
+    "classification",
+    "rootExistence",
+    "certified",
+    "inputBox",
+    "work",
+    "evidence"
+  ],
+  "properties": {
+    "schema": { "const": "rix.numerics.krawczyk-box@1" },
+    "valueKind": { "const": "krawczykResult" },
+    "strategy": { "const": "krawczyk" },
+    "status": { "enum": ["classified", "budgetExhausted", "unknown"] },
+    "classification": {
+      "enum": [
+        "unique",
+        "excluded",
+        "contracted",
+        "stalled",
+        "singularPreconditioner",
+        "invalidEvidence"
+      ]
+    },
+    "rootExistence": { "enum": ["unique", "none", "unproved"] },
+    "certified": { "type": "boolean" },
+    "inputBox": {
+      "oneOf": [
+        { "$ref": "rational-box.schema.json" },
+        { "type": "null" }
+      ]
+    },
+    "box": {
+      "oneOf": [
+        { "$ref": "rational-box.schema.json" },
+        { "type": "null" }
+      ]
+    },
+    "operatorBox": {
+      "oneOf": [
+        { "$ref": "rational-box.schema.json" },
+        { "type": "null" }
+      ]
+    },
+    "work": {
+      "type": "object",
+      "required": ["iterations", "graphEvaluations", "exhausted"]
+    },
+    "evidence": { "type": "object" }
+  }
+}

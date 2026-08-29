@@ -596,6 +596,36 @@ unresolved := .numerics.IntervalNewton((x)->x^2,(x)->2*x,(-1):1,{= maxWork=5 });
 Every trace step materializes the input box, midpoint value, derivative
 enclosure, Newton image, intersection, and classification with bounded work.
 
+## Move from scalar Newton to a checked Krawczyk box
+
+Krawczyk generalizes the enclosure idea to square systems. Unlike the callback
+form above, it accepts public Calculus expression graphs and a derivative
+collection whose Jacobian identities RiX checks independently.
+
+```rix
+.Plugin.Load("calculus");
+.Plugin.Load("numerics");
+x := .calculus.Variable(:x);
+y := .calculus.Variable(:y);
+system := [x^2+y^2-1,x-y];
+jacobian := .calculus.JacobianResult(system,[:x,:y]);
+result := .numerics.Krawczyk(
+  system,jacobian,{= x=(1/2):1,y=(1/2):1 },{= maxIterations=4,trace=1 }
+);
+.Table({=
+  columns=["status","classification","root existence","replay accepted"],
+  rows=[[
+    result[:status],result[:classification],result[:rootExistence],
+    result[:checker][:accepted]
+  ]]
+});
+```
+
+Here strict Krawczyk inclusion proves a unique positive circle/diagonal
+intersection. A disjoint operator coordinate proves exclusion. A singular
+midpoint Jacobian remains `:singularPreconditioner`: that describes this
+algorithm's failure on the chosen box, not the absence of roots.
+
 ## Request exact sign and root-count witnesses
 
 The same witness schema covers exact scalars, polynomial evaluations, and

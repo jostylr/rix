@@ -418,10 +418,12 @@ newline normalization.
      excluded, unique, contracted, derivative-zero, stalled, and exhausted
      outcomes; retain every interval step and all differentiability/derivative
      identity assumptions.
-   - [ ] Add multidimensional Krawczyk first, then interval-Newton linear solves,
-     using the existing rational-box, checked-Jacobian, affine, and Taylor-model
-     contracts. Return certified excluded/unique boxes together with unresolved
-     boxes when work ends.
+   - [x] Add multidimensional Krawczyk classification and contraction using
+     rational boxes, checked Calculus Jacobians, exact midpoint
+     preconditioners, bounded iteration, and independently replayed
+     excluded/unique/unresolved results.
+   - [ ] Add interval-Newton linear solves and bounded box subdivision on the
+     same contracts, retaining every unresolved box when work ends.
    - [ ] Define `rix.ode.problem@1`, `rix.ode.solution@1`, and dense-output
      segment records for first-order systems, higher-order reductions, events,
      parameters, initial-value problems, and boundary-value problems. Keep the
@@ -442,8 +444,10 @@ newline normalization.
      Scene3D without requiring those consumers to import a concrete backend.
    - [x] Add tutorial contrasts between Kantorovich entry certification and
      direct interval Newton as alternatives and as complementary stages.
-   - [ ] Extend that tutorial with Krawczyk boxes, approximate ODE trajectories,
-     and validated ODE tubes as those services land.
+   - [x] Extend the tutorial comparison from scalar Newton to checked
+     multidimensional Krawczyk boxes.
+   - [ ] Extend it with approximate ODE trajectories and validated ODE tubes as
+     those services land.
 4. **Phase 4 — Advanced numerical orchestration**
    - [ ] Add sparse methods, PDE helpers, continuation, and precision
      escalation across multiple backends.

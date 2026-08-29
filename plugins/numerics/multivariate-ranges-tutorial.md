@@ -1,6 +1,6 @@
 ---
-title: Rational boxes and dependency-aware certified ranges
-description: Runnable examples of Jacobian, affine, and multivariate Taylor enclosures.
+title: Rational boxes, certified ranges, and Krawczyk classification
+description: Runnable examples of Jacobian, affine, multivariate Taylor, and nonlinear Krawczyk enclosures.
 theme: Numbers and numerics
 status: implemented
 ---
@@ -84,6 +84,50 @@ Inspect `gradientRanges`, `hessianRanges`, and `obligationChecks` on each
 partition. If any derivative is wrong or a domain condition is not proved on
 the complete box, the strategy returns `unknown` rather than a certificate.
 
+## Certify a nonlinear system with Krawczyk
+
+Use a vector of public Calculus expressions and its checked Jacobian. The
+circle/diagonal system has the positive solution
+`x=y=1/sqrt(2)` in the selected box.
+
+```{.rix exec=true}
+.Plugin.Load("calculus");
+.Plugin.Load("numerics");
+
+x := .calculus.Variable(:x);
+y := .calculus.Variable(:y);
+system := [x^2+y^2-1,x-y];
+jacobian := .calculus.JacobianResult(system,[:x,:y]);
+result := .numerics.Krawczyk(
+  system,jacobian,{= x=(1/2):1,y=(1/2):1 },{= maxIterations=4,trace=1 }
+);
+{: result[:classification],result[:rootExistence],result[:box],
+   result[:checker][:accepted] };
+```
+
+Strict operator inclusion is the uniqueness theorem, not a sample-based
+guess. The same service can exclude a complete box or remain honestly
+unresolved when its rational midpoint preconditioner is singular:
+
+```{.rix exec=true}
+.Plugin.Load("calculus");
+.Plugin.Load("numerics");
+x := .calculus.Variable(:x);
+y := .calculus.Variable(:y);
+excludedSystem := [x^2+1,y];
+singularSystem := [x^2,y];
+excluded := .numerics.Krawczyk(
+  excludedSystem,.calculus.JacobianResult(excludedSystem,[:x,:y]),
+  {= x=1:2,y=(-1):1 }
+);
+unresolved := .numerics.Krawczyk(
+  singularSystem,.calculus.JacobianResult(singularSystem,[:x,:y]),
+  {= x=(-1):1,y=(-1):1 }
+);
+{: excluded[:classification],excluded[:rootExistence],
+   unresolved[:classification],unresolved[:diagnostics] };
+```
+
 ## Further work
 
 1. Replace `f` with `x-y`, compare `GraphRange` and `AffineRange`, and explain
@@ -96,3 +140,6 @@ the complete box, the strategy returns `unknown` rather than a certificate.
    crossing zero. Compare how the Jacobian and affine strategies fail closed.
 5. Add a third variable to `x*y+z^2`. Generate its gradient and Hessian, then
    inspect the stable variable order in the box and derivative collections.
+6. Change the Krawczyk circle box to `(-1):1` on both axes. Explain why the
+   singular midpoint preconditioner is an algorithmic limitation rather than a
+   proof that no roots exist.

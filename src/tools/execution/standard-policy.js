@@ -20,7 +20,7 @@ export const STANDARD_CAPABILITY_NAMES = Object.freeze([
     "Equal", "ERROR", "EVAL", "Exact", "EXPRESSIONFROMSPEC", "Factorial", "FIGURE", "Filter", "FIRST",
     "FORMULASHEET", "FRAGMENT", "GETEL", "Graphics", "Greater", "GreaterEqual", "GRID", "GT",
     "GTE", "HEADING", "Hull", "If", "IMAGE", "ImmutableValue", "INFO", "INFOVALUE", "INSPECTSPEC",
-    "IntDiv", "INTEGRATE", "Intersect", "Intersects", "Interval", "IRANGE", "JacobianBoxRange", "KEYOF", "KEYS", "Lambda",
+    "IntDiv", "INTEGRATE", "Intersect", "Intersects", "Interval", "IRANGE", "JacobianBoxRange", "KEYOF", "KEYS", "KrawczykBox", "KrawczykCheck", "Lambda",
     "LAST", "LEN", "Less", "LessEqual", "LINEBREAK", "LINK", "LIST", "LISTITEM", "LIVEVIEW",
     "Loop", "LT", "LTE", "Map", "MATH", "MATHBLOCK", "Max", "Min", "Mod", "Mul", "MULTI",
     "MultivariateRangeCheck", "MultivariateRangeRequest", "Neg", "NEQ", "Not", "NotationParser", "NotEqual", "Or", "Pair", "PARAGRAPH", "Params",

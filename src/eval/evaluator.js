@@ -278,6 +278,8 @@ const CORE_SYNTAX_CAPABILITIES = {
     JacobianBoxRange: "JACOBIAN_BOX_RANGE",
     AffineBoxRange: "AFFINE_BOX_RANGE",
     TaylorModelBoxRange: "TAYLOR_MODEL_BOX_RANGE",
+    KrawczykBox: "KRAWCZYK_BOX",
+    KrawczykCheck: "KRAWCZYK_CHECK",
     MultivariateRangeCheck: "MULTIVARIATE_RANGE_CHECK",
     CalculusRange: "CALCULUS_RANGE", CalculusRangeCheck: "CALCULUS_RANGE_CHECK",
     CalculusRangeRecognize: "CALCULUS_RANGE_RECOGNIZE",
