@@ -1,0 +1,142 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.rix.ratmath.com/refinable-real.schema.json",
+  "title": "RiX certified and refinable real interchange v1",
+  "type": "object",
+  "required": ["schema", "subject", "snapshot", "recipe"],
+  "properties": {
+    "schema": { "const": "rix.refinable-real@1" },
+    "id": { "type": "string", "minLength": 1 },
+    "subject": {
+      "type": "object",
+      "required": ["kind"],
+      "properties": { "kind": { "type": "string", "minLength": 1 } },
+      "additionalProperties": true
+    },
+    "snapshot": { "$ref": "#/$defs/snapshot" },
+    "recipe": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/recipe" }
+      ]
+    },
+    "requirements": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/requirement" },
+      "default": []
+    },
+    "metadata": { "type": "object", "default": {} }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "canonicalIntegerString": {
+      "type": "string",
+      "pattern": "^(0|-[1-9][0-9]*|[1-9][0-9]*)$"
+    },
+    "integer": {
+      "type": "object",
+      "required": ["$integer"],
+      "properties": {
+        "$integer": { "$ref": "#/$defs/canonicalIntegerString" }
+      },
+      "additionalProperties": false
+    },
+    "rational": {
+      "type": "object",
+      "required": ["$rational"],
+      "properties": {
+        "$rational": {
+          "type": "array",
+          "prefixItems": [
+            { "$ref": "#/$defs/canonicalIntegerString" },
+            { "type": "string", "pattern": "^[1-9][0-9]*$" }
+          ],
+          "minItems": 2,
+          "maxItems": 2
+        }
+      },
+      "additionalProperties": false
+    },
+    "exactScalar": {
+      "oneOf": [
+        { "$ref": "#/$defs/integer" },
+        { "$ref": "#/$defs/rational" }
+      ]
+    },
+    "interval": {
+      "type": "object",
+      "required": ["$interval"],
+      "properties": {
+        "$interval": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/exactScalar" },
+          "minItems": 2,
+          "maxItems": 2
+        }
+      },
+      "additionalProperties": false
+    },
+    "work": {
+      "type": "object",
+      "properties": {
+        "calls": { "$ref": "#/$defs/canonicalIntegerString" },
+        "iterations": { "$ref": "#/$defs/canonicalIntegerString" },
+        "exhausted": { "type": "boolean" }
+      },
+      "additionalProperties": true
+    },
+    "snapshot": {
+      "type": "object",
+      "required": [
+        "interval",
+        "status",
+        "evidenceLevel",
+        "verification",
+        "evidence",
+        "achievedWidth",
+        "work"
+      ],
+      "properties": {
+        "interval": { "$ref": "#/$defs/interval" },
+        "status": {
+          "enum": ["certified", "assumed", "approximate", "unresolved"]
+        },
+        "evidenceLevel": { "type": "string", "minLength": 1 },
+        "verification": {
+          "enum": ["checked", "providerChecked", "unavailable", "failed"]
+        },
+        "evidence": { "type": "array", "items": { "type": "object" } },
+        "achievedWidth": { "$ref": "#/$defs/exactScalar" },
+        "work": { "$ref": "#/$defs/work" }
+      },
+      "additionalProperties": true
+    },
+    "recipe": {
+      "type": "object",
+      "required": ["kind"],
+      "properties": {
+        "kind": {
+          "enum": ["builtin", "expression", "root", "ode", "arithmetic"]
+        },
+        "provider": { "type": "string", "minLength": 1 },
+        "algorithm": { "type": "string", "minLength": 1 },
+        "algorithmVersion": { "type": "string", "minLength": 1 },
+        "deterministic": { "type": "boolean" },
+        "parameters": { "type": "object" }
+      },
+      "additionalProperties": true
+    },
+    "requirement": {
+      "type": "object",
+      "required": ["capability"],
+      "properties": {
+        "capability": { "type": "string", "minLength": 1 },
+        "provider": { "type": "string", "minLength": 1 },
+        "minimumPluginVersion": { "type": "string", "minLength": 1 },
+        "algorithm": { "type": "string", "minLength": 1 },
+        "algorithmVersion": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": true
+    }
+  }
+}

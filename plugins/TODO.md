@@ -51,11 +51,15 @@ contracts.
 10. **Begin Phase 2 in dependency order:** shared Numerics and renderer
    contracts first; mathematical/scene producers second; document
    orchestrators last.
-11. **Treat Phase 3 as advanced work:** certification, adaptive algorithms,
-   interactivity, layout, and equivalence/proof integration.
-12. **Treat Phase 4 as research or ecosystem work:** native acceleration,
-    formal proof exchange, distributed computation, high-dimensional
-    exploration, and production publishing toolchains.
+11. **Treat Phase 3 as the deep-mathematics exploration release:** durable
+    certified/refinable-real interchange; bounded Numerics, nonlinear Solve,
+    Geometry, Plot, ODE, and optimization services; browser-first interaction
+    and publication; then the exact algebra/Groebner services those vertical
+    slices need.
+12. **Treat Phase 4 as research, scale, or external-ecosystem work:**
+    Arrow/Parquet and massive-data execution, native/GPU acceleration,
+    external CAS or proof-assistant reliance, specialized quaternion/octonion
+    analysis, distributed computation, and production publishing toolchains.
 
 The first concrete vertical slice should be:
 
@@ -64,6 +68,64 @@ oracle P1 -> numerics P1 -> plot P1 refinement adapter
           -> core Graphic -> svg P1 + canvas P1
           -> RiX Web and RiX Notebook tutorials
 ```
+
+## Phase 3 focus revision (2026-08-29)
+
+Phase 3 now optimizes for RiX as an isolated, browser-capable environment for
+educational exploration deep into mathematics. It should still support
+reasonable scientific workloads, but it is not attempting to become a
+warehouse-scale dataframe engine or a shell around mandatory external systems.
+
+The dependency order for remaining Phase 3 work is:
+
+1. Specify and implement tagged-JSON snapshots for certified and refinable
+   reals. A file must remain useful as an inert certified interval even when
+   its optional refinement recipe cannot be revived.
+2. Complete scalar interval Newton and multidimensional Krawczyk/interval
+   methods with bounded partial results and explicit assumptions.
+3. Feed those results through nonlinear Solve, implicit Geometry, Plot, and
+   Scene3D without hiding excluded or unresolved boxes.
+4. Add ODE problem/solution records, then approximate and validated solvers
+   whose local-error, truncation, wrapping, and work assumptions are visible.
+5. Broaden optimization and interaction/publication on the same retained,
+   deterministic result contracts.
+6. Add multivariate Polynomial/Groebner/elimination services after the
+   numerical vertical slice, then use them to strengthen Solve and Geometry.
+
+The following work moved from Phase 3 to Phase 4 because it does not directly
+support that sequence:
+
+- Arrow/Parquet, large columnar execution, network data sources, and query
+  planning. Phase 3 keeps exact tagged JSON, streaming JSONL, CSV/TSV, and
+  bounded in-memory relations.
+- External CAS, SMT, solver, or proof-assistant adapters and certificate
+  exchange. Phase 3 may build small native checkers and replayable evidence,
+  but the isolated install must remain complete without external services.
+- SIMD/WebAssembly/native/GPU acceleration, worker-scale rendering, and
+  production-scale media/toolchain integration. These are performance or
+  ecosystem layers over Phase 3 semantics.
+- Slice/Fueter quaternion analysis, octonionic/G2 analysis, later
+  Cayley-Dickson analysis, and other specialist research programs. Existing
+  exact/certified algebra and elementary-function basics remain available;
+  unit-quaternion geometry may advance earlier when it serves Geometry or
+  Scene3D.
+- Broad statistical/Bayesian, stochastic-process, abstract function-space,
+  and specialized numeral-system programs. They remain worthwhile, but do not
+  gate the selected numerical/geometry/interaction path.
+
+Every Phase 3 implementation must include a runnable tutorial, focused tests,
+reference documentation, versioned portable records where values cross plugin
+boundaries, bounded-work failure examples, and a green full test suite.
+
+Phase 3's native CAS/proof boundary is deliberately small but useful. RiX may
+normalize exact expressions, differentiate public expression graphs, perform
+polynomial division/factor/resultant/Sturm/Groebner calculations, and check
+reconstruction, reduction, root-count, linear-program, and interval-containment
+certificates. These are ordinary isolated algorithms and replayable evidence
+checkers. General theorem proving, unrestricted simplification, external CAS
+bridges, proof-term exchange, and solver-specific certificate formats remain
+Phase 4. CAS proposes or computes mathematical objects; proof/evidence checks
+claims about them. They are complementary when kept behind that boundary.
 
 ## Tutorial grouping and metadata
 
@@ -111,7 +173,7 @@ newline normalization.
    - [x] Add a cloneable lazy digit stream once plugin-defined lazy values have a stable protocol.
    - [x] Add formatting policies for digit alphabets above base 36 and grouped radices.
    - [x] Share generic work-budget diagnostics with `.numerics`.
-3. **Phase 3 — Extensible numeral-system definitions**
+4. **Phase 4 — Extensible numeral systems and playground**
    - [ ] Define versioned numeral-system constructors and a common parse/format
      protocol rather than assuming every system is a positive positional base
      whose digits are the single characters numbered `0` through `base - 1`.
@@ -140,7 +202,6 @@ newline normalization.
      must diagnose collisions and distinguish display-only substitutions from
      lossless parsing. Decide which alphabet/value rules belong in
      `@ratmath/core` and which syntax/registration rules belong in RiX.
-4. **Phase 4 — RiX Web numeral-system playground**
    - [ ] Implement an interactive RiX Web playground for constructing and
      comparing ordinary, multi-token, balanced, and negative-base systems.
    - [ ] Show exact parsing, canonical labeled-backtick output, digit/place
@@ -171,9 +232,11 @@ newline normalization.
    - [x] Support path trimming, marker placement, collision-aware labels, and
      reusable symbols.
    - [x] Preserve unresolved or uncertain geometry as visible scene metadata.
+   - [ ] Add declarative diagram themes and interactive handles that emit
+     ordinary retained scenes through the shared interaction protocol.
 4. **Phase 4 — Advanced drafting ecosystem**
-   - [ ] Add extensible symbol libraries and declarative diagram themes.
-   - [ ] Explore interactive handles that emit ordinary retained scenes.
+   - [ ] Add externally sourced extensible symbol libraries with explicit
+     licensing, provenance, and publication-toolchain policies.
    - [ ] Support round trips with selected vector authoring formats.
 
 ### `.plot`
@@ -199,9 +262,10 @@ newline normalization.
    - [x] Use adaptive subdivision and certified sign/range requests.
    - [x] Share color-scale values with `.complexViz` and `.stats`.
    - [x] Add interactive Canvas hit testing without changing the plot value.
+   - [ ] Support linked views and declarative interaction descriptions over
+     renderer-neutral viewport and selection records.
 4. **Phase 4 — Statistical and large-data plotting**
    - [ ] Add streaming/downsampled plots and GPU-oriented scene lowering.
-   - [ ] Support linked views and declarative interaction descriptions.
    - [ ] Add extensible grammar-of-graphics-style composition only if the
      simpler APIs prove insufficient.
 
@@ -267,9 +331,10 @@ newline normalization.
    - [x] Add testing/nth-root oracles under explicit uniqueness evidence.
    - [x] Represent equivalence, Yes/No, root, and property evidence without
      promoting finite sampling to proof.
+   - [ ] Exchange exact sign/root evidence with `.algebra` through native,
+     replayable RiX records used by Numerics and Solve.
 4. **Phase 4 — Completed relations and proof integration**
    - [ ] Add rational betweenness relation and maximal-fonsi proof adapters.
-   - [ ] Exchange exact sign/root evidence with `.algebra`.
    - [ ] Explore formalized proofs of selected constructors and field laws.
    - [ ] Reconcile the final API with revisions to `paper/oracles_short.tex`.
 
@@ -336,11 +401,37 @@ newline normalization.
      or an unbounded computation.
    - [x] Add capability negotiation and explain why an algorithm/backend pair
      was selected.
-3. **Phase 3 — Differential and multidimensional methods**
-   - [ ] Add ODE solvers, multidimensional optimization, interval Newton, and
-     implicit-function refinement.
-   - [ ] Support certified unresolved regions and partial results.
-   - [ ] Feed adaptive geometry, Plot, and Scene3D services.
+3. **Phase 3 — Certified nonlinear, differential, and ODE methods**
+   - [ ] Publish scalar `IntervalNewton` as a bounded box-classification and
+     contraction service independent of the Kantorovich constructor. Distinguish
+     excluded, unique, contracted, derivative-zero, stalled, and exhausted
+     outcomes; retain every interval step and all differentiability/derivative
+     identity assumptions.
+   - [ ] Add multidimensional Krawczyk first, then interval-Newton linear solves,
+     using the existing rational-box, checked-Jacobian, affine, and Taylor-model
+     contracts. Return certified excluded/unique boxes together with unresolved
+     boxes when work ends.
+   - [ ] Define `rix.ode.problem@1`, `rix.ode.solution@1`, and dense-output
+     segment records for first-order systems, higher-order reductions, events,
+     parameters, initial-value problems, and boundary-value problems. Keep the
+     independent variable, state order, domains, units, and regularity
+     assumptions explicit.
+   - [ ] Establish an educational solver ladder: exact recognized solutions;
+     deterministic approximate Euler/RK demonstrations; adaptive embedded
+     Runge-Kutta with disclosed local-error estimates; then validated Picard/
+     Taylor or interval Runge-Kutta segments with truncation and enclosure
+     evidence. Approximate and validated results must not share a status label.
+   - [ ] Control wrapping and dependency growth with bounded subdivision,
+     interval Jacobians, Taylor models, and explicit resolution floors. Preserve
+     partial trajectories and unresolved event-time intervals when the budget
+     ends.
+   - [ ] Add multidimensional optimization and implicit-function refinement on
+     the same box/work/result vocabulary.
+   - [ ] Feed nonlinear and ODE results to Solve, adaptive Geometry, Plot, and
+     Scene3D without requiring those consumers to import a concrete backend.
+   - [ ] Add tutorial contrasts among Kantorovich entry certification, direct
+     interval Newton, Krawczyk boxes, approximate ODE trajectories, and
+     validated ODE tubes.
 4. **Phase 4 — Advanced numerical orchestration**
    - [ ] Add sparse methods, PDE helpers, continuation, and precision
      escalation across multiple backends.
@@ -550,6 +641,12 @@ tracked in
      certified results through `.numerics`.
    - [ ] Dispatch constrained nonlinear systems jointly with `.optimize` while
      keeping feasibility, root finding, and objective optimization distinct.
+   - [ ] Stabilize a bounded box-result schema with exact variable order,
+     excluded/unique/unresolved boxes, branch provenance, singular-Jacobian
+     diagnostics, incumbent approximations, and resumable work-policy inputs.
+   - [ ] Add tutorials that compare exact polynomial components, direct scalar
+     interval Newton, multidimensional Krawczyk subdivision, and an explicitly
+     unresolved singular system.
 4. **Phase 4 — Constraint and proof ecosystem**
    - [ ] Add pluggable SMT/CAS/constraint-programming providers, units/domain
      reasoning, and mixed discrete/continuous systems behind versioned service
@@ -722,14 +819,13 @@ tracked in
      visible obligations.
    - [x] Interoperate with `.cauchy`, `.numerics`, and Calculus definite
      integrals without making any one real-number representation mandatory.
-3. **Phase 3 — Function spaces and operator analysis**
+4. **Phase 4 — Function spaces, operators, and proof-connected analysis**
    - [ ] Add explicit metric, normed, Banach, Hilbert, and selected `L^p`
      function-space records with domains and measures.
    - [ ] Represent continuity, compactness, bounded operators, weak/strong
      convergence, and approximation error under stated topologies.
    - [ ] Add Fourier/power-series and orthogonal-expansion examples with
      convergence regions and truncation evidence.
-4. **Phase 4 — Advanced and proof-connected analysis**
    - [ ] Exchange theorem obligations and certificates with external proof
      systems while retaining a portable RiX claim format.
    - [ ] Explore distributions, Sobolev spaces, spectral methods, semigroups,
@@ -892,12 +988,11 @@ the certified numerical singleton layer; it does not replace the core exact
      rational `exact-algebras` Quaternion/Octonion values.
    - [x] Add sparse basis multiplication and specialized dimensions 2, 4, and
      8 while retaining the recursive law as a checker.
-3. **Phase 3 — Validated Cayley functions**
+4. **Phase 4 — Validated and later Cayley-Dickson analysis**
    - [ ] Provide power-series evaluation for one-generated associative
      subalgebras with componentwise remainder evidence.
    - [ ] Record left/right multiplication maps and order-sensitive derivative
      conventions.
-4. **Phase 4 — Beyond composition algebras**
    - [ ] Represent zero divisors and partial invertibility for sedenions and
      later Cayley–Dickson levels; never infer a division algebra from shape.
 
@@ -915,12 +1010,14 @@ the certified numerical singleton layer; it does not replace the core exact
      trigonometric/hyperbolic functions through the associative slice generated
      by `1` and the vector direction.
    - [x] Make the zero-vector and negative-real-axis branch families explicit.
-3. **Phase 3 — Quaternion analysis**
-   - [ ] Add slice-regular versus Fueter-regular function identities, explicit
-     derivative conventions, and validated one-variable series.
-4. **Phase 4 — Geometry and applications**
+3. **Phase 3 — Quaternion geometry**
    - [ ] Add certified rotations/interpolation and adapters to `.scene3d`/`.nd`
      without confusing unit quaternions with arbitrary quaternion values.
+4. **Phase 4 — Specialized quaternion analysis**
+   - [ ] Add slice-regular versus Fueter-regular function identities, explicit
+     derivative conventions, and validated one-variable series. This remains
+     an optional research program rather than a prerequisite for ordinary
+     quaternion arithmetic, elementary functions, or spatial rotations.
 
 ### `.octonion`
 
@@ -936,10 +1033,9 @@ the certified numerical singleton layer; it does not replace the core exact
      in the associative subalgebra generated by one octonion.
    - [x] Preserve branch direction sets and reject identities that reorder or
      reassociate independent octonions.
-3. **Phase 3 — Octonionic analysis and geometry**
+4. **Phase 4 — Octonionic analysis and geometry**
    - [ ] Add explicitly chosen derivative/function notions, `G2`-related
      transformations, and validated rotation/projection adapters.
-4. **Phase 4 — Research interoperability**
    - [ ] Explore exceptional algebra/Jordan constructions and proof exchange
      only after nonassociative expression and evidence contracts stabilize.
 
@@ -963,9 +1059,15 @@ the certified numerical singleton layer; it does not replace the core exact
    - [ ] Add interval subdivision, topology-aware curve tracing, tangency and
      multiplicity evidence, and boundary-refinement callbacks.
    - [ ] Render uncertainty and unresolved cells explicitly.
-4. **Phase 4 — Dynamic and proof-oriented geometry**
-   - [ ] Add draggable parameterized constructions, theorem evidence, and
-     automated locus exploration.
+   - [ ] Consume nonlinear Solve boxes and ODE dense-output/tube records for
+     implicit intersections, trajectories, integral curves, and event points;
+     retain exact/certified/assumed status in the Graphic metadata.
+   - [ ] Add draggable parameterized constructions whose updates are ordinary
+     retained events and whose failed constraints preserve the last certified
+     construction plus visible repair diagnostics.
+4. **Phase 4 — Proof-oriented geometry**
+   - [ ] Add broad theorem evidence and automated locus exploration after the
+     native algebra/nonlinear certificates stabilize.
 
 ### `.data`
 
@@ -980,10 +1082,22 @@ the certified numerical singleton layer; it does not replace the core exact
    - [x] Add rename, distinct, frequency, and contingency operations plus an
      explicit Interval column type with enclosing grouped aggregates.
    - [x] Preserve exact RiX cell values until exporter formatting.
-3. **Phase 3 — Columnar and external data**
-   - [ ] Add JSON/JSONL, Arrow/Parquet adapters, chunking, and typed tensors.
-   - [ ] Add permission-aware filesystem/network sources.
-4. **Phase 4 — Query planning**
+3. **Phase 3 — Portable exact JSON and bounded streams**
+   - [ ] Add deterministic tagged-JSON relation interchange and streaming
+     JSONL parsing/rendering without lowering Integer, Rational, or Interval
+     cells to binary floating point.
+   - [ ] Reuse bounded `RowSource` pulls for JSONL, include physical line
+     numbers in diagnostics, and make blank-line, missing-value, final-newline,
+     and maximum-row policies explicit.
+   - [ ] Define the shared certified/refinable-real JSON envelope described in
+     `numerics/refinable-real-json.md`; loading is inert, and unavailable
+     refinement recipes degrade to independently useful snapshots.
+4. **Phase 4 — Columnar, external, and large data**
+   - [ ] Add Arrow/Parquet adapters, chunked column batches, and typed-tensor
+     bridges only after a real interoperability or scale requirement justifies
+     the dependency and exact-value extension-type policy.
+   - [ ] Add permission-aware filesystem/network sources. Pure byte/text
+     parsing remains permission-free; external I/O is a host capability.
    - [ ] Explore lazy plans, predicate pushdown, large-data execution, and
      reproducible provenance.
 
@@ -1008,10 +1122,9 @@ the certified numerical singleton layer; it does not replace the core exact
      known-scale z, one-sample/paired/pooled/Welch t, one-way ANOVA,
      correlation, and simple-regression slope tests using outward interval
      arithmetic with bounded subdivision.
-3. **Phase 3 — Models and inference**
+4. **Phase 4 — Models and inference**
    - [ ] Add generalized models, resampling, Bayesian result protocols, and
      uncertainty visualization.
-4. **Phase 4 — Large/advanced statistics**
    - [ ] Add streaming algorithms, robust/high-dimensional methods, and
      external statistical engine adapters.
 
@@ -1044,14 +1157,14 @@ records without owning their probability semantics.
    - [x] Extend the CLT exploration with live exponential, uniform, and Cauchy
      experiments, emphasizing that Cauchy means neither stabilize nor satisfy
      the finite-variance CLT hypotheses.
-3. **Phase 3 — Random variables and probability structures**
+3. **Phase 3 — Finite random-variable structures (implemented)**
    - [x] Add finite transformations, joint laws, marginals, conditioning,
      independence, covariance, expectation of functions, and elementary Bayes
      updates.
+4. **Phase 4 — Broader random variables and probability structures**
    - [ ] Add sums/convolutions and mixtures of arbitrary user laws.
    - [ ] Add law-of-large-numbers/CLT evidence records, concentration bounds,
      conditional simulation, simple Markov chains, and finite martingales.
-4. **Phase 4 — Advanced and interoperable probability**
    - [ ] Add measure/kernel protocols, stochastic processes, stopping times,
      Bayesian prior/likelihood adapters, and rare-event/variance-reduction tools.
    - [ ] Explore proof exchange and optional accelerated backends while keeping
@@ -1071,6 +1184,11 @@ records without owning their probability semantics.
 3. **Phase 3 — Layout and publication profiles**
    - [ ] Add page/deck themes, floats, multi-column layout, indexes, and
      renderer capability negotiation.
+   - [ ] Define one portable publication plan shared by HTML, Quarto, LaTeX,
+     and PDF, with deterministic fallback whenever a target lacks interaction,
+     animation, exact-coordinate, accessibility, or layout capabilities.
+   - [ ] Preserve certified/assumed/approximate/unresolved distinctions in
+     captions, tables, alternate text, and static snapshots.
 4. **Phase 4 — Collaborative publishing**
    - [ ] Add deterministic batch builds over document/input sets and explicit
      target matrices, with shared templates, asset manifests, stable output
@@ -1202,10 +1320,9 @@ The RiX/host extraction sequence is specified in
      preserve semantic object IDs through hit testing, and provide a DOM/text
      accessibility companion so Canvas interaction is not pointer-only or
      screen-reader silent.
-3. **Phase 3 — Large scenes and workers**
+4. **Phase 4 — Large and accelerated browser rendering**
    - [ ] Add OffscreenCanvas/worker rendering, path caches, large heat maps, and
      animation timing.
-4. **Phase 4 — Accelerated browser rendering**
    - [ ] Share Scene3D/large-data lowering with WebGL or WebGPU without changing
      the semantic Graphic contract.
 
@@ -1344,10 +1461,12 @@ The RiX/host extraction sequence is specified in
 2. **Phase 2 — Transitions and scene animation**
    - [x] Add supported transitions, per-slide duration, dithering, palette
      policy, and Scene3D rotation snapshots.
-3. **Phase 3 — Rich animation exports**
-   - [ ] Add APNG and WebM/MP4 adapters for better color, timing, and size.
+3. **Phase 3 — Accessible animation records**
    - [ ] Preserve captions and accessible descriptions as sidecar metadata.
-4. **Phase 4 — Interactive-to-static capture**
+4. **Phase 4 — Rich external animation and capture**
+   - [ ] Add APNG and WebM/MP4 adapters for better color, timing, and size;
+     these may require optional codecs and must not become browser-core
+     dependencies.
    - [ ] Add deterministic scripted interaction capture with strict permission
      and reproducibility policies.
 
@@ -1361,9 +1480,12 @@ The RiX/host extraction sequence is specified in
 2. **Phase 2 — Schema-aware tabular interchange**
    - [x] Add typed import, explicit locale/decimal policy, streaming rows,
      comments/metadata sidecars, and flattening diagnostics.
-3. **Phase 3 — Data format family**
-   - [ ] Add JSON/JSONL and coordinate Arrow/Parquet export with `.data`.
-4. **Phase 4 — Large and external data**
+3. **Phase 3 — Text data format family**
+   - [ ] Coordinate deterministic tagged JSON/JSONL import and export with
+     `.data`, preserving exact cells and bounded streaming behavior.
+4. **Phase 4 — Columnar, large, and external data**
+   - [ ] Coordinate Arrow/Parquet export with `.data` after its extension-type
+     and optional-dependency policy is justified by a concrete use case.
    - [ ] Add chunked filesystem/network export behind explicit permissions and
      resumable/provenance-aware writes.
 
