@@ -23,6 +23,63 @@ implemented. Calculus Phase 1 and its listed Phase 2 milestones are implemented;
 Analysis is implemented through Phase 2. Unchecked work below is Phase 2 or
 later unless a section explicitly says otherwise.
 
+## Roadmap plugin index
+
+This is the ordered, at-a-glance queue for every plugin section in this
+roadmap. **Ready** means the next bounded implementation can begin now;
+**decision** names a contract that should be settled first; **waiting** names a
+real implementation dependency; and **Phase 4** marks work deliberately kept
+off the current numerical/educational critical path. A Phase 4 row still names
+its first useful future increment rather than treating it as abandoned.
+
+| # | Plugin | Next development increment | State / waiting for |
+|---:|---|---|---|
+| 1 | `.radix` | Versioned numeral-system constructors plus common parse/format operations | **Phase 4:** specialized numeral systems do not gate the current path |
+| 2 | `.draw` | Declarative themes, constraints, and interactive handles | **Decision:** shared portable interaction/event descriptor |
+| 3 | `.plot` | Linked views and adapters for ODE trajectories, Solve boxes, and retained uncertainty | **Ready:** ODE and bounded-result records now exist |
+| 4 | `.float` | Typed-array tensors followed by optional SIMD/Wasm acceleration | **Phase 4:** scale/performance layer |
+| 5 | `.oracle` | Exchange exact sign and root evidence with algebraic solvers | **Waiting:** stable multivariate algebra evidence records |
+| 6 | `.numerics` | Validated interval-linear solves and bounded box subdivision | **Ready:** Krawczyk and interval-Newton foundations are present |
+| 7 | `.ode` | Taylor-model or affine-arithmetic wrapping control, then interval-Newton event isolation | **Ready:** validated IVPs, adaptation, and event records are present |
+| 8 | `.algebra` | Multivariate Polynomial plus Groebner/elimination MVP | **Decision:** start with `Q` coefficients and explicit lex/graded orders |
+| 9 | `.linalg` | Characteristic/minimal polynomials, eigenspaces, and exact canonical forms | **Waiting:** algebraic extension/coefficient-domain contract |
+| 10 | `.optimize` | Bounded branch-and-bound integer and mixed-integer linear optimization | **Ready:** preserve partial bounds and unexplored nodes |
+| 11 | `.solve` | Multivariate elimination plus certified subdivision consumers | **Waiting:** `.algebra` Groebner MVP and `.numerics` box subdivision |
+| 12 | `.fraction` | Portable classroom-derivation and fraction-path evidence | **Phase 4:** current exact representations are complete |
+| 13 | `.fracfun` | Multivariate forms and declared coefficient domains | **Waiting:** multivariate Polynomial/coefficient-domain support |
+| 14 | `.cas` | Absolute-value expression support, then trig and quadratic partial-fraction cases | **Ready:** the first course integration ladder is implemented |
+| 15 | `.symbolic` | Shared assumptions and restricted-domain wrappers | **Decision:** one portable assumption/branch-obligation contract |
+| 16 | `.logic` | Scoped subproof discharge and implication introduction, then proof-tree/tableau views | **Ready:** propositional semantics and basic checked derivations exist |
+| 17 | `.calculus` | Absolute-value/domain graphs and portable differential, boundary, and integral equation specifications | **Ready:** coordinate with `.cas`; solver execution stays elsewhere |
+| 18 | `.analysis` | Metric, normed, Banach, Hilbert, and selected `L^p` records | **Phase 4:** abstract function-space program |
+| 19 | `.ball` | Polynomial evaluation, interval Newton, and validated linear algebra over balls | **Waiting:** shared validated linear-algebra API from `.numerics` |
+| 20 | `.cauchy` | Constructive-completeness and portable proof/evidence exchange | **Phase 4:** proof-connected foundations |
+| 21 | `.continuedFraction` | Deeper symbolic interoperability and correlation experiments | **Phase 4:** specialized exploration |
+| 22 | `.algebraicReal` | Exact conic coordinates and multivariate algebraic isolation | **Waiting:** `.algebra` elimination plus Geometry conic records |
+| 23 | `.complex` | Explicit branch and continuation-path semantics | **Decision:** portable path/branch contract |
+| 24 | `.cayley` | Power-series analysis for one-generated associative subalgebras | **Phase 4:** specialist hypercomplex analysis |
+| 25 | `.quaternion` | Certified rotations/interpolation and Geometry/Scene3D adapters | **Waiting:** common transform adapter; broader analysis is Phase 4 |
+| 26 | `.octonion` | Derivative/function notions and `G2` exploration | **Phase 4:** specialist research program |
+| 27 | `.geometry` | Certified implicit-curve tracing with excluded, unique, and unresolved boxes | **Ready:** consume `.numerics` Krawczyk and `.ode` enclosures |
+| 28 | `.data` | Single-document tagged-JSON relation interchange | **Ready:** reuse the certified-real value envelope |
+| 29 | `.stats` | Generalized models, resampling, and Bayesian records | **Phase 4:** broad statistical program |
+| 30 | `.probability` | Convolutions, mixtures, and stochastic-process foundations | **Phase 4:** broad probabilistic program |
+| 31 | `.document` | Themes, floats, multicolumn layout, and index records | **Decision:** portable page/deck layout policy |
+| 32 | `.scene3d` | Certified implicit surfaces and ODE trajectory scenes | **Ready:** preserve subdivision and uncertainty metadata |
+| 33 | `.nd` | Implicit regions, slicing, dimensional reduction, and linked views | **Waiting:** Scene3D plus shared linked-interaction contract |
+| 34 | `.complexViz` | Projection and slice views for complex-valued data | **Waiting:** `.nd` projection/slice records |
+| 35 | `.svg` | Metadata, hit targets, and portable animation descriptors | **Waiting:** shared interaction descriptor; static work can proceed |
+| 36 | `.canvas` | Offscreen/worker rendering, path caches, and large heatmaps | **Phase 4:** scale/performance layer |
+| 37 | `.png` | Tiled output and 16-bit/linear-color pipelines | **Phase 4:** large-output production layer |
+| 38 | `.terminalAscii` | Keyboard interaction, live repaint, and accessibility metadata | **Decision:** host-neutral input/repaint protocol |
+| 39 | `.tikz` | Scene3D snapshots, animation frames, and exact-coordinate export | **Waiting:** normalized Scene3D snapshot records |
+| 40 | `.latex` | Beamer, multicolumn/index/long-table, and accessibility support | **Waiting:** `.document` page/deck layout contract |
+| 41 | `.markdown` and `.html` | Progressive enhancement for portable interactions | **Waiting:** shared interaction descriptor |
+| 42 | `.quarto` | RevealJS, books/sites, and cross-document production | **Phase 4:** external publication toolchain |
+| 43 | `.pdf` | Asset negotiation, tagged accessibility, and color profiles | **Phase 4:** production publishing/toolchain integration |
+| 44 | `.gif` | Caption and accessibility sidecars | **Ready:** bounded metadata-only increment |
+| 45 | `.csv` | Tagged-value round trips aligned with single-document JSON relations | **Waiting:** `.data` relation interchange contract |
+
 ## Basic order of implementation
 
 The order is organized as waves rather than one rigid serial queue. Items
@@ -889,16 +946,18 @@ tracked in
 3. **Phase 3 — Integration and equation specifications**
    - [x] Distinguish a selected primitive, an antiderivative family with its
      integration constant, and a definite integral with endpoints.
-   - [ ] Implement the common course-level exact integration ladder: polynomial
-     powers and sums; `1/x`; affine substitutions for powers, exponential,
-     logarithmic, and trigonometric primitives; common integration-by-parts
-     patterns; rational partial fractions; and selected even/odd, periodic, and
-     interval-symmetry rules for definite integrals.
-   - [ ] Extend the checked simplifier with ordinary constant folding,
-     associative collection, polynomial collect/expand/factor views,
-     sign-aware powers/roots, rational cancellation that preserves holes, and
-     a small named library of standard trigonometric identities. Keep every
-     domain condition visible and make transformation direction explicit.
+   - [ ] Complete the shared Calculus-facing course integration ladder. `.cas`
+     now covers polynomial powers/sums, `1/x` on an explicit positive branch,
+     affine power/exponential/logarithmic forms, selected integration by parts,
+     and rational linear partial fractions. Absolute-value graphs,
+     trigonometric and irreducible-quadratic cases, and definite-integral
+     symmetry rules remain.
+   - [ ] Complete the checked simplifier. `.cas` now provides bounded replay
+     for ordinary constant folding and polynomial collect/expand/factor views;
+     sign-aware powers/roots, hole-preserving rational cancellation, and a
+     small named library of standard trigonometric identities remain. Keep
+     every domain condition visible and make transformation direction
+     explicit.
    - [ ] Apply exact integration identities when justified, then negotiate
      certified Numerics quadrature or explicitly approximate fallback while
      retaining assumptions, work, and evidence.
