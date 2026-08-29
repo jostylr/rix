@@ -1,6 +1,6 @@
 ---
 title: Course-level symbolic forms and integration
-description: Normalize exact polynomials and inspect a bounded integration ladder with replayable rules and visible domain obligations.
+description: Normalize exact polynomials and inspect a bounded integration ladder with absolute-value, trigonometric, and quadratic cases.
 theme: Algebra and analysis
 status: implemented
 ---
@@ -51,9 +51,43 @@ examples := [
 });
 ```
 
-The logarithm row has a positive-argument obligation. That is the real branch
-implemented by the public Calculus `Log`; it is not silently presented as a
-global `log(abs(x))` identity.
+The logarithm row has a positive-argument obligation because `Log(2*x+1)` is
+the source function. A reciprocal uses a different, global real primitive:
+
+```{.rix exec=true}
+.Plugin.Load("cas");
+x := .calculus.Variable(:x);
+reciprocal := .cas.Integrate(1/x,x);
+{: reciprocal[:antiderivative],reciprocal[:obligations],
+   .cas.CheckIntegral(reciprocal)[:accepted] };
+```
+
+Its result is a public `Log(Abs(x))` graph with the exact obligation `x != 0`,
+not a false positivity restriction.
+
+## Add the common trigonometric and quadratic cases
+
+```{.rix exec=true}
+.Plugin.Load("cas");
+x := .calculus.Variable(:x);
+Sin := .calculus.Sin();
+Cos := .calculus.Cos();
+sine := .cas.Integrate(Sin(2*x+1),x);
+cosine := .cas.Integrate(Cos(3*x-2),x);
+quadratic := .cas.Integrate(.rf`1/(x^2+1)`);
+.Table({=
+  columns=["source family","antiderivative","last rule"],
+  rows=[
+    ["affine sine",sine[:antiderivative],sine[:rules].Last()],
+    ["affine cosine",cosine[:antiderivative],cosine[:rules].Last()],
+    ["irreducible quadratic",quadratic[:antiderivative],quadratic[:rules].Last()]
+  ]
+});
+```
+
+The quadratic rule proves the negative discriminant condition exactly and
+retains the completed-square coefficients. Higher trigonometric powers and
+products remain outside this bounded rung.
 
 ## Let exact partial fractions do the algebra
 
@@ -87,6 +121,9 @@ and more educational than a guessed transformation.
 
 1. Differentiate each returned antiderivative and compare it with the source.
 2. Try repeated linear factors such as `1/(x-1)^2` through `.rf`.
-3. Explain why the positive-log obligation matters for `1/x`.
-4. List the trigonometric integration rules needed for a first-year calculus
-   course before attempting general identity search.
+3. Compare the source-domain obligation for `Log(x)` with the reciprocal-domain
+   obligation for `1/x`.
+4. Derive the completed-square formula used for `(m*x+n)/(a*x^2+b*x+c)` when
+   `4*a*c-b^2 > 0`.
+5. List the bounded trigonometric power reductions needed next without
+   attempting general identity search.

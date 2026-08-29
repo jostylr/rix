@@ -105,6 +105,55 @@ describe("browser-safe course CAS plugin", () => {
         expect(entry(result.values[1], "accepted").value).toBe(1n);
     });
 
+    test("uses log absolute value for reciprocal domains without a false positivity restriction", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("cas");
+            x := .calculus.Variable(:x);
+            integral := .cas.Integrate(1/x,x);
+            {: integral,.cas.CheckIntegral(integral) };
+        `, runtime());
+        const integral = result.values[0];
+        const antiderivative = entry(integral, "antiderivative");
+        const product = entry(antiderivative, "operands").values[0];
+        const logarithm = entry(product, "operands").values[1];
+        expect(text(entry(logarithm, "semanticid"))).toBe("rix.function.log.real-principal@1");
+        const absolute = entry(logarithm, "arguments").values[0];
+        expect(text(entry(absolute, "semanticid"))).toBe("rix.function.abs.real@1");
+        expect(text(entry(entry(integral, "obligations").values[0], "relation"))).toBe("nonzero");
+        expect(entry(result.values[1], "accepted").value).toBe(1n);
+    });
+
+    test("integrates affine sine and cosine course cases", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("cas");
+            x := .calculus.Variable(:x);
+            Sin := .calculus.Sin();
+            Cos := .calculus.Cos();
+            {: .cas.Integrate(Sin(2*x+1),x),.cas.Integrate(Cos(3*x-2),x) };
+        `, runtime());
+        for (const integral of result.values) {
+            expect(text(entry(integral, "status"))).toBe("complete");
+            expect(entry(integral, "obligations").values).toHaveLength(0);
+        }
+        expect(text(entry(entry(result.values[0], "rules").values[0], "rule")))
+            .toBe("affineSineSubstitution");
+        expect(text(entry(entry(result.values[1], "rules").values[0], "rule")))
+            .toBe("affineCosineSubstitution");
+    });
+
+    test("integrates irreducible quadratic partial fractions with an Atan graph", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("cas");
+            integral := .cas.Integrate(.rf\`1/(x^2+1)\`);
+            {: integral,.cas.CheckIntegral(integral) };
+        `, runtime());
+        const integral = result.values[0];
+        expect(text(entry(integral, "status"))).toBe("complete");
+        expect(entry(integral, "rules").values.map((rule) => text(entry(rule, "rule"))))
+            .toContain("irreducibleQuadraticPartialFraction");
+        expect(entry(result.values[1], "accepted").value).toBe(1n);
+    });
+
     test("returns a structured unsupported result outside the course ladder", () => {
         const result = parseAndEvaluate(`
             .Plugin.Load("cas");

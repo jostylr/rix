@@ -237,6 +237,22 @@ status remains `unresolved`: numerical evaluation is not a proof engine.
 
 If an exact rule eliminates a semantic application—for example the outer
 `Log` in `D Log(x)=1/x`—the derivative no longer needs that implementation.
+
+## Course trigonometric and absolute-value graphs
+
+The course CAS uses public Calculus nodes rather than private symbolic output.
+`Sin`, `Cos`, and `Atan` have exact derivative identities. `Abs` is portable
+and executable on exact reals, but has no unconditional derivative rule at
+zero.
+
+```{.rix exec=true}
+.Plugin.Load("calculus");
+x := .calculus.Variable(:x);
+{: .calculus.Abs()(x),.calculus.Abs()(-3),
+   .calculus.ToSpec(.calculus.Differentiate(.calculus.Sin()(x),:x)),
+   .calculus.ToSpec(.calculus.Differentiate(.calculus.Cos()(x),:x)),
+   .calculus.ToSpec(.calculus.Differentiate(.calculus.Atan()(x),:x)) };
+```
 Conversely, an unknown semantic function cannot be differentiated merely
 because it has a numerical algorithm.
 

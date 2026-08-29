@@ -100,6 +100,10 @@ Quotients retain a nonzero-denominator obligation, as do negative Integer
 powers. Named rules currently cover:
 
 - real-principal `Log`, requiring a positive argument;
+- real `Abs`, represented as a piecewise semantic graph and deliberately left
+  without a globally valid derivative at zero;
+- real `Sin` and `Cos`, with exact mutually linked derivative identities;
+- real-principal `Atan`, with derivative `1/(1+x^2)`;
 - real-principal `Sqrt`, requiring a positive argument for its derivative;
 - real-principal `Asin`, requiring an argument in the open unit interval; and
 - principal `ComplexLog`, retaining its branch-cut obligation.

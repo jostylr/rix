@@ -256,21 +256,24 @@ describe("checked Calculus graph ranges", () => {
             x := .calculus.Variable(:x);
             quotient := .calculus.DifferentiateResult((x+1)/(x-1),:x);
             zeroPower := .calculus.DifferentiateResult(x^0,:x);
+            sine := .calculus.DifferentiateResult(.calculus.Sin()(x),:x);
             {:
               .numerics.CheckDerivativeGraph(quotient),
               .numerics.CheckDerivativeGraph(zeroPower),
+              .numerics.CheckDerivativeGraph(sine),
               quotient,
               zeroPower
             };
         `, options);
-        const [quotientCheck, zeroCheck] = result.values;
+        const [quotientCheck, zeroCheck, sineCheck] = result.values;
         expect(entry(quotientCheck, "accepted").value).toBe(1n);
         expect(entry(quotientCheck, "obligationDescriptors").values).toHaveLength(1);
         expect(entry(zeroCheck, "accepted").value).toBe(1n);
         expect(text(entry(zeroCheck, "obligationDescriptors").values[0]))
             .toContain("zeroPowerZeroDomain");
+        expect(entry(sineCheck, "accepted").value).toBe(1n);
 
-        const transformation = result.values[2];
+        const transformation = result.values[3];
         const changedGraph = { ...transformation, entries: new Map(transformation.entries) };
         changedGraph.entries.set("expression", entry(transformation, "source"));
         expect(checkCalculusDerivativeTransformation(changedGraph)).toMatchObject({
@@ -278,7 +281,7 @@ describe("checked Calculus graph ranges", () => {
             reason: "derivativeGraphMismatch",
         });
 
-        const zeroPower = result.values[3];
+        const zeroPower = result.values[4];
         const erasedDomain = { ...zeroPower, entries: new Map(zeroPower.entries) };
         erasedDomain.entries.set("obligations", { type: "sequence", values: [] });
         expect(checkCalculusDerivativeTransformation(erasedDomain)).toMatchObject({

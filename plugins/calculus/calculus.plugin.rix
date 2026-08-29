@@ -3,7 +3,7 @@ id: calculus
 description: Portable abstract functions, obligation-bearing higher differentiation, and provenance-recording evaluation through semantic-ID implementation links.
 kind: rix
 mount: calculus
-exports: [Function, Exp, Log, Sqrt, Asin, ComplexLog, Variable, Constant, Apply, Obligation, Register, Resolve, StructuralKey, Evaluate, EvaluateResult, SimplifyResult, CheckSimplification, Differentiate, DifferentiateResult, DifferentiateN, DifferentiateNResult, Partial, PartialResult, Gradient, GradientResult, Jacobian, JacobianResult, Hessian, HessianResult, SelectedPrimitive, AntiderivativeFamily, DefiniteIntegral, ToSpec, FromSpec, IsFunction, IsExpression, IsTransformation, IsIntegral]
+exports: [Function, Exp, Log, Abs, Sin, Cos, Atan, Sqrt, Asin, ComplexLog, Variable, Constant, Apply, Obligation, Register, Resolve, StructuralKey, Evaluate, EvaluateResult, SimplifyResult, CheckSimplification, Differentiate, DifferentiateResult, DifferentiateN, DifferentiateNResult, Partial, PartialResult, Gradient, GradientResult, Jacobian, JacobianResult, Hessian, HessianResult, SelectedPrimitive, AntiderivativeFamily, DefiniteIntegral, ToSpec, FromSpec, IsFunction, IsExpression, IsTransformation, IsIntegral]
 groups: [Calculus, Analysis, Symbolic, Exact]
 permissions: []
 provides: [rix.calculus@1, rix.abstract-function@1]
@@ -304,6 +304,46 @@ CalculusLog(implementation ?= _) -> CalculusBuildFunction("rix.function.log.real
     domain=:positiveReal,
     codomain=:real,
     facts=[{= kind=:inverseIdentity, inverseOf="rix.function.exp@1", branch=:realPrincipal }],
+    implementation=implementation,
+    implementationEvidence=implementation == _ ?: :none ?_ :declaredByCaller
+});
+
+CalculusAbs(implementation ?= _) -> CalculusBuildFunction("rix.function.abs.real@1", {=
+    name=:Abs,
+    arity=1,
+    domain=:real,
+    codomain=:nonnegativeReal,
+    facts=[{= kind=:piecewiseIdentity, negative=:negate, nonnegative=:identity, nondifferentiableAt=0 }],
+    implementation=implementation,
+    implementationEvidence=implementation == _ ?: :none ?_ :declaredByCaller
+});
+
+CalculusSin(implementation ?= _) -> CalculusBuildFunction("rix.function.sin@1", {=
+    name=:Sin,
+    arity=1,
+    domain=:real,
+    codomain=:closedUnitInterval,
+    facts=[{= kind=:differentialIdentity, derivative="rix.function.cos@1" }],
+    implementation=implementation,
+    implementationEvidence=implementation == _ ?: :none ?_ :declaredByCaller
+});
+
+CalculusCos(implementation ?= _) -> CalculusBuildFunction("rix.function.cos@1", {=
+    name=:Cos,
+    arity=1,
+    domain=:real,
+    codomain=:closedUnitInterval,
+    facts=[{= kind=:differentialIdentity, derivative=:negativeSin }],
+    implementation=implementation,
+    implementationEvidence=implementation == _ ?: :none ?_ :declaredByCaller
+});
+
+CalculusAtan(implementation ?= _) -> CalculusBuildFunction("rix.function.atan.real-principal@1", {=
+    name=:Atan,
+    arity=1,
+    domain=:real,
+    codomain=:principalAtanRange,
+    facts=[{= kind=:inverseIdentity, inverseOf="rix.function.tan@1", branch=:realPrincipal }],
     implementation=implementation,
     implementationEvidence=implementation == _ ?: :none ?_ :declaredByCaller
 });
@@ -920,6 +960,14 @@ CalculusHessian(expression, variables) ->
 
 CalculusExpDerivative(application) -> application;
 CalculusReciprocalDerivative(application) -> CalculusDivideExact(CalculusConstant(1),application[:arguments][1]);
+CalculusSinDerivative(application) ->
+    CalculusApplication("rix.function.cos@1",:Cos,[application[:arguments][1]]);
+CalculusCosDerivative(application) ->
+    CalculusNegate(CalculusApplication("rix.function.sin@1",:Sin,[application[:arguments][1]]));
+CalculusAtanDerivative(application) -> {;
+    argument = application[:arguments][1];
+    CalculusDivideExact(CalculusConstant(1),CalculusAddExact(CalculusConstant(1),CalculusPowerExact(argument,2)));
+};
 CalculusSqrtDerivative(application) -> CalculusDivideExact(
     CalculusConstant(1),
     CalculusMultiplyExact(CalculusConstant(2),application)
@@ -971,6 +1019,38 @@ CalculusRegister(calculusBuiltinLog,{=
     branches=[{= kind=:realBranch, name=:principal, domain=:positiveReal }],
     domainEvidence=:realLogDomain,
     branchEvidence=:inverseOfRealExp
+});
+
+calculusBuiltinAbs = CalculusAbs((value)->.Abs(value));
+CalculusRegister(calculusBuiltinAbs,{=
+    branches=[{= kind=:realPiecewise, split=0 }],
+    domainEvidence=:allReal,
+    branchEvidence=:absoluteValueDefinition
+});
+
+calculusBuiltinSin = CalculusSin();
+CalculusRegister(calculusBuiltinSin,{=
+    derivative=CalculusSinDerivative,
+    derivativeEvidence={= kind=:exactIdentity, identity=:sinDerivative, result=:cos },
+    branches=[],
+    domainEvidence=:allReal
+});
+
+calculusBuiltinCos = CalculusCos();
+CalculusRegister(calculusBuiltinCos,{=
+    derivative=CalculusCosDerivative,
+    derivativeEvidence={= kind=:exactIdentity, identity=:cosDerivative, result=:negativeSin },
+    branches=[],
+    domainEvidence=:allReal
+});
+
+calculusBuiltinAtan = CalculusAtan();
+CalculusRegister(calculusBuiltinAtan,{=
+    derivative=CalculusAtanDerivative,
+    derivativeEvidence={= kind=:exactIdentity, identity=:atanDerivative, result=:reciprocalOnePlusSquare },
+    branches=[{= kind=:realInverseBranch, name=:principal, range=:principalAtanRange }],
+    domainEvidence=:allReal,
+    branchEvidence=:principalInverseOfTan
 });
 
 calculusBuiltinSqrt = CalculusSqrt();
@@ -1035,6 +1115,10 @@ calculusNamespace._proto = {=
     Function=(self, semanticId, options ?= {= })->CalculusBuildFunction(semanticId,options),
     Exp=(self, implementation ?= _)->CalculusExp(implementation),
     Log=(self, implementation ?= _)->CalculusLog(implementation),
+    Abs=(self, implementation ?= _)->CalculusAbs(implementation),
+    Sin=(self, implementation ?= _)->CalculusSin(implementation),
+    Cos=(self, implementation ?= _)->CalculusCos(implementation),
+    Atan=(self, implementation ?= _)->CalculusAtan(implementation),
     Sqrt=(self, implementation ?= _)->CalculusSqrt(implementation),
     Asin=(self, implementation ?= _)->CalculusAsin(implementation),
     ComplexLog=(self, implementation ?= _)->CalculusComplexLog(implementation),

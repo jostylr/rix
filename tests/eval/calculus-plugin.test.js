@@ -229,6 +229,31 @@ describe("pure RiX Calculus plugin", () => {
         )).toThrow("use .calculus.DifferentiateResult");
     });
 
+    test("publishes absolute-value and course trigonometric graphs with honest derivatives", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("calculus");
+            x := .calculus.Variable(:x);
+            Abs := .calculus.Abs();
+            Sin := .calculus.Sin();
+            Cos := .calculus.Cos();
+            Atan := .calculus.Atan();
+            {: Abs(x),Abs(-3),
+               .calculus.ToSpec(.calculus.Differentiate(Sin(x),:x)),
+               .calculus.ToSpec(.calculus.Differentiate(Cos(x),:x)),
+               .calculus.ToSpec(.calculus.Differentiate(Atan(x),:x)) };
+        `, runtime());
+        expect(text(entry(result.values[0], "semanticid"))).toBe("rix.function.abs.real@1");
+        expect(result.values[1].value).toBe(3n);
+        expect(formatValue(result.values[2])).toBe("{#x# Cos(x) }");
+        expect(formatValue(result.values[3])).toBe("{#x# -Sin(x) }");
+        expect(formatValue(result.values[4])).toBe("{#x# 1 / (1 + x ^ 2) }");
+        expect(() => parseAndEvaluate(`
+            .Plugin.Load("calculus");
+            x := .calculus.Variable(:x);
+            .calculus.Differentiate(.calculus.Abs()(x),:x);
+        `, runtime())).toThrow("No exact derivative rule");
+    });
+
     test("uses differential identities to retain reusable derivative graphs", () => {
         const options = runtime();
         const result = parseAndEvaluate(`

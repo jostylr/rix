@@ -30,14 +30,18 @@ the rules used, and domain obligations. The implemented ladder covers:
 - sums, differences, constant factors, and integer powers;
 - powers and reciprocals of affine expressions;
 - exponentials of affine expressions;
+- sine and cosine of affine expressions;
 - logarithms of affine expressions by integration by parts;
 - `x^n Exp(a*x+b)` by repeated integration by parts; and
 - canonical RationalFunctions whose exact partial fractions have only rational
-  linear residual factors, including repeated factors and polynomial parts.
+  linear residual factors, including repeated factors and polynomial parts, or
+  one irreducible quadratic residual with a linear numerator.
 
-Real logarithm results carry a positive-argument obligation. RiX does not
-silently replace `log(x)` by an unrepresented `log(abs(x))`; negative-domain
-branches need an explicit absolute-value expression contract in a later rung.
+Reciprocal and linear partial-fraction primitives use the public
+`Log(Abs(u))` graph and retain the actual `u != 0` domain obligation. Integrals
+whose source already contains real-principal `Log(u)` retain `u > 0`, because
+that is the source function's domain. Irreducible quadratics use a principal
+`Atan` graph after exact completion of the square.
 
 `CheckIntegral` independently reruns the deterministic rule selection and
 compares the structural antiderivative. This is rule replay, not a general
@@ -53,8 +57,8 @@ reason such as `:unsupportedSemanticFunction` or
 The current layer does not attempt general Risch integration, unrestricted
 trigonometric identity search, special-function reductions, multivariate
 Groebner simplification, or enormous heuristic simplification portfolios.
-Useful next additions are an explicit absolute-value graph, the common
-trigonometric tables and reductions, quadratic partial fractions, selected
-radical substitutions, and exact definite-integral symmetries.
+Useful next additions are trigonometric power/product reductions, selected
+radical substitutions, exact definite-integral symmetries, and broader
+assumption-aware simplification.
 
 See [tutorial.md](tutorial.md) for runnable course examples.

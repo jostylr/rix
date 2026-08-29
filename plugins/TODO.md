@@ -47,7 +47,7 @@ its first useful future increment rather than treating it as abandoned.
 | 11 | `.solve` | Multivariate elimination plus certified subdivision consumers | **Waiting:** `.algebra` Groebner MVP and `.numerics` box subdivision |
 | 12 | `.fraction` | Portable classroom-derivation and fraction-path evidence | **Phase 4:** current exact representations are complete |
 | 13 | `.fracfun` | Multivariate forms and declared coefficient domains | **Waiting:** multivariate Polynomial/coefficient-domain support |
-| 14 | `.cas` | Absolute-value expression support, then trig and quadratic partial-fraction cases | **Ready:** the first course integration ladder is implemented |
+| 14 | `.cas` | Trigonometric power/product reductions, selected radicals, and definite-integral symmetries | **Ready:** absolute-value, affine trig, and quadratic partial fractions are implemented |
 | 15 | `.symbolic` | Shared assumptions and restricted-domain wrappers | **Decision:** one portable assumption/branch-obligation contract |
 | 16 | `.logic` | Scoped subproof discharge and implication introduction, then proof-tree/tableau views | **Ready:** propositional semantics and basic checked derivations exist |
 | 17 | `.calculus` | Absolute-value/domain graphs and portable differential, boundary, and integral equation specifications | **Ready:** coordinate with `.cas`; solver execution stays elsewhere |
@@ -841,12 +841,13 @@ tracked in
    - [x] Add replay checking, schemas, reference documentation, a runnable
      tutorial, and focused tests.
 3. **Phase 3 — Remaining high-frequency course cases**
-   - [ ] Add an explicit absolute-value Calculus graph so reciprocal
+   - [x] Add an explicit absolute-value Calculus graph so reciprocal
      antiderivatives can represent `log(abs(x))` without restricting to the
      positive real branch.
-   - [ ] Add common trigonometric antiderivative tables and reductions,
-     irreducible quadratic partial fractions, selected radical substitutions,
-     and exact definite-integral symmetry rules.
+   - [x] Add affine sine/cosine antiderivative rules and irreducible quadratic
+     partial fractions with exact completed-square evidence and `Atan` graphs.
+   - [ ] Add bounded trigonometric power/product reductions, selected radical
+     substitutions, and exact definite-integral symmetry rules.
    - [ ] Broaden safe simplification with assumption-aware sign, power,
      radical, and rational-expression rules while keeping rule replay bounded.
 4. **Phase 4 — General and external CAS**
@@ -955,9 +956,9 @@ tracked in
    - [ ] Complete the shared Calculus-facing course integration ladder. `.cas`
      now covers polynomial powers/sums, `1/x` on an explicit positive branch,
      affine power/exponential/logarithmic forms, selected integration by parts,
-     and rational linear partial fractions. Absolute-value graphs,
-     trigonometric and irreducible-quadratic cases, and definite-integral
-     symmetry rules remain.
+     rational linear partial fractions, `Log(Abs(...))`, affine sine/cosine,
+     and irreducible-quadratic cases. Trigonometric reductions, selected
+     radicals, and definite-integral symmetry rules remain.
    - [ ] Complete the checked simplifier. `.cas` now provides bounded replay
      for ordinary constant folding and polynomial collect/expand/factor views;
      sign-aware powers/roots, hole-preserving rational cancellation, and a

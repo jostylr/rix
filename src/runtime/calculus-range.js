@@ -530,6 +530,9 @@ function graphObligation(expression, reason) {
 const TRUSTED_SEMANTIC_DERIVATIVES = Object.freeze({
     "rix.function.exp@1": "exp",
     "rix.function.log.real-principal@1": "reciprocal",
+    "rix.function.sin@1": "sin",
+    "rix.function.cos@1": "cos",
+    "rix.function.atan.real-principal@1": "atan",
     "rix.function.sqrt.real-principal@1": "sqrt",
     "rix.function.asin.real-principal@1": "asin",
     "rix.function.log.complex-principal@1": "reciprocal",
@@ -579,6 +582,12 @@ function differentiateTrustedSemanticApplication(expression, variable) {
     let outer;
     if (rule === "exp") outer = expression;
     else if (rule === "reciprocal") outer = graphDivide(graphConstant(1), argument);
+    else if (rule === "sin") outer = graphApplication("rix.function.cos@1", "Cos", [argument]);
+    else if (rule === "cos") {
+        outer = graphNegate(graphApplication("rix.function.sin@1", "Sin", [argument]));
+    } else if (rule === "atan") {
+        outer = graphDivide(graphConstant(1), graphAdd(graphConstant(1), graphPower(argument, 2n)));
+    }
     else if (rule === "sqrt") {
         outer = graphDivide(graphConstant(1), graphMultiply(graphConstant(2), expression));
     } else {
