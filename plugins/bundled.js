@@ -202,9 +202,9 @@ const BUNDLED_PLUGINS = [
     },
     {
         metadata: {
-            id: "terminal-ascii", description: "Deterministic strict-ASCII fallback for tables, grids, fragments, and simple Graphics.",
+            id: "terminal-ascii", description: "Deterministic terminal rendering with strict ASCII and explicit Unicode/ANSI profiles.",
             kind: "host", mount: "terminalAscii", exports: ["Render"], groups: ["Renderers"], permissions: [],
-            provides: ["rix.renderer.terminal-ascii@1"], targets: ["terminal-ascii", "terminal", "ascii", "txt", "text/plain"],
+            provides: ["rix.renderer.terminal-ascii@1", "rix.renderer.terminal-rich@1"], targets: ["terminal-ascii", "terminal", "ascii", "txt", "text/plain"],
             snapshot: true, deterministic: true, defaultEnabled: false,
         },
         install: installTerminalAsciiPlugin,

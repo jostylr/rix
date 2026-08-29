@@ -1,7 +1,7 @@
 # `.terminalAscii`
 
-Provides a deterministic strict-ASCII fallback for portable Tables, Grids,
-Fragments, Figures, Slides, and simple core Graphics. Load plugin ID `terminal-ascii`
+Provides deterministic terminal views for portable Tables, Grids, Fragments,
+Figures, Slides, and simple core Graphics. Strict ASCII is the default. Load plugin ID `terminal-ascii`
 and render through `.terminalAscii.Render(value, options?)`, generic
 `.Render(value, "terminal-ascii")`, or the aliases `terminal`, `ascii`, `txt`,
 and `text/plain`.
@@ -12,10 +12,31 @@ table := .Table(["name", "exact"], [["half", 1/2], ["third", 1/3]]);
 .terminalAscii.Render(table, {= width=60 }).Get("content");
 ```
 
-The renderer deliberately uses only printable ASCII plus newlines. Common
+The default renderer deliberately uses only printable ASCII plus newlines. Common
 typographic punctuation is transliterated; remaining non-ASCII characters are
 replaced with `?` and reported through a `terminal-non-ascii-replaced`
 diagnostic.
+
+## Explicit rich-terminal profiles
+
+Rich output is opt-in and never inferred from environment variables, terminal
+probing, or operating-system settings. This makes the same request reproducible
+in the CLI, tests, notebooks, and embedded hosts:
+
+```rix
+.Plugin.Load("terminal-ascii");
+table := .Table(["name", "value"], [["café", "2 × 3"]]);
+unicode := .terminalAscii.Render(table, {= mode=:unicode });
+colored := .terminalAscii.Render(table, {= mode=:unicodeColor });
+```
+
+`mode=:unicode` preserves Unicode text and uses box-drawing, point, line,
+rectangle, replacement, and ellipsis glyphs without control sequences.
+`mode=:unicodeColor` (or `:rich`) adds deterministic ANSI 16-color escapes to
+headings and table rules. Metadata reports `mode`, `characterSet`, `color`,
+`controlSequences`, and schema `rix.terminal-rich@1`, so a host can decide
+whether the result is suitable for its display. The default `:ascii` profile
+continues to return `rix.terminal-ascii@1` and never emits ANSI escapes.
 
 `width` defaults to 80 characters and accepts integers from 20 through 240.
 The default `wrap=:truncate` policy preserves fixed-height output: Tables and
@@ -32,7 +53,7 @@ split. Without `pageHeight`, output remains one uninterrupted page. `height`
 separately controls Graphic snapshots and defaults to 16 rows, with a range of
 4 through 80.
 
-`Slide` and `Slides` values render with plain ASCII slide headers. Deck titles,
+`Slide` and `Slides` values render with terminal-safe slide headers. Deck titles,
 slide titles, captions, and content use the same width, wrapping, and pagination
 policies—there is no implicit Unicode, color, or terminal-control sequence.
 

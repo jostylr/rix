@@ -4,6 +4,24 @@ import { formatOutputText, isOutputValue } from "../../src/runtime/output.js";
 import { diagnostic, field, numberValue, outputKind, rixString, textValue } from "../renderers/common.js";
 
 export const TERMINAL_ASCII_SCHEMA = "rix.terminal-ascii@1";
+export const TERMINAL_RICH_SCHEMA = "rix.terminal-rich@1";
+
+const GLYPHS = Object.freeze({
+    ascii: Object.freeze({
+        horizontal: "-", vertical: "|", cross: "+",
+        topLeft: "+", topMiddle: "+", topRight: "+",
+        middleLeft: "+", middleMiddle: "+", middleRight: "+",
+        bottomLeft: "+", bottomMiddle: "+", bottomRight: "+",
+        point: "o", line: "*", rectangle: "#", unknown: "?", truncate: "~",
+    }),
+    unicode: Object.freeze({
+        horizontal: "─", vertical: "│", cross: "┼",
+        topLeft: "┌", topMiddle: "┬", topRight: "┐",
+        middleLeft: "├", middleMiddle: "┼", middleRight: "┤",
+        bottomLeft: "└", bottomMiddle: "┴", bottomRight: "┘",
+        point: "●", line: "•", rectangle: "■", unknown: "�", truncate: "…",
+    }),
+});
 
 const REPLACEMENTS = new Map([
     ["\u2013", "-"], ["\u2014", "--"], ["\u2212", "-"],
@@ -22,6 +40,13 @@ function addDiagnostic(state, code, message, path, level = "warning") {
 
 function strictAscii(value, state, path) {
     let source = String(value ?? "");
+    if (state.characterSet === "Unicode") {
+        const result = source.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "�");
+        if (result !== source) {
+            addDiagnostic(state, "terminal-control-replaced", "Control characters were replaced for terminal output", path, "info");
+        }
+        return result;
+    }
     for (const [from, to] of REPLACEMENTS) source = source.replaceAll(from, to);
     const normalized = source.normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
     const result = normalized.replace(/[^\x09\x0a\x0d\x20-\x7e]/g, "?");
@@ -40,11 +65,11 @@ function integerOption(value, fallback, label, minimum, maximum) {
     return result;
 }
 
-function truncate(value, width) {
+function truncate(value, width, marker = "~") {
     const text = String(value);
     if (text.length <= width) return text;
-    if (width <= 1) return "~";
-    return `${text.slice(0, width - 1)}~`;
+    if (width <= 1) return marker;
+    return `${text.slice(0, width - 1)}${marker}`;
 }
 
 function wrappingOption(value) {
@@ -60,6 +85,15 @@ function wrappingOption(value) {
     } catch {
         throw new Error("terminalAscii wrap must be :word, :wrap, :truncate, :none, 1, or 0");
     }
+}
+
+function modeOption(value) {
+    if (value === null || value === undefined) return "ascii";
+    const name = rixString(value)?.toLowerCase();
+    if (name === "ascii" || name === "strict") return "ascii";
+    if (name === "unicode") return "unicode";
+    if (["unicodecolor", "unicode-color", "rich", "ansi"].includes(name)) return "unicodeColor";
+    throw new Error("terminalAscii mode must be :ascii, :unicode, :unicodeColor, or :rich");
 }
 
 function wrapLine(value, width) {
@@ -89,7 +123,7 @@ function constrainLines(value, width, state, path) {
     if (source.some((line) => line.length > width)) {
         addDiagnostic(state, "terminal-width-truncated", `Text exceeds terminal width ${width} and was truncated`, path);
     }
-    return source.map((line) => truncate(line, width));
+    return source.map((line) => truncate(line, width, state.glyphs.truncate));
 }
 
 function constrainText(value, state, path) {
@@ -133,8 +167,8 @@ function shrinkWidths(widths, available, state, path) {
     return result;
 }
 
-function align(value, width, mode = "left") {
-    const text = truncate(value, width);
+function align(value, width, mode = "left", marker = "~") {
+    const text = truncate(value, width, marker);
     if (mode === "right") return text.padStart(width);
     if (mode === "center") {
         const left = Math.floor((width - text.length) / 2);
@@ -154,17 +188,23 @@ function renderTable(value, state, path) {
     ));
     const overhead = value.columns.length * 3 + 1;
     const widths = shrinkWidths(natural, state.width - overhead, state, path);
-    const border = `+${widths.map((width) => "-".repeat(width + 2)).join("+")}+`;
+    const border = (left, middle, right) => `${left}${widths.map((width) => state.glyphs.horizontal.repeat(width + 2)).join(middle)}${right}`;
     const row = (cells, header = false, rowPath = path) => {
         const wrapped = cells.map((cell, index) => constrainLines(cell, widths[index], state, `${rowPath}.column${index + 1}`));
         const rowHeight = Math.max(...wrapped.map((lines) => lines.length));
-        return Array.from({ length: rowHeight }, (_, line) => `|${wrapped.map((lines, index) => {
+        return Array.from({ length: rowHeight }, (_, line) => `${state.glyphs.vertical}${wrapped.map((lines, index) => {
             const mode = header ? "left" : rixString(value.columns[index].align) || value.columns[index].align || "left";
-            return ` ${align(lines[line] || "", widths[index], mode)} `;
-        }).join("|")}|`);
+            return ` ${align(lines[line] || "", widths[index], mode, state.glyphs.truncate)} `;
+        }).join(state.glyphs.vertical)}${state.glyphs.vertical}`);
     };
     const renderedRows = rows.flatMap((cells, index) => row(cells, false, `${path}.row${index + 1}`));
-    const content = [border, ...row(headers, true, `${path}.header`), border, ...renderedRows, border].join("\n");
+    const content = [
+        border(state.glyphs.topLeft, state.glyphs.topMiddle, state.glyphs.topRight),
+        ...row(headers, true, `${path}.header`),
+        border(state.glyphs.middleLeft, state.glyphs.middleMiddle, state.glyphs.middleRight),
+        ...renderedRows,
+        border(state.glyphs.bottomLeft, state.glyphs.bottomMiddle, state.glyphs.bottomRight),
+    ].join("\n");
     const caption = value.caption ? constrainText(strictAscii(value.caption, state, `${path}.caption`), state, `${path}.caption`) : null;
     return [caption, content].filter(Boolean).join("\n");
 }
@@ -187,7 +227,7 @@ function renderGrid(value, state, path) {
         1,
         ...rows.flatMap((row) => row[index].split("\n").map((line) => line.length)),
     ));
-    const separators = natural.slice(1).map((_, index) => hasGridRule(value, "vertical", index + 2) ? " | " : "  ");
+    const separators = natural.slice(1).map((_, index) => hasGridRule(value, "vertical", index + 2) ? ` ${state.glyphs.vertical} ` : "  ");
     const overhead = separators.reduce((sum, separator) => sum + separator.length, 0);
     const widths = shrinkWidths(natural, state.width - overhead, state, path);
     const styleAlign = rixString(field(value.style, "align")) || field(value.style, "align") || "right";
@@ -195,9 +235,9 @@ function renderGrid(value, state, path) {
         const wrapped = cells.map((cell, index) => constrainLines(cell, widths[index], state, `${rowPath}.column${index + 1}`));
         const rowHeight = Math.max(...wrapped.map((lines) => lines.length));
         return Array.from({ length: rowHeight }, (_, lineIndex) => {
-            let line = align(wrapped[0][lineIndex] || "", widths[0], styleAlign);
+            let line = align(wrapped[0][lineIndex] || "", widths[0], styleAlign, state.glyphs.truncate);
             for (let column = 1; column < cells.length; column += 1) {
-                line += separators[column - 1] + align(wrapped[column][lineIndex] || "", widths[column], styleAlign);
+                line += separators[column - 1] + align(wrapped[column][lineIndex] || "", widths[column], styleAlign, state.glyphs.truncate);
             }
             return line;
         });
@@ -205,13 +245,13 @@ function renderGrid(value, state, path) {
     const lines = [];
     for (let row = 0; row < rows.length; row += 1) {
         if (hasGridRule(value, "horizontal", row + 1)) {
-            const firstVertical = separators.findIndex((separator) => separator === " | ");
-            if (firstVertical < 0) lines.push("-".repeat(Math.min(state.width, widths.reduce((sum, width) => sum + width, overhead))));
+            const firstVertical = separators.findIndex((separator) => separator === ` ${state.glyphs.vertical} `);
+            if (firstVertical < 0) lines.push(state.glyphs.horizontal.repeat(Math.min(state.width, widths.reduce((sum, width) => sum + width, overhead))));
             else {
                 const prefix = widths.slice(0, firstVertical + 1).reduce((sum, width) => sum + width, 0)
                     + separators.slice(0, firstVertical).reduce((sum, separator) => sum + separator.length, 0) + 1;
                 const total = widths.reduce((sum, width) => sum + width, overhead);
-                lines.push(`${" ".repeat(prefix)}+${"-".repeat(Math.max(0, total - prefix - 1))}`);
+                lines.push(`${" ".repeat(prefix)}${state.glyphs.cross}${state.glyphs.horizontal.repeat(Math.max(0, total - prefix - 1))}`);
             }
         }
         lines.push(...renderRow(rows[row], `${path}.row${row + 1}`));
@@ -219,13 +259,13 @@ function renderGrid(value, state, path) {
     return lines.join("\n");
 }
 
-function put(grid, row, column, character) {
+function put(grid, row, column, character, collision = "+") {
     if (row < 0 || row >= grid.length || column < 0 || column >= grid[0].length) return;
     const previous = grid[row][column];
-    grid[row][column] = previous === " " || previous === character ? character : "+";
+    grid[row][column] = previous === " " || previous === character ? character : collision;
 }
 
-function drawLine(grid, from, to, character) {
+function drawLine(grid, from, to, character, collision = "+") {
     let [x0, y0] = from;
     const [x1, y1] = to;
     const dx = Math.abs(x1 - x0);
@@ -234,7 +274,7 @@ function drawLine(grid, from, to, character) {
     const sy = y0 < y1 ? 1 : -1;
     let error = dx + dy;
     while (true) {
-        put(grid, y0, x0, character);
+        put(grid, y0, x0, character, collision);
         if (x0 === x1 && y0 === y1) break;
         const doubled = 2 * error;
         if (doubled >= dy) { error += dy; x0 += sx; }
@@ -262,13 +302,13 @@ function renderGraphic(value, state, path) {
         if (outputKind(child) === "path" && Array.isArray(child.points)) {
             const points = child.points.map(project);
             const twoPoint = points.length === 2;
-            const character = twoPoint && points[0][1] === points[1][1] ? "-"
-                : twoPoint && points[0][0] === points[1][0] ? "|" : "*";
+            const character = twoPoint && points[0][1] === points[1][1] ? state.glyphs.horizontal
+                : twoPoint && points[0][0] === points[1][0] ? state.glyphs.vertical : state.glyphs.line;
             for (let pointIndex = 1; pointIndex < points.length; pointIndex += 1) {
-                drawLine(grid, points[pointIndex - 1], points[pointIndex], character);
+                drawLine(grid, points[pointIndex - 1], points[pointIndex], character, state.glyphs.cross);
             }
         } else if (outputKind(child) === "circle" || outputKind(child) === "drag_point") {
-            put(grid, ...project(child.center).reverse(), "o");
+            put(grid, ...project(child.center).reverse(), state.glyphs.point, state.glyphs.cross);
         } else if (outputKind(child) === "rectangle") {
             const origin = project(child.origin);
             const size = Array.isArray(child.size) ? child.size : child.size?.values;
@@ -276,17 +316,17 @@ function renderGraphic(value, state, path) {
                 numberValue(child.origin[0], "Rectangle x") + numberValue(size[0], "Rectangle width"),
                 numberValue(child.origin[1], "Rectangle y") + numberValue(size[1], "Rectangle height"),
             ]);
-            drawLine(grid, origin, [opposite[0], origin[1]], "#");
-            drawLine(grid, [opposite[0], origin[1]], opposite, "#");
-            drawLine(grid, opposite, [origin[0], opposite[1]], "#");
-            drawLine(grid, [origin[0], opposite[1]], origin, "#");
+            drawLine(grid, origin, [opposite[0], origin[1]], state.glyphs.rectangle, state.glyphs.cross);
+            drawLine(grid, [opposite[0], origin[1]], opposite, state.glyphs.rectangle, state.glyphs.cross);
+            drawLine(grid, opposite, [origin[0], opposite[1]], state.glyphs.rectangle, state.glyphs.cross);
+            drawLine(grid, [origin[0], opposite[1]], origin, state.glyphs.rectangle, state.glyphs.cross);
         } else if (outputKind(child) === "text_mark") {
             const [column, row] = project(child.position);
             const label = strictAscii(textValue(child.text, state.format), state, childPath);
-            [...label].slice(0, width - column).forEach((character, offset) => put(grid, row, column + offset, character));
+            [...label].slice(0, width - column).forEach((character, offset) => put(grid, row, column + offset, character, state.glyphs.cross));
         } else {
             addDiagnostic(state, "terminal-graphic-node-unsupported", `Graphic node '${outputKind(child)}' is not supported by the Phase 1 ASCII rasterizer`, childPath);
-            put(grid, Math.min(height - 1, index), 0, "?");
+            put(grid, Math.min(height - 1, index), 0, state.glyphs.unknown, state.glyphs.cross);
         }
     });
     return grid.map((row) => row.join("")).join("\n");
@@ -337,29 +377,47 @@ function paginate(content, state) {
     return { content: pages.join("\n"), pageCount };
 }
 
+function ansiColor(content) {
+    return String(content).split("\n").map((line) => {
+        if (/^(?:Deck:|--- slide|--- page|#)/.test(line)) return `\u001b[1;36m${line}\u001b[0m`;
+        if (/^[┌├└│].*[┐┤┘│]$/.test(line)) return `\u001b[36m${line}\u001b[0m`;
+        return line;
+    }).join("\n");
+}
+
 export function renderTerminalAscii(value, { options = {}, format = String } = {}) {
+    const mode = modeOption(field(options, "mode"));
     const state = {
         width: integerOption(options.width, 80, "terminalAscii width", 20, 240),
         height: integerOption(options.height, 16, "terminalAscii height", 4, 80),
         pageHeight: integerOption(field(options, "pageHeight"), null, "terminalAscii pageHeight", 4, 200),
         wrap: wrappingOption(field(options, "wrap")),
+        mode,
+        characterSet: mode === "ascii" ? "ASCII" : "Unicode",
+        color: mode === "unicodeColor" ? "ansi16" : "none",
+        glyphs: mode === "ascii" ? GLYPHS.ascii : GLYPHS.unicode,
         format,
         diagnostics: [],
         diagnosticKeys: new Set(),
     };
     const rendered = renderNode(value, state);
     const paginated = paginate(rendered, state);
+    const portable = strictAscii(paginated.content, state, "output");
+    const content = state.color === "ansi16" ? ansiColor(portable) : portable;
     return {
-        content: `${strictAscii(paginated.content, state, "output")}\n`,
+        content: `${content}\n`,
         diagnostics: state.diagnostics,
         metadata: {
-            schema: TERMINAL_ASCII_SCHEMA,
+            schema: mode === "ascii" ? TERMINAL_ASCII_SCHEMA : TERMINAL_RICH_SCHEMA,
             width: state.width,
             height: state.height,
             pageHeight: state.pageHeight,
             pageCount: paginated.pageCount,
             wrap: state.wrap,
-            characterSet: "ASCII",
+            mode,
+            characterSet: state.characterSet,
+            color: state.color,
+            controlSequences: state.color === "ansi16",
         },
     };
 }

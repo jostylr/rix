@@ -138,4 +138,44 @@ describe("terminalAscii renderer", () => {
             .terminalAscii.Render(.Fragment([.Paragraph("x")]), {= pageHeight=3 });
         `)).toThrow("between 4 and 200");
     });
+
+    test("Phase 3 negotiates explicit Unicode and ANSI color modes without changing strict ASCII", () => {
+        const rendered = parseAndEvaluate(`
+            .Plugin.Load("terminal-ascii");
+            table := .Table(["name", "value"], [["café", "2 × 3"]], {= caption="Métrique" });
+            [
+                .terminalAscii.Render(table),
+                .terminalAscii.Render(table, {= mode=:unicode }),
+                .terminalAscii.Render(table, {= mode=:unicodeColor })
+            ];
+        `);
+        const [ascii, unicode, rich] = rendered.values;
+        expect(content(ascii)).toContain("Metrique");
+        expect(content(ascii)).toContain("cafe");
+        expect(content(ascii)).not.toContain("\u001b[");
+        expect(content(unicode)).toContain("Métrique");
+        expect(content(unicode)).toContain("café");
+        expect(content(unicode)).toContain("2 × 3");
+        expect(content(unicode)).toContain("┌");
+        expect(content(unicode)).toContain("┘");
+        expect(content(unicode)).not.toContain("\u001b[");
+        expect(content(rich)).toContain("\u001b[36m");
+        expect(content(rich).replaceAll(/\u001b\[[0-9;]*m/g, "")).toBe(content(unicode));
+
+        const asciiMetadata = ascii.entries.get("metadata").entries;
+        const unicodeMetadata = unicode.entries.get("metadata").entries;
+        const richMetadata = rich.entries.get("metadata").entries;
+        expect(asciiMetadata.get("schema").value).toBe("rix.terminal-ascii@1");
+        expect(asciiMetadata.get("mode").value).toBe("ascii");
+        expect(unicodeMetadata.get("schema").value).toBe("rix.terminal-rich@1");
+        expect(unicodeMetadata.get("characterSet").value).toBe("Unicode");
+        expect(unicodeMetadata.get("color").value).toBe("none");
+        expect(richMetadata.get("color").value).toBe("ansi16");
+        expect(richMetadata.get("controlSequences").value).toBe(1n);
+
+        expect(() => parseAndEvaluate(`
+            .Plugin.Load("terminal-ascii");
+            .terminalAscii.Render(.Fragment([.Paragraph("x")]), {= mode=:automatic });
+        `)).toThrow("mode must be");
+    });
 });

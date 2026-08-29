@@ -1,12 +1,12 @@
 /**
 id: terminal-ascii
-description: Deterministic strict-ASCII fallback with wrapping, pagination, slides, tables, grids, and simple Graphics.
+description: Deterministic strict-ASCII fallback with explicit Unicode and ANSI terminal capability profiles.
 kind: host
 mount: terminalAscii
 exports: [Render]
 groups: [Renderers]
 permissions: []
-provides: [rix.renderer.terminal-ascii@1]
+provides: [rix.renderer.terminal-ascii@1, rix.renderer.terminal-rich@1]
 targets: [terminal-ascii, terminal, ascii, txt, text/plain]
 snapshot: true
 deterministic: true
@@ -23,7 +23,7 @@ export const definition = {
     aliases: ["terminal", "ascii", "txt", "text/plain"],
     inputKinds: ["table", "grid", "fragment", "graphic", "figure", "slide", "slides"],
     deterministic: true,
-    description: "Deterministic strict-ASCII terminal fallback for structured output, slides, and simple Graphics",
+    description: "Deterministic terminal rendering with strict ASCII, Unicode, and explicit ANSI color profiles",
     render({ value, options, format }) {
         return renderTerminalAscii(value, { options, format });
     },

@@ -69,5 +69,31 @@ deck := .Slides([
 .terminalAscii.Render(deck, {= width=40, wrap=:word }).Get("content");
 ```
 
-Slides use printable ASCII headings only. A richer Unicode/color terminal mode
-remains a separate future capability.
+Slides use printable ASCII headings in the default profile.
+
+## Opt into Unicode or color
+
+Capability selection is part of the render request. Unicode mode preserves
+mathematical text and uses box-drawing characters while remaining free of
+terminal control sequences:
+
+```rix
+.Plugin.Load("terminal-ascii");
+comparison := .Table(
+  ["measure", "value"],
+  [["café total", "2 × 3"], ["bound", "x ≤ 7"]],
+  {= caption="Métrique" }
+);
+unicode := .terminalAscii.Render(comparison, {= mode=:unicode });
+{: unicode.Get("content"), unicode.Get("metadata") };
+```
+
+When the destination explicitly accepts ANSI 16-color escapes, select the
+color profile. Its metadata makes the presence of control sequences visible:
+
+```rix
+colored := .terminalAscii.Render(comparison, {= mode=:unicodeColor });
+{: colored.Get("content"), colored.Get("metadata") };
+```
+
+Omitting `mode` always returns strict ASCII, regardless of the host terminal.

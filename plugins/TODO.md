@@ -1240,7 +1240,7 @@ The RiX/host extraction sequence is specified in
    - [x] Add wrapping, alignment, pagination, captions, slides, and configurable
      terminal dimensions.
 3. **Phase 3 — Rich terminal negotiation**
-   - [ ] Add a separate Unicode/color capability mode while retaining strict
+   - [x] Add a separate Unicode/color capability mode while retaining strict
      ASCII reproducibility.
 4. **Phase 4 — Interactive terminal views**
    - [ ] Explore keyboard navigation, live repaint, and accessible text
