@@ -760,6 +760,37 @@ tracked in
    - [ ] Export replayable transformation histories and optional CAS/proof
      certificates.
 
+### `.cas`
+
+1. **Phase 1 — Browser-safe course algebra**
+   - [x] Compose public Calculus, Polynomial, and RationalFunction services
+     behind a focused `.cas` namespace without external executables.
+   - [x] Add replay-checked graph simplification and exact polynomial
+     normalize, expand, collect, and factor views.
+   - [x] Add structured unsupported outcomes instead of heuristic fallback.
+2. **Phase 2 — Common calculus integration ladder**
+   - [x] Integrate sums, constant factors, integer and affine powers, affine
+     reciprocals and exponentials, affine logarithms by parts, and
+     polynomial-times-exponential products.
+   - [x] Consume exact RationalFunction partial fractions and integrate
+     polynomial and repeated rational-linear terms with visible real-log
+     branch obligations.
+   - [x] Add replay checking, schemas, reference documentation, a runnable
+     tutorial, and focused tests.
+3. **Phase 3 — Remaining high-frequency course cases**
+   - [ ] Add an explicit absolute-value Calculus graph so reciprocal
+     antiderivatives can represent `log(abs(x))` without restricting to the
+     positive real branch.
+   - [ ] Add common trigonometric antiderivative tables and reductions,
+     irreducible quadratic partial fractions, selected radical substitutions,
+     and exact definite-integral symmetry rules.
+   - [ ] Broaden safe simplification with assumption-aware sign, power,
+     radical, and rational-expression rules while keeping rule replay bounded.
+4. **Phase 4 — General and external CAS**
+   - [ ] Explore Risch-style integration, large heuristic identity portfolios,
+     special-function reduction, and optional external CAS adapters without
+     making them part of the isolated browser base.
+
 ### `.symbolic`
 
 1. **Phase 1 — Formal-workspace meta-plugin**

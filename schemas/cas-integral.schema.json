@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/cas-integral/v1.schema.json",
+  "title": "RiX course CAS integral v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema", "valueKind", "source", "variable", "status", "obligations", "rules", "verification"],
+  "properties": {
+    "schema": { "const": "rix.cas.integral@1" },
+    "valueKind": { "const": "casIntegral" },
+    "variable": { "type": "string" },
+    "status": { "enum": ["complete", "unsupported"] },
+    "obligations": { "type": "array" },
+    "rules": { "type": "array" },
+    "reason": { "type": ["string", "null"] },
+    "exact": { "type": ["boolean", "null"] },
+    "verification": { "enum": ["checkedRuleReplay", "unsupported"] }
+  }
+}

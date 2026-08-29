@@ -1,0 +1,482 @@
+/**
+id: cas
+description: Browser-safe course-level symbolic simplification, polynomial forms, and exact integration with checked replay.
+kind: rix
+mount: cas
+exports: [Simplify, CheckSimplification, NormalizePolynomial, Expand, Collect, Factor, Integrate, CheckIntegral, Capabilities]
+groups: [Algebra, Calculus, CAS, Exact, Symbolic]
+permissions: []
+requires: [rix.calculus@1, rix.polynomial@1, rix.rational-function@1]
+provides: [rix.cas@1, rix.cas.rewrite@1, rix.cas.integral@1]
+schemas: [rix.cas.rewrite@1, rix.cas.integral@1]
+snapshot: false
+deterministic: true
+defaultEnabled: false
+**/
+
+CasOption(options, key, fallback ?= _) -> options.Has(key) ?: options[key] ?_ fallback;
+CasRequireOptions(value, label) -> value ? :Map ?: value ?_ .Error(@"@{label} must be a Map");
+CasIsExpression(value) -> .calculus.IsExpression(value);
+CasVariableName(variable) ->
+    variable ? :String
+      ?: variable
+      ?_ (CasIsExpression(variable) && variable[:kind]==:variable
+           ?: variable[:name]
+           ?_ .Error("CAS variable must be a string or Calculus variable"));
+CasExpression(value) ->
+    CasIsExpression(value)
+      ?: value
+      ?_ ((value ? :Integer)||(value ? :Rational)
+           ?: .calculus.Constant(value)
+           ?_ .Error("CAS expected a Calculus expression or exact scalar"));
+CasConstantValue(expression) ->
+    CasIsExpression(expression) && expression[:kind]==:constant ?: expression[:value] ?_ _;
+CasExpressionKey(expression) -> .calculus.StructuralKey(expression);
+CasAppend(left,right) -> right.Reduce((result,value)->result.Push(value),left);
+
+CasRewrite(operation, source, expression, evidence, obligations ?= []) ->
+    .ImmutableValue({=
+        valueKind=:casRewrite,
+        schema="rix.cas.rewrite@1",
+        operation=operation,
+        source=source,
+        expression=expression,
+        evidence=evidence,
+        obligations=obligations,
+        exact=1,
+        status=:complete
+    });
+
+CasSimplify(value) -> {;
+    expression = CasExpression(value);
+    checked = .calculus.SimplifyResult(expression);
+    replay = .calculus.CheckSimplification(checked);
+    replay[:accepted]==1
+      ?: _
+      ?_ .Error("CAS rejected an internally produced simplification");
+    CasRewrite(:simplify,expression,checked[:expression],[{=
+        rule=:checkedCalculusSimplification,
+        checker=checked[:checker],
+        replay=replay
+    }],checked[:obligations]);
+};
+
+CasCheckSimplification(candidate) -> {;
+    valid = (candidate ? :Map) && candidate[:schema]=="rix.cas.rewrite@1" && candidate[:operation]==:simplify;
+    valid
+      ?: {;
+          recomputed = CasSimplify(@candidate[:source]);
+          accepted = CasExpressionKey(recomputed[:expression])==CasExpressionKey(@candidate[:expression]);
+          .ImmutableValue({= accepted=accepted,certified=accepted ?: 1 ?_ _,reason=accepted ?: _ ?_ :simplificationClaimMismatch });
+      }
+      ?_ .ImmutableValue({= accepted=_,certified=_,reason=:malformedCasSimplification });
+};
+
+CasPolynomial(value, variable) -> {;
+    name = CasVariableName(variable);
+    value ? :Polynomial
+      ?: value
+      ?_ .poly(.calculus.ToSpec(CasExpression(value),[name]),name);
+};
+
+CasPolynomialExpression(polynomial) -> {;
+    exact = polynomial ? :Polynomial ?: polynomial ?_ .Error("CAS expected a Polynomial");
+    variable = .calculus.Variable(exact.Variable());
+    coefficients = exact.Coefficients(:ascending);
+    coefficients.Reduce((sum,coefficient,index)->
+        sum+coefficient*(variable^(index-1)),
+        .calculus.Constant(0)
+    );
+};
+
+CasNormalizePolynomial(value, variable ?= :x) -> {;
+    polynomial = CasPolynomial(value,variable);
+    expression = CasPolynomialExpression(polynomial);
+    CasRewrite(:normalizePolynomial,value,expression,[{=
+        rule=:canonicalPolynomialCoefficients,
+        polynomial=polynomial,
+        coefficients=polynomial.Coefficients(:ascending),
+        variable=polynomial.Variable()
+    }]);
+};
+
+CasExpand(value, variable ?= :x) -> {;
+    normalized = CasNormalizePolynomial(value,variable);
+    CasRewrite(:expand,value,normalized[:expression],[{=
+        rule=:canonicalPolynomialExpansion,
+        polynomial=normalized[:evidence][1][:polynomial]
+    }]);
+};
+
+CasCollect(value, variable ?= :x) -> {;
+    polynomial = CasPolynomial(value,variable);
+    .ImmutableValue({=
+        valueKind=:casCollectedPolynomial,
+        schema="rix.cas.rewrite@1",
+        operation=:collect,
+        source=value,
+        expression=CasPolynomialExpression(polynomial),
+        polynomial=polynomial,
+        variable=polynomial.Variable(),
+        coefficients=polynomial.Coefficients(:ascending),
+        evidence=[{= rule=:canonicalPolynomialCoefficients }],
+        obligations=[],
+        exact=1,
+        status=:complete
+    });
+};
+
+CasFactor(value, variable ?= :x) -> {;
+    polynomial = CasPolynomial(value,variable);
+    evidence = .poly.FactorEvidence(polynomial);
+    .ImmutableValue({=
+        valueKind=:casFactorization,
+        schema="rix.cas.rewrite@1",
+        operation=:factor,
+        source=value,
+        expression=CasPolynomialExpression(polynomial),
+        polynomial=polynomial,
+        factors=evidence[:factors],
+        residual=evidence[:residual],
+        evidence=[evidence],
+        obligations=[],
+        exact=1,
+        status=evidence[:complete]==1 ?: :complete ?_ :partial
+    });
+};
+
+CasIndependent(expression, variable) -> {;
+    exact = CasExpression(expression);
+    kind = exact[:kind];
+    kind==:constant
+      ?: 1
+      ?_ kind==:variable
+      ?: exact[:name]!=variable
+      ?_ kind==:operator
+      ?: exact[:operands].Filter((operand)->CasIndependent(operand,@variable)).Len()==exact[:operands].Len()
+      ?_ kind==:apply
+      ?: exact[:arguments].Filter((argument)->CasIndependent(argument,@variable)).Len()==exact[:arguments].Len()
+      ?_ _;
+};
+
+CasAffineState(valid, slope ?= 0, intercept ?= 0) -> {= valid=valid,slope=slope,intercept=intercept };
+CasAffine(expression, variable) -> {;
+    exact = CasExpression(expression);
+    kind = exact[:kind];
+    result := CasAffineState(_);
+    kind==:constant ?: {; @result ~= CasAffineState(1,0,@exact[:value]); } ?_ _;
+    kind==:variable && exact[:name]==variable ?: {; @result ~= CasAffineState(1,1,0); } ?_ _;
+    kind==:operator
+      ?: {;
+          operation = @exact[:operation];
+          operands = @exact[:operands];
+          operation==:negate
+            ?: {;
+                inner = CasAffine(@operands[1],@variable);
+                inner[:valid] ?: {; @result ~= CasAffineState(1,-@inner[:slope],-@inner[:intercept]); } ?_ _;
+            }
+            ?_ {;
+                left = CasAffine(@operands[1],@variable);
+                right = CasAffine(@operands[2],@variable);
+                (@operation==:add || @operation==:subtract) && left[:valid] && right[:valid]
+                  ?: {;
+                      @result ~= @operation==:add
+                        ?: CasAffineState(1,@left[:slope]+@right[:slope],@left[:intercept]+@right[:intercept])
+                        ?_ CasAffineState(1,@left[:slope]-@right[:slope],@left[:intercept]-@right[:intercept]);
+                  }
+                  ?_ _;
+                @result[:valid]==_ && @operation==:multiply && left[:valid] && right[:valid] && (left[:slope]==0 || right[:slope]==0)
+                  ?: {;
+                      @result ~= @left[:slope]==0
+                        ?: CasAffineState(1,@left[:intercept]*@right[:slope],@left[:intercept]*@right[:intercept])
+                        ?_ CasAffineState(1,@right[:intercept]*@left[:slope],@right[:intercept]*@left[:intercept]);
+                  }
+                  ?_ _;
+                @result[:valid]==_ && @operation==:divide && left[:valid] && right[:valid] && right[:slope]==0 && right[:intercept]!=0
+                  ?: {; @result ~= CasAffineState(1,@left[:slope]/@right[:intercept],@left[:intercept]/@right[:intercept]); }
+                  ?_ _;
+            };
+      }
+      ?_ _;
+    result;
+};
+
+CasIntegrationState(status, expression ?= _, obligations ?= [], rules ?= [], reason ?= _) -> {=
+    status=status,expression=expression,obligations=obligations,rules=rules,reason=reason
+};
+CasUnsupported(reason) -> CasIntegrationState(:unsupported,_,[],[],reason);
+CasCombineIntegral(operation,left,right) -> {;
+    left[:status]==:complete && right[:status]==:complete
+      ?: CasIntegrationState(
+          :complete,
+          operation==:add ?: left[:expression]+right[:expression] ?_ left[:expression]-right[:expression],
+          CasAppend(left[:obligations],right[:obligations]),
+          CasAppend(left[:rules],right[:rules]).Push({= rule=operation })
+      )
+      ?_ CasUnsupported(operation==:add ?: :unsupportedSumTerm ?_ :unsupportedDifferenceTerm);
+};
+CasPositiveObligation(expression, rule) -> .calculus.Obligation(:domain,:positive,expression,{= reason=rule });
+CasApplySemantic(expression, semanticId) ->
+    expression[:kind]==:apply && expression[:semanticId]==semanticId;
+CasPowerExponent(expression) ->
+    expression[:kind]==:operator && expression[:operation]==:power
+      ?: CasConstantValue(expression[:operands][2])
+      ?_ _;
+CasPurePowerDegree(expression, variable) -> {;
+    result := _;
+    expression[:kind]==:variable && expression[:name]==variable
+      ?: {; @result ~= 1; }
+      ?_ _;
+    result==_ && expression[:kind]==:operator && expression[:operation]==:power
+      ?: {;
+          exponent = CasConstantValue(@expression[:operands][2]);
+          base = @expression[:operands][1];
+          exponent!=_ && (exponent ? :Integer) && exponent>=0 && base[:kind]==:variable && base[:name]==@variable
+            ?: {; @result ~= @exponent; }
+            ?_ _;
+      }
+      ?_ _;
+    result;
+};
+
+CasIntegrateExpPower(variableExpression, degree, exponential, slope) ->
+    degree==0
+      ?: exponential/slope
+      ?_ (variableExpression^degree)*exponential/slope
+          -(degree/slope)*CasIntegrateExpPower(variableExpression,degree-1,exponential,slope);
+
+CasIntegrateProduct(left, right, variable) -> {;
+    variableExpression = .calculus.Variable(variable);
+    result := _;
+    CasIndependent(left,variable)
+      ?: {;
+          integrated = CasIntegrateNode(@right,@variable);
+          @result ~= integrated[:status]==:complete
+            ?: CasIntegrationState(:complete,@left*integrated[:expression],integrated[:obligations],integrated[:rules].Push({= rule=:constantFactor }))
+            ?_ integrated;
+      }
+      ?_ _;
+    result==_ && CasIndependent(right,variable)
+      ?: {;
+          integrated = CasIntegrateNode(@left,@variable);
+          @result ~= integrated[:status]==:complete
+            ?: CasIntegrationState(:complete,@right*integrated[:expression],integrated[:obligations],integrated[:rules].Push({= rule=:constantFactor }))
+            ?_ integrated;
+      }
+      ?_ _;
+    leftDegree = CasPurePowerDegree(left,variable);
+    rightDegree = CasPurePowerDegree(right,variable);
+    result==_ && leftDegree!=_ && CasApplySemantic(right,"rix.function.exp@1")
+      ?: {;
+          affine = CasAffine(@right[:arguments][1],@variable);
+          @result ~= affine[:valid] && affine[:slope]!=0
+            ?: CasIntegrationState(:complete,CasIntegrateExpPower(@variableExpression,@leftDegree,@right,affine[:slope]),[],[{= rule=:integrationByPartsExpPower,degree=@leftDegree,slope=affine[:slope] }])
+            ?_ CasUnsupported(:nonAffineExponentialArgument);
+      }
+      ?_ _;
+    result==_ && rightDegree!=_ && CasApplySemantic(left,"rix.function.exp@1")
+      ?: {;
+          affine = CasAffine(@left[:arguments][1],@variable);
+          @result ~= affine[:valid] && affine[:slope]!=0
+            ?: CasIntegrationState(:complete,CasIntegrateExpPower(@variableExpression,@rightDegree,@left,affine[:slope]),[],[{= rule=:integrationByPartsExpPower,degree=@rightDegree,slope=affine[:slope] }])
+            ?_ CasUnsupported(:nonAffineExponentialArgument);
+      }
+      ?_ _;
+    result==_ ?: CasUnsupported(:unsupportedProduct) ?_ result;
+};
+
+CasIntegrateQuotient(numerator, denominator, variable) -> {;
+    CasIndependent(numerator,variable)
+      ?: {;
+          affine = CasAffine(@denominator,@variable);
+          affine[:valid] && affine[:slope]!=0
+            ?: CasIntegrationState(
+                :complete,
+                @numerator*.calculus.Log()(@denominator)/affine[:slope],
+                [CasPositiveObligation(@denominator,:realLogBranch)],
+                [{= rule=:affineReciprocalSubstitution,slope=affine[:slope] }]
+            )
+            ?_ CasUnsupported(:unsupportedQuotient);
+      }
+      ?_ CasUnsupported(:unsupportedQuotient);
+};
+
+CasIntegratePower(base, exponentExpression, variable) -> {;
+    exponent = CasConstantValue(exponentExpression);
+    affine = CasAffine(base,variable);
+    affine[:valid] && affine[:slope]!=0 && exponent!=_ && (exponent ? :Integer)
+      ?: (exponent==-1
+           ?: CasIntegrationState(
+               :complete,.calculus.Log()(base)/affine[:slope],
+               [CasPositiveObligation(base,:realLogBranch)],
+               [{= rule=:affinePowerSubstitution,exponent=-1,slope=affine[:slope] }]
+           )
+           ?_ CasIntegrationState(
+               :complete,(base^(exponent+1))/(affine[:slope]*(exponent+1)),[],
+               [{= rule=:affinePowerSubstitution,exponent=exponent,slope=affine[:slope] }]
+           ))
+      ?_ CasUnsupported(:unsupportedPower);
+};
+
+CasIntegrateApplication(expression, variable) -> {;
+    argument = expression[:arguments][1];
+    affine = CasAffine(argument,variable);
+    CasApplySemantic(expression,"rix.function.exp@1")
+      ?: (affine[:valid] && affine[:slope]!=0
+           ?: CasIntegrationState(:complete,expression/affine[:slope],[],[{= rule=:affineExponentialSubstitution,slope=affine[:slope] }])
+           ?_ CasUnsupported(:nonAffineExponentialArgument))
+      ?_ CasApplySemantic(expression,"rix.function.log.real-principal@1")
+      ?: (affine[:valid] && affine[:slope]!=0
+           ?: CasIntegrationState(
+               :complete,(argument*expression-argument)/affine[:slope],
+               [CasPositiveObligation(argument,:realLogBranch)],
+               [{= rule=:integrationByPartsLog,slope=affine[:slope] }]
+           )
+           ?_ CasUnsupported(:nonAffineLogarithmArgument))
+      ?_ CasUnsupported(:unsupportedSemanticFunction);
+};
+
+CasIntegrateNode(expression, variable) -> {;
+    exact = CasExpression(expression);
+    variableExpression = .calculus.Variable(variable);
+    result := _;
+    CasIndependent(exact,variable)
+      ?: {; @result ~= CasIntegrationState(:complete,@exact*@variableExpression,[],[{= rule=:constantMultiple }]); }
+      ?_ _;
+    result==_ && exact[:kind]==:variable && exact[:name]==variable
+      ?: {; @result ~= CasIntegrationState(:complete,(@variableExpression^2)/2,[],[{= rule=:power,exponent=1 }]); }
+      ?_ _;
+    result==_ && exact[:kind]==:operator
+      ?: {;
+          operation = @exact[:operation];
+          operands = @exact[:operands];
+          operation==:negate
+            ?: {;
+                inner = CasIntegrateNode(@operands[1],@variable);
+                @result ~= inner[:status]==:complete
+                  ?: CasIntegrationState(:complete,-inner[:expression],inner[:obligations],inner[:rules].Push({= rule=:negation }))
+                  ?_ inner;
+            }
+            ?_ (operation==:add || operation==:subtract)
+            ?: {; @result ~= CasCombineIntegral(@operation,CasIntegrateNode(@operands[1],@variable),CasIntegrateNode(@operands[2],@variable)); }
+            ?_ operation==:multiply
+            ?: {; @result ~= CasIntegrateProduct(@operands[1],@operands[2],@variable); }
+            ?_ operation==:divide
+            ?: {; @result ~= CasIntegrateQuotient(@operands[1],@operands[2],@variable); }
+            ?_ operation==:power
+            ?: {; @result ~= CasIntegratePower(@operands[1],@operands[2],@variable); }
+            ?_ {; @result ~= CasUnsupported(:unsupportedOperator); };
+      }
+      ?_ _;
+    result==_ && exact[:kind]==:apply
+      ?: {; @result ~= CasIntegrateApplication(@exact,@variable); }
+      ?_ _;
+    result==_ ?: CasUnsupported(:unsupportedExpression) ?_ result;
+};
+
+CasIntegratePolynomial(polynomial) -> {;
+    variable = polynomial.Variable();
+    expression = CasPolynomialExpression(polynomial);
+    coefficients = polynomial.Coefficients(:ascending);
+    x = .calculus.Variable(variable);
+    primitive = coefficients.Reduce((sum,coefficient,index)->
+        sum+coefficient*(x^index)/index,
+        .calculus.Constant(0)
+    );
+    CasIntegrationState(:complete,primitive,[],[{= rule=:polynomialCoefficientIntegration,coefficients=coefficients }]);
+};
+
+CasIntegratePartialFractions(rationalFunction) -> {;
+    decomposition = .ratfun.PartialFractions(rationalFunction);
+    decomposition[:linearComplete]==1
+      ?: {;
+          polynomialState = CasIntegratePolynomial(@decomposition[:polynomialPart]);
+          x = .calculus.Variable(@decomposition[:variable]);
+          state := polynomialState;
+          {@ index=1; index<=@decomposition[:terms].Len(); {;
+             term = @decomposition[:terms][index];
+             base = @x-term[:root];
+             power = term[:power];
+             contribution = power==1
+               ?: term[:coefficient]*.calculus.Log()(base)
+               ?_ term[:coefficient]*(base^(1-power))/(1-power);
+             obligations = power==1 ?: [CasPositiveObligation(base,:realLogBranch)] ?_ [];
+             @state ~= CasIntegrationState(
+                 :complete,
+                 @state[:expression]+contribution,
+                 CasAppend(@state[:obligations],obligations),
+                 @state[:rules].Push({= rule=:linearPartialFraction,root=term[:root],power=power,coefficient=term[:coefficient] })
+             );
+          }; index += 1 };
+          state[:rules] = state[:rules].Push({= rule=:exactPartialFractionDecomposition,evidence=@decomposition });
+          state;
+      }
+      ?_ CasUnsupported(:nonlinearResidualPartialFraction);
+};
+
+CasIntegralResult(source, variable, state) -> {;
+    result = {=
+        valueKind=:casIntegral,
+        schema="rix.cas.integral@1",
+        source=source,
+        variable=variable,
+        status=state[:status],
+        antiderivative=state[:expression],
+        obligations=state[:obligations],
+        rules=state[:rules],
+        reason=state[:reason],
+        exact=state[:status]==:complete ?: 1 ?_ _,
+        verification=state[:status]==:complete ?: :checkedRuleReplay ?_ :unsupported
+    };
+    .ImmutableValue(result);
+};
+
+CasIntegrate(value, variable ?= :x, options ?= {= }) -> {;
+    options = CasRequireOptions(options,"CAS integration options");
+    name = value ? :Polynomial
+      ?: value.Variable()
+      ?_ value ? :RationalFunction
+      ?: value.variable
+      ?_ CasVariableName(variable);
+    state = value ? :Polynomial
+      ?: CasIntegratePolynomial(value)
+      ?_ value ? :RationalFunction
+      ?: CasIntegratePartialFractions(value)
+      ?_ CasIntegrateNode(CasExpression(value),name);
+    CasIntegralResult(value,name,state);
+};
+
+CasCheckIntegral(candidate) -> {;
+    valid = (candidate ? :Map) && candidate[:schema]=="rix.cas.integral@1";
+    valid
+      ?: {;
+          recomputed = CasIntegrate(@candidate[:source],@candidate[:variable]);
+          statusMatches = recomputed[:status]==@candidate[:status];
+          expressionMatches = recomputed[:status]==:complete
+            ?: CasExpressionKey(recomputed[:antiderivative])==CasExpressionKey(@candidate[:antiderivative])
+            ?_ recomputed[:reason]==@candidate[:reason];
+          accepted = statusMatches && expressionMatches;
+          .ImmutableValue({= accepted=accepted,certified=accepted ?: 1 ?_ _,reason=accepted ?: _ ?_ :integralClaimMismatch,recomputed=recomputed });
+      }
+      ?_ .ImmutableValue({= accepted=_,certified=_,reason=:malformedCasIntegral });
+};
+
+casCapabilities = .ImmutableValue({=
+    simplification=[:checkedGraphIdentities,:canonicalPolynomialNormalization,:expand,:collect,:factor],
+    integration=[:polynomials,:affinePowers,:affineReciprocals,:affineExponentials,:logByParts,:polynomialTimesExponentialByParts,:linearPartialFractions],
+    unsupported=[:generalRischIntegration,:trigonometricReduction,:nonlinearPartialFractionResiduals,:unrestrictedIdentitySearch]
+});
+
+casNamespace = {= };
+casNamespace._proto = {=
+    Simplify=(self,value)->CasSimplify(value),
+    CheckSimplification=(self,value)->CasCheckSimplification(value),
+    NormalizePolynomial=(self,value,variable ?= :x)->CasNormalizePolynomial(value,variable),
+    Expand=(self,value,variable ?= :x)->CasExpand(value,variable),
+    Collect=(self,value,variable ?= :x)->CasCollect(value,variable),
+    Factor=(self,value,variable ?= :x)->CasFactor(value,variable),
+    Integrate=(self,value,variable ?= :x,options ?= {= })->CasIntegrate(value,variable,options),
+    CheckIntegral=(self,value)->CasCheckIntegral(value),
+    Capabilities=(self)->casCapabilities
+};
+.Host.RegisterValue("cas",casNamespace,"Browser-safe course-level simplification and exact integration",["Algebra","Calculus","CAS","Exact","Symbolic"]);

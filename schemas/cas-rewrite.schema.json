@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/cas-rewrite/v1.schema.json",
+  "title": "RiX course CAS rewrite v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema", "valueKind", "operation", "source", "expression", "evidence", "obligations", "status"],
+  "properties": {
+    "schema": { "const": "rix.cas.rewrite@1" },
+    "valueKind": { "enum": ["casRewrite", "casCollectedPolynomial", "casFactorization"] },
+    "operation": { "enum": ["simplify", "normalizePolynomial", "expand", "collect", "factor"] },
+    "status": { "enum": ["complete", "partial"] },
+    "exact": { "type": ["boolean", "null"] },
+    "evidence": { "type": "array" },
+    "obligations": { "type": "array" }
+  }
+}
