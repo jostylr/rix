@@ -420,4 +420,49 @@ describe("Continued Fraction plugin", () => {
         expect(() => parseAndEvaluate(".cf.Sqrt(-1)", options))
             .toThrow("nonnegative");
     });
+
+    test("Phase 3 evaluates and canonically regularizes signed generalized forms", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("continued-fraction");
+            nonregular := .cf.GeneralizedFinite(1,[-1,2],[2,-3],{= name=:signed });
+            normalization := nonregular.Normalize();
+            {:
+                nonregular.Record(),nonregular.Convergents(),nonregular.Value(),
+                normalization,normalization[:normalized].Value(),nonregular.ZeroStatus()
+            };
+        `, options);
+        expect(entry(result.values[0], "schema").value)
+            .toBe("rix.continued-fraction.generalized-finite@1");
+        expect(entry(result.values[0], "numerators").values.map(String)).toEqual(["-1", "2"]);
+        expect(result.values[1].values.map(String)).toEqual(["1", "1/2", "1/4"]);
+        expect(result.values[2].toString()).toBe("1/4");
+        expect(entry(result.values[3], "coefficients").values.map(String)).toEqual(["0", "4"]);
+        expect(textValue(entry(result.values[3], "rule"))).toBe("exactFiniteRegularization");
+        expect(result.values[4].toString()).toBe("1/4");
+        expect(textValue(entry(result.values[5], "status"))).toBe("nonzero");
+        expect(textValue(entry(result.values[5], "reason"))).toBe("exactGeneralizedFiniteValue");
+    });
+
+    test("Phase 3 keeps generalized zero-denominator separation explicit", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("continued-fraction");
+            singular := .cf.GeneralizedFinite(1,[1],[0]);
+            {: singular.ConvergentResult(2),singular.ZeroStatus() };
+        `, options);
+        expect(textValue(entry(result.values[0], "status"))).toBe("denominatorZero");
+        expect(entry(result.values[0], "denominator").toString()).toBe("0");
+        expect(textValue(entry(result.values[0], "reason")))
+            .toBe("convergentDenominatorNotSeparatedFromZero");
+        expect(textValue(entry(result.values[1], "status"))).toBe("unknown");
+        expect(entry(result.values[1], "certified")).toBeNull();
+
+        expect(() => parseAndEvaluate("singular.Value()", options)).toThrow("denominator is zero");
+        expect(() => parseAndEvaluate("singular.Normalize()", options)).toThrow("denominator nonzero");
+        expect(() => parseAndEvaluate(".cf.GeneralizedFinite(0,[0],[1])", options))
+            .toThrow("zero numerator terminates");
+        expect(() => parseAndEvaluate(".cf.GeneralizedFinite(0,[1],[1,2])", options))
+            .toThrow("equal length");
+    });
 });

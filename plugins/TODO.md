@@ -792,7 +792,7 @@ tracked in
    - [x] Make exact Gosper homographic and bihomographic transducers the native
      same-family default for `+`, `-`, `*`, and `/`, with bounded diagnostics.
 3. **Phase 3 — Generalized continued fractions**
-   - [ ] Add nonregular generalized forms and their representation-specific
+   - [x] Add nonregular generalized forms and their representation-specific
      normalization and zero-separation rules.
 4. **Phase 4 — Research algorithms**
    - [x] Explore exact real arithmetic via continued-fraction transducers.

@@ -30,6 +30,28 @@ literal := .continuedFraction(3.~7~16);
 Both rows end at `355/113`. Coefficients are indexed from zero in the usual
 mathematical notation, while `Convergent(n)` consumes `n` coefficients.
 
+## Evaluate a nonregular generalized form
+
+A generalized continued fraction stores separate partial numerators and
+denominators. Finite forms may use signed exact coefficients, so their
+convergents come from the continuant recurrence rather than the regular
+positive-tail cylinder rule:
+
+```rix
+.Plugin.Load("continued-fraction");
+g := .cf.GeneralizedFinite(1, [-1,2], [2,-3], {= name=:signedExample });
+normalization := g.Normalize();
+.Table({=
+  columns=["generalized convergents", "exact value", "regular coefficients"],
+  rows=[[g.Convergents(), g.Value(), normalization[:coefficients]]]
+});
+```
+
+The value is `1/4`, and its canonical regular form is `[0,4]`. If a continuant
+denominator becomes zero, `ConvergentResult` records that exact witness and
+`ZeroStatus` stays `:unknown`; the plugin does not invent an infinite value or
+reuse the positive-tail proof from simple continued fractions.
+
 ## A lazy quadratic irrational
 
 The familiar expansion `sqrt(2) = [1; overline{2}]` never terminates. Its

@@ -4,12 +4,12 @@ description: Finite, lazy, transduced, and certified-extracted simple continued 
 kind: rix
 mount: continuedFraction
 aliases: [cf]
-exports: [Finite, Lazy, Periodic, Sqrt2, Sqrt, NthRoot, FromRational, FromRefinable, Coefficient, CoefficientResult, Coefficients, Convergent, Convergents, Enclosure, ErrorInterval, QuadraticForm, BestApproximation, Translate, Reciprocal, ZeroStatus, Record]
+exports: [Finite, Lazy, Periodic, GeneralizedFinite, Sqrt2, Sqrt, NthRoot, FromRational, FromRefinable, Coefficient, CoefficientResult, Coefficients, Convergent, Convergents, Enclosure, ErrorInterval, QuadraticForm, BestApproximation, Translate, Reciprocal, ZeroStatus, Record]
 groups: [Numerics, Exact]
 permissions: []
 requires: [rix.oracle@1]
 provides: [rix.continued-fraction@1, rix.refinable@1, rix.enclosable-real@1]
-schemas: [rix.continued-fraction.finite@1, rix.continued-fraction.lazy@1, rix.continued-fraction.gosper@1, rix.continued-fraction.extractor@1, rix.continued-fraction.coefficient-result@1, rix.continued-fraction.arithmetic-real@1, rix.continued-fraction.quadratic-form@1, rix.continued-fraction.best-approximation@1, rix.continued-fraction.zero-status@1]
+schemas: [rix.continued-fraction.finite@1, rix.continued-fraction.lazy@1, rix.continued-fraction.generalized-finite@1, rix.continued-fraction.generalized-result@1, rix.continued-fraction.generalized-normalization@1, rix.continued-fraction.gosper@1, rix.continued-fraction.extractor@1, rix.continued-fraction.coefficient-result@1, rix.continued-fraction.arithmetic-real@1, rix.continued-fraction.quadratic-form@1, rix.continued-fraction.best-approximation@1, rix.continued-fraction.zero-status@1]
 snapshot: false
 deterministic: true
 defaultEnabled: false
@@ -1861,6 +1861,164 @@ CFArithmetic(operation, left, right ?= _) -> {;
                      ?_ CFOracleArithmetic(operation,left,right))));
 };
 
+GCFExact(value, label) -> {;
+    ((value ? :Integer) || (value ? :Rational))
+      ?: value ~!: :Rational
+      ?_ .Error(@"@{label} must be an exact Integer or Rational");
+};
+
+GCFConvergentResult(real, countValue) -> {;
+    count = CFRequireCount(countValue,"Generalized continued-fraction convergent count");
+    count <= real[:length]+1
+      ?: _
+      ?_ .Error("Generalized continued-fraction convergent count exceeds the finite representation");
+    previousNumerator := 1;
+    numerator := real[:integerPart];
+    previousDenominator := 0;
+    denominator := 1;
+    singularIndex := _;
+    {@ index=1; index < @count && @singularIndex == _; {;
+        partialNumerator = (@real[:numerators])[index];
+        partialDenominator = (@real[:denominators])[index];
+        nextNumerator = partialDenominator*@numerator + partialNumerator*@previousNumerator;
+        nextDenominator = partialDenominator*@denominator + partialNumerator*@previousDenominator;
+        @previousNumerator = @numerator;
+        @numerator = nextNumerator;
+        @previousDenominator = @denominator;
+        @denominator = nextDenominator;
+        @singularIndex = nextDenominator == 0 ?: index ?_ _;
+    }; index+=1 };
+    singular = singularIndex != _;
+    .ImmutableValue({=
+        valueKind=:generalizedContinuedFractionResult,
+        schema="rix.continued-fraction.generalized-result@1",
+        status=singular ?: :denominatorZero ?_ :exact,
+        count=count,
+        numerator=numerator,
+        denominator=denominator,
+        value=singular ?: _ ?_ numerator/denominator,
+        certified=singular ?: _ ?_ 1,
+        reason=singular ?: :convergentDenominatorNotSeparatedFromZero ?_ :exactFiniteRecurrence,
+        singularIndex=singularIndex,
+        evidence={=
+            kind=:generalizedContinuantRecurrence,
+            property=singular ?: :zeroDenominatorWitness ?_ :exactRationalConvergent,
+            numerator=numerator,
+            denominator=denominator
+        }
+    });
+};
+
+GCFConvergent(real, count) -> {;
+    result = GCFConvergentResult(real,count);
+    result[:status] == :exact
+      ?: result[:value]
+      ?_ .Error(@"Generalized continued-fraction convergent denominator is zero at index @{result[:singularIndex]}");
+};
+
+GCFConvergents(real) -> {;
+    values := [];
+    {@ count=1; count<=@real[:length]+1; {;
+        @values = @values.Push(GCFConvergent(@real,count));
+    }; count+=1 };
+    values;
+};
+
+GCFNormalize(real) -> {;
+    result = GCFConvergentResult(real,real[:length]+1);
+    result[:status] == :exact
+      ?: _
+      ?_ .Error("Generalized continued-fraction normalization requires a finite value with every convergent denominator nonzero");
+    normalized = CFFromRational(result[:value],{= name=:normalizedGeneralized });
+    .ImmutableValue({=
+        valueKind=:generalizedContinuedFractionNormalization,
+        schema="rix.continued-fraction.generalized-normalization@1",
+        source=real,
+        normalized=normalized,
+        coefficients=normalized[:coefficients],
+        value=result[:value],
+        certified=1,
+        rule=:exactFiniteRegularization,
+        evidence={=
+            kind=:continuantEvaluation,
+            property=:sameExactRationalValue,
+            generalized=result[:evidence],
+            regular=normalized[:evidence]
+        }
+    });
+};
+
+GCFZeroStatus(real) -> {;
+    result = GCFConvergentResult(real,real[:length]+1);
+    exact = result[:status] == :exact;
+    value = exact ?: result[:value] ?_ _;
+    .ImmutableValue({=
+        valueKind=:continuedFractionZeroStatus,
+        schema="rix.continued-fraction.zero-status@1",
+        status=exact ?: (value == 0 ?: :zero ?_ :nonzero) ?_ :unknown,
+        certified=exact ?: 1 ?_ _,
+        sign=exact ?: (value < 0 ?: :negative ?_ (value > 0 ?: :positive ?_ :zero)) ?_ :unknown,
+        reason=exact ?: :exactGeneralizedFiniteValue ?_ result[:reason],
+        evidence=result[:evidence]
+    });
+};
+
+GCFAttachProtocol(real) -> {;
+    real._proto = {=
+        ConvergentResult=(self,count)->GCFConvergentResult(self,count),
+        Convergent=(self,count)->GCFConvergent(self,count),
+        Convergents=(self)->GCFConvergents(self),
+        Value=(self)->GCFConvergent(self,self[:length]+1),
+        Normalize=(self)->GCFNormalize(self),
+        Regularize=(self)->GCFNormalize(self)[:normalized],
+        ZeroStatus=(self)->GCFZeroStatus(self),
+        Record=(self)->{=
+            valueKind=self[:valueKind],schema=self[:schema],kind=self[:kind],
+            integerPart=self[:integerPart],numerators=self[:numerators],
+            denominators=self[:denominators],length=self[:length],
+            normalization=:exactFiniteRegularization,evidence=self[:evidence]
+        }
+    };
+    .ImmutableValue(real);
+};
+
+GCFGeneralizedFinite(integerPartValue, numeratorsValue, denominatorsValue, options ?= {= }) -> {;
+    numeratorsValue ? :Array
+      ?: _ ?_ .Error("GeneralizedFinite numerators must be an Array");
+    denominatorsValue ? :Array
+      ?: _ ?_ .Error("GeneralizedFinite denominators must be an Array");
+    length = numeratorsValue.Len();
+    length == denominatorsValue.Len()
+      ?: _ ?_ .Error("GeneralizedFinite numerator and denominator arrays must have equal length");
+    exactNumerators := [];
+    exactDenominators := [];
+    {@ index=1; index<=@length; {;
+        numerator = GCFExact((@numeratorsValue)[index],@"Generalized numerator @{index}");
+        numerator != 0
+          ?: _ ?_ .Error(@"Generalized numerator @{index} must be nonzero; a zero numerator terminates the representation");
+        @exactNumerators = @exactNumerators.Push(numerator);
+        @exactDenominators = @exactDenominators.Push(
+            GCFExact((@denominatorsValue)[index],@"Generalized denominator @{index}")
+        );
+    }; index+=1 };
+    GCFAttachProtocol({=
+        valueKind=:generalizedContinuedFraction,
+        schema="rix.continued-fraction.generalized-finite@1",
+        kind=:generalizedFinite,
+        name=CFOption(options,"name",:generalizedFinite),
+        integerPart=GCFExact(integerPartValue,"Generalized integer part"),
+        numerators=exactNumerators,
+        denominators=exactDenominators,
+        length=length,
+        evidence={=
+            kind=:finiteGeneralizedContinuedFraction,
+            property=:exactContinuantRecurrence,
+            coefficientPolicy=:signedExactRationals,
+            zeroPolicy=:explicitConvergentDenominatorCheck
+        }
+    });
+};
+
 .TypeKnown(:ContinuedFractionReal) ?: _ ?_ .TypeRegister({=
     name=:ContinuedFractionReal,
     nativeType=:map,
@@ -1926,6 +2084,8 @@ continuedFractionNamespace._proto = {=
     Finite = (self, coefficients, options ?= {= }) -> CFFinite(coefficients, options),
     Lazy = (self, coefficientFunction, options ?= {= }) -> CFLazy(coefficientFunction, options),
     Periodic = (self, prefix, period, options ?= {= }) -> CFPeriodic(prefix, period, options),
+    GeneralizedFinite = (self, integerPart, numerators, denominators, options ?= {= }) ->
+        GCFGeneralizedFinite(integerPart,numerators,denominators,options),
     Sqrt2 = (self) -> CFSqrt2(),
     Sqrt = (self, value, options ?= {= }) -> CFSquareRoot(value, options),
     NthRoot = (self, value, degree ?= 2, options ?= {= }) -> CFNthRoot(value, degree, options),

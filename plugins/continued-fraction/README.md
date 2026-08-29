@@ -26,6 +26,40 @@ Coefficient indices use the conventional zero-based `a_0, a_1, ...` notation.
 Convergent counts are positive and follow the existing RiX Rational convention:
 `Convergent(1)` uses one coefficient.
 
+## Finite generalized continued fractions
+
+`GeneralizedFinite(b0, numerators, denominators, options?)` represents
+
+```text
+b0 + a1/(b1 + a2/(b2 + ... + an/bn)).
+```
+
+Every coefficient is an exact Integer or Rational. Partial numerators may be
+signed, and partial denominators may be signed or zero, so this representation
+does not inherit the positive-tail cylinder theorem used by regular continued
+fractions.
+
+```rix
+.Plugin.Load("continued-fraction");
+g := .cf.GeneralizedFinite(1, [-1,2], [2,-3]);
+g.Convergents(); ## [1,1/2,1/4]
+g.Value();       ## 1/4
+g.Normalize()[:coefficients]; ## [0,4]
+```
+
+Convergents use the exact continuant recurrence. `ConvergentResult(n)` returns
+`:denominatorZero` instead of creating an infinity when the recurrence
+denominator is zero; strict `Convergent`, `Value`, and `Normalize` reject that
+state. `ZeroStatus()` reports `:unknown` for such a singular representation.
+Zero partial numerators are rejected because they terminate the fraction and
+would make following terms misleading.
+
+`Normalize()` evaluates a nonsingular finite generalized form exactly and
+returns a `rix.continued-fraction.generalized-normalization@1` certificate plus
+its canonical regular finite continued fraction. This is a value-preserving
+regularization, not a claim that arbitrary infinite generalized fractions have
+positive regular tails or certified convergence.
+
 ## Lazy and periodic values
 
 ```rix
@@ -220,8 +254,9 @@ about a bounded prefix:
   a structured domain-unknown result. A transduced divisor that has not yet
   been separated from zero likewise remains unresolved under bounded work.
 
-Generalized, signed-digit, and retracting continued fractions are not yet
-supported; those representations need their own zero-separation rules.
+Infinite generalized, signed-digit, and retracting continued fractions remain
+future work; those representations require convergence evidence beyond the
+finite continuant and zero-separation rules above.
 
 See the runnable [Gosper arithmetic exploration](../../explorations/continued-fractions/gosper-arithmetic.md).
 
