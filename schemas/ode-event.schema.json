@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/ode-event/v1.schema.json",
+  "title": "RiX ODE event v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema", "valueKind", "name", "expression", "direction"],
+  "properties": {
+    "schema": { "const": "rix.ode.event@1" },
+    "valueKind": { "const": "odeEvent" },
+    "name": { "type": "string" },
+    "direction": { "enum": ["any", "rising", "falling"] },
+    "terminal": { "type": ["boolean", "null"] },
+    "continuityAssumption": { "type": "string" }
+  }
+}

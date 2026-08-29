@@ -1,6 +1,6 @@
 ---
-title: Approximate trajectories and validated ODE tubes
-description: Compare Euler and RK4 demonstrations with a checked Picard enclosure for a scalar initial-value problem.
+title: Vector trajectories, adaptive estimates, and validated ODE tubes
+description: Compare fixed and adaptive demonstrations with checked scalar and vector Picard enclosures and honest event candidates.
 theme: Numbers and numerics
 status: implemented
 ---
@@ -77,6 +77,51 @@ solution := .ode.IVP(y,0,1,0:1).ValidatedPicard({= steps=4 });
 {: solution.At(1/2),solution[:finalState][1],solution[:certified] };
 ```
 
+## Solve a vector system
+
+The same APIs preserve coordinate order for the harmonic oscillator. RK4 is
+still approximate; ValidatedPicard checks the entire two-by-two Jacobian and a
+box contraction.
+
+```{.rix exec=true}
+.Plugin.Load("ode");
+x := .calculus.Variable(:x);
+y := .calculus.Variable(:y);
+oscillator := .ode.IVP([y,-x],0,[1,0],0:1/2,{= stateNames=[:x,:y] });
+rk := oscillator.RK4({= steps=2 });
+tube := oscillator.ValidatedPicard({= steps=4,maxSubintervals=2 });
+{: rk[:finalState],tube[:finalState],tube[:segments][1][:contractionBound] };
+```
+
+## Adapt steps without overclaiming
+
+Step doubling gives a useful local estimate but not a global proof.
+
+```{.rix exec=true}
+.Plugin.Load("ode");
+y := .calculus.Variable(:y);
+adaptive := .ode.IVP(y,0,1,0:1).AdaptiveRK4({=
+  initialSteps=1,tolerance=1/10000,maxAttempts=100
+});
+{: adaptive[:status],adaptive[:work],adaptive[:errorModel] };
+```
+
+## Keep event claims honest
+
+An approximate sign change is an observed candidate. A validated range that
+misses zero is a proof that no event occurs on that segment.
+
+```{.rix exec=true}
+.Plugin.Load("ode");
+y := .calculus.Variable(:y);
+half := .ode.Event(y-1/2,{= name=:half,direction=:rising });
+observed := .ode.IVP(.calculus.Constant(1),0,0,0:1,{= events=[half] })
+  .RK4({= steps=4 }).IsolateEvents()[1];
+excluded := .ode.IVP(.calculus.Constant(0),0,1,0:1,{= events=[.ode.Event(y)] })
+  .ValidatedPicard({= steps=2 }).IsolateEvents()[1];
+{: observed[:candidates],excluded[:exclusions] };
+```
+
 ## Bounded failure preserves useful work
 
 A deliberately inadequate radius budget cannot validate `y'=100y` over one
@@ -100,7 +145,7 @@ self-map, but work exhaustion is never reported as nonexistence.
 2. Give the validated solver an interval initial state such as `(99/100):(101/100)`
    and inspect how it propagates measurement uncertainty.
 3. Reduce the Picard step count and watch wrapping widen the endpoint.
-4. Build a two-state harmonic-oscillator IVP. The record is accepted today;
-   execution intentionally reports the pending vector-solver boundary.
-5. Sketch an event expression for `y=2` in the problem's `events` field and
-   explain why sampling a sign change would not yet certify the event time.
+4. Compare the vector RK4 oscillator against its validated component boxes.
+5. Change an event direction and observe which endpoint sign changes qualify.
+6. Explain why a validated event range containing zero still needs an
+   existence or interval-Newton argument.

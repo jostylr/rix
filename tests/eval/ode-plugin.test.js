@@ -35,6 +35,8 @@ describe("pure RiX ODE plugin", () => {
             "rix.ode.problem@1",
             "rix.ode.solution@1",
             "rix.ode.dense-segment@1",
+            "rix.ode.event@1",
+            "rix.ode.event-result@1",
         ]);
     });
 
@@ -118,14 +120,74 @@ describe("pure RiX ODE plugin", () => {
         expect(entry(entry(solution, "work"), "completedsteps").value).toBe(0n);
     });
 
-    test("rejects vector execution while retaining vector IVP records for later solvers", () => {
-        expect(() => parseAndEvaluate(`
+    test("executes vector RK4 and returns vector dense output", () => {
+        const result = parseAndEvaluate(`
             .Plugin.Load("ode");
             x := .calculus.Variable(:x);
             y := .calculus.Variable(:y);
             problem := .ode.IVP([y,-x],0,[1,0],0:1,{= stateNames=[:x,:y] });
-            problem.RK4({= steps=4 });
-        `, runtime())).toThrow("currently supports scalar IVPs");
+            solution := problem.RK4({= steps=1 });
+            {: solution,solution.At(1) };
+        `, runtime());
+        const solution = result.values[0];
+        expect(entry(solution, "finalstate").values.map(String)).toEqual(["13/24", "-5/6"]);
+        expect(result.values[1].values.map(String)).toEqual(["13/24", "-5/6"]);
+    });
+
+    test("certifies a vector Picard tube with a checked Jacobian contraction", () => {
+        const solution = parseAndEvaluate(`
+            .Plugin.Load("ode");
+            x := .calculus.Variable(:x);
+            y := .calculus.Variable(:y);
+            problem := .ode.IVP([y,-x],0,[1,0],0:1/2,{= stateNames=[:x,:y] });
+            problem.ValidatedPicard({= steps=4,maxTubeIterations=8,maxSubintervals=2 });
+        `, runtime());
+        expect(text(entry(solution, "status"))).toBe("validated");
+        expect(entry(solution, "finalstate").values).toHaveLength(2);
+        const first = entry(solution, "segments").values[0];
+        expect(entry(first, "contractionbound").lessThan(new Rational(1n))).toBe(true);
+        expect(entry(first, "tube").values).toHaveLength(2);
+    });
+
+    test("adapts RK4 by exact step doubling without claiming a global certificate", () => {
+        const solution = parseAndEvaluate(`
+            .Plugin.Load("ode");
+            y := .calculus.Variable(:y);
+            .ode.IVP(y,0,1,0:1).AdaptiveRK4({=
+                initialSteps=1,tolerance=1/10000,maxAttempts=100
+            });
+        `, runtime());
+        expect(text(entry(solution, "status"))).toBe("approximate");
+        expect(text(entry(solution, "method"))).toBe("adaptiveRK4");
+        expect(entry(solution, "certified")).toBeNull();
+        expect(entry(entry(solution, "work"), "acceptedsteps").value).toBeGreaterThan(0n);
+        expect(text(entry(entry(solution, "errormodel"), "localestimate"))).toBe("stepDoubling");
+    });
+
+    test("isolates observed event candidates and certifies validated exclusions", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("ode");
+            y := .calculus.Variable(:y);
+            crossing := .ode.Event(y-1/2,{= name=:half,direction=:rising });
+            observed := .ode.IVP(.calculus.Constant(1),0,0,0:1,{= events=[crossing] })
+                .RK4({= steps=4 }).IsolateEvents()[1];
+            excluded := .ode.IVP(.calculus.Constant(0),0,1,0:1,{= events=[.ode.Event(y)] })
+                .ValidatedPicard({= steps=2 }).IsolateEvents()[1];
+            {: observed,excluded };
+        `, runtime());
+        const observed = result.values[0];
+        const excluded = result.values[1];
+        expect(entry(observed, "candidates").values.length).toBeGreaterThan(0);
+        const candidate = entry(observed, "candidates").values[0];
+        expect(text(entry(candidate, "classification"))).toBe("observedCandidate");
+        expect(entry(candidate, "interval").low.lessThanOrEqual(new Rational(1n, 2n))).toBe(true);
+        expect(entry(candidate, "interval").high.greaterThanOrEqual(new Rational(1n, 2n))).toBe(true);
+        expect(entry(excluded, "candidates").values).toHaveLength(0);
+        expect(entry(excluded, "exclusions").values).toHaveLength(2);
+        expect(entry(entry(excluded, "exclusions").values[0], "certified").value).toBe(1n);
+    });
+
+    test("rejects midpoint loss for interval initial states in approximate solvers", () => {
         expect(() => parseAndEvaluate(`
             .Plugin.Load("ode");
             y := .calculus.Variable(:y);

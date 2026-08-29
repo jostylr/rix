@@ -477,12 +477,18 @@ newline normalization.
    - [x] Add a runnable tutorial contrasting exact arithmetic, approximation,
      validation, and bounded failure.
 3. **Phase 3 — Systems, adaptation, and events**
-   - [ ] Add vector IVP execution using checked Jacobian boxes and
-     Taylor-model/affine wrapping control.
-   - [ ] Add adaptive embedded RK demonstrations with local-error estimates and
-     a separately certified Taylor/Picard method with truncation remainders.
-   - [ ] Isolate event times as intervals, add higher-order reductions, dense
-     certified output, backward integration, and Plot/Scene3D adapters.
+   - [x] Add vector Euler/RK4 execution and componentwise validated Picard boxes
+     using a checked full Jacobian and an explicit contraction bound.
+   - [ ] Add Taylor-model/affine wrapping control to the validated vector flow.
+   - [x] Add adaptive RK4 step-doubling demonstrations with exact local-error
+     estimates, bounded rejection, and no false global certificate.
+   - [ ] Add a separately certified higher-order Taylor/Picard method with
+     truncation remainders and adaptive validated subdivision.
+   - [x] Add portable event records, observed sign-change bisection for
+     approximate dense output, and certified no-event exclusions over tubes.
+   - [ ] Prove event existence/uniqueness with interval Newton, then add
+     higher-order dense certified output, backward integration, and
+     Plot/Scene3D adapters.
    - [ ] Add shooting/collocation-oriented boundary-value problem records and
      solvers after vector IVPs and nonlinear box services stabilize.
 4. **Phase 4 — Advanced differential equations**

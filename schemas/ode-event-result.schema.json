@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/ode-event-result/v1.schema.json",
+  "title": "RiX ODE event candidates v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema", "valueKind", "event", "solution", "candidates", "exclusions", "evidenceLevel"],
+  "properties": {
+    "schema": { "const": "rix.ode.event-result@1" },
+    "valueKind": { "const": "odeEventResult" },
+    "event": { "$ref": "ode-event.schema.json" },
+    "solution": { "$ref": "ode-solution.schema.json" },
+    "candidates": { "type": "array" },
+    "exclusions": { "type": "array" },
+    "complete": { "type": ["boolean", "null"] },
+    "certified": { "type": ["boolean", "null"] },
+    "evidenceLevel": { "enum": ["observed", "partialProof", "unresolved"] }
+  }
+}

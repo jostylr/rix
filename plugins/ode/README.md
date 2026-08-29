@@ -23,11 +23,9 @@ problem := .ode.IVP(y+t,0,1,0:1,{=
 
 `IVP(rhs,initialTime,initialState,interval,options?)` returns
 `rix.ode.problem@1`. `rhs`, `initialState`, and `stateNames` are arrays in the
-record even for a scalar problem, preserving the coordinate order needed by
-later vector and higher-order reductions. Parameters, units, event
-specifications, and regularity assumptions remain inert data. The current
-execution methods support forward scalar problems; vector records are already
-accepted but fail explicitly when passed to a scalar solver.
+record even for a scalar problem. Euler, RK4, adaptive RK4, and validated
+Picard all preserve that coordinate order for vector systems. Parameters,
+units, event specifications, and regularity assumptions remain portable data.
 
 The right-hand side must use public Calculus expressions rather than an opaque
 callback. This makes derivative identity, domain checking, interchange, and
@@ -37,10 +35,14 @@ eventual recipe revival possible without serializing executable code.
 
 - `Euler(problem,{= steps=n })` uses fixed-step explicit Euler.
 - `RK4(problem,{= steps=n })` uses the classical fixed-step four-stage method.
+- `AdaptiveRK4(problem,{= tolerance=e })` compares one full RK4 step with two
+  half steps, rejects or enlarges rational steps, and records the exact
+  step-doubling estimate.
 
-Both compute deterministic exact-rational step arithmetic when the expression
+All compute deterministic exact-rational step arithmetic when the expression
 does. Their solution status is always `:approximate`, `certified` is unset,
-and the record states that no local or global error estimate was computed.
+and no global error certificate is claimed. AdaptiveRK4's local estimate is an
+observed estimator, not a proof of the trajectory's error.
 Formal method order is instructional metadata, not an error certificate.
 Approximate methods require a point initial state so interval uncertainty is
 never silently replaced by a midpoint.
@@ -52,17 +54,18 @@ answer to a certified trajectory.
 ## Validated Picard tubes
 
 `ValidatedPicard(problem,options?)` is the first certified solver rung. On each
-fixed time segment `T=[t0,t1]`, it searches for a rational interval `B` such
+fixed time segment `T=[t0,t1]`, it searches for a rational interval box `B` such
 that
 
 ```text
 Y0 + [0,h] f(T,B) subset B,  h=t1-t0.
 ```
 
-The self-map condition supplies a Picard existence enclosure. RiX derives
-`df/dy` from the public expression, checks the derivative transformation, and
-certifies its complete range on `T x B`; the resulting Lipschitz bound supplies
-uniqueness. The endpoint is enclosed by `Y0 + h*f(T,B)`. All graph ranges use
+The condition is componentwise for systems. RiX derives and checks the full
+state Jacobian, certifies its complete interval range on `T x B`, and requires
+the infinity-norm contraction bound `h max_i sum_j |J_ij(B)| < 1`. The self-map
+and contraction establish existence and uniqueness. The endpoint is enclosed
+by `Y0 + h*f(T,B)`. All graph ranges use
 exact outward interval arithmetic and retain their independently checkable
 evidence.
 
@@ -77,22 +80,40 @@ A completed result has `status=:validated`, `classification=:certifiedTube`,
 and `certified=1`. If a self-map cannot be established, the result has
 `status=:partial`; all earlier certified segments and the unresolved attempted
 segment remain available. `solution.At(t)` returns the certified tube covering
-`t`, not a midpoint estimate.
+`t`, not a midpoint estimate. Scalar queries retain the convenient scalar
+return; vector queries return the ordered interval box.
+
+## Event candidates and exclusions
+
+`Event(expression,{= name=:zero,direction=:any })` creates a portable event
+record. `solution.IsolateEvents()` then reports one result per event.
+
+- On approximate linear dense output, sign changes are bisected and labeled
+  `:observedCandidate`; they are not certified trajectory events.
+- On validated tubes, a graph range excluding zero certifies that the whole
+  segment has no event. A range containing zero is only an
+  `:unresolvedCandidate`: containment alone proves neither existence nor
+  uniqueness.
+
+This distinction leaves room for the later certified event method, which must
+combine a dense validated flow with an interval-Newton derivative test.
 
 ## Deliberate first-release limits
 
-- forward scalar IVPs only for execution;
+- forward first-order scalar and vector IVPs;
 - fixed rational time steps;
 - unconditional differentiable Calculus graphs with exact rational range
   endpoints;
-- first-order Picard endpoint enclosures, so wrapping can grow quickly;
-- no event isolation yet; and
-- no adaptive RK pair, Taylor-model flow, vector system, stiffness method,
+- first-order componentwise Picard boxes, so wrapping can grow quickly;
+- adaptive RK4 has estimates but no global certificate;
+- event exclusions are certifiable, while event existence/uniqueness is not;
+  and
+- no Taylor-model flow, stiffness method, backward integration,
   boundary-value solver, or continuation yet.
 
-The record shapes reserve those extensions. The next validated rung is vector
-Picard/Taylor segments using checked Jacobians and Taylor models, followed by
-event-time intervals and adaptive subdivision. Boundary-value problems then
+The record shapes reserve those extensions. The next validated rung is
+higher-order Taylor segments with affine/Taylor wrapping control, followed by
+interval-Newton event times and adaptive certified subdivision. Boundary-value problems then
 become a separate problem kind rather than being disguised as an IVP.
 
 See [tutorial.md](tutorial.md) for runnable approximate, validated, and

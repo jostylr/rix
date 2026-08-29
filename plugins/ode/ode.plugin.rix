@@ -1,14 +1,14 @@
 /**
 id: ode
-description: Portable initial-value problems, educational fixed-step trajectories, and checked Picard interval tubes.
+description: Portable initial-value problems, vector trajectories, adaptive demonstrations, checked Picard interval tubes, and event candidates.
 kind: rix
 mount: ode
-exports: [IVP, Euler, RK4, ValidatedPicard, At, Points, Segments, Record, IsProblem, IsSolution]
+exports: [IVP, Euler, RK4, AdaptiveRK4, ValidatedPicard, Event, IsolateEvents, At, Points, Segments, Record, IsProblem, IsSolution]
 groups: [Numerics, ODE, Calculus]
 permissions: []
 requires: [rix.calculus@1, rix.numerics@2]
-provides: [rix.ode@1, rix.ode.problem@1, rix.ode.solution@1, rix.ode.dense-segment@1]
-schemas: [rix.ode.problem@1, rix.ode.solution@1, rix.ode.dense-segment@1]
+provides: [rix.ode@1, rix.ode.problem@1, rix.ode.solution@1, rix.ode.dense-segment@1, rix.ode.event@1, rix.ode.event-result@1]
+schemas: [rix.ode.problem@1, rix.ode.solution@1, rix.ode.dense-segment@1, rix.ode.event@1, rix.ode.event-result@1]
 snapshot: false
 deterministic: true
 defaultEnabled: false
@@ -133,18 +133,45 @@ OdeIVP(rhsValue, initialTimeValue, initialStateValue, intervalValue, options ?= 
     problem;
 };
 
-OdeRequireScalar(problem, method) -> {;
-    exact = OdeRequireProblem(problem);
-    exact[:dimension] == 1
-      ?: exact
-      ?_ .Error(@"ODE @{method} currently supports scalar IVPs; the problem record already preserves vector state order");
+OdeRequirePointState(problem, method) -> problem[:initialState].Map((entry)->
+    entry.Width() == 0
+      ?: entry.Low()
+      ?_ .Error(@"ODE @{method} requires a point initial state; use ValidatedPicard to propagate interval state")
+);
+
+OdeBindings(problem, time, state) -> {;
+    bindings := problem[:parameters].Set(problem[:independent],time);
+    {@ index=1; index<=@problem[:dimension]; {;
+       @bindings ~= @bindings.Set(@problem[:stateNames][index],@state[index]);
+    }; index += 1 };
+    bindings;
 };
 
-OdePointValue(problem, time, state) -> {;
-    bindings = problem[:parameters].Set(problem[:independent],time)
-      .Set(problem[:stateNames][1],state);
-    value = .calculus.Evaluate(problem[:rhs][1],bindings);
-    value ~!: :Rational;
+OdePointValues(problem, time, state) -> {;
+    bindings = OdeBindings(problem,time,state);
+    problem[:rhs].Map((expression)->
+        .calculus.Evaluate(expression,@bindings) ~!: :Rational
+    );
+};
+
+OdeVectorAdd(left, right) -> left.Map((value,index)->value+right[index]);
+OdeVectorSubtract(left, right) -> left.Map((value,index)->value-right[index]);
+OdeVectorScale(values, scale) -> values.Map((value)->value*scale);
+OdeVectorCombination(k1, k2, k3, k4) -> k1.Map((value,index)->
+    value+2*k2[index]+2*k3[index]+k4[index]
+);
+OdeVectorMaxAbs(values) -> values.Reduce((largest,value)->{;
+    magnitude = value < 0 ?: -value ?_ value;
+    magnitude > largest ?: magnitude ?_ largest;
+},0);
+
+OdeRK4Step(problem, time, state, stepSize) -> {;
+    k1 = OdePointValues(problem,time,state);
+    k2 = OdePointValues(problem,time+stepSize/2,OdeVectorAdd(state,OdeVectorScale(k1,stepSize/2)));
+    k3 = OdePointValues(problem,time+stepSize/2,OdeVectorAdd(state,OdeVectorScale(k2,stepSize/2)));
+    k4 = OdePointValues(problem,time+stepSize,OdeVectorAdd(state,OdeVectorScale(k3,stepSize)));
+    next = OdeVectorAdd(state,OdeVectorScale(OdeVectorCombination(k1,k2,k3,k4),stepSize/6));
+    {= next=next,slopes=[k1,k2,k3,k4],rhsEvaluations=4 };
 };
 
 OdeDenseSegment(method, index, t0, t1, y0, y1, data ?= {= }) ->
@@ -156,8 +183,8 @@ OdeDenseSegment(method, index, t0, t1, y0, y1, data ?= {= }) ->
         index=index,
         tStart=t0,
         tEnd=t1,
-        stateStart=[y0],
-        stateEnd=[y1],
+        stateStart=y0,
+        stateEnd=y1,
         interpolation=:linear,
         data=data,
         certified=_,
@@ -165,18 +192,14 @@ OdeDenseSegment(method, index, t0, t1, y0, y1, data ?= {= }) ->
     });
 
 OdeApproximateSolution(problemValue, method, options ?= {= }) -> {;
-    problem = OdeRequireScalar(problemValue,method);
+    problem = OdeRequireProblem(problemValue);
     options = OdeRequireOptions(options,@"ODE @{method} options");
     steps = OdeRequirePositiveInteger(OdeOption(options,"steps",10),@"ODE @{method} steps");
     lower = problem[:initialTime];
     upper = problem[:interval].High();
     stepSize = (upper-lower)/steps;
     time := lower;
-    initial = problem[:initialState][1];
-    initial.Width() == 0
-      ?: _
-      ?_ .Error(@"ODE @{method} requires a point initial state; use ValidatedPicard to propagate an interval state");
-    state := initial.Low();
+    state := OdeRequirePointState(problem,method);
     points := [[time,state]];
     segments := [];
     {@ index=1; index<=@steps; {;
@@ -185,17 +208,14 @@ OdeApproximateSolution(problemValue, method, options ?= {= }) -> {;
        data := _;
        @method == :euler
          ?: {;
-             k1 = OdePointValue(@problem,@time,@state);
-             @nextState ~= @state+@stepSize*k1;
+             k1 = OdePointValues(@problem,@time,@state);
+             @nextState ~= OdeVectorAdd(@state,OdeVectorScale(k1,@stepSize));
              @data ~= {= slopes=[k1],order=1 };
          }
          ?_ {;
-             k1 = OdePointValue(@problem,@time,@state);
-             k2 = OdePointValue(@problem,@time+@stepSize/2,@state+@stepSize*k1/2);
-             k3 = OdePointValue(@problem,@time+@stepSize/2,@state+@stepSize*k2/2);
-             k4 = OdePointValue(@problem,@nextTime,@state+@stepSize*k3);
-             @nextState ~= @state+@stepSize*(k1+2*k2+2*k3+k4)/6;
-             @data ~= {= slopes=[k1,k2,k3,k4],order=4 };
+             step = OdeRK4Step(@problem,@time,@state,@stepSize);
+             @nextState ~= step[:next];
+             @data ~= {= slopes=step[:slopes],order=4 };
          };
        @segments ~= @segments.Push(OdeDenseSegment(@method,index,@time,nextTime,@state,nextState,data));
        @time ~= nextTime;
@@ -213,7 +233,7 @@ OdeApproximateSolution(problemValue, method, options ?= {= }) -> {;
         interval=problem[:interval],
         points=points,
         segments=segments,
-        finalState=[state],
+        finalState=state,
         certified=_,
         evidenceLevel=:observed,
         errorModel={=
@@ -229,16 +249,117 @@ OdeApproximateSolution(problemValue, method, options ?= {= }) -> {;
     solution;
 };
 
-OdeRangeResult(expression, problem, timeRange, stateRange, maxSubintervals) -> {;
-    bindings = problem[:parameters].Set(problem[:independent],timeRange)
-      .Set(problem[:stateNames][1],stateRange);
+OdeAdaptiveRK4(problemValue, options ?= {= }) -> {;
+    problem = OdeRequireProblem(problemValue);
+    options = OdeRequireOptions(options,"ODE AdaptiveRK4 options");
+    initialSteps = OdeRequirePositiveInteger(
+        OdeOption(options,"initialsteps",4),"ODE AdaptiveRK4 initialSteps",10000
+    );
+    maxAttempts = OdeRequirePositiveInteger(
+        OdeOption(options,"maxattempts",1000),"ODE AdaptiveRK4 maxAttempts",100000
+    );
+    tolerance = OdeRequirePositiveRational(
+        OdeOption(options,"tolerance",1/100000),"ODE AdaptiveRK4 tolerance"
+    );
+    lower = problem[:initialTime];
+    upper = problem[:interval].High();
+    time := lower;
+    state := OdeRequirePointState(problem,:adaptiveRK4);
+    stepSize := (upper-lower)/initialSteps;
+    points := [[time,state]];
+    segments := [];
+    estimates := [];
+    accepted := 0;
+    rejected := 0;
+    rhsEvaluations := 0;
+    {@ attempt=1; @time<@upper && attempt<=@maxAttempts; {;
+       h = @time+@stepSize > @upper ?: @upper-@time ?_ @stepSize;
+       full = OdeRK4Step(@problem,@time,@state,h);
+       half1 = OdeRK4Step(@problem,@time,@state,h/2);
+       half2 = OdeRK4Step(@problem,@time+h/2,half1[:next],h/2);
+       @rhsEvaluations += 12;
+       difference = OdeVectorSubtract(half2[:next],full[:next]);
+       estimate = OdeVectorMaxAbs(difference)/15;
+       estimate <= @tolerance
+         ?: {;
+             corrected = OdeVectorAdd(@half2[:next],OdeVectorScale(@difference,1/15));
+             nextTime = @time+@h;
+             data = {=
+                 order=4,
+                 extrapolatedOrder=5,
+                 localErrorEstimate=@estimate,
+                 tolerance=@tolerance,
+                 estimator=:rk4StepDoubling
+             };
+             @segments ~= @segments.Push(OdeDenseSegment(
+                 :adaptiveRK4,@accepted+1,@time,nextTime,@state,corrected,data
+             ));
+             @state ~= corrected;
+             @time ~= nextTime;
+             @points ~= @points.Push([@time,@state]);
+             @estimates ~= @estimates.Push(@estimate);
+             @accepted += 1;
+             @estimate <= @tolerance/32 ?: {; @stepSize *= 2; } ?_ _;
+         }
+         ?_ {;
+             @rejected += 1;
+             @stepSize /= 2;
+         };
+    }; attempt += 1 };
+    complete = time == upper;
+    solution = {=
+        valueKind=:odeSolution,
+        schema="rix.ode.solution@1",
+        problem=problem,
+        method=:adaptiveRK4,
+        status=complete ?: :approximate ?_ :partial,
+        classification=complete ?: :adaptiveTrajectory ?_ :adaptiveBudgetExhausted,
+        stateNames=problem[:stateNames],
+        interval=problem[:interval],
+        coveredInterval=lower:time,
+        points=points,
+        segments=segments,
+        finalState=complete ?: state ?_ _,
+        certified=_,
+        evidenceLevel=:observed,
+        errorModel={=
+            localEstimate=:stepDoubling,
+            acceptedEstimates=estimates,
+            globalEstimate=:notCertified,
+            formalOrder=4
+        },
+        work={=
+            acceptedSteps=accepted,
+            rejectedSteps=rejected,
+            maxAttempts=maxAttempts,
+            rhsEvaluations=rhsEvaluations,
+            exhausted=!complete
+        },
+        diagnostics=complete
+          ?: [:approximateLocalEstimateNotGlobalCertificate]
+          ?_ [:approximateLocalEstimateNotGlobalCertificate,:adaptiveBudgetExhausted]
+    };
+    solution .= {= _proto=odeSolutionProto };
+    .ImmutableValue(solution);
+};
+
+OdeRangeResult(expression, problem, timeRange, stateRanges, maxSubintervals) -> {;
+    bindings = OdeBindings(problem,timeRange,stateRanges);
     result = .numerics.GraphRange(expression,bindings,{= maxSubintervals=maxSubintervals });
     result[:certified] == 1 && result[:domainStatus] == :allDefined && result[:interval] != _
       ?: result
       ?_ .Error("Validated ODE range evaluation was not certified on the complete tube");
 };
 
-OdeValidatedSegment(problem, index, t0, t1, initial, derivative, options) -> {;
+OdeIntervalMagnitude(interval) -> {;
+    lower = interval.Low();
+    upper = interval.High();
+    lowerMagnitude = lower < 0 ?: -lower ?_ lower;
+    upperMagnitude = upper < 0 ?: -upper ?_ upper;
+    lowerMagnitude > upperMagnitude ?: lowerMagnitude ?_ upperMagnitude;
+};
+
+OdeValidatedSegment(problem, index, t0, t1, initial, derivatives, options) -> {;
     h = t1-t0;
     maxTubeIterations = options[:maxTubeIterations];
     maxSubintervals = options[:maxSubintervals];
@@ -249,32 +370,52 @@ OdeValidatedSegment(problem, index, t0, t1, initial, derivative, options) -> {;
     rhsResult := _;
     derivativeResult := _;
     selfMap := _;
+    contractionBound := _;
+    lastCandidate := _;
+    lastImage := _;
+    lastContraction := _;
+    lastContained := _;
     attempts := 0;
     {@ attempt=1; !@accepted && attempt<=@maxTubeIterations; {;
        @attempts += 1;
-       candidate = (@initial.Low()-@radius):(@initial.High()+@radius);
+       attemptRadius = @radius*(2^(attempt-1));
+       candidate = @initial.Map((entry)->(entry.Low()-attemptRadius):(entry.High()+attemptRadius));
        timeRange = @t0:@t1;
-       candidateRhs = OdeRangeResult(
-           @problem[:rhs][1],@problem,timeRange,candidate,@maxSubintervals
+       candidateRhs = @problem[:rhs].Map((expression)->OdeRangeResult(
+           expression,@problem,@timeRange,@candidate,@maxSubintervals
+       ));
+       candidateDerivative = @derivatives.Map((row)->row.Map((derivative)->OdeRangeResult(
+           derivative[:expression],@problem,@timeRange,@candidate,@maxSubintervals
+       )));
+       image = @initial.Map((entry,axis)->
+           entry+(0:@h)*candidateRhs[axis][:interval]
        );
-       candidateDerivative = OdeRangeResult(
-           @derivative[:expression],@problem,timeRange,candidate,@maxSubintervals
-       );
-       image = @initial + (0:@h)*candidateRhs[:interval];
-       contains = candidate.Low() <= image.Low() && image.High() <= candidate.High();
-       contains
+       contains = candidate.Filter((entry,axis)->
+           entry.Low() <= image[axis].Low() && image[axis].High() <= entry.High()
+       ).Len() == @problem[:dimension];
+       rowBounds = candidateDerivative.Map((row)->row.Reduce((sum,result)->
+           sum+OdeIntervalMagnitude(result[:interval]),0
+       ));
+       contraction = @h*rowBounds.Reduce((largest,value)->value>largest ?: value ?_ largest,0);
+       unique = contraction < 1;
+       @lastCandidate ~= candidate;
+       @lastImage ~= image;
+       @lastContraction ~= contraction;
+       @lastContained ~= contains;
+       contains && unique
          ?: {;
              @accepted ~= 1;
              @tube ~= @candidate;
              @rhsResult ~= @candidateRhs;
              @derivativeResult ~= @candidateDerivative;
              @selfMap ~= @image;
+             @contractionBound ~= @contraction;
          }
-         ?_ {; @radius *= 2; };
+         ?_ _;
     }; attempt += 1 };
     accepted
       ?: {;
-          endpoint = @initial + (@h:@h)*@rhsResult[:interval];
+          endpoint = @initial.Map((entry,axis)->entry+(@h:@h)*@rhsResult[axis][:interval]);
           .ImmutableValue({=
               valueKind=:odeDenseSegment,
               schema="rix.ode.dense-segment@1",
@@ -283,22 +424,24 @@ OdeValidatedSegment(problem, index, t0, t1, initial, derivative, options) -> {;
               index=@index,
               tStart=@t0,
               tEnd=@t1,
-              stateStart=[@initial],
-              stateEnd=[endpoint],
+              stateStart=@initial,
+              stateEnd=endpoint,
               interpolation=:intervalTube,
               tube=@tube,
               selfMap=@selfMap,
-              rhsRange=@rhsResult[:interval],
-              derivativeRange=@derivativeResult[:interval],
+              rhsRange=@rhsResult.Map((result)->result[:interval]),
+              derivativeRange=@derivativeResult.Map((row)->row.Map((result)->result[:interval])),
+              contractionBound=@contractionBound,
               uniqueness=:picardLindelof,
               certified=1,
               evidenceLevel=:proof,
               evidence={=
                   theorem=:picardSelfMapAndLipschitz,
-                  rhsRange=@rhsResult[:evidence],
-                  derivativeRange=@derivativeResult[:evidence],
+                  rhsRange=@rhsResult.Map((result)->result[:evidence]),
+                  derivativeRange=@derivativeResult.Map((row)->row.Map((result)->result[:evidence])),
                   selfMapContained=1,
-                  derivativeIdentity=@derivative[:evidence]
+                  contractionEstablished=1,
+                  derivativeIdentity=@derivatives.Map((row)->row.Map((derivative)->derivative[:evidence]))
               },
               work={= tubeIterations=@attempts }
           });
@@ -311,18 +454,22 @@ OdeValidatedSegment(problem, index, t0, t1, initial, derivative, options) -> {;
           index=index,
           tStart=t0,
           tEnd=t1,
-          stateStart=[initial],
+          stateStart=initial,
           stateEnd=_,
           interpolation=:none,
           certified=_,
           evidenceLevel=:unresolved,
           diagnostics=[:tubeSelfMapNotEstablished],
+          candidate=lastCandidate,
+          selfMap=lastImage,
+          contractionBound=lastContraction,
+          selfMapContained=lastContained,
           work={= tubeIterations=attempts }
       });
 };
 
 OdeValidatedPicard(problemValue, options ?= {= }) -> {;
-    problem = OdeRequireScalar(problemValue,:validatedPicard);
+    problem = OdeRequireProblem(problemValue);
     options = OdeRequireOptions(options,"ODE ValidatedPicard options");
     steps = OdeRequirePositiveInteger(OdeOption(options,"steps",4),"ODE ValidatedPicard steps");
     maxTubeIterations = OdeRequirePositiveInteger(
@@ -333,12 +480,16 @@ OdeValidatedPicard(problemValue, options ?= {= }) -> {;
     );
     tubeRadiusValue = OdeOption(options,"tuberadius",_);
     tubeRadius = tubeRadiusValue == _ ?: _ ?_ OdeRequirePositiveRational(tubeRadiusValue,"ODE tubeRadius");
-    derivative = .calculus.PartialResult(problem[:rhs][1],problem[:stateNames][1]);
-    derivativeCheck = .numerics.CheckDerivativeGraph(derivative);
-    derivativeCheck[:accepted] == 1
+    derivatives = problem[:rhs].Map((expression)->problem[:stateNames].Map((name)->
+        .calculus.PartialResult(expression,name)
+    ));
+    derivativeChecks = derivatives.Map((row)->row.Map((derivative)->
+        .numerics.CheckDerivativeGraph(derivative)
+    ));
+    derivativeChecks.Filter((row)->row.Filter((check)->check[:accepted]==1).Len()==problem[:dimension]).Len()==problem[:dimension]
       ?: _
       ?_ .Error("Validated ODE requires a checked state derivative");
-    derivative[:obligations].Len() == 0
+    derivatives.Filter((row)->row.Filter((derivative)->derivative[:obligations].Len()==0).Len()==problem[:dimension]).Len()==problem[:dimension]
       ?: _
       ?_ .Error("Validated ODE Phase 1 requires an unconditional state derivative on its tube");
     normalized = {=
@@ -350,19 +501,19 @@ OdeValidatedPicard(problemValue, options ?= {= }) -> {;
     upper = problem[:interval].High();
     stepSize = (upper-lower)/steps;
     time := lower;
-    state := problem[:initialState][1];
+    state := problem[:initialState];
     points := [[time,state]];
     segments := [];
     stopped := _;
     {@ index=1; index<=@steps && !@stopped; {;
        nextTime = @time+@stepSize;
        segment = OdeValidatedSegment(
-           @problem,index,@time,nextTime,@state,@derivative,@normalized
+           @problem,index,@time,nextTime,@state,@derivatives,@normalized
        );
        @segments ~= @segments.Push(segment);
        segment[:certified] == 1
          ?: {;
-             @state ~= @segment[:stateEnd][1];
+             @state ~= @segment[:stateEnd];
              @time ~= @nextTime;
              @points ~= @points.Push([@nextTime,@state]);
          }
@@ -381,10 +532,10 @@ OdeValidatedPicard(problemValue, options ?= {= }) -> {;
         coveredInterval=lower:time,
         points=points,
         segments=segments,
-        finalState=complete ?: [state] ?_ _,
+        finalState=complete ?: state ?_ _,
         certified=complete ?: 1 ?_ _,
         evidenceLevel=complete ?: :proof ?_ :partialProof,
-        derivative=derivative,
+        derivative=derivatives,
         work={=
             requestedSteps=steps,
             completedSteps=points.Len()-1,
@@ -415,14 +566,160 @@ OdeAt(solutionValue, timeValue) -> {;
       ?: _
       ?_ .Error("ODE query time lies beyond the computed partial trajectory");
     selected[:segmentKind] == :validatedTube
-      ?: selected[:tube]
+      ?: (solution[:problem][:dimension] == 1 ?: selected[:tube][1] ?_ selected[:tube])
       ?_ {;
           width = @selected[:tEnd]-@selected[:tStart];
           ratio = width == 0 ?: 0 ?_ (@time-@selected[:tStart])/width;
-          y0 = @selected[:stateStart][1];
-          y1 = @selected[:stateEnd][1];
-          y0+ratio*(y1-y0);
+          values = OdeVectorAdd(
+              @selected[:stateStart],
+              OdeVectorScale(OdeVectorSubtract(@selected[:stateEnd],@selected[:stateStart]),ratio)
+          );
+          @solution[:problem][:dimension] == 1 ?: values[1] ?_ values;
       };
+};
+
+OdeIsEventValue(value) -> (value ? :Map) && value[:schema] == "rix.ode.event@1";
+
+OdeEvent(expression, options ?= {= }) -> {;
+    exact = .calculus.IsExpression(expression)
+      ?: expression
+      ?_ .Error("ODE Event expects a public Calculus expression");
+    options = OdeRequireOptions(options,"ODE Event options");
+    name = OdeOption(options,"name",:event);
+    name ? :String ?: _ ?_ .Error("ODE Event name must be a string");
+    direction = OdeOption(options,"direction",:any);
+    [:any,:rising,:falling].Includes(direction)
+      ?: _
+      ?_ .Error("ODE Event direction must be any, rising, or falling");
+    .ImmutableValue({=
+        valueKind=:odeEvent,
+        schema="rix.ode.event@1",
+        name=name,
+        expression=exact,
+        direction=direction,
+        terminal=OdeOption(options,"terminal",_),
+        continuityAssumption=OdeOption(options,"continuity",:calculusGraph)
+    });
+};
+
+OdeEventValue(event, problem, time, state) ->
+    .calculus.Evaluate(event[:expression],OdeBindings(problem,time,state)) ~!: :Rational;
+
+OdeEventDirectionMatches(direction, left, right) ->
+    direction == :any
+      ?: ((left<=0 && right>=0) || (left>=0 && right<=0))
+      ?_ (direction == :rising
+           ?: (left<=0 && right>=0)
+           ?_ (left>=0 && right<=0));
+
+OdeBisectObservedEvent(event, problem, segment, maxBisections) -> {;
+    leftTime := segment[:tStart];
+    rightTime := segment[:tEnd];
+    leftState := segment[:stateStart];
+    rightState := segment[:stateEnd];
+    leftValue := OdeEventValue(event,problem,leftTime,leftState);
+    rightValue := OdeEventValue(event,problem,rightTime,rightState);
+    {@ iteration=1; iteration<=@maxBisections && @leftTime<@rightTime; {;
+       midpoint = (@leftTime+@rightTime)/2;
+       ratio = (midpoint-@segment[:tStart])/(@segment[:tEnd]-@segment[:tStart]);
+       midpointState = OdeVectorAdd(
+           @segment[:stateStart],
+           OdeVectorScale(OdeVectorSubtract(@segment[:stateEnd],@segment[:stateStart]),ratio)
+       );
+       midpointValue = OdeEventValue(@event,@problem,midpoint,midpointState);
+       OdeEventDirectionMatches(@event[:direction],@leftValue,midpointValue)
+         ?: {;
+             @rightTime ~= @midpoint;
+             @rightState ~= @midpointState;
+             @rightValue ~= @midpointValue;
+         }
+         ?_ {;
+             @leftTime ~= @midpoint;
+             @leftState ~= @midpointState;
+             @leftValue ~= @midpointValue;
+         };
+    }; iteration += 1 };
+    .ImmutableValue({=
+        classification=:observedCandidate,
+        interval=leftTime:rightTime,
+        segment=segment[:index],
+        endpointValues=[leftValue,rightValue],
+        certified=_,
+        evidenceLevel=:observed,
+        diagnostics=[:linearDenseOutputNotTrajectoryProof]
+    });
+};
+
+OdeEventCandidates(solution, event, options) -> {;
+    maxBisections = OdeRequirePositiveInteger(
+        OdeOption(options,"maxbisections",12),"ODE event maxBisections",64
+    );
+    candidates := [];
+    exclusions := [];
+    solution[:segments].Reduce((ignored,segment)->{;
+        segment[:segmentKind] == :validatedTube
+          ?: {;
+              range = OdeRangeResult(
+                  @event[:expression],@solution[:problem],
+                  @segment[:tStart]:@segment[:tEnd],@segment[:tube],
+                  OdeRequirePositiveInteger(OdeOption(@options,"maxsubintervals",4),"ODE event maxSubintervals",64)
+              );
+              interval = range[:interval];
+              interval.ContainsValue(0)
+                ?: {;
+                    @candidates ~= @candidates.Push(.ImmutableValue({=
+                        classification=:unresolvedCandidate,
+                        interval=@segment[:tStart]:@segment[:tEnd],
+                        segment=@segment[:index],
+                        eventRange=@interval,
+                        certified=_,
+                        evidenceLevel=:unresolved,
+                        diagnostics=[:rangeContainsZeroWithoutExistenceOrUniquenessProof]
+                    }));
+                }
+                ?_ {;
+                    @exclusions ~= @exclusions.Push(.ImmutableValue({=
+                        classification=:excluded,
+                        interval=@segment[:tStart]:@segment[:tEnd],
+                        segment=@segment[:index],
+                        eventRange=@interval,
+                        certified=1,
+                        evidenceLevel=:proof,
+                        evidence=@range[:evidence]
+                    }));
+                };
+          }
+          ?_ {;
+              left = OdeEventValue(@event,@solution[:problem],@segment[:tStart],@segment[:stateStart]);
+              right = OdeEventValue(@event,@solution[:problem],@segment[:tEnd],@segment[:stateEnd]);
+              OdeEventDirectionMatches(@event[:direction],left,right)
+                ?: {; @candidates ~= @candidates.Push(OdeBisectObservedEvent(@event,@solution[:problem],@segment,@maxBisections)); }
+                ?_ _;
+          };
+        ignored;
+    },_);
+    .ImmutableValue({=
+        valueKind=:odeEventResult,
+        schema="rix.ode.event-result@1",
+        event=event,
+        solution=solution,
+        candidates=candidates,
+        exclusions=exclusions,
+        complete=solution[:status] != :partial ?: 1 ?_ _,
+        certified=_,
+        evidenceLevel=candidates.Len()==0 && exclusions.Len()>0 ?: :partialProof ?_ :observed
+    });
+};
+
+OdeIsolateEvents(solutionValue, eventValue ?= _, options ?= {= }) -> {;
+    solution = OdeRequireSolution(solutionValue);
+    options = OdeRequireOptions(options,"ODE IsolateEvents options");
+    requested = eventValue == _ ?: solution[:problem][:events] ?_ [eventValue];
+    events = requested.Filter((event)->OdeIsEventValue(event));
+    events.Len() > 0
+      ?: _
+      ?_ .Error("ODE IsolateEvents requires at least one .ode.Event record");
+    events.Map((event)->OdeEventCandidates(@solution,event,@options));
 };
 
 OdeRecord(value) ->
@@ -435,6 +732,7 @@ OdeRecord(value) ->
 odeProblemProto = {=
     Euler=(self, options ?= {= })->OdeApproximateSolution(self,:euler,options),
     RK4=(self, options ?= {= })->OdeApproximateSolution(self,:rk4,options),
+    AdaptiveRK4=(self, options ?= {= })->OdeAdaptiveRK4(self,options),
     ValidatedPicard=(self, options ?= {= })->OdeValidatedPicard(self,options),
     Record=(self)->OdeRecord(self)
 };
@@ -443,6 +741,7 @@ odeSolutionProto = {=
     At=(self,time)->OdeAt(self,time),
     Points=(self)->self[:points],
     Segments=(self)->self[:segments],
+    IsolateEvents=(self,event ?= _,options ?= {= })->OdeIsolateEvents(self,event,options),
     Record=(self)->OdeRecord(self)
 };
 
@@ -452,7 +751,10 @@ odeNamespace._proto = {=
         OdeIVP(rhs,initialTime,initialState,interval,options),
     Euler=(self,problem,options ?= {= })->OdeApproximateSolution(problem,:euler,options),
     RK4=(self,problem,options ?= {= })->OdeApproximateSolution(problem,:rk4,options),
+    AdaptiveRK4=(self,problem,options ?= {= })->OdeAdaptiveRK4(problem,options),
     ValidatedPicard=(self,problem,options ?= {= })->OdeValidatedPicard(problem,options),
+    Event=(self,expression,options ?= {= })->OdeEvent(expression,options),
+    IsolateEvents=(self,solution,event ?= _,options ?= {= })->OdeIsolateEvents(solution,event,options),
     At=(self,solution,time)->OdeAt(solution,time),
     Points=(self,solution)->OdeRequireSolution(solution)[:points],
     Segments=(self,solution)->OdeRequireSolution(solution)[:segments],
