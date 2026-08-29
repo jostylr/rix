@@ -225,9 +225,9 @@ newline normalization.
    - [x] Report overflow, underflow, signed zero, infinities, and NaN through
      structured diagnostics.
 3. **Phase 3 — Reproducible approximate algorithms**
-   - [ ] Add reproducible summation/dot-product policies.
-   - [ ] Provide error-estimate objects for selected algorithms.
-   - [ ] Add complex Float operations without contaminating exact complex
+   - [x] Add reproducible summation/dot-product policies.
+   - [x] Provide error-estimate objects for selected algorithms.
+   - [x] Add complex Float operations without contaminating exact complex
      values.
 4. **Phase 4 — Accelerated arrays**
    - [ ] Explore typed-array tensors and SIMD/WebAssembly backends.

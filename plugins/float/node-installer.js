@@ -22,6 +22,7 @@ import {
     NextUp as nextUp,
 } from "./floats.js";
 import { formatOf } from "./ieee754.js";
+import { createApproximateAlgorithms, FLOAT_ALGORITHM_EXPORTS } from "./approximate-algorithms.js";
 
 const FLOAT_METHOD_NAMES = ["ABS", ...MATH_FUNCTION_NAMES];
 
@@ -131,6 +132,10 @@ function floatValue(registry) {
     add("NextUp", (args, _context, evaluate) => requireFloat(nextUp(requireFloat(args[1], evaluate)), evaluate));
     add("NextDown", (args, _context, evaluate) => requireFloat(nextDown(requireFloat(args[1], evaluate)), evaluate));
     add("NextAfter", (args, _context, evaluate) => requireFloat(nextAfter(requireFloat(args[1], evaluate), args[2]), evaluate));
+    const algorithms = createApproximateAlgorithms("float");
+    for (const name of FLOAT_ALGORITHM_EXPORTS) {
+        add(name, (args) => algorithms[name](...args.slice(1)));
+    }
 
     const interval = {
         type: "method_builtin",

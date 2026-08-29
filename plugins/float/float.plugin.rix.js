@@ -3,10 +3,10 @@ id: float
 description: Configurable IEEE-754 binary32/binary64 conversion, diagnostics, and optional approximate math.
 kind: host
 mount: float
-exports: [Float, Binary32, Binary64, Format, Classify, Diagnostics, NextUp, NextDown, NextAfter, Interval, Round, Floor, Ceiling, Abs, Sqrt, Sin, Cos, Tan, Asin, Acos, Atan, Atan2, Log, Ln, Log10, Exp]
+exports: [Float, Binary32, Binary64, Format, Classify, Diagnostics, NextUp, NextDown, NextAfter, Interval, Round, Floor, Ceiling, Abs, Sqrt, Sin, Cos, Tan, Asin, Acos, Atan, Atan2, Log, Ln, Log10, Exp, Sum, Dot, Complex, ComplexAdd, ComplexSub, ComplexMul, ComplexDiv, ComplexConjugate, ComplexAbs]
 groups: [ApproximateMath, Float]
 provides: [rix.float@2]
-schemas: [rix.float.classification@1]
+schemas: [rix.float.classification@1, rix.float.algorithm-result@1, rix.float.error-estimate@1, rix.float.complex@1]
 permissions: []
 defaultEnabled: false
 **/

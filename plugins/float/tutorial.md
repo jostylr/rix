@@ -92,3 +92,32 @@ viaMethod < {~ 1 / 2, 1 / 1000 };      ## undecided: providerUncertified
 The point interval in `sample` exactly identifies the stored binary32 or binary64 value.
 It does not certify the intended real that led to that value, so neither
 Numerics nor a Halo comparison promotes it to proof.
+
+Reproducible reductions make both order and rounding policy explicit:
+
+```rix
+.Plugin.Load("float");
+sequential := .float.Sum([1,1/100000000,-1],
+  {= policy=:sequential,format=:binary64 });
+compensated := .float.Sum([1,1/100000000,-1],
+  {= policy=:compensated,format=:binary64 });
+dot := .float.Dot([1,2,3],[4,5,6],{= policy=:pairwise });
+{:
+  sequential[:value],
+  compensated[:value],
+  dot[:value],
+  dot[:errorEstimate]
+};
+```
+
+The error estimate is deliberately labeled approximate, not certified. For
+complex IEEE work, use the separate Float-complex schema:
+
+```rix
+z := .float.Complex(1,2,:binary32);
+w := .float.Complex(3,4,:binary32);
+product := .float.ComplexMul(z,w);
+{: product, .float.ComplexConjugate(product), .float.ComplexAbs(product) };
+```
+
+These values never acquire the exact Complex type or its arithmetic overloads.

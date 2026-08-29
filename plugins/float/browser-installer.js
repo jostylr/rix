@@ -14,6 +14,7 @@ import {
     valueMethod,
 } from "../../src/runtime/type-system.js";
 import { mathFunctions } from "./math-functions.js";
+import { createApproximateAlgorithms, FLOAT_ALGORITHM_EXPORTS } from "./approximate-algorithms.js";
 import { Enclose, NumericsCapabilities, Refine, Sample, exactFloatRational } from "./protocol.js";
 import {
     BINARY32,
@@ -259,6 +260,10 @@ export function installBrowserApproxMathPlugin({ systemContext, registry, metada
         add(name, (args, _context, evaluate) => evaluate({ fn: name.toUpperCase(), args: [requireFloat(args[1], evaluate)] }));
     }
     add("Atan2", (args, _context, evaluate) => evaluate({ fn: "ATAN2", args: [requireFloat(args[1], evaluate), requireFloat(args[2], evaluate)] }));
+    const algorithms = createApproximateAlgorithms(NATIVE_TYPE);
+    for (const name of FLOAT_ALGORITHM_EXPORTS) {
+        add(name, (args) => algorithms[name](...args.slice(1)));
+    }
 
     const value = { type: "map", entries, _ext: extension };
     systemContext.registerHostCallableValue("float", value, {

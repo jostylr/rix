@@ -199,4 +199,80 @@ describe("approximate math plugin", () => {
         expect(diagnosticNames(restoredOverflow)).toEqual(["overflow", "infinity"]);
         expect(() => parseAndEvaluate('.float("not a number")', options)).toThrow("Cannot convert value to Float");
     });
+
+    test("Phase 3 reductions are policy-driven, reproducible, and expose approximate error estimates", () => {
+        const systemContext = createDefaultSystemContext();
+        const registry = createDefaultRegistry();
+        loadFloatPlugin(systemContext, registry);
+        const options = { systemContext, registry };
+
+        const sequential = parseAndEvaluate(
+            ".float.Sum([1,1/100000000,-1],{= policy=:sequential,format=:binary64 })",
+            options,
+        );
+        const repeated = parseAndEvaluate(
+            ".float.Sum([1,1/100000000,-1],{= policy=:sequential,format=:binary64 })",
+            options,
+        );
+        const compensated = parseAndEvaluate(
+            ".float.Sum([1,1/100000000,-1],{= policy=:compensated,format=:binary64 })",
+            options,
+        );
+        expect(entry(sequential, "schema").value).toBe("rix.float.algorithm-result@1");
+        expect(entry(sequential, "value").value).toBe(entry(repeated, "value").value);
+        expect(entry(sequential, "value").value).not.toBe(entry(compensated, "value").value);
+        const estimate = entry(sequential, "errorEstimate");
+        expect(entry(estimate, "schema").value).toBe("rix.float.error-estimate@1");
+        expect(entry(estimate, "absolute").value).toBeGreaterThan(0);
+        expect(entry(estimate, "certified")).toBeNull();
+
+        const dot = parseAndEvaluate(
+            ".float.Dot([1,2,3],[4,5,6],{= policy=:pairwise,format=:binary32 })",
+            options,
+        );
+        expect(entry(dot, "value").value).toBe(32);
+        expect(entry(dot, "format").value).toBe("binary32");
+        expect(() => parseAndEvaluate('.float.Sum([1,2],{= policy=:unknown })', options))
+            .toThrow("Unknown reproducible Float policy");
+        expect(() => parseAndEvaluate(".float.Dot([1,2],[3])", options))
+            .toThrow("equal length");
+    });
+
+    test("Phase 3 complex Float arithmetic remains a distinct approximate schema", () => {
+        const systemContext = createDefaultSystemContext();
+        const registry = createDefaultRegistry();
+        loadFloatPlugin(systemContext, registry);
+        const options = { systemContext, registry };
+        const result = parseAndEvaluate(`
+            z := .float.Complex(1,2,:binary32);
+            w := .float.Complex(3,4,:binary32);
+            {:
+                .float.ComplexMul(z,w),
+                .float.ComplexConjugate(z),
+                .float.ComplexAbs(z)
+            };
+        `, options);
+        const [product, conjugate, magnitude] = result.values;
+        expect(entry(product, "schema").value).toBe("rix.float.complex@1");
+        expect(entry(product, "real").value).toBe(-5);
+        expect(entry(product, "imaginary").value).toBe(10);
+        expect(entry(product, "status").value).toBe("approximate");
+        expect(entry(conjugate, "imaginary").value).toBe(-2);
+        expect(magnitude.format).toBe("binary32");
+        expect(magnitude.value).toBe(Math.fround(Math.hypot(1, 2)));
+        expect(() => parseAndEvaluate(
+            ".float.ComplexAdd(.float.Complex(1,2,:binary32),.float.Complex(1,2,:binary64))",
+            options,
+        )).toThrow("same Float format");
+    });
+
+    test("Phase 3 algorithms use the browser-safe bundled installer", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("float");
+            .float.Dot([1,2,3],[4,5,6],{= format=:binary32 });
+        `);
+        expect(entry(result, "schema").value).toBe("rix.float.algorithm-result@1");
+        expect(entry(result, "value").value).toBe(32);
+        expect(entry(result, "errorEstimate").entries.get("certified")).toBeNull();
+    });
 });

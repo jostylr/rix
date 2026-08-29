@@ -35,6 +35,11 @@ result with `.float(1/2 + 1/3)`.
 | `.float.Floor(value, places?)`, `.float.Ceiling(value, places?)` | Directed decimal rounding. |
 | `.float.Abs`, `.float.Sqrt`, `.float.Sin`, `.float.Cos`, `.float.Tan` | Common Float math. |
 | `.float.Log`, `.float.Exp` | Exponential/logarithmic Float math. |
+| `.float.Sum(values, options?)` | Reproducible sequential, pairwise, or compensated reduction. |
+| `.float.Dot(left, right, options?)` | Reproducible rounded dot product using the same policies. |
+| `.float.Complex(re, im, format?)` | Construct a separate approximate `rix.float.complex@1` value. |
+| `.float.ComplexAdd`, `ComplexSub`, `ComplexMul`, `ComplexDiv` | Approximate complex arithmetic with per-operation format rounding. |
+| `.float.ComplexConjugate`, `ComplexAbs` | Approximate complex conjugate and magnitude. |
 
 Float values implement the neutral `Sample`, `Enclose`, `Refine`, and
 `NumericsCapabilities` receiver protocol consumed by `.numerics`. Sampling
@@ -52,6 +57,21 @@ record; diagnostics distinguish overflow, underflow to signed zero, subnormal
 values, division by zero, infinities, and NaN. Non-finite values cannot be
 turned into rational intervals, and their sampling status is `:unknown` rather
 than a fabricated certificate.
+
+## Reproducible algorithms and complex values
+
+`Sum` and `Dot` use a declared `policy` (`:sequential`, `:pairwise`, or
+`:compensated`) and round every operation to the selected `format`. Their
+`rix.float.algorithm-result@1` record includes the Float result and a
+`rix.float.error-estimate@1` first-order estimate. The estimate is explicitly
+approximate and has `certified = null`; it is useful diagnostic scale, not a
+proof that replaces an interval or Oracle calculation. Input order is part of
+the reproducible contract.
+
+Approximate complex values use `rix.float.complex@1` and store two Float
+components. They do not register arithmetic for core exact Complex values and
+cannot enter exact complex expressions implicitly. Binary32 and binary64
+components must match unless the constructor is given an explicit format.
 
 ## Dependencies
 
