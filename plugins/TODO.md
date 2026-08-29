@@ -127,6 +127,17 @@ bridges, proof-term exchange, and solver-specific certificate formats remain
 Phase 4. CAS proposes or computes mathematical objects; proof/evidence checks
 claims about them. They are complementary when kept behind that boundary.
 
+The native symbolic target is course coverage, not maximal CAS coverage.
+Phase 3 should handle the integration and simplification families repeatedly
+encountered in secondary-school and undergraduate calculus/algebra: polynomial
+and rational normalization, domain-aware cancellation, common exact
+factor/collect/expand forms, elementary antiderivative tables, linear
+substitution, selected integration by parts and partial fractions, and standard
+definite-integral symmetries. Unsupported or conditionally valid forms remain
+inert with visible obligations. Rare special-function reductions, general
+Risch-style elementary integration, unrestricted identity search, and enormous
+heuristic simplification portfolios do not gate Phase 3.
+
 ## Tutorial grouping and metadata
 
 Each plugin tutorial starts with:
@@ -721,6 +732,28 @@ tracked in
 4. **Phase 4 — External symbolic providers**
    - [ ] Negotiate optional CAS and proof backends through capability services.
 
+### `.logic`
+
+1. **Phase 1 — Propositional exploration**
+   - [ ] Add inert proposition/formula records, valuations, truth tables,
+     satisfiability/validity checks, and counterexample witnesses.
+   - [ ] Implement checked transformations to negation, conjunctive, and
+     disjunctive normal forms without treating display rewrites as proofs.
+2. **Phase 2 — Undergraduate proof systems**
+   - [ ] Add replayable natural-deduction and sequent proof trees for a small
+     classical and intuitionistic propositional core. Check every rule locally
+     and retain open assumptions and failed goals for tutorial inspection.
+   - [ ] Provide finite-model exploration for a bounded first-order subset,
+     clearly separating a found model/countermodel from an unbounded theorem.
+3. **Phase 3 — Educational integration**
+   - [ ] Add portable truth-table, syntax-tree, semantic-tableau, and proof-tree
+     views suitable for an eventual `rix-ed` undergraduate logic course.
+   - [ ] Connect algebraic/interval certificates to logic only through explicit
+     proposition and evidence adapters; do not build a general research prover.
+4. **Phase 4 — Automated and external proving**
+   - [ ] Explore SAT/SMT providers, proof-term interchange, richer first-order
+     automation, and proof-assistant bridges as optional capabilities.
+
 ### `.calculus`
 
 1. **Phase 1 — Portable abstract functions and expression graphs**
@@ -777,6 +810,16 @@ tracked in
 3. **Phase 3 — Integration and equation specifications**
    - [x] Distinguish a selected primitive, an antiderivative family with its
      integration constant, and a definite integral with endpoints.
+   - [ ] Implement the common course-level exact integration ladder: polynomial
+     powers and sums; `1/x`; affine substitutions for powers, exponential,
+     logarithmic, and trigonometric primitives; common integration-by-parts
+     patterns; rational partial fractions; and selected even/odd, periodic, and
+     interval-symmetry rules for definite integrals.
+   - [ ] Extend the checked simplifier with ordinary constant folding,
+     associative collection, polynomial collect/expand/factor views,
+     sign-aware powers/roots, rational cancellation that preserves holes, and
+     a small named library of standard trigonometric identities. Keep every
+     domain condition visible and make transformation direction explicit.
    - [ ] Apply exact integration identities when justified, then negotiate
      certified Numerics quadrature or explicitly approximate fallback while
      retaining assumptions, work, and evidence.
