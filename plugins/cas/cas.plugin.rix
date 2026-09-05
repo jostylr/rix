@@ -247,6 +247,72 @@ CasIntegrateExpPower(variableExpression, degree, exponential, slope) ->
       ?_ (variableExpression^degree)*exponential/slope
           -(degree/slope)*CasIntegrateExpPower(variableExpression,degree-1,exponential,slope);
 
+CasTrigKind(expression) ->
+    CasApplySemantic(expression,"rix.function.sin@1") ?: :sin
+      ?_ CasApplySemantic(expression,"rix.function.cos@1") ?: :cos ?_ _;
+
+CasTrigPowerPrimitive(kind, argument, degree) -> {;
+    sine = .calculus.Sin()(argument);
+    cosine = .calculus.Cos()(argument);
+    degree==0 ?: argument
+      ?_ degree==1 ?: (kind==:sin ?: -cosine ?_ sine)
+      ?_ (kind==:sin
+           ?: -(sine^(degree-1))*cosine/degree
+           ?_ (cosine^(degree-1))*sine/degree)
+          +((degree-1)/degree)*CasTrigPowerPrimitive(kind,argument,degree-2);
+};
+
+CasIntegrateTrigPower(base, exponent, variable) -> {;
+    kind = CasTrigKind(base);
+    kind==_ ?: CasUnsupported(:unsupportedPower)
+      ?_ exponent==_ ?: CasUnsupported(:unsupportedTrigonometricExponent)
+      ?_ (!(exponent ? :Integer) || exponent<0) ?: CasUnsupported(:unsupportedTrigonometricExponent)
+      ?_ exponent>8 ?: CasUnsupported(:trigonometricDegreeBudgetExceeded)
+      ?_ {;
+          argument = @base[:arguments][1];
+          affine = CasAffine(argument,@variable);
+          (affine[:valid] && affine[:slope]!=0)
+            ?: CasIntegrationState(:complete,
+                CasTrigPowerPrimitive(@kind,argument,@exponent)/affine[:slope],[],
+                [{= rule=:trigonometricPowerReduction,kind=@kind,degree=@exponent,
+                    slope=affine[:slope],recurrenceStep=2,maxDegree=8 }])
+            ?_ CasUnsupported(:nonAffineTrigonometricArgument);
+      };
+};
+
+CasHarmonicPrimitive(kind, slope, phase, variable) -> {;
+    x = .calculus.Variable(variable);
+    argument = slope*x+phase;
+    slope==0
+      ?: x*(kind==:sin ?: .calculus.Sin()(.calculus.Constant(phase)) ?_ .calculus.Cos()(.calculus.Constant(phase)))
+      ?_ (kind==:sin ?: -.calculus.Cos()(argument)/slope ?_ .calculus.Sin()(argument)/slope);
+};
+
+CasIntegrateTrigProduct(left, right, variable) -> {;
+    leftKind = CasTrigKind(left);
+    rightKind = CasTrigKind(right);
+    (leftKind!=_ && rightKind!=_)
+      ?: {;
+          a = CasAffine(@left[:arguments][1],@variable);
+          b = CasAffine(@right[:arguments][1],@variable);
+          (a[:valid] && b[:valid])
+            ?: {;
+                kind = @leftKind==@rightKind ?: :cos ?_ :sin;
+                sum = CasHarmonicPrimitive(kind,@a[:slope]+@b[:slope],@a[:intercept]+@b[:intercept],@variable);
+                difference = CasHarmonicPrimitive(kind,@a[:slope]-@b[:slope],@a[:intercept]-@b[:intercept],@variable);
+                primitive = (@leftKind==:sin && @rightKind==:sin) ?: (difference-sum)/2
+                  ?_ (@leftKind==:cos && @rightKind==:sin) ?: (sum-difference)/2
+                  ?_ (sum+difference)/2;
+                CasIntegrationState(:complete,primitive,[],[{=
+                    rule=:trigonometricProductToSum,leftKind=@leftKind,rightKind=@rightKind,
+                    leftAffine=@a,rightAffine=@b,zeroFrequencyHandled=1
+                }]);
+            }
+            ?_ CasUnsupported(:nonAffineTrigonometricArgument);
+      }
+      ?_ CasUnsupported(:unsupportedProduct);
+};
+
 CasIntegrateProduct(left, right, variable) -> {;
     variableExpression = .calculus.Variable(variable);
     result := _;
@@ -284,7 +350,7 @@ CasIntegrateProduct(left, right, variable) -> {;
             ?_ CasUnsupported(:nonAffineExponentialArgument);
       }
       ?_ _;
-    result==_ ?: CasUnsupported(:unsupportedProduct) ?_ result;
+    result==_ ?: CasIntegrateTrigProduct(left,right,variable) ?_ result;
 };
 
 CasIntegrateQuotient(numerator, denominator, variable) -> {;
@@ -306,7 +372,7 @@ CasIntegrateQuotient(numerator, denominator, variable) -> {;
 CasIntegratePower(base, exponentExpression, variable) -> {;
     exponent = CasConstantValue(exponentExpression);
     affine = CasAffine(base,variable);
-    affine[:valid] && affine[:slope]!=0 && exponent!=_ && (exponent ? :Integer)
+    (affine[:valid] && affine[:slope]!=0 && exponent!=_ && (exponent ? :Integer))
       ?: (exponent==-1
            ?: CasIntegrationState(
                :complete,CasLogAbs(base)/affine[:slope],
@@ -317,7 +383,7 @@ CasIntegratePower(base, exponentExpression, variable) -> {;
                :complete,(base^(exponent+1))/(affine[:slope]*(exponent+1)),[],
                [{= rule=:affinePowerSubstitution,exponent=exponent,slope=affine[:slope] }]
            ))
-      ?_ CasUnsupported(:unsupportedPower);
+      ?_ CasIntegrateTrigPower(base,exponent,variable);
 };
 
 CasIntegrateApplication(expression, variable) -> {;
@@ -540,8 +606,9 @@ CasCheckIntegral(candidate) -> {;
 
 casCapabilities = .ImmutableValue({=
     simplification=[:checkedGraphIdentities,:canonicalPolynomialNormalization,:expand,:collect,:factor],
-    integration=[:polynomials,:affinePowers,:affineReciprocals,:affineExponentials,:affineSine,:affineCosine,:logByParts,:polynomialTimesExponentialByParts,:linearPartialFractions,:irreducibleQuadraticPartialFractions],
-    unsupported=[:generalRischIntegration,:trigonometricPowerReduction,:higherDegreePartialFractionResiduals,:unrestrictedIdentitySearch]
+    integration=[:polynomials,:affinePowers,:affineReciprocals,:affineExponentials,:affineSine,:affineCosine,:trigonometricPowerReduction,:trigonometricProductToSum,:logByParts,:polynomialTimesExponentialByParts,:linearPartialFractions,:irreducibleQuadraticPartialFractions],
+    limits={= maxTrigonometricDegree=8 },
+    unsupported=[:generalRischIntegration,:mixedTrigonometricPowers,:radicalSubstitution,:higherDegreePartialFractionResiduals,:unrestrictedIdentitySearch]
 });
 
 casNamespace = {= };

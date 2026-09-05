@@ -31,6 +31,10 @@ the rules used, and domain obligations. The implemented ladder covers:
 - powers and reciprocals of affine expressions;
 - exponentials of affine expressions;
 - sine and cosine of affine expressions;
+- nonnegative integer powers of affine sine/cosine through degree 8, using
+  the standard two-degree reduction recurrence;
+- products of two affine sine/cosine factors, in every ordering, using
+  product-to-sum (including equal and opposite frequencies);
 - logarithms of affine expressions by integration by parts;
 - `x^n Exp(a*x+b)` by repeated integration by parts; and
 - canonical RationalFunctions whose exact partial fractions have only rational
@@ -48,6 +52,15 @@ compares the structural antiderivative. This is rule replay, not a general
 theorem prover. The retained rules and existing derivative service make the
 calculation inspectable in a lesson.
 
+Power-reduction records retain the degree, affine slope, and recurrence step.
+Product-to-sum records retain both affine arguments. A zero sum/difference
+frequency integrates as a constant times `x`, never by dividing by zero.
+These identities hold on the entire real line and introduce no additional
+domain obligations. Negative/noninteger trig powers, degrees above 8, mixed
+powers such as `Sin(x)^2*Cos(x)^3`, and nonaffine arguments are outside this
+rung. The degree budget keeps graph construction and classroom derivative
+checks bounded; it is not a mathematical restriction on the recurrence.
+
 Unsupported inputs return `status=:unsupported`, `antiderivative=_`, and a
 reason such as `:unsupportedSemanticFunction` or
 `:nonlinearResidualPartialFraction`. The plugin never fabricates a closed form.
@@ -57,8 +70,8 @@ reason such as `:unsupportedSemanticFunction` or
 The current layer does not attempt general Risch integration, unrestricted
 trigonometric identity search, special-function reductions, multivariate
 Groebner simplification, or enormous heuristic simplification portfolios.
-Useful next additions are trigonometric power/product reductions, selected
-radical substitutions, exact definite-integral symmetries, and broader
+Useful next additions are mixed trigonometric powers, selected radical
+substitutions, exact definite-integral symmetries, and broader
 assumption-aware simplification.
 
 See [tutorial.md](tutorial.md) for runnable course examples.

@@ -22,7 +22,96 @@ function text(value) {
     return value?.value ?? null;
 }
 
+// Independent numerical spot checks of the public derivative graph; these
+// assertions test the rules, and are not used as runtime certificates.
+function numericalGraph(graph, x) {
+    const kind = text(entry(graph,"kind"));
+    if (kind === "constant") {
+        const value = entry(graph,"value");
+        const [n,d="1"] = value.toString().split("/");
+        return Number(n)/Number(d);
+    }
+    if (kind === "variable") return x;
+    if (kind === "apply") {
+        const a = numericalGraph(entry(graph,"arguments").values[0],x);
+        const id = text(entry(graph,"semanticid"));
+        if (id === "rix.function.sin@1") return Math.sin(a);
+        if (id === "rix.function.cos@1") return Math.cos(a);
+        throw new Error(`Unexpected test semantic function ${id}`);
+    }
+    const [a,b] = entry(graph,"operands").values.map(g => numericalGraph(g,x));
+    switch (text(entry(graph,"operation"))) {
+        case "add": return a+b;
+        case "subtract": return a-b;
+        case "multiply": return a*b;
+        case "divide": return a/b;
+        case "power": return a**b;
+        case "negate": return -a;
+        default: throw new Error("Unexpected test graph operation");
+    }
+}
+
 describe("browser-safe course CAS plugin", () => {
+    test("reduces bounded sine/cosine powers and differentiates back to the integrand", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("cas");
+            x := .calculus.Variable(:x);
+            Sin := .calculus.Sin();
+            Cos := .calculus.Cos();
+            sources := [Sin(2*x+1)^2,Sin(-3*x+2)^5,Cos(2*x-1)^4,Cos(x)^8];
+            sources.Map((source)->{;
+                integral = .cas.Integrate(source,:x);
+                derivative = .calculus.PartialResult(integral[:antiderivative],:x);
+                {: source,integral,derivative[:expression],.cas.CheckIntegral(integral) };
+            });
+        `, runtime());
+        for (const row of result.values) {
+            const [source,integral,derivative,replay] = row.values;
+            expect(text(entry(integral,"status"))).toBe("complete");
+            expect(entry(replay,"accepted").value).toBe(1n);
+            for (const x of [-1.25,0,0.4,1.5]) {
+                expect(numericalGraph(derivative,x)).toBeCloseTo(numericalGraph(source,x),10);
+            }
+        }
+    });
+
+    test("product-to-sum covers every ordering, equal frequencies, and opposite frequencies", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("cas");
+            x := .calculus.Variable(:x);
+            Sin := .calculus.Sin();
+            Cos := .calculus.Cos();
+            sources := [Sin(x)*Sin(3*x),Cos(x)*Cos(3*x),Sin(x)*Cos(3*x),Cos(x)*Sin(3*x),
+                        Sin(x+1)*Sin(x-2),Cos(x)*Cos(-x),Sin(x)*Cos(-x),Cos(x)*Sin(x+1)];
+            sources.Map((source)->{;
+                integral = .cas.Integrate(source,:x);
+                derivative = .calculus.PartialResult(integral[:antiderivative],:x);
+                {: source,integral,derivative[:expression] };
+            });
+        `, runtime());
+        for (const row of result.values) {
+            const [source,integral,derivative] = row.values;
+            expect(text(entry(integral,"status"))).toBe("complete");
+            for (const x of [-1,0,0.25,2]) {
+                expect(numericalGraph(derivative,x)).toBeCloseTo(numericalGraph(source,x),10);
+            }
+        }
+    });
+
+    test("trigonometric reduction budgets and replay tampering are explicit", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("cas");
+            x := .calculus.Variable(:x);
+            Sin := .calculus.Sin();
+            integral := .cas.Integrate(Sin(x)^2,x);
+            {: .cas.Integrate(Sin(x)^9,x),.cas.Integrate(Sin(x)^(-2),x),
+               .cas.Integrate(Sin(x^2)^2,x),.cas.CheckIntegral(integral.Set("antiderivative",x)) };
+        `, runtime());
+        expect(text(entry(result.values[0],"reason"))).toBe("trigonometricDegreeBudgetExceeded");
+        expect(text(entry(result.values[1],"reason"))).toBe("unsupportedTrigonometricExponent");
+        expect(text(entry(result.values[2],"reason"))).toBe("nonAffineTrigonometricArgument");
+        expect(entry(result.values[3],"accepted")).toBeNull();
+    });
     test("is bundled over Calculus, Polynomial, and RationalFunction services", () => {
         const info = parseAndEvaluate('.Plugin.Info("cas")', runtime());
         expect(text(entry(info, "kind"))).toBe("rix");

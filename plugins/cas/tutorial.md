@@ -77,8 +77,45 @@ quadratic := .cas.Integrate(.rf`1/(x^2+1)`);
 ```
 
 The quadratic rule proves the negative discriminant condition exactly and
-retains the completed-square coefficients. Higher trigonometric powers and
-products remain outside this bounded rung.
+retains the completed-square coefficients.
+
+## Reduce powers and products
+
+The power rule lowers the exponent by two at each step. The product rule
+changes two factors into a sum/difference of harmonics. Neither needs a
+general identity-search engine.
+
+```{.rix exec=true}
+.Plugin.Load("cas");
+x := .calculus.Variable(:x);
+Sin := .calculus.Sin();
+Cos := .calculus.Cos();
+sources := [Sin(2*x+1)^4,Cos(x)^3,Sin(x)*Cos(3*x),Sin(x)*Sin(x)];
+integrals := sources.Map((source)->.cas.Integrate(source,x));
+integrals.Map((result)->{;
+  .cas.CheckIntegral(result)[:accepted] ?: 1 ?_ .Error("Trig rule replay failed");
+  {: result[:antiderivative],result[:rules].Last() };
+});
+```
+
+For the last row, the difference frequency is zero. Its cosine term is a
+constant, so the primitive includes `x/2`; the implementation does not divide
+by a zero frequency. Compare this product route with `Sin(x)^2` and
+differentiate both answers: primitives may look different and still differ
+only by a constant.
+
+```{.rix exec=true}
+.Plugin.Load("cas");
+x := .calculus.Variable(:x);
+Sin := .calculus.Sin();
+tooLarge := .cas.Integrate(Sin(x)^9,x);
+tooLarge[:reason]==:trigonometricDegreeBudgetExceeded
+  ?: 1 ?_ .Error("Expected a bounded unsupported result");
+{: tooLarge[:status],tooLarge[:reason] };
+```
+
+Nonnegative integer powers through degree 8 are supported. Mixed powers and
+nonaffine arguments remain explicit unsupported cases, not guessed answers.
 
 ## Let exact partial fractions do the algebra
 
@@ -116,5 +153,5 @@ and more educational than a guessed transformation.
    obligation for `1/x`.
 4. Derive the completed-square formula used for `(m*x+n)/(a*x^2+b*x+c)` when
    `4*a*c-b^2 > 0`.
-5. List the bounded trigonometric power reductions needed next without
-   attempting general identity search.
+5. Derive the two-degree power recurrence by integration by parts, then
+   compare its answer for `Sin(x)^2` with the product-to-sum route.

@@ -47,7 +47,7 @@ its first useful future increment rather than treating it as abandoned.
 | 11 | `.solve` | Multivariate elimination plus certified subdivision consumers | **Waiting:** `.algebra` Groebner MVP and `.numerics` box subdivision |
 | 12 | `.fraction` | Portable classroom-derivation and fraction-path evidence | **Phase 4:** current exact representations are complete |
 | 13 | `.fracfun` | Multivariate forms and declared coefficient domains | **Waiting:** multivariate Polynomial/coefficient-domain support |
-| 14 | `.cas` | Trigonometric power/product reductions, selected radicals, and definite-integral symmetries | **Ready:** absolute-value, affine trig, and quadratic partial fractions are implemented |
+| 14 | `.cas` | Mixed trigonometric powers, selected radicals, and definite-integral symmetries | **Ready:** bounded trig power recurrences and product-to-sum join the existing course rules |
 | 15 | `.symbolic` | Shared assumptions and restricted-domain wrappers | **Decision:** one portable assumption/branch-obligation contract |
 | 16 | `.logic` | Semantic tableaux with replayable open/closed branch evidence, then bounded finite models | **Ready:** scoped natural deduction and portable syntax/proof trees exist |
 | 17 | `.calculus` | Absolute-value/domain graphs and portable differential, boundary, and integral equation specifications | **Ready:** coordinate with `.cas`; solver execution stays elsewhere |
@@ -848,8 +848,11 @@ tracked in
      positive real branch.
    - [x] Add affine sine/cosine antiderivative rules and irreducible quadratic
      partial fractions with exact completed-square evidence and `Atan` graphs.
-   - [ ] Add bounded trigonometric power/product reductions, selected radical
-     substitutions, and exact definite-integral symmetry rules.
+   - [x] Add sine/cosine power recurrences through degree 8 and product-to-sum
+     for two affine trig factors, including zero-frequency terms, with replay
+     evidence and derivative regression tests.
+   - [ ] Add mixed trigonometric powers, selected radical substitutions, and
+     exact definite-integral symmetry rules.
    - [ ] Broaden safe simplification with assumption-aware sign, power,
      radical, and rational-expression rules while keeping rule replay bounded.
 4. **Phase 4 — General and external CAS**
