@@ -3,7 +3,7 @@ id: ode
 description: Portable initial-value problems, vector trajectories, adaptive demonstrations, checked Picard and second-order Taylor tubes, and certified event isolation.
 kind: rix
 mount: ode
-exports: [IVP, Euler, RK4, AdaptiveRK4, ValidatedPicard, ValidatedTaylor2, Event, IsolateEvents, At, Points, Segments, Record, IsProblem, IsSolution]
+exports: [IVP, Euler, RK4, AdaptiveRK4, ValidatedPicard, ValidatedTaylor2, AdaptiveValidatedTaylor2, Event, IsolateEvents, At, Points, Segments, Record, IsProblem, IsSolution]
 groups: [Numerics, ODE, Calculus]
 permissions: []
 requires: [rix.calculus@1, rix.numerics@2]
@@ -666,10 +666,17 @@ OdeTaylorizeSegment(problem, segment, secondDerivatives, maxSubintervals) -> {;
       ?_ segment;
 };
 
-OdeValidatedTaylor2(problemValue, options ?= {= }) -> {;
+OdeValidatedTaylor2(problemValue, options ?= {= }, adaptive ?= _) -> {;
     problem = OdeRequireProblem(problemValue);
     options = OdeRequireOptions(options,"ODE ValidatedTaylor2 options");
     steps = OdeRequirePositiveInteger(OdeOption(options,"steps",4),"ODE ValidatedTaylor2 steps");
+    maxAttempts = adaptive
+      ?: OdeRequirePositiveInteger(OdeOption(options,"maxattempts",256),"ODE maxAttempts")
+      ?_ steps;
+    minimumStepValue = OdeOption(options,"minimumstep",1/1048576);
+    minimumStep = OdeRequirePositiveRational(minimumStepValue,"ODE minimumStep");
+    toleranceValue = OdeOption(options,"remaindertolerance",_);
+    remainderTolerance = toleranceValue==_ ?: _ ?_ OdeRequirePositiveRational(toleranceValue,"ODE remainderTolerance");
     maxTubeIterations = OdeRequirePositiveInteger(
         OdeOption(options,"maxtubeiterations",8),"ODE maxTubeIterations",32
     );
@@ -691,33 +698,59 @@ OdeValidatedTaylor2(problemValue, options ?= {= }) -> {;
     };
     lower = problem[:initialTime];
     upper = problem[:interval].High();
-    stepSize = (upper-lower)/steps;
+    stepSize := (upper-lower)/steps;
+    maximumStep = stepSize;
     time := lower;
     state := problem[:initialState];
     points := [[time,state]];
     segments := [];
     stopped := _;
-    {@ index=1; index<=@steps && !@stopped; {;
-       nextTime = @time+@stepSize;
+    attempts := [];
+    rejected := 0;
+    stopReason := :attemptBudgetExhausted;
+    {@ attempt=1; attempt<=@maxAttempts && @time<@upper && !@stopped; {;
+       h = @stepSize < @upper-@time ?: @stepSize ?_ @upper-@time;
+       nextTime = @time+h;
        picard = OdeValidatedSegment(
-           @problem,index,@time,nextTime,@state,@stateDerivatives,@normalized
+           @problem,@points.Len(),@time,nextTime,@state,@stateDerivatives,@normalized
        );
        segment = OdeTaylorizeSegment(@problem,picard,@secondDerivatives,@maxSubintervals);
-       @segments ~= @segments.Push(segment);
-       segment[:certified]==1
+       remainderBound = segment[:certified]==1
+         ?: segment[:secondDerivativeRange].Reduce((largest,range)->
+             .Max(largest,OdeIntervalMagnitude(range)*@h*@h/2),0)
+         ?_ _;
+       accepted = segment[:certified]==1 && (!@adaptive || @remainderTolerance==_ || remainderBound<=@remainderTolerance);
+       @attempts ~= @attempts.Push({=
+           tStart=@time,tEnd=nextTime,accepted=accepted,
+           remainderBound=remainderBound,
+           reason=accepted ?: :accepted ?_ (segment[:certified]==1 ?: :remainderToleranceExceeded ?_ :tubeSelfMapNotEstablished),
+           segment=segment
+       });
+       accepted
          ?: {;
+             @segments ~= @segments.Push(@segment);
              @state ~= @segment[:stateEnd];
              @time ~= @nextTime;
              @points ~= @points.Push([@nextTime,@state]);
+             @adaptive ?: {; @stepSize ~= .Min(2*@h,@maximumStep); } ?_ _;
          }
-         ?_ {; @stopped ~= 1; };
-    }; index += 1 };
-    complete = !stopped && segments.Len()==steps;
+         ?_ {;
+             @rejected += 1;
+             @adaptive && @h/2>=@minimumStep
+               ?: {; @stepSize ~= @h/2; }
+               ?_ {;
+                   @stopped ~= 1;
+                   @stopReason ~= @adaptive ?: :minimumStepReached ?_ :tubeSelfMapNotEstablished;
+                   !@adaptive ?: {; @segments ~= @segments.Push(@segment); } ?_ _;
+               };
+         };
+    }; attempt += 1 };
+    complete = time==upper;
     solution = {=
         valueKind=:odeSolution,
         schema="rix.ode.solution@1",
         problem=problem,
-        method=:validatedTaylor2,
+        method=adaptive ?: :adaptiveValidatedTaylor2 ?_ :validatedTaylor2,
         status=complete ?: :validated ?_ :partial,
         classification=complete ?: :certifiedTaylorTube ?_ :unresolvedTaylorTube,
         stateNames=problem[:stateNames],
@@ -739,6 +772,13 @@ OdeValidatedTaylor2(problemValue, options ?= {= }) -> {;
             requestedSteps=steps,
             completedSteps=points.Len()-1,
             maxTubeIterations=maxTubeIterations,
+            attempts=attempts,
+            attemptedSteps=attempts.Len(),
+            rejectedSteps=rejected,
+            maxAttempts=maxAttempts,
+            minimumStep=minimumStep,
+            remainderTolerance=remainderTolerance,
+            stopReason=complete ?: _ ?_ stopReason,
             exhausted=!complete
         },
         diagnostics=complete ?: [] ?_ [:validatedTaylorTrajectoryPartial]
@@ -1093,6 +1133,7 @@ odeProblemProto = {=
     AdaptiveRK4=(self, options ?= {= })->OdeAdaptiveRK4(self,options),
     ValidatedPicard=(self, options ?= {= })->OdeValidatedPicard(self,options),
     ValidatedTaylor2=(self, options ?= {= })->OdeValidatedTaylor2(self,options),
+    AdaptiveValidatedTaylor2=(self, options ?= {= })->OdeValidatedTaylor2(self,options,1),
     Record=(self)->OdeRecord(self)
 };
 
@@ -1113,6 +1154,7 @@ odeNamespace._proto = {=
     AdaptiveRK4=(self,problem,options ?= {= })->OdeAdaptiveRK4(problem,options),
     ValidatedPicard=(self,problem,options ?= {= })->OdeValidatedPicard(problem,options),
     ValidatedTaylor2=(self,problem,options ?= {= })->OdeValidatedTaylor2(problem,options),
+    AdaptiveValidatedTaylor2=(self,problem,options ?= {= })->OdeValidatedTaylor2(problem,options,1),
     Event=(self,expression,options ?= {= })->OdeEvent(expression,options),
     IsolateEvents=(self,solution,event ?= _,options ?= {= })->OdeIsolateEvents(solution,event,options),
     At=(self,solution,time)->OdeAt(solution,time),

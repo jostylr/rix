@@ -155,7 +155,48 @@ partial := .ode.IVP(100*y,0,1,0:1).ValidatedPicard({=
 Increase `maxTubeIterations`, increase `steps`, or both. More work may find a
 self-map, but work exhaustion is never reported as nonexistence.
 
-## Further work
+## Adapt a certified trajectory
+
+A single step for `y'=y` on `[0,1]` fails the strict contraction test because
+`h L = 1`. The adaptive method halves that step, validates smaller segments,
+and carries their certified endpoint intervals forward.
+
+```{.rix exec=true}
+.Plugin.Load("ode");
+y := .calculus.Variable(:y);
+solution := .ode.IVP(y,0,1,0:1).AdaptiveValidatedTaylor2({=
+  steps=1,maxAttempts=32,maxSubintervals=1
+});
+solution[:certified]==1 ?: 1 ?_ .Error("Expected certified completion");
+solution[:work][:rejectedSteps]>0 ?: 1 ?_ .Error("Expected a rejected full step");
+{: solution[:coveredInterval],solution[:finalState],solution[:work] };
+```
+
+For a vector equation with known solution `(t^2/2,t^2)`, a local remainder
+budget forces smaller steps even when a Picard tube is already available.
+
+```{.rix exec=true}
+.Plugin.Load("ode");
+t := .calculus.Variable(:t);
+solution := .ode.IVP([t,2*t],0,[0,0],0:1,{= stateNames=[:x,:y] })
+  .AdaptiveValidatedTaylor2({= steps=1,remainderTolerance=1/16,maxAttempts=40,maxSubintervals=1 });
+solution[:certified]==1 ?: 1 ?_ .Error("Expected certified vector flow");
+{: solution.At(1/2),solution[:finalState],solution[:work][:rejectedSteps] };
+```
+
+That tolerance bounds the local remainder, while `finalState` carries the
+accumulated enclosure. Exhausting attempts retains only the accepted prefix
+as the trajectory and stores failed candidates in `work.attempts`.
+
+```{.rix exec=true}
+.Plugin.Load("ode");
+y := .calculus.Variable(:y);
+partial := .ode.IVP(y,0,1,0:1).AdaptiveValidatedTaylor2({= steps=1,maxAttempts=2,maxSubintervals=1 });
+partial[:status]==:partial ?: 1 ?_ .Error("Expected a partial trajectory");
+{: partial[:coveredInterval],partial.At(1/4),partial[:work][:stopReason] };
+```
+
+## Exercises
 
 1. Compare Euler and RK4 for `y'=t+y` at several fixed step counts.
 2. Give the validated solver an interval initial state such as `(99/100):(101/100)`

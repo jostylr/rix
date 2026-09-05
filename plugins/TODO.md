@@ -40,7 +40,7 @@ its first useful future increment rather than treating it as abandoned.
 | 4 | `.float` | Typed-array tensors followed by optional SIMD/Wasm acceleration | **Phase 4:** scale/performance layer |
 | 5 | `.oracle` | Exchange exact sign and root evidence with algebraic solvers | **Waiting:** stable multivariate algebra evidence records |
 | 6 | `.numerics` | Validated interval-linear solves and bounded box subdivision | **Ready:** Krawczyk and interval-Newton foundations are present |
-| 7 | `.ode` | General higher-order Taylor/affine flow with adaptive certified subdivision | **Ready:** second-order recentering and certified interval-Newton events are present |
+| 7 | `.ode` | General higher-order Taylor/affine flow, then backward integration and boundary-value records | **Ready:** adaptive certified subdivision, second-order recentering, and interval-Newton events exist |
 | 8 | `.algebra` | Multivariate Polynomial plus Groebner/elimination MVP | **Decision:** start with `Q` coefficients and explicit lex/graded orders |
 | 9 | `.linalg` | Characteristic/minimal polynomials, eigenspaces, and exact canonical forms | **Waiting:** algebraic extension/coefficient-domain contract |
 | 10 | `.optimize` | Bounded branch-and-bound integer and mixed-integer linear optimization | **Ready:** preserve partial bounds and unexplored nodes |
@@ -543,9 +543,11 @@ newline normalization.
      polynomial Taylor models and affine arithmetic are not yet implemented.
    - [x] Add adaptive RK4 step-doubling demonstrations with exact local-error
      estimates, bounded rejection, and no false global certificate.
+   - [x] Add adaptive validated subdivision with bounded attempts, minimum
+     step limits, optional certified local remainder tolerance, and retained
+     rejection evidence and certified partial trajectories.
    - [ ] Generalize the separately certified Taylor/Picard method beyond its
-     implemented order-two remainder to higher-order models and adaptive
-     validated subdivision.
+     implemented order-two remainder to higher-order polynomial/affine models.
    - [x] Add portable event records, observed sign-change bisection for
      approximate dense output, and certified no-event exclusions over tubes.
    - [x] Prove event existence/uniqueness on second-order Taylor segments with

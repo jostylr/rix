@@ -24,6 +24,61 @@ function text(value) {
 }
 
 describe("pure RiX ODE plugin", () => {
+    test("adaptively certifies exponential flow after rejecting a noncontracting step", () => {
+        const solution = parseAndEvaluate(`
+            .Plugin.Load("ode");
+            y := .calculus.Variable(:y);
+            .ode.IVP(y,0,1,0:1).AdaptiveValidatedTaylor2({= steps=1,maxSubintervals=1 });
+        `, runtime());
+        expect(text(entry(solution, "status"))).toBe("validated");
+        expect(text(entry(solution, "method"))).toBe("adaptiveValidatedTaylor2");
+        const work = entry(solution, "work");
+        expect(entry(work, "rejectedsteps").value).toBeGreaterThan(0n);
+        const segments = entry(solution, "segments").values;
+        expect(segments.every(s => entry(s, "certified").value === 1n)).toBe(true);
+        expect(entry(segments[0], "tstart").toString()).toBe("0");
+        for (let i = 1; i < segments.length; i++) {
+            expect(entry(segments[i], "tstart").toString()).toBe(entry(segments[i-1], "tend").toString());
+        }
+        const final = entry(solution, "finalstate").values[0];
+        expect(final.containsValue(new Rational(2718281828n,1000000000n))).toBe(true);
+    });
+
+    test("adaptive validated budgets preserve the accepted prefix and rejection evidence", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("ode");
+            y := .calculus.Variable(:y);
+            problem := .ode.IVP(y,0,1,0:1);
+            prefix := problem.AdaptiveValidatedTaylor2({= steps=1,maxAttempts=2,maxSubintervals=1 });
+            minimum := problem.AdaptiveValidatedTaylor2({= steps=1,minimumStep=3/4,maxSubintervals=1 });
+            {: prefix,minimum };
+        `, runtime());
+        const prefix = result.values[0];
+        expect(text(entry(prefix,"status"))).toBe("partial");
+        expect(entry(prefix,"certified")).toBeNull();
+        expect(entry(prefix,"segments").values).toHaveLength(1);
+        expect(entry(prefix,"coveredinterval").high.toString()).toBe("1/2");
+        expect(text(entry(entry(prefix,"work"),"stopreason"))).toBe("attemptBudgetExhausted");
+        expect(text(entry(entry(result.values[1],"work"),"stopreason"))).toBe("minimumStepReached");
+    });
+
+    test("adaptive vector flow obeys a certified local remainder budget", () => {
+        const solution = parseAndEvaluate(`
+            .Plugin.Load("ode");
+            t := .calculus.Variable(:t);
+            .ode.IVP([t,t*2],0,[0,0],0:1,{= stateNames=[:x,:y] })
+              .AdaptiveValidatedTaylor2({= steps=1,remainderTolerance=1/16,maxAttempts=40,maxSubintervals=1 });
+        `, runtime());
+        expect(text(entry(solution,"status"))).toBe("validated");
+        const final = entry(solution,"finalstate").values;
+        expect(final[0].containsValue(new Rational(1n,2n))).toBe(true);
+        expect(final[1].containsValue(new Rational(1n))).toBe(true);
+        const attempts = entry(entry(solution,"work"),"attempts").values;
+        for (const attempt of attempts.filter(a => entry(a,"accepted") !== null)) {
+            expect(entry(attempt,"remainderbound").lessThanOrEqual(new Rational(1n,16n))).toBe(true);
+        }
+    });
+
     test("is bundled with portable IVP and solution contracts", () => {
         const info = parseAndEvaluate('.Plugin.Info("ode")', runtime());
         expect(text(entry(info, "kind"))).toBe("rix");

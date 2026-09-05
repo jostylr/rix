@@ -129,10 +129,34 @@ intermediate-value existence argument with monotonic uniqueness. If the
 endpoint bracket or derivative test is unavailable, the candidate remains
 unresolved.
 
+## Adaptive certified subdivision
+
+`AdaptiveValidatedTaylor2(problem, options?)`, also a problem method, uses the
+same Picard and Taylor certificates with rational step subdivision. `steps`
+(default 4) sets the initial and maximum step size. A rejected self-map or
+contraction halves the step; an accepted segment advances the interval state
+and may double the next step up to that maximum.
+
+`maxAttempts` (default 256) bounds all accepted and rejected attempts.
+`minimumStep` (default `1/1048576`) stops further halving below that size.
+Optional `remainderTolerance` bounds the largest component of
+`h^2 sup |y''| / 2` on each accepted segment. This is a certified local
+remainder bound, not a global error tolerance or a promise about final enclosure
+width. Initial-state uncertainty and interval wrapping remain in the result.
+
+`work.attempts` retains each candidate segment, its acceptance/rejection reason,
+and its remainder bound. Adaptive `segments` contains only the accepted prefix.
+If work is exhausted, `coveredInterval` identifies that prefix and
+`work.stopReason` distinguishes `:attemptBudgetExhausted` from
+`:minimumStepReached`. The existing dense queries and event checks apply to
+every accepted Taylor segment. Unsupported derivative/domain graphs still
+produce explicit diagnostics; adaptation currently handles tube validation and
+local remainder rejections.
+
 ## Deliberate first-release limits
 
 - forward first-order scalar and vector IVPs;
-- fixed rational time steps;
+- fixed or adaptively subdivided rational time steps;
 - unconditional differentiable Calculus graphs with exact rational range
   endpoints;
 - second-order interval Taylor recentering, but no general affine or
@@ -145,8 +169,8 @@ unresolved.
   boundary-value solver, or continuation yet.
 
 The record shapes reserve those extensions. The next validated rung is a
-general higher-order Taylor-model or affine flow with adaptive certified
-subdivision. Boundary-value problems then become a separate problem kind
+general higher-order Taylor-model or affine flow using the adaptive controller.
+Boundary-value problems then become a separate problem kind
 rather than being disguised as an IVP.
 
 See [tutorial.md](tutorial.md) for runnable approximate, validated, and
