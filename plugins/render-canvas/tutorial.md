@@ -30,6 +30,7 @@ diagnostics. Use `.Out("diagram.canvas.json", scene)` to save it with the CLI.
 ## Preserve interaction semantics
 
 ```rix
+.Plugin.Load("canvas");
 interactivePlan := .canvas.Render(.Graphics.Graphic([100,60], [
     .Graphics.Rectangle([10,10],[30,20], {= fill="#2563eb", id="box" }),
     .Graphics.Text([50,50], "measurement", {= id="label" })

@@ -5,12 +5,10 @@ theme: Numbers and numerics
 status: implemented
 ---
 
-# Approximate trajectories and validated ODE tubes
-
 Use a public Calculus graph for the equation `y'=y`, `y(0)=1`. The problem
 record is inert mathematical structure; choosing a solver is a later action.
 
-```{.rix exec=true}
+```rix
 .Plugin.Load("ode");
 y := .calculus.Variable(:y);
 problem := .ode.IVP(y,0,1,0:1,{=
@@ -25,7 +23,7 @@ Both methods retain exact rational step arithmetic here. Exact arithmetic does
 not make the discretization exact: neither result includes a proved truncation
 bound.
 
-```{.rix exec=true}
+```rix
 .Plugin.Load("ode");
 y := .calculus.Variable(:y);
 problem := .ode.IVP(y,0,1,0:1);
@@ -50,7 +48,7 @@ The Picard method searches for a complete interval tube on each segment. It
 checks both the right-hand-side range and the symbolically derived state
 derivative over that tube.
 
-```{.rix exec=true}
+```rix
 .Plugin.Load("ode");
 y := .calculus.Variable(:y);
 problem := .ode.IVP(y,0,1,0:1);
@@ -70,7 +68,7 @@ first := validated[:segments][1];
 `validated.At(1/2)` returns the complete certified tube covering one half. It
 does not pretend to be a point value:
 
-```{.rix exec=true}
+```rix
 .Plugin.Load("ode");
 y := .calculus.Variable(:y);
 solution := .ode.IVP(y,0,1,0:1).ValidatedPicard({= steps=4 });
@@ -83,7 +81,7 @@ The same APIs preserve coordinate order for the harmonic oscillator. RK4 is
 still approximate; ValidatedPicard checks the entire two-by-two Jacobian and a
 box contraction.
 
-```{.rix exec=true}
+```rix
 .Plugin.Load("ode");
 x := .calculus.Variable(:x);
 y := .calculus.Variable(:y);
@@ -97,7 +95,7 @@ tube := oscillator.ValidatedPicard({= steps=4,maxSubintervals=2 });
 
 Step doubling gives a useful local estimate but not a global proof.
 
-```{.rix exec=true}
+```rix
 .Plugin.Load("ode");
 y := .calculus.Variable(:y);
 adaptive := .ode.IVP(y,0,1,0:1).AdaptiveRK4({=
@@ -111,14 +109,12 @@ adaptive := .ode.IVP(y,0,1,0:1).AdaptiveRK4({=
 An approximate sign change is an observed candidate. A validated range that
 misses zero is a proof that no event occurs on that segment.
 
-```{.rix exec=true}
+```rix
 .Plugin.Load("ode");
 y := .calculus.Variable(:y);
 half := .ode.Event(y-1/2,{= name=:half,direction=:rising });
-observed := .ode.IVP(.calculus.Constant(1),0,0,0:1,{= events=[half] })
-  .RK4({= steps=4 }).IsolateEvents()[1];
-excluded := .ode.IVP(.calculus.Constant(0),0,1,0:1,{= events=[.ode.Event(y)] })
-  .ValidatedPicard({= steps=2 }).IsolateEvents()[1];
+observed := .ode.IVP(.calculus.Constant(1),0,0,0:1,{= events=[half] }).RK4({= steps=4 }).IsolateEvents()[1];
+excluded := .ode.IVP(.calculus.Constant(0),0,1,0:1,{= events=[.ode.Event(y)] }).ValidatedPicard({= steps=2 }).IsolateEvents()[1];
 {: observed[:candidates],excluded[:exclusions] };
 ```
 
@@ -129,12 +125,11 @@ the total derivative and recenters a Taylor remainder on every segment. For
 `y'=1`, the remainder is exactly zero, so the half-height event contracts to an
 exact time.
 
-```{.rix exec=true}
+```rix
 .Plugin.Load("ode");
 y := .calculus.Variable(:y);
 half := .ode.Event(y-1/2,{= name=:half,direction=:rising });
-taylor := .ode.IVP(.calculus.Constant(1),0,0,0:1,{= events=[half] })
-  .ValidatedTaylor2({= steps=1,maxSubintervals=2 });
+taylor := .ode.IVP(.calculus.Constant(1),0,0,0:1,{= events=[half] }).ValidatedTaylor2({= steps=1,maxSubintervals=2 });
 eventResult := taylor.IsolateEvents(half,{= eventWidth=1/100000 })[1];
 {: taylor[:wrappingControl],taylor.At(1/2),eventResult[:candidates][1] };
 ```
@@ -148,7 +143,7 @@ the endpoint range checks, the checked identity
 A deliberately inadequate radius budget cannot validate `y'=100y` over one
 large step. The unresolved attempted segment remains in the result.
 
-```{.rix exec=true}
+```rix
 .Plugin.Load("ode");
 y := .calculus.Variable(:y);
 partial := .ode.IVP(100*y,0,1,0:1).ValidatedPicard({=

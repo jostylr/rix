@@ -63,6 +63,7 @@ its diagnostics.
 ## Reuse paint and interaction definitions
 
 ```rix
+.Plugin.Load("svg");
 paint := {= gradient={= from="#dbeafe", to="#2563eb", angle=45 },
             mask={= opacity=3/4 } };
 decorated := .Graphics.Graphic([120,70], [

@@ -3,7 +3,7 @@ id: cayley
 description: Scalar-generic Cayley-Dickson values with certified component enclosures.
 kind: rix
 mount: cayley
-exports: [Provider, Level, Value, BasisValue, BasisProduct, FromComplex, FromExactAlgebra, Components, Conjugate, NormSquared, Inverse, LeftDivide, RightDivide, Enclose, Refine, ZeroStatus, VerifyMultiplication]
+exports: [Provider, Level, Value, BasisValue, BasisProduct, FromComplex, FromExactAlgebra, Components, Conjugate, NormSquared, Inverse, LeftDivide, RightDivide, Enclose, Refine, ZeroStatus, Record, VerifyMultiplication]
 groups: [Exact, Numerics]
 permissions: []
 requires: [rix.numerics@2, rix.complex@1, rix.exact-algebras@1]
@@ -48,6 +48,7 @@ CayleyProvider(options ?= {= }) -> {;
 
 CayleyDefaultProvider=CayleyProvider();
 CayleyPow2(level) -> {; result:=1; {@ index=1;index<=@level;{; @result*=2; };index+=1}; result; };
+CayleyBasisNames(dimension) -> {; names:=[]; {@ index=0;index<@dimension;{; @names~=@names.Push(@"e@{index}"); };index+=1}; names; };
 CayleyLevel(level,provider ?= CayleyDefaultProvider) -> {;
     valid=(level ? :Integer) && level>=1;
     valid ?: _ ?_ .Error("Cayley level must be a positive Integer");
@@ -60,7 +61,7 @@ CayleyLevel(level,provider ?= CayleyDefaultProvider) -> {;
     };
     value._proto={=
         Dimension=(self)->self[:dimension],
-        Basis=(self)->[0|+1|^self[:dimension]-1].Map((index)->@"e@{index}"),
+        Basis=(self)->CayleyBasisNames(self[:dimension]),
         Capabilities=(self)->{= compositionAlgebra=self[:compositionAlgebra],associative=self[:associative],commutative=self[:commutative],alternative=self[:alternative],inverse=self[:division],division=self[:division],componentEnclosure=self[:provider][:certifiedSingleton] },
         Value=(self,components)->CayleyValue(self,components),
         BasisValue=(self,index)->CayleyBasisValue(self,index),
@@ -256,6 +257,7 @@ cayleyNamespace._proto={=
     Inverse=(self,value)->CayleyInverse(value),LeftDivide=(self,value,divisor)->CayleyLeftDivide(value,divisor),RightDivide=(self,value,divisor)->CayleyRightDivide(value,divisor),
     Enclose=(self,value,request ?= {= })->CayleyEnclose(value,request,:enclose),Refine=(self,value,request ?= {= })->CayleyEnclose(value,request,:refine),
     ZeroStatus=(self,value,request ?= {= absoluteWidth=1/1000000,maxWork=1000 })->CayleyZeroStatus(value,request),
+    Record=(self,value)->CayleyRecord(value),
     VerifyMultiplication=(self,left,right)->CayleyVerifyMultiplication(left,right)
 };
 .Host.RegisterValue("cayley",cayleyNamespace,"Scalar-generic certified Cayley-Dickson values",["Exact","Numerics"]);

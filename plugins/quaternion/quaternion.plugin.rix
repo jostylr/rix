@@ -132,7 +132,7 @@ QuaternionCosh(value) -> {;
     exact=QuaternionRequire(value); p=QuaternionFloatParts(exact); r=QuaternionVectorNorm(p); u=QuaternionDirection(p,r);
     QuaternionSliceValue(QuaternionCoshScalar(p[1])*.float.Cos(r),u,QuaternionSinhScalar(p[1])*.float.Sin(r),{= operation=:cosh,source=exact,sliceEvidence={= generatedBy=:oneAndVectorDirection,associative=1 },approximate=1 });
 };
-QuaternionRecord(value) -> {; exact=QuaternionRequire(value); {= schema=exact[:schema],components=exact[:components],cayley=exact[:cayley].Record(),evidence=exact[:evidence],evaluationOrder=exact[:evidence][:parenthesization],sliceEvidence=exact[:evidence][:sliceEvidence] }; };
+QuaternionRecord(value) -> {; exact=QuaternionRequire(value); {= schema=exact[:schema],components=exact[:components],cayley=.cayley.Record(exact[:cayley]),evidence=exact[:evidence],evaluationOrder=exact[:evidence][:parenthesization],sliceEvidence=exact[:evidence][:sliceEvidence] }; };
 
 .TypeKnown(:QuaternionValue) ?: _ ?_ .TypeRegister({=
     name=:QuaternionValue,nativeType=:map,defaultTraits=[:number],convertFrom={= map=(x) ?- [x[:valueKind]==:quaternionValue] -> x },validate=(x)->x[:schema]=="rix.quaternion.value@1",

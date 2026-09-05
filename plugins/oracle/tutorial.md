@@ -224,6 +224,7 @@ The testing constructor refuses to infer a theorem from sampled signs. Supply
 the existence, uniqueness, and continuity evidence separately:
 
 ```rix
+.Plugin.Load("oracle");
 rootEvidence := .oracle.RootEvidence({=
   domain=1:2,
   rootExists=1,

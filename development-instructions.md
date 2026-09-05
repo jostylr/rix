@@ -68,3 +68,17 @@ bun run preview:docs
 ```
 
 Edit files under `documentation/`, not the generated `docs/` directory.
+
+## Test depth
+
+Use `bun run test:short` while editing and `bun run test:ci` to reproduce the
+ordinary GitHub test selection. `bun run test:ten` adds the broad
+non-documentation matrix, while `bun run test:suite` (or `bun run test`) is
+exhaustive. To isolate
+a plugin and all tests that explicitly load it, run for example:
+
+```sh
+bun run test:plugin algebraic-real
+```
+
+Plugin tests always include that plugin's runnable tutorial contract.

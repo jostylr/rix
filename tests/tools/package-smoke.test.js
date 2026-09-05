@@ -8,7 +8,7 @@ describe("standalone package", () => {
     const manifest = await Bun.file(path.join(rixRoot, "package.json")).json();
     expect(manifest.name).toBe("@ratmath/rix");
     expect(manifest.dependencies["@ratmath/core"]).toBe("^0.5.0");
-    expect(manifest.engines).toEqual({ bun: ">=1.2.0" });
+    expect(manifest.engines).toEqual({ bun: ">=1.4.0" });
 
     const worker = await Bun.file(path.join(rixRoot, "bin/rix-worker.js")).text();
     const languageServer = await Bun.file(path.join(rixRoot, "bin/rix-language-server.js")).text();

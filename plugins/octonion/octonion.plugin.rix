@@ -111,7 +111,7 @@ OctonionVerifyIdentity(identity,a,b,c ?= _) -> {;
       ?_ .Error("Unknown octonion identity fixture"))));
     {= valueKind=:octonionIdentityEvidence,schema="rix.octonion.identity-evidence@1",identity=identity,valid=valid,parenthesized=1,inputs=[a,b,c] };
 };
-OctonionRecord(value) -> {; exact=OctonionRequire(value); {= schema=exact[:schema],components=exact[:components],cayley=exact[:cayley].Record(),evidence=exact[:evidence],evaluationOrder=exact[:evidence][:evaluationOrder],sliceEvidence=exact[:evidence][:sliceEvidence] }; };
+OctonionRecord(value) -> {; exact=OctonionRequire(value); {= schema=exact[:schema],components=exact[:components],cayley=.cayley.Record(exact[:cayley]),evidence=exact[:evidence],evaluationOrder=exact[:evidence][:evaluationOrder],sliceEvidence=exact[:evidence][:sliceEvidence] }; };
 
 .TypeKnown(:OctonionValue) ?: _ ?_ .TypeRegister({=
     name=:OctonionValue,nativeType=:map,defaultTraits=[:number],convertFrom={= map=(x) ?- [x[:valueKind]==:octonionValue] -> x },validate=(x)->x[:schema]=="rix.octonion.value@1",

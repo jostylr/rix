@@ -927,7 +927,9 @@ ARArithmetic(operation, left, right ?= _) -> {;
         Refine=(self,request ?= {= })->self[:kind] == :arithmetic ?: self[:recipe].Refine(request) ?_ ARProtocolEnclosure(self,request,:refine),
         NumericsCapabilities=(self)->self[:kind] == :arithmetic ?: ARArithmeticCapabilities(self) ?_ ARCapabilities(self),
         Compare=(self,other,options ?= {= })->ARCompare(self,other,options),
-        ResultantOperation=(self,operation,other,options ?= {= })->ARResultantOperation(operation,self,other,options)
+        ResultantOperation=(self,operation,other,options ?= {= })->ARResultantOperation(operation,self,other,options),
+        Record=(self)->self[:kind] == :arithmetic ?: {= valueKind=self[:valueKind],schema=self[:schema],operation=self[:operation],certified=1 } ?_ ARRecord(self),
+        Export=(self)->ARExport(self)
     },
     installs={=
         ADD=[

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://schemas.rix.ratmath.com/refinable-real.schema.json",
+  "$id": "https://rix.ratmath.com/schema/refinable-real/v1.schema.json",
   "title": "RiX certified and refinable real interchange v1",
   "type": "object",
   "required": ["schema", "subject", "snapshot", "recipe"],

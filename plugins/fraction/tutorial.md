@@ -123,6 +123,7 @@ It also consumes the finite protocol owned by `.continuedFraction`:
 
 ```rix
 .Plugin.Load("continued-fraction");
+.Plugin.Load("fraction");
 external := .continuedFraction.FromRational(7/11);
 .fraction.FromContinuedFraction(external);
 ```
@@ -137,6 +138,7 @@ asContinuedFraction := .continuedFraction(adapter);
 ## Bound a Farey search
 
 ```rix
+.Plugin.Load("fraction");
 found := .fraction.FareySearch(.frac(42,56),
   {= maxSteps=20,maxDenominator=20 });
 partial := .fraction.FareySearch(.frac(355,113),

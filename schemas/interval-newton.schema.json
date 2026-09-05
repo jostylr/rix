@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://schemas.rix.ratmath.com/interval-newton.schema.json",
+  "$id": "https://rix.ratmath.com/schema/interval-newton/v1.schema.json",
   "title": "RiX scalar interval Newton result v1",
   "type": "object",
   "required": [

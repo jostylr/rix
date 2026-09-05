@@ -7,12 +7,16 @@ import {
     parseAndEvaluate,
 } from "../../src/index.js";
 import { loadFloatPlugin } from "../../plugins/float/node-installer.js";
+import { createNodeHostAdapter } from "../../src/runtime/host-adapter-node.js";
+
+const nodeHostAdapter = createNodeHostAdapter();
 
 function runtime() {
     return {
         context: new Context(),
         registry: createDefaultRegistry(),
         systemContext: createDefaultSystemContext(),
+        hostAdapter: nodeHostAdapter,
     };
 }
 

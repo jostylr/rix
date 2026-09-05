@@ -1,6 +1,7 @@
 {
   "name": "@ratmath/rix",
   "version": "0.1.0",
+  "packageManager": "bun@1.4.0",
   "description": "RiX, the Rational Interval Expression Language",
   "type": "module",
   "files": [
@@ -52,8 +53,12 @@
     "rix-worker": "./bin/rix-worker.js"
   },
   "scripts": {
-    "test": "bun test",
-    "test:ci": "bun ./scripts/run-test-profile.js ci",
+    "test": "bun run test:suite",
+    "test:short": "bun ./scripts/run-test-profile.js short --dots",
+    "test:ci": "bun ./scripts/run-test-profile.js ci --dots",
+    "test:ten": "bun ./scripts/run-test-profile.js ten --dots",
+    "test:suite": "bun ./scripts/run-test-profile.js suite --dots",
+    "test:plugin": "bun ./scripts/run-plugin-tests.js",
     "test:coverage": "bun test --timeout 60000 --coverage --coverage-reporter=lcov && bun ./scripts/check-coverage.js",
     "test:rix": "bun ./bin/rix.js test",
     "test:examples": "bun test tests/cli/examples.test.js",
@@ -98,7 +103,7 @@
     "marked": "^15.0.12"
   },
   "engines": {
-    "bun": ">=1.2.0"
+    "bun": ">=1.4.0"
   },
   "keywords": [
     "rix",

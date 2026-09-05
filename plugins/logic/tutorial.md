@@ -5,11 +5,9 @@ theme: Algebra and analysis
 status: implemented
 ---
 
-# Truth tables, scoped proofs, and educational trees
-
 ## Find a model and a countermodel
 
-```{.rix exec=true}
+```rix
 .Plugin.Load("logic");
 p := .logic.Atom(:p);
 q := .logic.Atom(:q);
@@ -23,7 +21,7 @@ the table is complete for its two atoms, not a sample.
 
 ## Compare valid and contradictory formulas
 
-```{.rix exec=true}
+```rix
 .Plugin.Load("logic");
 p := .logic.Atom(:p);
 tautology := p.Or(p.Not()).TruthTable();
@@ -39,7 +37,7 @@ contradiction := p.And(p.Not()).TruthTable();
 
 ## Construct and replay normal forms
 
-```{.rix exec=true}
+```rix
 .Plugin.Load("logic");
 p := .logic.Atom(:p);
 q := .logic.Atom(:q);
@@ -55,7 +53,7 @@ Their purpose here is to expose minterms and maxterms and make replay simple.
 
 ## Check a line-by-line derivation
 
-```{.rix exec=true}
+```rix
 .Plugin.Load("logic");
 p := .logic.Atom(:p);
 q := .logic.Atom(:q);
@@ -72,7 +70,7 @@ record. RiX checks the rule; it does not trust the rule label.
 
 ## Discharge a scoped assumption
 
-```{.rix exec=true}
+```rix
 .Plugin.Load("logic");
 p := .logic.Atom(:p);
 inside := .logic.Subproof(p,[],p);
@@ -91,7 +89,7 @@ replay every imported dependency explicitly.
 
 ## Reason by cases
 
-```{.rix exec=true}
+```rix
 .Plugin.Load("logic");
 p := .logic.Atom(:p);
 q := .logic.Atom(:q);
@@ -115,7 +113,7 @@ changing either goal is rejected.
 
 ## Prove a negation from contradiction
 
-```{.rix exec=true}
+```rix
 .Plugin.Load("logic");
 p := .logic.Atom(:p);
 impossible := p.And(p.Not());
@@ -135,7 +133,7 @@ These are explicit checked rules, not automatic theorem search.
 
 ## Bounded work stays visible
 
-```{.rix exec=true}
+```rix
 .Plugin.Load("logic");
 {: .logic.Capabilities(),.logic.Valuations([:p,:q]) };
 ```

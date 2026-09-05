@@ -6,10 +6,15 @@ import { extractFences, runDocuments } from "../../documentation/scripts/check-e
 
 const rixRoot = path.resolve(import.meta.dir, "../..");
 const pluginsRoot = path.join(rixRoot, "plugins");
+const selectedPlugin = process.env.RIX_PLUGIN_TEST || null;
+
+function selected(entry) {
+    return entry.isDirectory() && (!selectedPlugin || entry.name === selectedPlugin);
+}
 
 function pluginTutorials() {
     return readdirSync(pluginsRoot, { withFileTypes: true })
-        .filter((entry) => entry.isDirectory())
+        .filter(selected)
         .map((entry) => path.join(pluginsRoot, entry.name, "tutorial.md"))
         .filter((file) => {
             try {
@@ -23,7 +28,7 @@ function pluginTutorials() {
 
 function supplementalPluginTutorials() {
     return readdirSync(pluginsRoot, { withFileTypes: true })
-        .filter((entry) => entry.isDirectory())
+        .filter(selected)
         .flatMap((entry) => readdirSync(path.join(pluginsRoot, entry.name))
             .filter((name) => name.endsWith("-tutorial.md"))
             .map((name) => path.join(pluginsRoot, entry.name, name)))
@@ -34,7 +39,7 @@ function supplementalPluginTutorials() {
 describe("implemented plugin tutorials", () => {
     test("every first-party plugin has a tutorial and every RiX cell parses", () => {
         const manifestDirectories = readdirSync(pluginsRoot, { withFileTypes: true })
-            .filter((entry) => entry.isDirectory())
+            .filter(selected)
             .filter((entry) => readdirSync(path.join(pluginsRoot, entry.name))
                 .some((name) => name.endsWith(".plugin.rix") || name.endsWith(".plugin.rix.js")));
         const tutorials = pluginTutorials();
@@ -67,7 +72,7 @@ describe("implemented plugin tutorials", () => {
         );
         const results = runDocuments(documents);
 
-        expect(tutorials.length).toBeGreaterThanOrEqual(1);
+        if (!selectedPlugin) expect(tutorials.length).toBeGreaterThanOrEqual(1);
         expect(results).toHaveLength(expectedCells);
         expect(results.filter(({ status }) => status !== "pass")).toEqual([]);
     }, process.env.CI ? 120_000 : 30_000);

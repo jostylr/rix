@@ -41,6 +41,24 @@ A standalone RiX checkout can install the compatible Core release with
 `bun install` and run `bun test`. RiX is published as `@ratmath/rix`; the
 unscoped `rix` npm name belongs to an unrelated package.
 
+RiX uses Bun 1.4 and provides explicit test depths:
+
+```sh
+bun run test:short
+bun run test:ci
+bun run test:ten
+bun run test:suite
+bun run test:plugin plot
+```
+
+The short profile covers parser, evaluator, runtime, CLI, and editor contracts.
+The CI profile adds representative plugin, host, reactive, output, and package
+contracts while staying below three minutes on the reference local run. The
+ten-minute profile runs the broad non-documentation set, reserving two
+exhaustive stress files for the suite; the suite also adds documentation and
+plugin-tutorial verification. `bun run test` and direct `bun test` both select
+the complete suite.
+
 Before publishing or cutting a release candidate, run:
 
 ```sh

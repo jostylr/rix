@@ -50,6 +50,7 @@ and children. Bibliography and asset values remain portable data; declaring an
 asset does not read it.
 
 ```rix
+.Plugin.Load("document");
 bib := .document.Bibliography([
     {= key="knuth84", author="Donald Knuth", year=1984,
        title="Literate Programming" }
@@ -70,6 +71,7 @@ course := .document.Template("course-report", {=
 discussion := .Paragraph([
     .Text("Compare "), .document.Citation("knuth84"), .Text(".")
 ]);
+values := .Table(["x", "x² - 1"], [[-1, 0], [0, -1], [1, 0]]);
 templated := .document.ApplyTemplate(course, {=
     title="Evidence report", children=[discussion, values]
 });
@@ -83,6 +85,7 @@ views see only the fallback; a matching renderer may opt into the raw content
 under its own policy.
 
 ```rix
+.Plugin.Load("document");
 latexOnly := .document.TargetMarkup(
     :latex,
     "\\newcommand{\\CourseName}{Exact Mathematics}",

@@ -5,33 +5,24 @@ theme: Algebra and analysis
 status: implemented
 ---
 
-# Course-level symbolic forms and integration
-
 Load one isolated CAS surface. Its dependencies remain ordinary focused RiX
 plugins rather than an external computer-algebra process.
 
 ## Normalize without losing evidence
 
-```{.rix exec=true}
+```rix
 .Plugin.Load("cas");
 x := .calculus.Variable(:x);
 source := (x+1)*(x-1);
-collected := .cas.Collect(source,x);
-expanded := .cas.Expand(source,x);
-factored := .cas.Factor(source,x);
-.Table({=
-  columns=["form","result"],
-  rows=[
-    ["ascending coefficients",collected[:coefficients]],
-    ["expanded graph",expanded[:expression]],
-    ["factor evidence",factored[:factors]]
-  ]
-});
+collected := .cas.Collect(source,:x);
+expanded := .cas.Expand(source,:x);
+factored := .cas.Factor(source,:x);
+{: collected[:coefficients],expanded[:operation],factored[:factors].Len() };
 ```
 
 ## Walk the integration ladder
 
-```{.rix exec=true}
+```rix
 .Plugin.Load("cas");
 x := .calculus.Variable(:x);
 Exp := .calculus.Exp();
@@ -54,7 +45,7 @@ examples := [
 The logarithm row has a positive-argument obligation because `Log(2*x+1)` is
 the source function. A reciprocal uses a different, global real primitive:
 
-```{.rix exec=true}
+```rix
 .Plugin.Load("cas");
 x := .calculus.Variable(:x);
 reciprocal := .cas.Integrate(1/x,x);
@@ -67,7 +58,7 @@ not a false positivity restriction.
 
 ## Add the common trigonometric and quadratic cases
 
-```{.rix exec=true}
+```rix
 .Plugin.Load("cas");
 x := .calculus.Variable(:x);
 Sin := .calculus.Sin();
@@ -91,7 +82,7 @@ products remain outside this bounded rung.
 
 ## Let exact partial fractions do the algebra
 
-```{.rix exec=true}
+```rix
 .Plugin.Load("cas");
 rational := .rf`(2*x+3)/(x^2-1)`;
 integral := .cas.Integrate(rational);
@@ -105,7 +96,7 @@ real branches.
 
 ## Unsupported is a useful result
 
-```{.rix exec=true}
+```rix
 .Plugin.Load("cas");
 x := .calculus.Variable(:x);
 Sqrt := .calculus.Sqrt();

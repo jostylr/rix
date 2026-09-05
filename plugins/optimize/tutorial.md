@@ -44,6 +44,7 @@ This path reports `method=:twoPhaseExactSimplex` and
 ## Free and bounded variables
 
 ```rix
+.Plugin.Load("optimize");
 free := .optimize.LinearProgram([1],{:1x1: 1},[-1],{=
   relations=[:le],lowerBounds=[_],upperBounds=[_]
 }).Solve();
