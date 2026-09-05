@@ -12,7 +12,9 @@ required. Existing repository consumers will be updated directly.
 2. Lexical symbol identities and capture: implemented for core expressions.
    `::x`, `@::x`, `.SameSymbol`, `.ExpressionKey`, and `.SymbolId()` are available.
    Name-based algorithm consumers reject scoped expressions pending stage 7.
-3. Immutable definitions and local equality assumptions: pending.
+3. Immutable definitions: implemented (`::y = expression`), including cycle
+   checks, inspection, expansion, and conservative definition-aware equality.
+   Local equality assumptions remain pending with mathematical contexts.
 4. Mathematical headers, binders, and domain descriptors: pending.
 5. Mathematical constant-provider capabilities: pending.
 6. Context inspection, substitution, evaluation, and bounded reasoning: pending.

@@ -47,7 +47,7 @@ test("syntax retains interval subdivision and reserves full-slice position", () 
     expect(parse("0:1 :: 3;")[0].expression.type).toBe("IntervalDivision");
     expect(()=>parse("a[::x];")).toThrow();
     expect(JSON.stringify(parse("a[(::x)];"))).toContain('"type":"SymbolicVariable"');
-    for (const source of [":: x;",":::x;","::x = 1;"]) expect(()=>parseAndEvaluate(source)).toThrow();
+    for (const source of [":: x;",":::x;","::x := 1;"]) expect(()=>parseAndEvaluate(source)).toThrow();
 });
 
 test("lint keeps ordinary and symbolic namespaces separate", () => {

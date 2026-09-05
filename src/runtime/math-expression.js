@@ -8,6 +8,10 @@ export const expressionField = (value, key) => value?.entries?.get(key.toLowerCa
 const string = value => ({ type: "string", value });
 let nextSymbolId = 1;
 const SYMBOLS = "__math_symbols__";
+const DEFINITION_TOKEN = "__math_definition_token";
+// An opaque function token is preserved by RiX value copies. Only this module
+// can associate it with definition state; no execution context is retained.
+const definitions = new WeakMap();
 export function initializeSymbolScope(environment) {
     if (!environment.has(SYMBOLS)) environment.set(SYMBOLS,new Map());
     return environment;
@@ -26,10 +30,91 @@ export function scopedExpressionVariable(context, name, outer = false) {
     const environment = environments.at(-1);
     initializeSymbolScope(environment);
     const symbols = environment.get(SYMBOLS);
-    if (!symbols.has(name)) symbols.set(name,expressionRecord("variable",[
-        ["name",string(name)], ["symbolid",string(`symbol:${nextSymbolId++}`)],
-    ]));
+    if (!symbols.has(name)) {
+        if (context.localScopes.at(-1)?.readOnly || (!context.localScopes.length && context.globalReadOnly)) throw new Error("Cannot introduce a symbol in a read-only scope");
+        const symbol=expressionRecord("variable",[
+            ["name",string(name)], ["symbolid",string(`symbol:${nextSymbolId++}`)],
+        ]);
+        const token=()=> { throw new Error("Opaque mathematical identity is not callable"); };
+        definitions.set(token,{value:null,id:expressionField(symbol,"symbolid").value,name});
+        symbol._ext.set(DEFINITION_TOKEN,token);
+        symbols.set(name,symbol);
+    }
     return symbols.get(name);
+}
+
+function symbolState(symbol) {
+    const id=expressionField(symbol,"symbolid")?.value;
+    if (!id) return null;
+    const state=definitions.get(symbol?._ext?.get(DEFINITION_TOKEN));
+    if (!isMathExpression(symbol) || expressionField(symbol,"kind")?.value !== "variable" || !state || state.id !== id || state.name !== expressionField(symbol,"name")?.value) {
+        throw new Error("Invalid scoped symbol identity");
+    }
+    return state;
+}
+
+export function expressionDefinition(symbol) {
+    return symbolState(symbol)?.value ?? null;
+}
+
+function referencesSymbol(expression, id, seen = new Set()) {
+    if (!isMathExpression(expression) || seen.has(expression)) return false;
+    seen.add(expression);
+    if (expressionField(expression,"symbolid")?.value === id) return true;
+    const definition=expressionDefinition(expression);
+    if (definition && referencesSymbol(definition,id,seen)) return true;
+    return ["operands","arguments"].some(key=>expressionField(expression,key)?.values?.some(value=>referencesSymbol(value,id,seen)));
+}
+
+function defineExpressionSymbol(name, node, context, evaluate) {
+    if (context.localScopes.at(-1)?.readOnly || (!context.localScopes.length && context.globalReadOnly)) throw new Error("Cannot define a symbol in a read-only scope");
+    const symbol=scopedExpressionVariable(context,name);
+    const state=definitions.get(symbol._ext.get(DEFINITION_TOKEN));
+    if (state.value) throw new Error(`Symbolic definition ::${name} is immutable`);
+    const finish=value=> {
+        if (state.value) throw new Error(`Symbolic definition ::${name} is immutable`);
+        const expression=promoteExpression(value);
+        if (referencesSymbol(expression,expressionField(symbol,"symbolid").value)) throw new Error(`Cyclic symbolic definition for ::${name}`);
+        state.value=expression;
+        return symbol;
+    };
+    const value=evaluate(node,context);
+    return value instanceof Promise ? value.then(finish) : finish(value);
+}
+
+export function expandExpression(expression, memo = new Map()) {
+    expression=promoteExpression(expression);
+    if (memo.has(expression)) return memo.get(expression);
+    const definition=expressionDefinition(expression);
+    if (definition) {
+        const result=expandExpression(definition,memo);
+        memo.set(expression,result);
+        return result;
+    }
+    const kind=expressionField(expression,"kind")?.value;
+    let result=expression;
+    if (kind === "operator") result=expressionOperation(expressionField(expression,"operation").value,
+        expressionField(expression,"operands").values.map(value=>expandExpression(value,memo)));
+    if (kind === "apply") result=expressionApplication(expressionField(expression,"semanticid").value,expressionField(expression,"name").value,
+        expressionField(expression,"arguments").values.map(value=>expandExpression(value,memo)));
+    memo.set(expression,result);
+    return result;
+}
+
+function equalityKey(expression) {
+    const operation=expressionField(expression,"operation")?.value;
+    if (!operation) return expressionStructuralKey(expression);
+    const operands=expressionField(expression,"operands").values;
+    const keys=operands.map(equalityKey);
+    const zero=expressionStructuralKey(expressionConstant(new Integer(0n)));
+    const one=expressionStructuralKey(expressionConstant(new Integer(1n)));
+    // Neutral-element rules preserve partial-expression domains. Deliberately
+    // do not erase domains using x/x=1, 0*x=0, or x^0=1.
+    if (["add","subtract"].includes(operation) && keys[1] === zero) return keys[0];
+    if (operation === "add" && keys[0] === zero) return keys[1];
+    if (["multiply","divide","power"].includes(operation) && keys[1] === one) return keys[0];
+    if (operation === "multiply" && keys[0] === one) return keys[1];
+    return JSON.stringify(["operator",operation,keys]);
 }
 
 export function hasScopedSymbols(expression) {
@@ -41,7 +126,7 @@ export function hasScopedSymbols(expression) {
 export function expressionStructuralKey(expression) {
     if (!isMathExpression(expression)) return expressionStructuralKey(expressionConstant(expression));
     const kind=expressionField(expression,"kind")?.value;
-    if (kind === "variable") return JSON.stringify([kind,expressionField(expression,"symbolid")?.value ?? ["named",expressionField(expression,"name")?.value]]);
+    if (kind === "variable") return JSON.stringify([kind,symbolState(expression)?.id ?? ["named",expressionField(expression,"name")?.value]]);
     if (kind === "constant") return JSON.stringify([kind,String(expressionField(expression,"value"))]);
     if (kind === "operator") return JSON.stringify([kind,expressionField(expression,"operation")?.value,expressionField(expression,"operands").values.map(expressionStructuralKey)]);
     if (kind === "apply") return JSON.stringify([kind,expressionField(expression,"semanticid")?.value,expressionField(expression,"arguments").values.map(expressionStructuralKey)]);
@@ -126,8 +211,9 @@ export function installExpressionVariants(registry) {
         prep:args=>args.some(isMathExpression),
         impl:args=> {
             if (!args.every(value=>isMathExpression(value) || value instanceof Integer || value instanceof Rational)) return UNDECIDED;
-            if (expressionStructuralKey(args[0]) === expressionStructuralKey(args[1])) return operation === "EQ" ? new Integer(1n) : null;
-            if (args.every(value=>!isMathExpression(value) || expressionField(value,"kind")?.value === "constant")) return operation === "EQ" ? null : new Integer(1n);
+            const expanded=args.map(value=>expandExpression(value));
+            if (equalityKey(expanded[0]) === equalityKey(expanded[1])) return operation === "EQ" ? new Integer(1n) : null;
+            if (expanded.every(value=>expressionField(value,"kind")?.value === "constant")) return operation === "EQ" ? null : new Integer(1n);
             // Distinct free symbols or trees do not establish mathematical inequality.
             return UNDECIDED;
         },
@@ -136,13 +222,19 @@ export function installExpressionVariants(registry) {
 
 export const expressionSyntaxFunctions = {
     SYMBOL_RETRIEVE: { impl:([name,outer],context)=>scopedExpressionVariable(context,name,outer), lazy:true, pure:false },
+    SYMBOL_DEFINE: { impl:([name,node],context,evaluate)=>defineExpressionSymbol(name,node,context,evaluate), lazy:true, pure:false },
 };
 
 export const expressionCapabilities = {
+    ExpressionDefinition: { impl:([symbol])=> {
+        if (!expressionField(symbol,"symbolid")) throw new Error("ExpressionDefinition requires a scoped symbol");
+        return expressionDefinition(symbol);
+    }, pure:false, groups:["Symbolic"], doc:"Inspect a symbol's immutable definition, or null if it has none" },
+    ExpressionExpand: { impl:([value])=>expandExpression(value), pure:false, groups:["Symbolic"], doc:"Expand immutable symbol definitions without changing identities or applying general simplification" },
     ExpressionKey: { impl:([value])=>string(expressionStructuralKey(value)), pure:true, groups:["Symbolic"], doc:"Identity-aware structural key, not a proof of mathematical inequality" },
     ExpressionHasScopedSymbols: { impl:([value])=>hasScopedSymbols(value) ? new Integer(1n) : null, pure:true, groups:["Symbolic"], doc:"Recognize expressions requiring identity-aware mathematical consumers" },
     SameSymbol: { impl:([left,right])=> {
-        const a=expressionField(left,"symbolid")?.value, b=expressionField(right,"symbolid")?.value;
+        const a=symbolState(left)?.id, b=symbolState(right)?.id;
         if (!a || !b) throw new Error("SameSymbol requires two scoped symbolic variables");
         return a===b ? new Integer(1n) : null;
     }, pure:true, groups:["Symbolic"], doc:"Compare symbol identities independently of mathematical equality" },

@@ -1331,7 +1331,8 @@ function lowerAssignment(node, irFn) {
 
   // Simple variable assignment: x = 5
   if (left.type === "SymbolicVariable") {
-    throw new Error("Symbolic definitions are not implemented yet; bind the symbol to an ordinary variable instead");
+    if (left.outer || irFn !== "ASSIGN") throw new Error("Define a local symbolic variable with '='; symbolic definitions cannot be updated or assigned through capture");
+    return ir("SYMBOL_DEFINE",left.name,lowerNode(node.right));
   }
   if (left.type === "UserIdentifier" || left.type === "SystemIdentifier") {
     const right =
