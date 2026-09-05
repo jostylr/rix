@@ -49,47 +49,13 @@ CalculusRequireExpression(value, label ?= "value") ->
 CalculusExactScalar(value) -> (value ? :Integer) || (value ? :Rational);
 CalculusOperand(value) -> CalculusIsExpression(value) || CalculusExactScalar(value);
 
-CalculusExpression(kind, fields) -> {;
-    value = {=
-        valueKind=:calculusExpression,
-        schema="rix.calculus.expression@1",
-        kind=kind
-    }.Merge(fields);
-    value.__type = "CalculusExpression";
-    value._type = "calculus_expression";
-    value._proto = {=
-        Record=(self)->self,
-        Kind=(self)->self[:kind],
-        Operands=(self)->self.Has("operands") ?: self[:operands] ?_ [],
-        SemanticId=(self)->self.Has("semanticId") ?: self[:semanticId] ?_ _
-    };
-    .ImmutableValue(value);
-};
-
-CalculusVariable(name) -> {;
-    name ? :String ?: _ ?_ .Error("Calculus variable name must be a string or colon-string");
-    CalculusExpression(:variable, {= name=name });
-};
-
-CalculusConstant(value) -> CalculusExactScalar(value)
-    ?: CalculusExpression(:constant, {= value=value })
-    ?_ .Error("Calculus constants currently require an exact Integer or Rational");
-
+CalculusVariable(name) -> .ExpressionVariable(name);
+CalculusConstant(value) -> .ExpressionConstant(value);
 CalculusPromote(value) -> CalculusIsExpression(value) ?: value ?_ CalculusConstant(value);
-
-CalculusOperator(operation, operands) -> CalculusExpression(:operator, {=
-    operation=operation,
-    operands=operands.Map((value)->CalculusPromote(value))
-});
-
+CalculusOperator(operation, operands) -> .ExpressionOperation(operation,operands);
 CalculusBinary(operation, left, right) -> CalculusOperator(operation, [left,right]);
 CalculusNegate(value) -> CalculusOperator(:negate, [value]);
-
-CalculusApplication(semanticId, name, arguments) -> CalculusExpression(:apply, {=
-    semanticId=semanticId,
-    name=name,
-    arguments=arguments.Map((value)->CalculusPromote(value))
-});
+CalculusApplication(semanticId, name, arguments) -> .ExpressionApply(semanticId,name,arguments);
 
 CalculusApply(function, argument) -> {;
     exact = function ? :MathematicalFunction
@@ -1089,14 +1055,7 @@ CalculusRegister(calculusBuiltinComplexLog,{=
     defaultTraits=[],
     validate=(value)->value.Has("schema") && value[:schema] == "rix.calculus.expression@1",
     proto={= },
-    installs={=
-        ADD=[{= name=:CalculusAdd, priority=250, prep=(left,right)->CalculusOperand(left)&&CalculusOperand(right)&&(CalculusIsExpression(left)||CalculusIsExpression(right)), impl=(left,right)->CalculusBinary(:add,left,right) }],
-        SUB=[{= name=:CalculusSub, priority=250, prep=(left,right)->CalculusOperand(left)&&CalculusOperand(right)&&(CalculusIsExpression(left)||CalculusIsExpression(right)), impl=(left,right)->CalculusBinary(:subtract,left,right) }],
-        MUL=[{= name=:CalculusMul, priority=250, prep=(left,right)->CalculusOperand(left)&&CalculusOperand(right)&&(CalculusIsExpression(left)||CalculusIsExpression(right)), impl=(left,right)->CalculusBinary(:multiply,left,right) }],
-        DIV=[{= name=:CalculusDiv, priority=250, prep=(left,right)->CalculusOperand(left)&&CalculusOperand(right)&&(CalculusIsExpression(left)||CalculusIsExpression(right)), impl=(left,right)->CalculusBinary(:divide,left,right) }],
-        POW=[{= name=:CalculusPow, priority=250, prep=(left,right)->CalculusOperand(left)&&CalculusOperand(right)&&(CalculusIsExpression(left)||CalculusIsExpression(right)), impl=(left,right)->CalculusBinary(:power,left,right) }],
-        NEG=[{= name=:CalculusNeg, priority=250, prep=(value)->CalculusIsExpression(value), impl=CalculusNegate }]
-    }
+    installs={= }
 });
 .TypeInstall(:CalculusExpression);
 

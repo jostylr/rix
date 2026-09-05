@@ -8,6 +8,7 @@
  */
 
 import { Registry } from "./registry.js";
+import { expressionCapabilities, installExpressionVariants } from "../runtime/math-expression.js";
 import { SystemContext } from "../runtime/system-context.js";
 import { PluginCatalog } from "../runtime/plugin-catalog.js";
 import { createSystemLookup } from "../runtime/system-manifest.js";
@@ -253,6 +254,7 @@ export function createDefaultRegistry(options = {}) {
     installRegisteredTypes(registry);
     installUnitExactVariants(registry);
     installSymbolicVariants(registry);
+    installExpressionVariants(registry);
     for (const loadStartup of options.startupLoaders || []) {
         loadStartup(registry);
     }
@@ -550,6 +552,7 @@ export function createDefaultSystemContext(options = {}) {
     ctx.register("ConvertUnit", unitExactFunctions.CONVERTUNIT);
     ctx.register("DefineUnit", unitExactFunctions.DEFINEUNIT);
     ctx.register("DefineExactGenerator", unitExactFunctions.DEFINEEXACTGENERATOR);
+    for (const [name, definition] of Object.entries(expressionCapabilities)) ctx.register(name, definition);
     ctx.installManagementNamespaces();
     const rendererRegistry = options.rendererRegistry || new RendererRegistry();
     ctx.attachRendererRegistry(rendererRegistry, {

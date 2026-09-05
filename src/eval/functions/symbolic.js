@@ -1,5 +1,6 @@
 import { Integer, Rational } from "@ratmath/core";
 import { runtimeDefaults } from "../../runtime/runtime-config.js";
+import { expressionRecord as calculusExpressionRecord, EXPRESSION_SCHEMA } from "../../runtime/math-expression.js";
 import {
     sortedStructuralFreeSymbols,
     structuralValueToIr,
@@ -23,7 +24,7 @@ const CALCULUS_OPERATOR_TO_IR = new Map([
 ]);
 const IR_TO_CALCULUS_OPERATOR = new Map(Array.from(CALCULUS_OPERATOR_TO_IR, ([name, fn]) => [fn, name]));
 
-export const CALCULUS_EXPRESSION_SCHEMA = "rix.calculus.expression@1";
+export const CALCULUS_EXPRESSION_SCHEMA = EXPRESSION_SCHEMA;
 
 export const symbolicIr = (fn, ...args) => ({ fn, args });
 const ir = symbolicIr;
@@ -338,21 +339,6 @@ export function calculusExpressionToSymbolicIr(value, path = "expression") {
             ...args.map((arg, index) => calculusExpressionToSymbolicIr(arg, `${path}.arguments[${index + 1}]`)));
     }
     throw new Error(`${path}.kind '${kind}' is not supported by the exact symbolic bridge`);
-}
-
-function calculusExpressionRecord(kind, entries) {
-    const record = rixMap([
-        ["valuekind", rixString("calculusExpression")],
-        ["schema", rixString(CALCULUS_EXPRESSION_SCHEMA)],
-        ["kind", rixString(kind)],
-        ...entries,
-    ]);
-    record._ext = new Map([
-        ["__type", rixString("CalculusExpression")],
-        ["_type", rixString("map")],
-        ["immutable", new Integer(1n)],
-    ]);
-    return record;
 }
 
 /** Export supported private symbolic IR as a public Calculus expression record. */
