@@ -736,7 +736,7 @@ OdeValidatedTaylor2(problemValue, options ?= {= }, adaptive ?= _) -> {;
          }
          ?_ {;
              @rejected += 1;
-             @adaptive && @h/2>=@minimumStep
+             (@adaptive && @h/2>=@minimumStep)
                ?: {; @stepSize ~= @h/2; }
                ?_ {;
                    @stopped ~= 1;

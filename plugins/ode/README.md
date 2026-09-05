@@ -121,6 +121,12 @@ or affine-arithmetic flow. The record says so explicitly through
 `wrappingControl.kind=:secondOrderTaylorRecentering` and
 `affineArithmetic=null`.
 
+Fixed `ValidatedTaylor2` stops at the first failed tube and retains that
+uncertified segment in `segments`, with
+`work.stopReason=:tubeSelfMapNotEstablished`. It does not retry the same step
+or silently omit its evidence. This differs from the adaptive solver's
+accepted-only segment list and separate candidate history.
+
 For these Taylor segments, event isolation can now certify one event. RiX
 requires certified opposite endpoint signs, checks the total event derivative
 `g_t + grad(g) dot f` away from zero, and contracts the time interval with

@@ -24,6 +24,20 @@ function text(value) {
 }
 
 describe("pure RiX ODE plugin", () => {
+    test("fixed Taylor stepping stops at its first failed tube and retains that segment", () => {
+        const solution = parseAndEvaluate(`
+            .Plugin.Load("ode");
+            y := .calculus.Variable(:y);
+            .ode.IVP(10*y,0,1,0:1).ValidatedTaylor2({= steps=2,maxSubintervals=1 });
+        `, runtime());
+        expect(text(entry(solution,"status"))).toBe("partial");
+        expect(entry(solution,"segments").values).toHaveLength(1);
+        expect(entry(entry(solution,"segments").values[0],"certified")).toBeNull();
+        const work = entry(solution,"work");
+        expect(entry(work,"attemptedsteps").value).toBe(1n);
+        expect(text(entry(work,"stopreason"))).toBe("tubeSelfMapNotEstablished");
+    });
+
     test("adaptively certifies exponential flow after rejecting a noncontracting step", () => {
         const solution = parseAndEvaluate(`
             .Plugin.Load("ode");

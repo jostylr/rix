@@ -155,6 +155,18 @@ partial := .ode.IVP(100*y,0,1,0:1).ValidatedPicard({=
 Increase `maxTubeIterations`, increase `steps`, or both. More work may find a
 self-map, but work exhaustion is never reported as nonexistence.
 
+Fixed Taylor stepping likewise stops at its first unresolved tube. It keeps
+that failed segment so its diagnostics remain inspectable.
+
+```{.rix exec=true}
+.Plugin.Load("ode");
+y := .calculus.Variable(:y);
+partial := .ode.IVP(10*y,0,1,0:1).ValidatedTaylor2({= steps=2,maxSubintervals=1 });
+partial[:work][:attemptedSteps]==1 ?: 1 ?_ .Error("Fixed stepping must stop on failure");
+partial[:segments].Len()==1 ?: 1 ?_ .Error("Failed segment evidence must be retained");
+{: partial[:status],partial[:work][:stopReason],partial[:segments][1][:diagnostics] };
+```
+
 ## Adapt a certified trajectory
 
 A single step for `y'=y` on `[0,1]` fails the strict contraction test because
