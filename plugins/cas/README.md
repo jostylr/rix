@@ -97,11 +97,12 @@ reciprocal, rational partial-fraction, and unsupported cases. In particular, `Si
 error in this case was caused by unawaited collection callbacks and is fixed
 in the shared receiver-method runtime.
 
-A separate pre-existing limitation remains for directly integrating the
-callable Polynomial returned by `Collect(... )[:polynomial]`: that route can
-report "CAS expected a Calculus expression or exact scalar" in both evaluators.
-Use the polynomial expression graph as input for now; investigate the direct
-Polynomial dispatch separately. This is not the async callback failure.
+Both polynomial expression graphs and specialized callable Polynomial values
+are accepted by `Integrate`, including `Collect(...)[:polynomial]` results.
+The specialized path uses the Polynomial's own variable name and integrates
+its exact coefficients, recording `:polynomialCoefficientIntegration` evidence.
+Zero and constant Polynomials retain their declared variable as well. This
+path and its rule replay are tested in both evaluators.
 
 Unsupported inputs return `status=:unsupported`, `antiderivative=_`, and a
 reason such as `:unsupportedSemanticFunction` or

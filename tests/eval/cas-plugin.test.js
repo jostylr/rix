@@ -53,6 +53,34 @@ function numericalGraph(graph, x) {
 }
 
 describe("browser-safe course CAS plugin", () => {
+    for (const [mode,evaluate] of [["sync",parseAndEvaluate],["async",parseAndEvaluateAsync]]) {
+        test(`${mode}: directly integrates callable Polynomials and replays their coefficient rule`, async () => {
+            const result = await evaluate(`
+                .Plugin.Load("cas");
+                x := .calculus.Variable(:x);
+                collected := .cas.Collect(x^3+2*x)[:polynomial];
+                sources := [collected,.poly([1,0,2,0],:t),.poly([0],:z),.poly([7],:u)];
+                sources.Map((polynomial)->{;
+                    integral = .cas.Integrate(polynomial);
+                    derivative = .calculus.PartialResult(integral[:antiderivative],integral[:variable]);
+                    normalized = .cas.Collect(derivative[:expression],integral[:variable]);
+                    {: integral,.cas.CheckIntegral(integral),normalized[:coefficients],polynomial.Evaluate(2) };
+                });
+            `, runtime());
+            for (let i=0;i<result.values.length;i++) {
+                const [integral,replay,coefficients,atTwo]=result.values[i].values;
+                expect(text(entry(integral,"status"))).toBe("complete");
+                expect(text(entry(integral,"variable"))).toBe(["x","t","z","u"][i]);
+                expect(entry(replay,"accepted").value).toBe(1n);
+                expect(text(entry(entry(integral,"rules").values[0],"rule"))).toBe("polynomialCoefficientIntegration");
+                expect(coefficients.values.map(v=>v.toString())).toEqual([
+                    ["0","2","0","1"],["0","2","0","1"],["0"],["7"]
+                ][i]);
+                expect(atTwo.toString()).toBe(["12","12","0","7"][i]);
+            }
+        }, 120_000);
+    }
+
     test("async integration and replay agree with sync across expression families", async () => {
         const scope = runtime();
         // Construct sources through the async entry point too: graph-building

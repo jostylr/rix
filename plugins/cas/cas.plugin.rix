@@ -547,14 +547,16 @@ CasIntegralResult(source, variable, state) -> {;
 
 CasIntegrate(value, variable ?= :x, options ?= {= }) -> {;
     options = CasRequireOptions(options,"CAS integration options");
-    name = value ? :Polynomial
+    /* Parenthesize type predicates in a conditional chain: otherwise the next
+       ? :Type can test the preceding conditional's result instead of value. */
+    name = (value ? :Polynomial)
       ?: value.Variable()
-      ?_ value ? :RationalFunction
+      ?_ (value ? :RationalFunction)
       ?: value.variable
       ?_ CasVariableName(variable);
-    state = value ? :Polynomial
+    state = (value ? :Polynomial)
       ?: CasIntegratePolynomial(value)
-      ?_ value ? :RationalFunction
+      ?_ (value ? :RationalFunction)
       ?: CasIntegratePartialFractions(value)
       ?_ CasIntegrateNode(CasExpression(value),name);
     CasIntegralResult(value,name,state);

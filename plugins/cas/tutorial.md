@@ -20,6 +20,29 @@ factored := .cas.Factor(source,:x);
 {: collected[:coefficients],expanded[:operation],factored[:factors].Len() };
 ```
 
+## Integrate a specialized Polynomial directly
+
+A collected Polynomial stores exact coefficients and its mathematical variable
+name. CAS can integrate that value directly, not just the original expression
+graph. The returned antiderivative is still a Calculus expression graph.
+
+```{.rix exec=true}
+.Plugin.Load("cas");
+t := .calculus.Variable(:t);
+polynomial := .cas.Collect(t^3+2*t,:t)[:polynomial];
+integral := .cas.Integrate(polynomial);
+replay := .cas.CheckIntegral(integral);
+integral[:status]==:complete ?: 1 ?_ .Error("Polynomial integration failed");
+integral[:variable]==:t ?: 1 ?_ .Error("Expected the Polynomial's variable");
+replay[:accepted]==1 ?: 1 ?_ .Error("Polynomial rule replay failed");
+{: polynomial.Coefficients(:ascending),integral[:antiderivative],integral[:rules] };
+```
+
+The primitive represents `t^4/4+t^2`, with the arbitrary additive constant
+omitted. CAS reads `:t` from the Polynomial even though `Integrate` defaults to
+`:x` for expression-graph inputs. Zero and constant Polynomial values use the
+same coefficient rule.
+
 ## Walk the integration ladder
 
 ```rix
