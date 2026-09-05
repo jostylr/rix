@@ -4,10 +4,11 @@
   "scopeName": "source.rix",
   "patterns": [
     { "include": "#comments" }, { "include": "#strings" }, { "include": "#numbers" },
-    { "include": "#checks" }, { "include": "#reactive" }, { "include": "#identifiers" },
+    { "include": "#checks" }, { "include": "#symbolics" }, { "include": "#reactive" }, { "include": "#identifiers" },
     { "include": "#containers" }, { "include": "#operators" }
   ],
   "repository": {
+    "symbolics": { "patterns": [{ "name": "variable.other.symbolic.rix", "match": "@?::[\\p{L}_][\\p{L}\\p{N}_]*" }] },
     "comments": { "patterns": [
       { "name": "comment.block.documentation.rix", "begin": "/\\*\\*", "end": "\\*\\*/" },
       { "name": "comment.block.rix", "begin": "/\\*", "end": "\\*/" },

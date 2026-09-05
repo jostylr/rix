@@ -9,7 +9,9 @@ required. Existing repository consumers will be updated directly.
 
 1. Core construction and arithmetic: implemented. Calculus delegates its
    constructors to core; arithmetic no longer requires loading calculus.
-2. Lexical symbol identities and capture: pending.
+2. Lexical symbol identities and capture: implemented for core expressions.
+   `::x`, `@::x`, `.SameSymbol`, `.ExpressionKey`, and `.SymbolId()` are available.
+   Name-based algorithm consumers reject scoped expressions pending stage 7.
 3. Immutable definitions and local equality assumptions: pending.
 4. Mathematical headers, binders, and domain descriptors: pending.
 5. Mathematical constant-provider capabilities: pending.

@@ -114,6 +114,7 @@ class LintScope {
         this.parent = parent;
         this.kind = kind;
         this.bindings = new Map();
+        this.symbols = new Set();
     }
 
     declare(name, details = {}) {
@@ -906,6 +907,18 @@ export function analyzeRix(source, options = {}) {
                     `Use '@${node.name}' for a value reference. Direct calls may keep the bare callable name.`,
                     { fix: explicitFix(node, source, "insert-outer") },
                 );
+            }
+            return;
+        }
+
+        if (node.type === "SymbolicVariable") {
+            if (!node.outer) scope.symbols.add(node.name);
+            else {
+                let ancestor=scope.parent;
+                while (ancestor && !ancestor.symbols.has(node.name)) ancestor=ancestor.parent;
+                if (!ancestor) emit("RX1003","warning",node,
+                    `'@::${node.name}' requests an enclosing symbol, but none is visible in this source.`,
+                    `Introduce '::${node.name}' in an enclosing scope before capturing it.`);
             }
             return;
         }

@@ -1,6 +1,6 @@
 import { Integer, Rational } from "@ratmath/core";
 import { runtimeDefaults } from "../../runtime/runtime-config.js";
-import { expressionRecord as calculusExpressionRecord, EXPRESSION_SCHEMA } from "../../runtime/math-expression.js";
+import { expressionRecord as calculusExpressionRecord, EXPRESSION_SCHEMA, hasScopedSymbols } from "../../runtime/math-expression.js";
 import {
     sortedStructuralFreeSymbols,
     structuralValueToIr,
@@ -296,6 +296,7 @@ function calculusRecordValues(value, key, label) {
 }
 
 function requireCalculusExpression(value, path = "expression") {
+    if (hasScopedSymbols(value)) throw new Error("Scoped mathematical symbols require an identity-aware specification consumer (not yet implemented)");
     if (value?.type !== "map" || !(value.entries instanceof Map)) {
         throw new Error(`${path} must be a ${CALCULUS_EXPRESSION_SCHEMA} map`);
     }

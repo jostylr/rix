@@ -40,7 +40,7 @@ CalculusRegistryEvidence(semanticId, key, value) -> {;
     CalculusRegistrySet(:evidence,semanticId,evidence.Set(key,value));
 };
 
-CalculusIsExpression(value) -> value ? :CalculusExpression;
+CalculusIsExpression(value) -> (value ? :CalculusExpression) && !.ExpressionHasScopedSymbols(value);
 CalculusIsFunction(value) -> value ? :MathematicalFunction;
 
 CalculusRequireExpression(value, label ?= "value") ->

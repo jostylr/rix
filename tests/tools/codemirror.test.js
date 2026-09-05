@@ -11,6 +11,11 @@ function tree(source) {
 }
 
 describe("RiX Lezer grammar", () => {
+  test("recognizes scoped mathematical variables and captures", () => {
+    const result = tree("x := ::x; @::x + ::y;");
+    expect(result).toContain("SymbolicVariable");
+    expect(result).not.toContain("⚠");
+  });
   test("recognizes function return guards as complete operators", () => {
     const source = "F(x) ?!- [x ?_> :bad ??> :unknown] -> x;";
     const parsed = parser.parse(source);

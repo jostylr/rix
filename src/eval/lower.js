@@ -352,6 +352,10 @@ const LOWERERS = {
     return ir("RETRIEVE", node.name);
   },
 
+  SymbolicVariable(node) {
+    return ir("SYMBOL_RETRIEVE", node.name, node.outer === true);
+  },
+
   SystemIdentifier(node) {
     if (node.original && node.original.trim().startsWith("@")) {
       return ir("SYSREF", node.name);
@@ -1326,6 +1330,9 @@ function lowerAssignment(node, irFn) {
   }
 
   // Simple variable assignment: x = 5
+  if (left.type === "SymbolicVariable") {
+    throw new Error("Symbolic definitions are not implemented yet; bind the symbol to an ordinary variable instead");
+  }
   if (left.type === "UserIdentifier" || left.type === "SystemIdentifier") {
     const right =
       left.type === "SystemIdentifier" && node.right?.type === "EmbeddedLanguage"

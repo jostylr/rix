@@ -6,6 +6,7 @@ import {
   Number,
   Operator,
   OuterIdentifier,
+  SymbolicVariable,
   Placeholder,
   Regex,
   String as StringToken,
@@ -202,6 +203,14 @@ function isOperatorCharacter(next) {
 }
 
 export const rixTokens = new ExternalTokenizer((input, stack) => {
+  const symbolicPrefix = input.next === code.at ? 1 : 0;
+  if (input.peek(symbolicPrefix) === 58 && input.peek(symbolicPrefix+1) === 58 && stack.canShift(SymbolicVariable)) {
+    const symbol = scanIdentifier(input,symbolicPrefix+2);
+    if (symbol) {
+      input.advance(symbol.length);
+      return input.acceptToken(SymbolicVariable);
+    }
+  }
   if (input.next === code.hash && input.peek(1) === code.hash) {
     if (consumeTaggedComment(input)) return input.acceptToken(Comment);
     while (input.next >= 0 && input.next !== 10) input.advance();

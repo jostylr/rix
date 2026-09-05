@@ -23,6 +23,7 @@ const parserWithMetadata = parser.configure({
       SystemIdentifier: t.typeName,
       SystemFunction: t.function(t.special(t.variableName)),
       OuterIdentifier: t.special(t.variableName),
+      SymbolicVariable: t.special(t.variableName),
       Placeholder: t.special(t.variableName),
       SelfReference: t.self,
       Operator: t.operatorKeyword,

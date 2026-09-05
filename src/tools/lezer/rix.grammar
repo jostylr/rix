@@ -31,6 +31,7 @@ Primary {
   SystemIdentifier |
   SystemFunction |
   OuterIdentifier |
+  SymbolicVariable |
   Placeholder |
   SelfReference |
   Group |
@@ -90,6 +91,7 @@ BraceClose { "|}" | "}" }
   Comment,
   SystemFunction,
   OuterIdentifier,
+  SymbolicVariable,
   SystemIdentifier,
   Identifier,
   Placeholder,

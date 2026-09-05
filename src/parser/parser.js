@@ -943,6 +943,7 @@ class Parser {
           // produce a structured document template.  @{...} remains the
           // established deferred-code syntax, so the two forms are unambiguous.
           this.advance(); // consume '@'
+          if (this.current.value === "::") return this.parseSymbolicVariable(true, token);
           if (this.current.type === "String" && this.current.kind === "quote") {
             const template = this.current;
             this.advance();
@@ -1063,6 +1064,8 @@ class Parser {
           return this.createNode("SystemObject", {
             original: token.original,
           });
+        } else if (token.value === "::") {
+          return this.parseSymbolicVariable(false);
         } else if (token.value === "_") {
           // Underscore is always a null symbol
           this.advance();
@@ -3892,6 +3895,18 @@ class Parser {
       pos: left.pos,
       original: left.original + operator.original,
     });
+  }
+
+  parseSymbolicVariable(outer, startToken = this.current) {
+    const prefix = this.current;
+    this.advance();
+    if (this.current.type !== "Identifier" || prefix.pos[2] !== this.current.pos[1]) {
+      this.error("Symbolic '::' must be immediately followed by a name");
+    }
+    const name = this.current.value;
+    const original = (outer ? "@::" : "::") + this.current.original;
+    this.advance();
+    return this.createNode("SymbolicVariable", {name,outer,pos:startToken.pos,original});
   }
 
   parseBracketSpec() {

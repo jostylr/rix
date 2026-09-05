@@ -12,6 +12,7 @@
 
 import { Cell, deepCopyValue } from "./cell.js";
 import { forkRuntimeRandom } from "./random.js";
+import { initializeSymbolScope } from "./math-expression.js";
 
 export class Context {
     constructor() {
@@ -26,7 +27,7 @@ export class Context {
         this.env = new Map();
         // Lexically scoped runtime services. Entries inherit through pushed
         // scopes, while assignment writes only to the immediate scope.
-        this.globalScopedEnv = new Map();
+        this.globalScopedEnv = initializeSymbolScope(new Map());
         // Call stack for debugging
         this.callStack = [];
         this.currentCallables = [];
@@ -66,7 +67,7 @@ export class Context {
         }
         const scope = {
             bindings,
-            scopedEnv: options.scopedEnv instanceof Map ? options.scopedEnv : new Map(),
+            scopedEnv: initializeSymbolScope(options.scopedEnv instanceof Map ? options.scopedEnv : new Map()),
             isolated: options.isolated === true,
             readThrough: options.readThrough === true,
             callableBoundary: options.callableBoundary === true,
