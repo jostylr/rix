@@ -145,6 +145,34 @@ This integral has a closed form involving inverse hyperbolic functions, but it
 is outside the current course ladder. A visible unsupported record is safer
 and more educational than a guessed transformation.
 
+## Keep diagnostics separate from the successful computation
+
+CAS uses `?_>` both in helper prep lists and inside selected rule branches.
+You can use the same style when consuming its results. This helper propagates
+an unsupported record before attempting to differentiate a missing primitive:
+
+```{.rix exec=true}
+.Plugin.Load("cas");
+DifferentiateIntegral(source, variable) ?!- [
+    integral = .cas.Integrate(source,variable),
+    integral[:status]==:complete ?_> integral
+] -> .calculus.PartialResult(integral[:antiderivative],variable);
+x := .calculus.Variable(:x);
+Sin := .calculus.Sin();
+supported := DifferentiateIntegral(Sin(2*x+1),x);
+unsupported := DifferentiateIntegral(Sin(x^2),x);
+unsupported[:reason]==:nonAffineSineArgument
+  ?: 1 ?_ .Error("Expected the original CAS diagnostic");
+{: supported[:expression],unsupported[:status],unsupported[:reason] };
+```
+
+The check describes what must hold to continue. Its diagnostic is evaluated
+only on failure, and returns from the function call. Inside a function body,
+the same check can follow intermediate work, including inside a branch block.
+Do not use it at tutorial top level: there is no function call to return from.
+`??>` handles undecided checks; an explicit CAS `:unsupported` result is a
+decided status and uses `?_>`, not `??>`.
+
 ## Further work
 
 1. Differentiate each returned antiderivative and compare it with the source.

@@ -53,9 +53,9 @@ theorem prover. The retained rules and existing derivative service make the
 calculation inspectable in a lesson.
 
 Power-reduction records retain the degree, affine slope, and recurrence step.
-Its RiX implementation uses diagnostic `?_>` prep guards to separate these
-applicability checks from primitive construction, while preserving the exact
-unsupported reasons. See the [guard tutorial](../../documentation/eval/function-returns.md).
+The RiX implementation separates applicability checks from construction with
+diagnostic `?_>` guards throughout CAS. See the
+[guard tutorial](../../documentation/eval/function-returns.md).
 Product-to-sum records retain both affine arguments. A zero sum/difference
 frequency integrates as a constant times `x`, never by dividing by zero.
 These identities hold on the entire real line and introduce no additional
@@ -63,6 +63,38 @@ domain obligations. Negative/noninteger trig powers, degrees above 8, mixed
 powers such as `Sin(x)^2*Cos(x)^3`, and nonaffine arguments are outside this
 rung. The degree budget keeps graph construction and classroom derivative
 checks bounded; it is not a mathematical restriction on the recurrence.
+
+## Implementation style: checks before computation
+
+Entry checks belong in strict `?!-` prep lists when they apply to the whole
+helper (for example, `CasIntegrateTrigProduct`, `CasIntegrateQuotient`, and
+`CasIntegrateQuadraticResidual`). A failed check returns its existing
+`CasUnsupported(...)` record; unexpected errors still propagate.
+
+Checks that depend on a selected rule stay inside that branch, using body
+early returns. For example, the exponential application branch checks
+`affine[:valid] && affine[:slope]!=0 ?_> CasUnsupported(:nonAffineExponentialArgument)`
+before constructing its primitive. That return exits the helper call, not
+merely the branch block. Replay-envelope checks and argument errors follow
+the same pattern; internal recognizers may return `_` when inapplicable.
+
+Ordinary conditionals still select genuinely different computations: affine
+versus trigonometric powers, logarithms versus other powers, product-to-sum
+signs, and zero versus nonzero harmonic frequencies. These are not rejection
+guards. CAS's current applicability checks have definite answers, so they do
+not need `??>`; that operator is for an explicitly undecided check, not an
+unsupported symbolic expression. This refactor does not add integration
+rules or strengthen replay into a general proof checker.
+
+### Follow-up: async symbolic evaluation
+
+The guard refactor is covered by synchronous integration/replay tests and
+sync/async malformed-envelope tests. A separate async integration problem
+remains: after synchronously loading CAS and constructing `Sin(x^2)`, calling
+`.cas.Integrate(source,:x)` through `parseAndEvaluateAsync` produces an incorrect
+result followed by an `RX1001` enclosing-scope error in Calculus `IsExpression`.
+This also reproduces with the pre-refactor CAS source. Investigate async
+call/context handling separately; full async CAS parity is not claimed here.
 
 Unsupported inputs return `status=:unsupported`, `antiderivative=_`, and a
 reason such as `:unsupportedSemanticFunction` or

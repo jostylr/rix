@@ -4,6 +4,7 @@ import {
     createDefaultRegistry,
     createDefaultSystemContext,
     parseAndEvaluate,
+    parseAndEvaluateAsync,
 } from "../../src/index.js";
 
 function runtime() {
@@ -52,6 +53,63 @@ function numericalGraph(graph, x) {
 }
 
 describe("browser-safe course CAS plugin", () => {
+    test("diagnostic guards preserve rejection reasons across rule families", () => {
+        const scope = runtime();
+        parseAndEvaluate('.Plugin.Load("cas");',scope);
+        const result = parseAndEvaluate(`
+            x := .calculus.Variable(:x);
+            Sin := .calculus.Sin(); Cos := .calculus.Cos();
+            Exp := .calculus.Exp(); Log := .calculus.Log(); Sqrt := .calculus.Sqrt();
+            sources := [Sin(x^2),Cos(x^2),Exp(x^2),Log(x^2),
+                x*Exp(x^2),Exp(x^2)*x,Sin(x^2)*Cos(x),Sin(x)*Cos(x^2),
+                1/(x^2+1),x/(x+1),Sin(x)*Exp(x),Sin(x)^(-2),Sin(x)^9,
+                Sin(x^2)^2,Sqrt(x)+x,x-Sqrt(x),2*Sqrt(x),-Sqrt(x)];
+            sources.Map((source)->{;
+                result = .cas.Integrate(source,x);
+                {: result,.cas.CheckIntegral(result) };
+            });
+        `, scope);
+        const reasons = ["nonAffineSineArgument","nonAffineCosineArgument",
+            "nonAffineExponentialArgument","nonAffineLogarithmArgument",
+            "nonAffineExponentialArgument","nonAffineExponentialArgument",
+            "nonAffineTrigonometricArgument","nonAffineTrigonometricArgument",
+            "unsupportedQuotient","unsupportedQuotient","unsupportedProduct",
+            "unsupportedTrigonometricExponent","trigonometricDegreeBudgetExceeded",
+            "nonAffineTrigonometricArgument","unsupportedSumTerm","unsupportedDifferenceTerm",
+            "unsupportedSemanticFunction","unsupportedSemanticFunction"];
+        result.values.forEach((row,index) => {
+            const [integral,replay] = row.values;
+            expect(text(entry(integral,"status"))).toBe("unsupported");
+            expect(text(entry(integral,"reason"))).toBe(reasons[index]);
+            expect(entry(replay,"accepted").value).toBe(1n);
+        });
+    });
+
+    for (const [mode,evaluate] of [["sync",parseAndEvaluate],["async",parseAndEvaluateAsync]]) {
+        test(`${mode}: malformed replay envelopes return diagnostics before accessing claims`, async () => {
+            const scope = runtime();
+            parseAndEvaluate('.Plugin.Load("cas");',scope);
+            const result = await evaluate(`
+                [0,_,{= },{= schema="wrong" }].Map((candidate)->
+                    {: .cas.CheckIntegral(candidate),.cas.CheckSimplification(candidate) });
+            `, scope);
+            for (const row of result.values) {
+                expect(text(entry(row.values[0],"reason"))).toBe("malformedCasIntegral");
+                expect(text(entry(row.values[1],"reason"))).toBe("malformedCasSimplification");
+            }
+        });
+    }
+
+    test("invalid public arguments retain explanatory errors", () => {
+        for (const [call,message] of [
+            ['.cas.Integrate(1,:x,0)',"CAS integration options must be a Map"],
+            ['.cas.Integrate(1,0)',"CAS variable must be a string or Calculus variable"],
+            ['.cas.Simplify("invalid")',"CAS expected a Calculus expression or exact scalar"],
+        ]) {
+            expect(() => parseAndEvaluate(`.Plugin.Load("cas"); ${call};`,runtime())).toThrow(message);
+        }
+    });
+
     test("reduces bounded sine/cosine powers and differentiates back to the integrand", () => {
         const result = parseAndEvaluate(`
             .Plugin.Load("cas");
