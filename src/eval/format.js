@@ -130,6 +130,12 @@ function previewIr(node, options = {}) {
     }
 
     switch (node.fn) {
+    case "GUARD_RETURN": {
+        const marker = node.args[0].decision === "null" ? "?_>" : "??>";
+        const left = node.args[1]?.args?.[0];
+        const right = node.args[2]?.args?.[0];
+        return truncate(`(${previewIr(left, { maxLen, depth: depth + 1 })} ${marker} ${previewIr(right, { maxLen, depth: depth + 1 })})`, maxLen);
+    }
     case "LITERAL":
         return String(node.args[0]);
     case "STRING":

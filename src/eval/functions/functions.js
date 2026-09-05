@@ -38,6 +38,7 @@ import {
 } from "../../runtime/expected-error.js";
 import { UNDECIDED, decisionState } from "../../runtime/decision.js";
 import { resolveMethod } from "../../runtime/methods.js";
+import { isFunctionReturnControl, isFunctionReturnSignal, returnedValue } from "../../runtime/function-return.js";
 
 const isTruthy = (val) => decisionState(val) === "truth";
 
@@ -173,6 +174,7 @@ function runCallablePrep(fn, context, evaluate) {
                 return { ok: false };
             }
         } catch (error) {
+            if (isFunctionReturnControl(error)) throw error;
             if (error?.message?.includes("prep remained undecided")) throw error;
             if (strict) {
                 throw error;
@@ -200,6 +202,7 @@ function invokeUserCallable(fn, callArgs, context, evaluate, options = {}) {
     const closureScopes = Array.isArray(fn.__closureScopes) ? fn.__closureScopes : [];
     let pushedClosureScopes = 0;
     let scopeActive = false;
+    const returnTarget = { active: true };
 
     const tc = context.getEnv("__trace_context__");
     let traceActive = false;
@@ -244,11 +247,12 @@ function invokeUserCallable(fn, callArgs, context, evaluate, options = {}) {
         });
         pushedClosureScopes++;
     }
-    context.push(bindCallScope(fn.params, callArgs, evaluate));
-    scopeActive = true;
-    if (callName) context.pushCall(callName);
-
+    let callActive = false;
+    context.functionReturnTargets.push(returnTarget);
     try {
+        context.push(bindCallScope(fn.params, callArgs, evaluate));
+        scopeActive = true;
+        if (callName) { context.pushCall(callName); callActive = true; }
         while (true) {
             const prepResult = runCallablePrep(fn, context, evaluate);
             if (!prepResult.ok) {
@@ -284,7 +288,15 @@ function invokeUserCallable(fn, callArgs, context, evaluate, options = {}) {
             context.push(bindCallScope(fn.params, result.args, evaluate));
             scopeActive = true;
         }
+    } catch (error) {
+        if (!isFunctionReturnSignal(error) || error.target !== returnTarget) throw error;
+        const value = returnedValue(error);
+        doTraceExit(value, false);
+        traceActive = false;
+        return returnPrepStatus ? { matched: true, value } : value;
     } finally {
+        returnTarget.active = false;
+        context.functionReturnTargets.pop();
         for (const [key, entry] of restoredEnv) {
             if (entry.has) context.setEnv(key, entry.value);
             else context.env?.delete(key);
@@ -292,7 +304,7 @@ function invokeUserCallable(fn, callArgs, context, evaluate, options = {}) {
         if (traceActive && tc) {
             tc.currentDepth--;
         }
-        if (callName) context.popCall();
+        if (callActive) context.popCall();
         if (scopeActive) context.pop();
         while (pushedClosureScopes > 0) {
             context.pop();

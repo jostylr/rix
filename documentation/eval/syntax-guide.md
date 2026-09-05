@@ -169,6 +169,25 @@ Rules:
 
 Prep is meant for validation, conversion, destructuring, and local setup. RiX does not currently restrict mutation or IO in prep.
 
+#### Diagnostic guards and function returns
+
+`check ?_> result` returns from the current function call when the check is
+decided negative/null; `check ??> result` returns when it is undecided. Both
+preserve the check's value when they do not trigger. They work in prep and
+function bodies, cross nested block/loop boundaries, and error when evaluated
+outside an active call. They are not block breaks.
+
+```rix
+Nonnegative(x) ?!- [x >= 0 ?_> {= status=:rejected,value=x }]
+  -> {= status=:accepted,value=x };
+```
+
+An explicit return is final for multifunction dispatch, even when its result
+is `_` or `?`. The payload is lazy and can use established prep bindings.
+Return guards bind below assignment and logical operators; zero is still
+truthy. See [the full reference and runnable tutorial](function-returns.md)
+for chaining, call ownership, undecided handling, and cleanup semantics.
+
 #### Prepared Trial Expressions
 
 Expression-level prep evaluates a candidate once and gives it an arm-local

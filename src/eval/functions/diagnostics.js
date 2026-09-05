@@ -6,6 +6,7 @@
  */
 
 import { Integer } from "@ratmath/core";
+import { isFunctionReturnSignal } from "../../runtime/function-return.js";
 import {
     createEvent,
     getDiagnostics,
@@ -307,6 +308,7 @@ function runSequentialTests(label, setupNode, testArgs, filePath, context, evalu
     try {
         context.withSharedBody(setupNode, () => evaluate(setupNode));
     } catch (err) {
+        if (isFunctionReturnSignal(err)) { context.pop(); throw err; }
         setupResult = { type: "map", entries: new Map([
             ["passed", null],
             ["error", toRixString(err.message)],
@@ -354,6 +356,7 @@ function runSequentialTests(label, setupNode, testArgs, filePath, context, evalu
                     stopped = true;
                 }
             } catch (err) {
+                if (isFunctionReturnSignal(err)) { context.pop(); throw err; }
                 results.push(makeTestEntry(i + 1, false, null, err.message, false));
                 totalErrored++;
                 passedAll = false;
@@ -542,6 +545,7 @@ function runIsolatedTestEntries(label, setupNode, testEntries, filePath, context
                 passedAll = false;
             }
         } catch (err) {
+            if (isFunctionReturnSignal(err)) throw err;
             resultMap.set(key, makeIsolatedEntry(false, null, err.message));
             totalErrored++;
             passedAll = false;
@@ -613,6 +617,7 @@ async function runSequentialTestsAsync(label, setupNode, testArgs, filePath, con
         try {
             await context.withSharedBodyAsync(setupNode, () => evaluate(setupNode));
         } catch (err) {
+            if (isFunctionReturnSignal(err)) throw err;
             setupResult = { type: "map", entries: new Map([
                 ["passed", null],
                 ["error", toRixString(err.message)],
@@ -653,6 +658,7 @@ async function runSequentialTestsAsync(label, setupNode, testArgs, filePath, con
                         stopped = true;
                     }
                 } catch (err) {
+                    if (isFunctionReturnSignal(err)) throw err;
                     results.push(makeTestEntry(i + 1, false, null, err.message, false));
                     totalErrored++;
                     passedAll = false;
@@ -779,6 +785,7 @@ async function runIsolatedTestEntriesAsync(label, setupNode, testEntries, filePa
                 passedAll = false;
             }
         } catch (err) {
+            if (isFunctionReturnSignal(err)) throw err;
             resultMap.set(key, makeIsolatedEntry(false, null, err.message));
             totalErrored++;
             passedAll = false;
@@ -861,6 +868,7 @@ export const DEBUG = {
         try {
             finalValue = evaluate(exprNode);
         } catch (err) {
+            if (isFunctionReturnSignal(err)) throw err;
             // Record the error in the debug event
             const dataEntries = new Map();
             dataEntries.set("exprSource", toRixString(exprSource));
@@ -1093,6 +1101,7 @@ function runAbortTest(testKind, args, context, evaluate) {
         try {
             setupValue = context.withSharedBody(setupNode, () => evaluate(setupNode));
         } catch (err) {
+            if (isFunctionReturnSignal(err)) throw err;
             setupPassed = false;
             const c = classifyError(err);
             setupOutcome = c.outcome;
@@ -1114,6 +1123,7 @@ function runAbortTest(testKind, args, context, evaluate) {
                 exprValue = val;
                 passed = false;
             } catch (err) {
+                if (isFunctionReturnSignal(err)) throw err;
                 const c = classifyError(err);
                 exprOutcome = c.outcome;
                 exprAbort = c.abort;
@@ -1170,6 +1180,7 @@ export async function runAbortTestAsync(testKind, args, context, evaluate) {
                 () => evaluate(setupNode),
             );
         } catch (err) {
+            if (isFunctionReturnSignal(err)) throw err;
             setupPassed = false;
             const classified = classifyError(err);
             setupOutcome = classified.outcome;
@@ -1183,6 +1194,7 @@ export async function runAbortTestAsync(testKind, args, context, evaluate) {
                     ? await context.withSharedBodyAsync(exprNode, () => evaluate(exprNode))
                     : await evaluate(exprNode);
             } catch (err) {
+                if (isFunctionReturnSignal(err)) throw err;
                 const classified = classifyError(err);
                 exprOutcome = classified.outcome;
                 exprAbort = classified.abort;

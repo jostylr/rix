@@ -243,6 +243,11 @@ export const rixTokens = new ExternalTokenizer((input, stack) => {
     return input.acceptToken(firstLetterIsUppercase(identifier.value) ? SystemIdentifier : Identifier);
   }
   if (input.next === 124 && input.peek(1) === code.closeBrace) return;
+  if (input.next === 63 && input.peek(1) === code.underscore) {
+    input.advance(2);
+    if (input.next === 62) input.advance();
+    return input.acceptToken(Operator);
+  }
   if (input.next === 63 && !isOperatorCharacter(input.peek(1)) && stack.canShift(Undecided)) {
     input.advance();
     return input.acceptToken(Undecided);

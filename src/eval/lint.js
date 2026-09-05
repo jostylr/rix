@@ -403,6 +403,7 @@ function declarationNodes(nodes, options = {}) {
     const scan = (raw) => {
         const node = statementExpression(raw);
         if (!node) return;
+        if (node.type === "ReturnGuard") { scan(node.condition); return; }
         const assignment = assignmentDetails(node);
         if (assignment && !UPDATE_OPERATORS.has(assignment.operator) && assignment.left?.type !== "ReactiveRef") {
             for (const target of targetNames(assignment.left).filter(({ node: targetNode }) => targetNode?.type !== "OuterIdentifier")) {
@@ -786,6 +787,11 @@ export function analyzeRix(source, options = {}) {
             }
         }
         const functionState = { functionName, functionBody: body, tail: true, loopScope: null };
+        const prepEntries = node.prep?.elements || [];
+        declareAll(functionScope, prepEntries, { shareBlocks: false });
+        for (const entry of prepEntries) {
+            visit(entry, functionScope, { ...functionState, role: "value", tail: false });
+        }
         if (body?.type === "BlockContainer") {
             declareImports(functionScope, body);
             declareAll(functionScope, body.elements, { shareBlocks: false });

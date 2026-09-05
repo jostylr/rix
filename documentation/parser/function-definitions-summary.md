@@ -36,3 +36,9 @@ Classify(x) /Other/ => :other
 ```
 
 Dispatch tries variants in order. Prep failure advances to the next variant; after prep succeeds, the body result is final.
+
+Prep entries can return diagnostic results explicitly: `check ?_> result`
+returns from the function on `_`, and `check ??> result` returns on undecided
+`?`. These are final call results, not variant fallthrough. The same operators
+work inside function bodies and nested blocks; using them without an active
+function call is an error. See the [reference and runnable tutorial](../eval/function-returns.md).

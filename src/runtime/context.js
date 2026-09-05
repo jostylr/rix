@@ -30,6 +30,7 @@ export class Context {
         // Call stack for debugging
         this.callStack = [];
         this.currentCallables = [];
+        this.functionReturnTargets = [];
         // One-shot overrides for top-level function/lambda bodies that should
         // reuse the current local scope instead of creating a nested block scope.
         this.sharedBodyOverrides = [];
@@ -456,6 +457,7 @@ export class Context {
         }
         child.callStack = [...this.callStack];
         child.currentCallables = [...this.currentCallables];
+        child.functionReturnTargets = [...this.functionReturnTargets];
         child.sharedBodyOverrides = [...this.sharedBodyOverrides];
         child.finalizerActivations = [];
         return child;
@@ -493,6 +495,7 @@ export class Context {
         forkRuntimeRandom(this, child);
         child.callStack = [...this.callStack];
         child.currentCallables = [...this.currentCallables];
+        child.functionReturnTargets = [...this.functionReturnTargets];
         child.sharedBodyOverrides = [];
         child.finalizerActivations = [];
         return child;
@@ -552,6 +555,7 @@ export class Context {
         this.functions.clear();
         this.callStack = [];
         this.currentCallables = [];
+        this.functionReturnTargets = [];
         this.env.delete("__reactive_binding_graph__");
         this.env.delete("__reactive_active_graph__");
         this.env.delete("__reactive_transaction__");

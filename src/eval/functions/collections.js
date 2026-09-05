@@ -345,7 +345,7 @@ export const collectionFunctions = {
             const header = args[0]?.header || null;
             const defaultMode = header?.captureMode || constructorDefaultCaptureMode(ctx);
             const start = header ? 1 : 0;
-            const value = { type: "tuple", values: args.slice(start).map((arg) => captureIrValue(arg.expression || arg, arg.captureMode || defaultMode, ctx, evaluate)) };
+            const value = { type: "tuple", values: args.slice(start).map((arg) => captureIrValue(arg && Object.hasOwn(arg,"expression") ? arg.expression : arg, arg?.captureMode || defaultMode, ctx, evaluate)) };
             return applySemanticHeader(attachBuiltinProto(value), header, ctx);
         },
         pure: true,
@@ -362,7 +362,7 @@ export const collectionFunctions = {
             const seen = new Set();
             const values = [];
             for (const arg of args.slice(start)) {
-                const val = captureIrValue(arg.expression || arg, arg.captureMode || defaultMode, ctx, evaluate);
+                const val = captureIrValue(arg && Object.hasOwn(arg,"expression") ? arg.expression : arg, arg?.captureMode || defaultMode, ctx, evaluate);
                 const key = valueKey(val);
                 if (!seen.has(key)) {
                     seen.add(key);
@@ -464,7 +464,7 @@ export const collectionFunctions = {
             const header = args[0]?.header || null;
             const defaultMode = header?.captureMode || constructorDefaultCaptureMode(ctx);
             const start = header ? 1 : 0;
-            const values = args.slice(start).map((arg) => captureIrValue(arg.expression || arg, arg.captureMode || defaultMode, ctx, evaluate));
+            const values = args.slice(start).map((arg) => captureIrValue(arg && Object.hasOwn(arg,"expression") ? arg.expression : arg, arg?.captureMode || defaultMode, ctx, evaluate));
             return applySemanticHeader(attachBuiltinProto({
                 type: "sequence",
                 values,

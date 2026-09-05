@@ -35,7 +35,6 @@
       { "name": "variable.other.rix", "match": "\\b[\\p{Ll}_][\\p{L}\\p{N}_]*\\b" }
     ] },
     "containers": { "patterns": [{ "name": "punctuation.section.block.begin.rix", "match": "\\{(?:[=;?|:@!#$]|\\$\\$?)?" }, { "name": "punctuation.section.block.end.rix", "match": "[}\\]()]" }] },
-    "operators": { "patterns": [{ "name": "keyword.operator.rix", "match": "(?:\\|>[?!_&|#/<>:.]*|:<[^>]+>:|:=|~=|==|!=|<=|>=|->|=>|\\^=>|\\?[:=_?&|]|\\+|-|\\*{1,2}|/{1,2}|%|\\^|&&|\\|\\||\\.\\.?|:|=)" }] }
+    "operators": { "patterns": [{ "name": "keyword.operator.rix", "match": "(?:\\|>[?!_&|#/<>:.]*|:<[^>]+>:|:=|~=|==|!=|<=|>=|->|=>|\\^=>|\\?[_?]>|\\?[:=_?&|]|\\+|-|\\*{1,2}|/{1,2}|%|\\^|&&|\\|\\||\\.\\.?|:|=)" }] }
   }
 }
-

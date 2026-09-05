@@ -69,6 +69,17 @@ dispatch and return undecided rather than silently selecting a later variant.
 
 Prep is intentionally permissive for now. RiX does not yet try to prove purity, block mutation, or separate benign internal state changes from externally visible mutation. The design intent is still "setup before body", but enforcement is deferred until the runtime has a sharper mutation model.
 
+## Diagnostic Guards and Function Returns (2026-09-05)
+
+Function-scoped return guards (`?_>` and `??>`, added 2026-09-05) complement
+prep selection. A failed requirement can return an ordinary diagnostic record
+without being confused with variant no-match. They also work in function
+bodies and cross nested block boundaries, but require an active call. Return
+targets identify dynamic invocations, not function definitions, so recursion
+and callbacks remain local. Keeping the transfer separate from its payload
+makes intentional `_` and `?` results final. See
+[semantics and executable examples](eval/function-returns.md).
+
 ## Prepared Trial Expressions and Case Arms (2026-07-12)
 
 Prep is useful outside a callable when a computed value must be validated or

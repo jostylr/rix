@@ -70,6 +70,12 @@ Nonzero(x) ?!- [x != 0] -> x;
 
 `?-` is a soft preparation gate: failure means “this function does not accept that candidate.” `?!-` is strict and propagates failure. `??-` additionally lets undecided fall through; `??!-` throws unless the guard is decided and successful. Ordered variants combine into multifunctions, letting dispatch be written in RiX rather than hidden in host code.
 
+For an expected rejection that deserves a result, use `check ?_> diagnostic`
+on decided negative/null, or `check ??> diagnostic` on undecided. These return
+from the active function call, including from prep or a nested block, rather
+than selecting another variant. They are errors outside a call. See
+[diagnostic guards and early returns](eval/function-returns.md).
+
 ## Containers announce what they are
 
 ```{.rix parse=true}

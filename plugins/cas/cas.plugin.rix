@@ -262,23 +262,18 @@ CasTrigPowerPrimitive(kind, argument, degree) -> {;
           +((degree-1)/degree)*CasTrigPowerPrimitive(kind,argument,degree-2);
 };
 
-CasIntegrateTrigPower(base, exponent, variable) -> {;
-    kind = CasTrigKind(base);
-    kind==_ ?: CasUnsupported(:unsupportedPower)
-      ?_ exponent==_ ?: CasUnsupported(:unsupportedTrigonometricExponent)
-      ?_ (!(exponent ? :Integer) || exponent<0) ?: CasUnsupported(:unsupportedTrigonometricExponent)
-      ?_ exponent>8 ?: CasUnsupported(:trigonometricDegreeBudgetExceeded)
-      ?_ {;
-          argument = @base[:arguments][1];
-          affine = CasAffine(argument,@variable);
-          (affine[:valid] && affine[:slope]!=0)
-            ?: CasIntegrationState(:complete,
-                CasTrigPowerPrimitive(@kind,argument,@exponent)/affine[:slope],[],
-                [{= rule=:trigonometricPowerReduction,kind=@kind,degree=@exponent,
-                    slope=affine[:slope],recurrenceStep=2,maxDegree=8 }])
-            ?_ CasUnsupported(:nonAffineTrigonometricArgument);
-      };
-};
+CasIntegrateTrigPower(base, exponent, variable) ?!- [
+    kind = CasTrigKind(base) ?_> CasUnsupported(:unsupportedPower),
+    exponent ? :Integer ?_> CasUnsupported(:unsupportedTrigonometricExponent),
+    exponent >= 0 ?_> CasUnsupported(:unsupportedTrigonometricExponent),
+    exponent <= 8 ?_> CasUnsupported(:trigonometricDegreeBudgetExceeded),
+    argument = base[:arguments][1],
+    affine = CasAffine(argument,variable),
+    affine[:valid] && affine[:slope]!=0 ?_> CasUnsupported(:nonAffineTrigonometricArgument)
+] -> CasIntegrationState(:complete,
+    CasTrigPowerPrimitive(kind,argument,exponent)/affine[:slope],[],
+    [{= rule=:trigonometricPowerReduction,kind=kind,degree=exponent,
+        slope=affine[:slope],recurrenceStep=2,maxDegree=8 }]);
 
 CasHarmonicPrimitive(kind, slope, phase, variable) -> {;
     x = .calculus.Variable(variable);

@@ -1109,6 +1109,11 @@ const LOWERERS = {
 
   // === Ternary ===
 
+  ReturnGuard(node) {
+    return ir("GUARD_RETURN", { decision: node.decision },
+      ir("DEFER", lowerNode(node.condition)), ir("DEFER", lowerNode(node.value)));
+  },
+
   TernaryOperation(node) {
     return ir(
       "TERNARY",

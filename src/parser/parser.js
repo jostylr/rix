@@ -12,6 +12,7 @@ import {
 // Precedence levels (higher numbers bind tighter)
 const PRECEDENCE = {
   STATEMENT: 0,
+  RETURN_GUARD: 8, // binds after assignments and compound decisions
   ASSIGNMENT: 10, // :=, :>:, etc.
   PIPE: 20, // |>, ||>, |>>, etc.
   ARROW: 25, // ->, =>, :-> for function definitions
@@ -39,6 +40,8 @@ const IMPLICIT_APPLICATION_PRECEDENCE = 97; // Implicit callable application, ti
 
 // Symbol table for operators and their parsing behavior
 const SYMBOL_TABLE = {
+  "?_>": { precedence: PRECEDENCE.RETURN_GUARD, associativity: "left", type: "infix" },
+  "??>": { precedence: PRECEDENCE.RETURN_GUARD, associativity: "left", type: "infix" },
   // Assignment operators (right associative)
   ":=": {
     precedence: PRECEDENCE.ASSIGNMENT,
@@ -1141,6 +1144,18 @@ class Parser {
   // Parse infix expressions (binary operators, function calls, etc.)
   parseInfix(left, symbolInfo) {
     const operator = this.current;
+
+    if (operator.value === "?_>" || operator.value === "??>") {
+      this.advance();
+      const value = this.parseExpression(PRECEDENCE.RETURN_GUARD + 1);
+      return this.createNode("ReturnGuard", {
+        condition: left,
+        decision: operator.value === "?_>" ? "null" : "undecided",
+        value,
+        pos: left.pos,
+        original: (left.original || "") + operator.original + (value.original || ""),
+      });
+    }
 
     if (
       symbolInfo.type === "postfix" &&

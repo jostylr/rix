@@ -13,6 +13,12 @@ function codes(source) {
 }
 
 describe("RiX static lint diagnostics", () => {
+    test("prep bindings inside return guards belong to the function scope", () => {
+        const source = "F(x) ?!- [bound=x ?_> {= value=bound },bound>0 ?_> :bad] -> bound;";
+        expect(codes(source)).not.toContain("RX1001");
+        const entries = explainRixScopes(source);
+        expect(entries.some(entry=>entry.name==="bound" && entry.owner==="function")).toBe(true);
+    });
     test("distinguishes missing and spurious outer capture", () => {
         const missing = lintRix("x = 5; {; x; };");
         expect(missing).toHaveLength(1);

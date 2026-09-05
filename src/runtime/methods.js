@@ -797,8 +797,19 @@ const arrayMethods = {
         ensureSequence(target, "Shift!");
         return target.values.length === 0 ? HOLE : target.values.shift();
     }),
-    MAP: method("MAP", ([target, iterator], context, evaluate, invoke) => {
+    MAP: method("MAP", ([target, iterator], context, evaluate, invoke, execution) => {
         ensureSequence(target, "Map");
+        if (execution?.promiseAware) {
+            return (async () => {
+                const values = [];
+                // Ordinary receiver Map is ordered. Await each callback before
+                // reusing its context; concurrent traversal has a separate API.
+                for (const entry of iterateEntries(target)) {
+                    values.push(await invoke(iterator, [entry.value, entry.key, target], context, evaluate));
+                }
+                return { type: "sequence", values, _ext: mutableExt() };
+            })();
+        }
         return {
             type: "sequence",
             values: iterateEntries(target).map((entry) => invoke(iterator, [entry.value, entry.key, target], context, evaluate)),

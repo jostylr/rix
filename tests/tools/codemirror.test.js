@@ -11,6 +11,15 @@ function tree(source) {
 }
 
 describe("RiX Lezer grammar", () => {
+  test("recognizes function return guards as complete operators", () => {
+    const source = "F(x) ?!- [x ?_> :bad ??> :unknown] -> x;";
+    const parsed = parser.parse(source);
+    expect(parsed.toString()).not.toContain("⚠");
+    const operators = [];
+    parsed.iterate({ enter(node) { if (node.name === "Operator") operators.push(source.slice(node.from,node.to)); } });
+    expect(operators).toContain("?_>");
+    expect(operators).toContain("??>");
+  });
   test("classifies ordinary RiX notebook code", () => {
     const result = tree("radius := 3; area := 22/7 * radius^2;");
     expect(result).toContain("Number");

@@ -11,6 +11,7 @@ import { runtimeDefaults } from "../../runtime/runtime-config.js";
 import { PREP_TRIAL_NO_MATCH } from "./core.js";
 import { withFinalizerActivationSync } from "../../runtime/finalization.js";
 import { UNDECIDED, decisionState } from "../../runtime/decision.js";
+import { FunctionReturnSignal, isFunctionReturnSignal, requireReturnTarget, markReturnPayloadError } from "../../runtime/function-return.js";
 
 /**
  * Unwrap a DEFER node: if the node is { fn: "DEFER", args: [body] },
@@ -76,7 +77,7 @@ function isBreakSignal(error) {
 }
 
 export function addEvaluationContext(error, detail) {
-    if (!error || typeof error !== "object" || isBreakSignal(error)) return error;
+    if (!error || typeof error !== "object" || isBreakSignal(error) || isFunctionReturnSignal(error)) return error;
     if (!Array.isArray(error.rixEvaluationContexts)) error.rixEvaluationContexts = [];
     if (error.rixEvaluationContexts.includes(detail)) return error;
     error.rixEvaluationContexts.push(detail);
@@ -127,6 +128,22 @@ function applyImports(imports, context) {
 export { evaluateShared };
 
 export const controlFunctions = {
+    GUARD_RETURN: {
+        lazy: true,
+        impl(args, context, evaluate) {
+            const target = requireReturnTarget(context);
+            const value = evaluate(unwrapDefer(args[1]));
+            if (decisionState(value) !== args[0].decision) return value;
+            let result;
+            try {
+                result = evaluate(unwrapDefer(args[2]));
+            } catch (error) {
+                throw markReturnPayloadError(error);
+            }
+            throw new FunctionReturnSignal(target, result);
+        },
+        doc: "Return from the active function on a null or undecided decision",
+    },
     SEQ: {
         lazy: true,
         impl(args, context, evaluate) {

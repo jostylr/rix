@@ -99,6 +99,7 @@ import {
 import { createAlgebraOutputCollection, createControlsOutputCollection, createGraphicsOutputCollection, createTimelineOutputCollection } from "../runtime/output.js";
 import { createRendererCollection, RendererRegistry, renderResultValue } from "../runtime/renderer-registry.js";
 import { installBundledPlugins } from "../../plugins/bundled.js";
+import { FunctionReturnSignal, isFunctionReturnControl, isFunctionReturnSignal, requireReturnTarget, markReturnPayloadError, returnedValue } from "../runtime/function-return.js";
 import {
     constructQuantity,
     createDefaultUnitCollection,
@@ -822,7 +823,7 @@ function findIdentifierOffset(source, name, approximateOffset) {
 }
 
 function annotateEvaluationError(error, irNode, context) {
-    if (!error || typeof error !== "object" || error.__rixLocationAttached) {
+    if (!error || typeof error !== "object" || error.__rixLocationAttached || isFunctionReturnSignal(error)) {
         return error;
     }
 
@@ -1563,6 +1564,7 @@ async function runCallablePrepAsync(fn, context, registry, systemContext, state)
                 return { ok: false };
             }
         } catch (error) {
+            if (isFunctionReturnControl(error)) throw error;
             if (error?.message?.includes("prep remained undecided")) throw error;
             if (strict) throw error;
             return { ok: false };
@@ -1625,6 +1627,8 @@ async function invokeUserCallableAsync(fn, callArgs, context, registry, systemCo
     let traceActive = false;
     let primaryError = null;
     let schedulerCleanupError = null;
+    const returnTarget = { active: true };
+    context.functionReturnTargets.push(returnTarget);
 
     const traceEnter = (args) => {
         if (!trace?.active || trace.currentDepth >= trace.depth) return false;
@@ -1720,12 +1724,20 @@ async function invokeUserCallableAsync(fn, callArgs, context, registry, systemCo
             scopeActive = true;
         }
     } catch (error) {
+        if (isFunctionReturnSignal(error) && error.target === returnTarget) {
+            const value = returnedValue(error);
+            traceExit(value);
+            traceActive = false;
+            return returnPrepStatus ? { matched: true, value } : value;
+        }
         primaryError = error;
         if (callableAsync.ownsScheduler) {
             callableState.scheduler.cancelGroup(callableState.group, error);
         }
         throw error;
     } finally {
+        returnTarget.active = false;
+        context.functionReturnTargets.pop();
         if (callableAsync.ownsScheduler) {
             try {
                 await callableState.scheduler.waitForIdle(callableState.group);
@@ -2024,6 +2036,7 @@ async function evaluateDebugCapabilityAsync(args, context, registry, systemConte
     try {
         finalValue = await evaluateAsyncInternal(exprNode, context, registry, systemContext, state);
     } catch (error) {
+        if (isFunctionReturnSignal(error)) throw error;
         getDiagnostics(context).addEvent(createEvent({
             kind: "debug",
             label,
@@ -2566,11 +2579,12 @@ function asyncCollectionEntry(node, context, registry, systemContext, state) {
     if (state.parallelCollections === false) {
         return evaluateAsyncInternal(node, context, registry, systemContext, state);
     }
+    const itemContext = context.concurrentChild();
     if (containsNestedAsyncCollection(node)) {
         // Structural parents consume no permit; their leaves do.
-        return evaluateAsyncInternal(node, context, registry, systemContext, state);
+        // They still need isolated call/scope stacks from their siblings.
+        return evaluateAsyncInternal(node, itemContext, registry, systemContext, state);
     }
-    const itemContext = context.concurrentChild();
     return state.scheduler.run((admission) =>
         withAsyncItemFinalizers(itemContext, () => evaluateAsyncInternal(
             node,
@@ -3730,6 +3744,7 @@ async function evaluatePreparedTrialAsync(args, context, registry, systemContext
     try {
         candidate = await evaluateAsyncInternal(candidateNode, context, registry, systemContext, state);
     } catch (error) {
+        if (isFunctionReturnControl(error)) throw error;
         if (gates[0]?.strict === true) throw error;
         return asyncPreparedTrialFailure(preserveFailure);
     }
@@ -3770,6 +3785,7 @@ async function evaluatePreparedTrialAsync(args, context, registry, systemContext
                     }
                 }
             } catch (error) {
+                if (isFunctionReturnControl(error)) throw error;
                 if (error?.message?.includes("remained undecided")) throw error;
                 if (strict) throw error;
                 return asyncPreparedTrialFailure(preserveFailure);
@@ -4168,6 +4184,18 @@ async function evaluateAsyncInternal(irNode, context, registry, systemContext, s
             } finally {
                 if (!shareCurrentScope) context.pop();
             }
+        }
+        if (fn === "GUARD_RETURN") {
+            const target = requireReturnTarget(context);
+            const value = await evalAsync(args[1]?.fn === "DEFER" ? args[1].args[0] : args[1]);
+            if (decisionState(value) !== args[0].decision) return value;
+            let result;
+            try {
+                result = await evalAsync(args[2]?.fn === "DEFER" ? args[2].args[0] : args[2]);
+            } catch (error) {
+                throw markReturnPayloadError(error);
+            }
+            throw new FunctionReturnSignal(target, result);
         }
         if (fn === "TERNARY") {
             const condition = await evalAsync(args[0]);

@@ -14,6 +14,7 @@ import {
     parseNumber as parseCoreNumber,
 } from "@ratmath/core";
 import { HOLE, isHole } from "../../runtime/hole.js";
+import { isFunctionReturnControl } from "../../runtime/function-return.js";
 import { UNDECIDED, decisionState, undecidedDiagnostic } from "../../runtime/decision.js";
 import {
     shallowCopyValue, deepCopyValue,
@@ -1572,6 +1573,7 @@ function evaluatePreparedTrial(args, context, evaluate, preserveFailure) {
     try {
         candidate = evaluate(candidateNode);
     } catch (error) {
+        if (isFunctionReturnControl(error)) throw error;
         if (gates[0]?.strict === true) throw error;
         return preparedTrialFailure(preserveFailure);
     }
@@ -1604,6 +1606,7 @@ function evaluatePreparedTrial(args, context, evaluate, preserveFailure) {
                     }
                 }
             } catch (error) {
+                if (isFunctionReturnControl(error)) throw error;
                 if (error?.message?.includes("remained undecided")) throw error;
                 if (strict) throw error;
                 return preparedTrialFailure(preserveFailure);

@@ -53,6 +53,9 @@ theorem prover. The retained rules and existing derivative service make the
 calculation inspectable in a lesson.
 
 Power-reduction records retain the degree, affine slope, and recurrence step.
+Its RiX implementation uses diagnostic `?_>` prep guards to separate these
+applicability checks from primitive construction, while preserving the exact
+unsupported reasons. See the [guard tutorial](../../documentation/eval/function-returns.md).
 Product-to-sum records retain both affine arguments. A zero sum/difference
 frequency integrates as a constant times `x`, never by dividing by zero.
 These identities hold on the entire real line and introduce no additional
