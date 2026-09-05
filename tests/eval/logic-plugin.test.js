@@ -23,6 +23,99 @@ function text(value) {
 }
 
 describe("introductory Logic plugin", () => {
+    test("signed tableaux agree with exhaustive truth tables for every connective and polarity", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("logic");
+            p:=.logic.Atom(:p); q:=.logic.Atom(:q); r:=.logic.Atom(:r);
+            basics := [p,p.Not(),.logic.Top(),.logic.Bottom(),p.And(q),p.Or(q),p.Implies(q),p.Iff(q)];
+            formulas := basics.Concat(basics.Map((f)->f.Not())).Concat([
+                p.Or(p.Not()),p.And(p.Not()),p.Implies(q).And(q.Implies(r)).Implies(p.Implies(r)),
+                p.Iff(q).Iff(r),p.And(q.Or(r)).Iff(p.And(q).Or(p.And(r)))
+            ]);
+            formulas.Map((f)->{: f,f.TruthTable(),f.Tableau(),f.Tableau({= mode=:validity }) });
+        `, runtime());
+        for (const row of result.values) {
+            const [,table,sat,valid] = row.values;
+            const classification = text(entry(table,"classification"));
+            expect(text(entry(sat,"status"))).toBe(classification === "contradiction" ? "unsatisfiable" : "satisfiable");
+            expect(text(entry(valid,"status"))).toBe(classification === "valid" ? "valid" : "invalid");
+            expect(entry(sat,"complete").value).toBe(1n);
+            expect(entry(valid,"complete").value).toBe(1n);
+            for (const [t,expected] of [[sat,1n],[valid,undefined]]) {
+                const witness = entry(t,"witness");
+                if (witness !== null) {
+                    const valuationKey = v => [...v.entries].map(([k,v]) => `${k}:${v.value}`).sort().join();
+                    const match = entry(table,"rows").values.find(r => valuationKey(entry(r,"valuation")) === valuationKey(witness));
+                    expect(match).toBeDefined();
+                    expect(entry(match,"result")?.value).toBe(expected);
+                }
+            }
+        }
+    });
+
+    test("tableau budgets retain unresolved work and distinguish a witness from exhaustive closure", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("logic");
+            p:=.logic.Atom(:p); q:=.logic.Atom(:q); r:=.logic.Atom(:r);
+            {: p.Tableau({= maxSteps=0 }),p.Or(q).Tableau({= maxBranches=1 }),
+               p.Or(q.And(r)).Tableau({= maxSteps=2 }) };
+        `, runtime());
+        for (const t of result.values.slice(0,2)) {
+            expect(text(entry(t,"status"))).toBe("unresolved");
+            expect(entry(t,"complete")).toBeNull();
+            expect(entry(t,"decided")).toBeNull();
+            expect(entry(t,"witness")).toBeNull();
+            expect(entry(entry(t,"branches").values[0],"pending").values.length).toBeGreaterThan(0);
+        }
+        const partial = result.values[2];
+        expect(text(entry(partial,"status"))).toBe("satisfiable");
+        expect(entry(partial,"decided").value).toBe(1n);
+        expect(entry(partial,"complete")).toBeNull();
+        expect(entry(entry(partial,"work"),"steps").value).toBe(2n);
+        expect(entry(partial,"branches").values.map(b=>text(entry(b,"status"))).sort()).toEqual(["open","unresolved"]);
+    });
+
+    test("tableau replay checks traces, branches, witnesses, and incomplete evidence", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("logic");
+            p:=.logic.Atom(:p); q:=.logic.Atom(:q);
+            t:=p.Implies(q).Tableau({= mode=:validity });
+            closed:=p.Or(p.Not()).Tableau({= mode=:validity });
+            partial:=p.Or(q).Tableau({= maxBranches=1 });
+            [.logic.CheckTableau(t),.logic.CheckTableau(closed),.logic.CheckTableau(partial),
+             .logic.CheckTableau(t.Set("witness",{= p=0,q=1 })),
+             .logic.CheckTableau(t.Set("trace",[])),
+             .logic.CheckTableau(closed.Set("branches",[])),
+             .logic.CheckTableau(partial.Set("status",:valid))];
+        `, runtime());
+        expect(result.values.map(r=>entry(r,"accepted")?.value ?? null)).toEqual([1n,1n,1n,null,null,null,null]);
+    });
+
+    test("tableaux reject invalid options", () => {
+        const rt = runtime();
+        parseAndEvaluate('.Plugin.Load("logic"); p:=.logic.Atom(:p);',rt);
+        for (const options of ["maxSteps=-1","maxSteps=2049","maxBranches=0","maxBranches=257","mode=:guess"]) {
+            expect(()=>parseAndEvaluate(`p.Tableau({= ${options} });`,rt)).toThrow("Logic Tableau");
+        }
+    });
+
+    test("subproof replay rejects hidden free premises and a substituted assumption", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("logic");
+            p:=.logic.Atom(:p); q:=.logic.Atom(:q);
+            identity:=.logic.Subproof(p,[],p);
+            hidden:={= schema="rix.logic.proof@1",proofKind=:subproof,assumption=p,
+                steps=[.logic.Step(:assumption,p),.logic.Step(:premise,q)],goal=q,accepted=1 };
+            swapped:={= schema="rix.logic.proof@1",proofKind=:subproof,assumption=q,
+                steps=identity[:steps],goal=p,accepted=1 };
+            {: .logic.CheckProof(hidden),.logic.CheckProof(swapped),
+               .logic.Proof([.logic.Step(:implicationIntro,p.Implies(q),[],{= subproofs=[hidden] })],p.Implies(q)) };
+        `, runtime());
+        for (const proof of result.values) expect(entry(proof,"accepted")).toBeNull();
+        expect(text(entry(result.values[0],"reason"))).toBe("invalidSubproofScope");
+        expect(text(entry(result.values[1],"reason"))).toBe("invalidSubproofScope");
+    });
+
     test("is a bundled pure RiX propositional service", () => {
         const info = parseAndEvaluate('.Plugin.Info("logic")', runtime());
         expect(text(entry(info, "kind"))).toBe("rix");
@@ -33,6 +126,7 @@ describe("introductory Logic plugin", () => {
             "rix.logic.normal-form@1",
             "rix.logic.proof@1",
             "rix.logic.tree@1",
+            "rix.logic.tableau@1",
         ]);
     });
 

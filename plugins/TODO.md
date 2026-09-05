@@ -49,7 +49,7 @@ its first useful future increment rather than treating it as abandoned.
 | 13 | `.fracfun` | Multivariate forms and declared coefficient domains | **Waiting:** multivariate Polynomial/coefficient-domain support |
 | 14 | `.cas` | Mixed trigonometric powers, selected radicals, and definite-integral symmetries | **Ready:** bounded trig power recurrences and product-to-sum join the existing course rules |
 | 15 | `.symbolic` | Shared assumptions and restricted-domain wrappers | **Decision:** one portable assumption/branch-obligation contract |
-| 16 | `.logic` | Semantic tableaux with replayable open/closed branch evidence, then bounded finite models | **Ready:** scoped natural deduction and portable syntax/proof trees exist |
+| 16 | `.logic` | Bounded finite first-order models, then a separate sequent-calculus presentation | **Decision:** choose the initial quantifier/equality/relation vocabulary; replayable propositional tableaux now exist |
 | 17 | `.calculus` | Absolute-value/domain graphs and portable differential, boundary, and integral equation specifications | **Ready:** coordinate with `.cas`; solver execution stays elsewhere |
 | 18 | `.analysis` | Metric, normed, Banach, Hilbert, and selected `L^p` records | **Phase 4:** abstract function-space program |
 | 19 | `.ball` | Polynomial evaluation, interval Newton, and validated linear algebra over balls | **Waiting:** shared validated linear-algebra API from `.numerics` |
@@ -898,8 +898,13 @@ tracked in
      plus a runnable introductory tutorial.
    - [x] Add portable syntax-tree and scoped natural-deduction proof-tree views
      suitable for an eventual `rix-ed` undergraduate logic course.
-   - [ ] Add semantic tableaux with replayable open/closed branch evidence and
-     explicit countervaluations from open propositional branches.
+   - [x] Add bounded classical signed tableaux with replayable expansion traces,
+     open/closed/unresolved branches, and checked models/countermodels. Preserve
+     pending work on step/branch limits and distinguish a decided question from
+     exhaustive branch completion.
+   - [ ] Design the first finite-model increment: explicit nonempty finite
+     domains, relation tables, quantifiers, and equality; initially exclude
+     function symbols and distinguish bounded model search from general validity.
    - [ ] Connect algebraic/interval certificates to logic only through explicit
      proposition and evidence adapters; do not build a general research prover.
 4. **Phase 4 — Automated and external proving**

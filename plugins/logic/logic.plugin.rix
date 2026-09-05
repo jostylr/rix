@@ -3,11 +3,11 @@ id: logic
 description: Portable propositional formulas, bounded truth tables, checked normal forms, scoped natural deduction, and educational tree views.
 kind: rix
 mount: logic
-exports: [Atom, Top, Bottom, Not, And, Or, Implies, Iff, Evaluate, Valuations, TruthTable, Classify, NNF, CNF, DNF, CheckNormalForm, Step, Subproof, Proof, CheckProof, SyntaxTree, ProofTree, IsFormula, Capabilities]
+exports: [Atom, Top, Bottom, Not, And, Or, Implies, Iff, Evaluate, Valuations, TruthTable, Classify, Tableau, CheckTableau, NNF, CNF, DNF, CheckNormalForm, Step, Subproof, Proof, CheckProof, SyntaxTree, ProofTree, IsFormula, Capabilities]
 groups: [Logic, Education, Exact]
 permissions: []
-provides: [rix.logic@1, rix.logic.formula@1, rix.logic.truth-table@1, rix.logic.normal-form@1, rix.logic.proof@1, rix.logic.tree@1]
-schemas: [rix.logic.formula@1, rix.logic.truth-table@1, rix.logic.normal-form@1, rix.logic.proof@1, rix.logic.tree@1]
+provides: [rix.logic@1, rix.logic.formula@1, rix.logic.truth-table@1, rix.logic.normal-form@1, rix.logic.proof@1, rix.logic.tree@1, rix.logic.tableau@1]
+schemas: [rix.logic.formula@1, rix.logic.truth-table@1, rix.logic.normal-form@1, rix.logic.proof@1, rix.logic.tree@1, rix.logic.tableau@1]
 snapshot: false
 deterministic: true
 defaultEnabled: false
@@ -68,7 +68,7 @@ LogicKey(value) -> {;
     formula = LogicRequireFormula(value);
     kind = formula[:kind];
     kind==:atom
-      ?: @"atom(@{formula[:name]})"
+      ?: @"atom(@{formula[:name].Len()}:@{formula[:name]})"
       ?_ kind==:top
       ?: "top"
       ?_ kind==:bottom
@@ -448,7 +448,6 @@ LogicProof(steps,goal,options ?= {= }) -> {;
        check[:accepted] ?: _ ?_ {; @stopped ~= 1; };
     }; index += 1 };
     finalMatches = steps.Len()>0 && LogicSame(steps.Last()[:conclusion],exactGoal);
-    accepted = !stopped && finalMatches;
     proofKind = LogicOption(options,"proofkind",:derivation);
     [:derivation,:subproof].Includes(proofKind)
       ?: _
@@ -457,6 +456,11 @@ LogicProof(steps,goal,options ?= {= }) -> {;
     proofKind==:subproof && assumption==_
       ?: .Error("Logic subproof requires its assumption")
       ?_ _;
+    freeSteps = steps.Filter((step)->step[:rule]==:premise || step[:rule]==:assumption);
+    scopeValid = proofKind==:derivation
+      || (steps.Len()>0 && freeSteps.Len()==1 && steps[1][:rule]==:assumption
+          && LogicSame(steps[1][:conclusion],assumption));
+    accepted = !stopped && finalMatches && scopeValid;
     proof = {=
         valueKind=:logicProof,
         schema="rix.logic.proof@1",
@@ -467,9 +471,10 @@ LogicProof(steps,goal,options ?= {= }) -> {;
         checks=checks,
         accepted=accepted ?: 1 ?_ _,
         complete=accepted ?: 1 ?_ _,
-        reason=stopped ?: :invalidStep ?_ (finalMatches ?: _ ?_ :goalMismatch),
+        reason=!scopeValid ?: :invalidSubproofScope
+          ?_ stopped ?: :invalidStep ?_ (finalMatches ?: _ ?_ :goalMismatch),
         assumption=assumption,
-        assumptions=steps.Filter((step)->step[:rule]==:premise || step[:rule]==:assumption),
+        assumptions=freeSteps,
         supportedRules=[:premise,:assumption,:andIntro,:andElimLeft,:andElimRight,:orIntroLeft,:orIntroRight,:modusPonens,:implicationIntro,:orElim,:notIntro,:notElim,:bottomElim]
     };
     proof .= {= _proto=@logicProofProto };
@@ -479,9 +484,148 @@ LogicCheckProof(proof) -> {;
     valid = (proof ? :Map) && proof[:schema]=="rix.logic.proof@1";
     valid
       ?: LogicProof(proof[:steps],proof[:goal],{=
-          proofKind=proof[:proofKind] ?| :derivation,assumption=proof[:assumption]
+          proofKind=proof[:proofKind]==_ ?: :derivation ?_ proof[:proofKind],assumption=proof[:assumption]
       })
       ?_ .ImmutableValue({= accepted=_,complete=_,reason=:malformedLogicProof });
+};
+
+/* Signed tableaux expand original formulas directly: no exponential NNF
+   preprocessing and no truth-table enumeration are required. */
+LogicSigned(formula,truth) -> {= formula=formula,truth=truth };
+LogicTableauAlternatives(signed) -> {;
+    f = signed[:formula];
+    t = signed[:truth];
+    opposite = 1-t;
+    k = f[:kind];
+    k==:not ?: [[LogicSigned(f[:operand],opposite)]]
+      ?_ k==:and
+      ?: (t==1 ?: [[LogicSigned(f[:left],1),LogicSigned(f[:right],1)]]
+                   ?_ [[LogicSigned(f[:left],0)],[LogicSigned(f[:right],0)]])
+      ?_ k==:or
+      ?: (t==1 ?: [[LogicSigned(f[:left],1)],[LogicSigned(f[:right],1)]]
+                   ?_ [[LogicSigned(f[:left],0),LogicSigned(f[:right],0)]])
+      ?_ k==:implies
+      ?: (t==1 ?: [[LogicSigned(f[:left],0)],[LogicSigned(f[:right],1)]]
+                   ?_ [[LogicSigned(f[:left],1),LogicSigned(f[:right],0)]])
+      ?_ k==:iff
+      ?: [[LogicSigned(f[:left],1),LogicSigned(f[:right],t)],
+          [LogicSigned(f[:left],0),LogicSigned(f[:right],opposite)]]
+      ?_ [[]];
+};
+LogicTableauBranch(path,pending,valuation) -> {=
+    path=path,pending=pending,valuation=valuation
+};
+LogicTableau(value,options ?= {= }) -> {;
+    source = LogicRequireFormula(value);
+    options = LogicRequireOptions(options,"Logic Tableau options");
+    mode = LogicOption(options,"mode",:satisfiability);
+    [:satisfiability,:validity].Includes(mode)
+      ?: _ ?_ .Error("Logic Tableau mode must be satisfiability or validity");
+    maxSteps = LogicOption(options,"maxsteps",128) ~!: :Integer;
+    maxBranches = LogicOption(options,"maxbranches",64) ~!: :Integer;
+    (maxSteps>=0 && maxSteps<=2048) ?: _ ?_ .Error("Logic Tableau maxSteps must be from 0 through 2048");
+    (maxBranches>=1 && maxBranches<=256) ?: _ ?_ .Error("Logic Tableau maxBranches must be from 1 through 256");
+    atoms = LogicAtoms(source);
+    seedTruth = mode==:validity ?: 0 ?_ 1;
+    queue := [LogicTableauBranch("root",[LogicSigned(source,seedTruth)],{= })];
+    leaves := [];
+    trace := [];
+    branches := 1;
+    {@ ; @queue.Len()>0; {;
+        branch = @queue[1];
+        @queue ~= @queue.Slice(2);
+        pending = branch[:pending];
+        valuation = branch[:valuation];
+        path = branch[:path];
+        pending.Len()==0
+          ?: {; @leaves ~= @leaves.Push(@branch.Merge({= status=:open,reason=:saturated })); }
+          ?_ @trace.Len()>=@maxSteps
+          ?: {; @leaves ~= @leaves.Push(@branch.Merge({= status=:unresolved,reason=:stepBudgetExhausted })); }
+          ?_ {;
+              signed = @pending[1];
+              f = signed[:formula];
+              truth = signed[:truth];
+              kind = f[:kind];
+              alternatives = LogicTableauAlternatives(signed);
+              split = alternatives.Len()==2;
+              (split && @branches>=@maxBranches)
+                ?: {; @leaves ~= @leaves.Push(@branch.Merge({= status=:unresolved,reason=:branchBudgetExhausted })); }
+                ?_ {;
+                    conflict = @kind==:atom
+                      ?: (@valuation.Has(@f[:name]) && @valuation[@f[:name]]!=@truth)
+                      ?_ ((@kind==:top && @truth==0) || (@kind==:bottom && @truth==1));
+                    rule = conflict ?: :close
+                      ?_ @kind==:atom ?: :literal
+                      ?_ (@kind==:top || @kind==:bottom) ?: :constant
+                      ?_ @split ?: :beta ?_ :alpha;
+                    @trace ~= @trace.Push({= path=@path,signed=@signed,rule=rule });
+                    conflict
+                      ?: {; @leaves ~= @leaves.Push(@branch.Merge({= status=:closed,reason=:contradiction })); }
+                      ?_ {;
+                          nextValuation = @kind==:atom ?: @valuation.Set(@f[:name],@truth) ?_ @valuation;
+                          @split ?: {; @branches ~= @branches+1; } ?_ _;
+                          {@ i=1; i<=@alternatives.Len(); {;
+                              nextPath = @split ?: @path+(i==1 ?: "L" ?_ "R") ?_ @path;
+                              nextPending = @alternatives[i].Concat(@pending.Slice(2));
+                              @queue ~= @queue.Push(LogicTableauBranch(nextPath,nextPending,@nextValuation));
+                          }; i+=1 };
+                      };
+                };
+          };
+    }; };
+    open = leaves.Filter((branch)->branch[:status]==:open);
+    unresolved = leaves.Filter((branch)->branch[:status]==:unresolved);
+    witness = open.Len()>0
+      ?: atoms.Reduce((valuation,name)->valuation.Has(name) ?: valuation ?_ valuation.Set(name,0),open[1][:valuation])
+      ?_ _;
+    witness!=_
+      ?: ((LogicEvaluate(source,witness) ?: 1 ?_ 0)==seedTruth
+          ?: _ ?_ .Error("Logic Tableau internal witness mismatch"))
+      ?_ _;
+    status = open.Len()>0
+      ?: (mode==:validity ?: :invalid ?_ :satisfiable)
+      ?_ unresolved.Len()>0 ?: :unresolved
+      ?_ (mode==:validity ?: :valid ?_ :unsatisfiable);
+    .ImmutableValue({=
+        valueKind=:logicTableau,schema="rix.logic.tableau@1",system=:classicalSignedTableau,
+        source=source,mode=mode,seedTruth=seedTruth,status=status,
+        complete=unresolved.Len()==0 ?: 1 ?_ _,
+        decided=status!=:unresolved ?: 1 ?_ _,
+        atoms=atoms,witness=witness,
+        witnessKind=witness==_ ?: _ ?_ (mode==:validity ?: :countermodel ?_ :model),
+        branches=leaves,trace=trace,
+        work={= steps=trace.Len(),branchCount=branches,unresolvedBranches=unresolved.Len() },
+        options={= mode=mode,maxSteps=maxSteps,maxBranches=maxBranches }
+    });
+};
+
+/* Compare every retained public evidence field, not just the claimed status. */
+LogicEvidenceSame(left,right) -> {;
+    LogicIsFormulaValue(left)
+      ?: (LogicIsFormulaValue(right) && LogicSame(left,right))
+      ?_ (left ? :Array)
+      ?: {;
+          same := (@right ? :Array) && @left.Len()==@right.Len();
+          {@ i=1; @same && i<=@left.Len(); {;
+              @same ~= LogicEvidenceSame(@left[i],@right[i]);
+          }; i+=1 };
+          same;
+      }
+      ?_ (left ? :Map)
+      ?: ((right ? :Map) && left.Len()==right.Len()
+          && left.ReduceKeys((same,key,value)->same && @right.Has(key) && LogicEvidenceSame(value,@right[key]),1))
+      ?_ left==right;
+};
+LogicCheckTableau(candidate) -> {;
+    valid = (candidate ? :Map) && candidate[:schema]=="rix.logic.tableau@1";
+    valid
+      ?: {;
+          replay = LogicTableau(@candidate[:source],@candidate[:options]);
+          accepted = LogicEvidenceSame(@candidate,replay);
+          .ImmutableValue({= accepted=accepted ?: 1 ?_ _,
+              reason=accepted ?: _ ?_ :tableauEvidenceMismatch,result=replay });
+      }
+      ?_ .ImmutableValue({= accepted=_,reason=:malformedLogicTableau,result=_ });
 };
 
 LogicSyntaxTreeNode(value) -> {;
@@ -548,6 +692,7 @@ logicFormulaProto = {=
     Iff=(self,right)->LogicIff(self,right),
     Evaluate=(self,valuation)->LogicEvaluate(self,valuation),
     TruthTable=(self,options ?= {= })->LogicTruthTable(self,options),
+    Tableau=(self,options ?= {= })->LogicTableau(self,options),
     NNF=(self,options ?= {= })->LogicNNF(self,options),
     CNF=(self,options ?= {= })->LogicCNF(self,options),
     DNF=(self,options ?= {= })->LogicDNF(self,options),
@@ -567,7 +712,8 @@ logicCapabilities = .ImmutableValue({=
     proofRules=[:premise,:assumption,:andIntro,:andElimLeft,:andElimRight,:orIntroLeft,:orIntroRight,:modusPonens,:implicationIntro,:orElim,:notIntro,:notElim,:bottomElim],
     proofStructure=[:scopedSubproofs,:explicitDischarge,:naturalDeductionTrees],
     views=[:syntaxTree,:proofTree],
-    next=[:semanticTableaux,:boundedFirstOrderModels]
+    tableaux=[:signedPropositional,:openClosedBranchEvidence,:boundedSearch,:replay],
+    next=[:boundedFirstOrderModels,:sequentCalculus]
 });
 
 logicNamespace = {= };
@@ -584,6 +730,8 @@ logicNamespace._proto = {=
     Valuations=(self,names)->LogicValuations(names),
     TruthTable=(self,value,options ?= {= })->LogicTruthTable(value,options),
     Classify=(self,value,options ?= {= })->LogicClassify(value,options),
+    Tableau=(self,value,options ?= {= })->LogicTableau(value,options),
+    CheckTableau=(self,value)->LogicCheckTableau(value),
     NNF=(self,value,options ?= {= })->LogicNNF(value,options),
     CNF=(self,value,options ?= {= })->LogicCNF(value,options),
     DNF=(self,value,options ?= {= })->LogicDNF(value,options),

@@ -1,6 +1,6 @@
 ---
-title: Truth tables, scoped proofs, and educational trees
-description: Explore propositional validity, countermodels, canonical normal forms, scoped natural deduction, and portable tree views.
+title: Truth tables, scoped proofs, and semantic tableaux
+description: Explore propositional validity, countermodels, scoped natural deduction, and bounded open/closed branch evidence.
 theme: Algebra and analysis
 status: implemented
 ---
@@ -138,10 +138,69 @@ These are explicit checked rules, not automatic theorem search.
 {: .logic.Capabilities(),.logic.Valuations([:p,:q]) };
 ```
 
-Truth tables reject requests above their explicit atom budget. A future
-semantic tableau will record open and closed branches, and the later
-finite-model explorer will preserve the same distinction between exhaustive
-bounded search and an unbounded theorem.
+Truth tables reject requests above their explicit atom budget. Tableaux offer
+a different route: expand connectives on branches and stop a branch as soon
+as it contains a contradiction.
+
+## Close a tableau to prove classical validity
+
+```{.rix exec=true}
+.Plugin.Load("logic");
+p := .logic.Atom(:p);
+q := .logic.Atom(:q);
+modusPonens := p.And(p.Implies(q)).Implies(q);
+tableau := modusPonens.Tableau({= mode=:validity });
+tableau[:status]==:valid ?: 1 ?_ .Error("Expected all branches to close");
+.logic.CheckTableau(tableau)[:accepted] ?: 1 ?_ .Error("Tableau replay failed");
+{: tableau[:status],tableau[:trace],tableau[:branches] };
+```
+
+Validity search starts by asking for a valuation making the formula **false**.
+Every branch closes, so no such valuation exists. Trace rules `:alpha` extend
+one branch; `:beta` splits it. A closed branch retains the contradictory signed
+formula and its prior literal assignments so the closure can be inspected.
+
+## Read an open branch as a countermodel
+
+```{.rix exec=true}
+.Plugin.Load("logic");
+p := .logic.Atom(:p);
+q := .logic.Atom(:q);
+formula := p.Implies(q);
+attempt := formula.Tableau({= mode=:validity });
+attempt[:status]==:invalid ?: 1 ?_ .Error("Expected a countermodel");
+formula.Evaluate(attempt[:witness]) ?: .Error("Countermodel must falsify the source") ?_ 1;
+{: attempt[:witnessKind],attempt[:witness],attempt[:branches] };
+```
+
+The countermodel sets `p=1,q=0`, just as the truth table did. In default
+satisfiability mode, an open branch instead supplies a model making the source
+true. All witnesses are checked against the original formula.
+
+## Distinguish an answer from exhaustive search
+
+```{.rix exec=true}
+.Plugin.Load("logic");
+p := .logic.Atom(:p);
+q := .logic.Atom(:q);
+r := .logic.Atom(:r);
+stopped := p.Or(q).Tableau({= maxBranches=1 });
+partial := p.Or(q.And(r)).Tableau({= maxSteps=2 });
+stopped[:status]==:unresolved ?: 1 ?_ .Error("A blocked split is not a proof");
+partial[:status]==:satisfiable ?: 1 ?_ .Error("The p branch supplies a model");
+partial[:complete] ?: .Error("Other work must remain unresolved") ?_ 1;
+.logic.CheckTableau(partial)[:accepted] ?: 1 ?_ .Error("Partial evidence must replay");
+{: stopped[:branches],partial[:decided],partial[:complete],partial[:witness] };
+```
+
+The second search finds the open `p` branch within two steps, although the
+other branch remains unresolved. It has answered satisfiability without
+finishing every branch. Never interpret a mere budget limit as a theorem.
+
+Finally, try `p.Or(p.Not()).Tableau({= mode=:validity })`: it proves excluded
+middle in **classical** semantics. The natural-deduction core above is
+intuitionistic-compatible and has no excluded-middle axiom. The systems are
+complementary course topics, not interchangeable proof labels.
 
 ## Further work
 
@@ -150,3 +209,5 @@ bounded search and an unbounded theorem.
 3. Construct an `andIntro` proof and eliminate each conjunct on later lines.
 4. Change one `orElim` case goal and inspect the retained failure reason.
 5. Use `bottomElim` to derive a chosen formula from an explicit contradiction.
+6. Compare a tableau for contraposition with its complete truth table.
+7. Change a tableau witness or remove a trace step and inspect `CheckTableau`.

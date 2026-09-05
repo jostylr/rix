@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/logic-tableau/v1.schema.json",
+  "title": "RiX bounded classical signed tableau v1",
+  "type": "object",
+  "required": ["schema", "valueKind", "system", "source", "mode", "seedTruth", "status", "complete", "decided", "atoms", "witness", "witnessKind", "branches", "trace", "work", "options"],
+  "properties": {
+    "schema": { "const": "rix.logic.tableau@1" },
+    "valueKind": { "const": "logicTableau" },
+    "system": { "const": "classicalSignedTableau" },
+    "source": { "$ref": "logic-formula.schema.json" },
+    "mode": { "enum": ["satisfiability", "validity"] },
+    "seedTruth": { "enum": [0, 1] },
+    "status": { "enum": ["satisfiable", "unsatisfiable", "valid", "invalid", "unresolved"] },
+    "complete": { "type": ["boolean", "null"] },
+    "decided": { "type": ["boolean", "null"] },
+    "atoms": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "witness": { "type": ["object", "null"], "additionalProperties": { "enum": [0, 1] } },
+    "witnessKind": { "enum": ["model", "countermodel", null] },
+    "branches": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "required": ["path", "pending", "valuation", "status", "reason"],
+        "properties": {
+          "path": { "type": "string", "pattern": "^root[LR]*$" },
+          "pending": { "type": "array", "items": { "$ref": "#/$defs/signed" } },
+          "valuation": { "type": "object", "additionalProperties": { "enum": [0, 1] } },
+          "status": { "enum": ["open", "closed", "unresolved"] },
+          "reason": { "enum": ["saturated", "contradiction", "stepBudgetExhausted", "branchBudgetExhausted"] }
+        }
+      }
+    },
+    "trace": {
+      "type": "array", "maxItems": 2048,
+      "items": {
+        "type": "object", "required": ["path", "signed", "rule"],
+        "properties": {
+          "path": { "type": "string", "pattern": "^root[LR]*$" },
+          "signed": { "$ref": "#/$defs/signed" },
+          "rule": { "enum": ["alpha", "beta", "literal", "constant", "close"] }
+        }
+      }
+    },
+    "work": {
+      "type": "object", "required": ["steps", "branchCount", "unresolvedBranches"],
+      "properties": {
+        "steps": { "type": "integer", "minimum": 0, "maximum": 2048 },
+        "branchCount": { "type": "integer", "minimum": 1, "maximum": 256 },
+        "unresolvedBranches": { "type": "integer", "minimum": 0, "maximum": 256 }
+      }
+    },
+    "options": {
+      "type": "object", "required": ["mode", "maxSteps", "maxBranches"],
+      "properties": {
+        "mode": { "enum": ["satisfiability", "validity"] },
+        "maxSteps": { "type": "integer", "minimum": 0, "maximum": 2048 },
+        "maxBranches": { "type": "integer", "minimum": 1, "maximum": 256 }
+      }
+    }
+  },
+  "$defs": {
+    "signed": {
+      "type": "object", "required": ["formula", "truth"],
+      "properties": {
+        "formula": { "$ref": "logic-formula.schema.json" },
+        "truth": { "enum": [0, 1] }
+      }
+    }
+  }
+}
