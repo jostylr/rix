@@ -356,6 +356,28 @@ const LOWERERS = {
     return ir("SYMBOL_RETRIEVE", node.name, node.outer === true);
   },
 
+  BoundSymbol(node) {
+    return ir("BOUND_SYMBOL", node.name);
+  },
+
+  MathematicalContext(node) {
+    const header=node.header.flatMap(({declaration,source})=> {
+      if (declaration.type === "BoundSymbol") return [{kind:"binder",name:declaration.name,source:source ? lowerNode(source) : null}];
+      if (["Tuple","TupleContainer"].includes(declaration.type) && declaration.elements.length && declaration.elements.every(item=>item.type === "BoundSymbol")) {
+        const names=declaration.elements.map(item=>item.name);
+        if (new Set(names).size !== names.length) throw new Error("Duplicate bound symbol in tuple declaration");
+        return [{kind:"binder",names,source:source ? lowerNode(source) : null}];
+      }
+      if (source) throw new Error("A binding source requires a leading bound symbol");
+      if (declaration.type !== "BinaryOperation" || !["==","!=","<",">","<=",">="].includes(declaration.operator)) {
+        throw new Error("Mathematical assumptions require a comparison; use :::name to declare a binder");
+      }
+      return [...(declaration.left.type === "BoundSymbol" ? [{kind:"binder",name:declaration.left.name,source:null}] : []),
+        {kind:"assumption",operator:declaration.operator,left:lowerNode(declaration.left),right:lowerNode(declaration.right)}];
+    });
+    return ir("MATH_CONTEXT",header,node.elements.map(lowerNode));
+  },
+
   SystemIdentifier(node) {
     if (node.original && node.original.trim().startsWith("@")) {
       return ir("SYSREF", node.name);
@@ -1330,6 +1352,7 @@ function lowerAssignment(node, irFn) {
   }
 
   // Simple variable assignment: x = 5
+  if (left.type === "BoundSymbol") throw new Error("Bound symbols cannot be assigned; constrain them in a mathematical header");
   if (left.type === "SymbolicVariable") {
     if (left.outer || irFn !== "ASSIGN") throw new Error("Define a local symbolic variable with '='; symbolic definitions cannot be updated or assigned through capture");
     return ir("SYMBOL_DEFINE",left.name,lowerNode(node.right));

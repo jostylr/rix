@@ -32,15 +32,21 @@ export function scopedExpressionVariable(context, name, outer = false) {
     const symbols = environment.get(SYMBOLS);
     if (!symbols.has(name)) {
         if (context.localScopes.at(-1)?.readOnly || (!context.localScopes.length && context.globalReadOnly)) throw new Error("Cannot introduce a symbol in a read-only scope");
-        const symbol=expressionRecord("variable",[
-            ["name",string(name)], ["symbolid",string(`symbol:${nextSymbolId++}`)],
-        ]);
-        const token=()=> { throw new Error("Opaque mathematical identity is not callable"); };
-        definitions.set(token,{value:null,id:expressionField(symbol,"symbolid").value,name});
-        symbol._ext.set(DEFINITION_TOKEN,token);
+        const symbol=freshExpressionSymbol(name);
         symbols.set(name,symbol);
     }
     return symbols.get(name);
+}
+
+export function freshExpressionSymbol(name, bound = false) {
+    const symbol=expressionRecord("variable",[
+        ["name",string(name)], ["symbolid",string(`symbol:${nextSymbolId++}`)],
+        ...(bound ? [["bound",new Integer(1n)]] : []),
+    ]);
+    const token=()=> { throw new Error("Opaque mathematical identity is not callable"); };
+    definitions.set(token,{value:null,id:expressionField(symbol,"symbolid").value,name});
+    symbol._ext.set(DEFINITION_TOKEN,token);
+    return symbol;
 }
 
 function symbolState(symbol) {

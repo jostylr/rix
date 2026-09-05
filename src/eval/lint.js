@@ -911,6 +911,17 @@ export function analyzeRix(source, options = {}) {
             return;
         }
 
+        if (node.type === "MathematicalContext") {
+            for (const item of node.header) {
+                visit(item.declaration,scope,{...state,role:"value",tail:false,discarded:false});
+                if (item.source) visit(item.source,scope,{...state,role:"value",tail:false,discarded:false});
+            }
+            for (const element of node.elements) visit(element,scope,state);
+            return;
+        }
+
+        if (node.type === "BoundSymbol") return;
+
         if (node.type === "SymbolicVariable") {
             if (!node.outer) scope.symbols.add(node.name);
             else {

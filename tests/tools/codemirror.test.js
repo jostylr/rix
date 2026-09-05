@@ -11,6 +11,11 @@ function tree(source) {
 }
 
 describe("RiX Lezer grammar", () => {
+  test("recognizes mathematical contexts and bound symbols", () => {
+    const result=tree("{& :::x > 0 & :::x + ::y }");
+    expect(result).toContain("MathematicalContext");
+    expect(result).not.toContain("⚠");
+  });
   test("recognizes scoped mathematical variables and captures", () => {
     const result = tree("x := ::x; @::x + ::y;");
     expect(result).toContain("SymbolicVariable");

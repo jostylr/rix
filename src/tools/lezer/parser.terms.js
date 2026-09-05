@@ -48,5 +48,6 @@ export const
   ShiftLeftContainer = 46,
   ShiftRightContainer = 47,
   HaloContainer = 48,
-  PlainContainer = 49,
-  Postfix = 50
+  MathematicalContext = 49,
+  PlainContainer = 50,
+  Postfix = 51

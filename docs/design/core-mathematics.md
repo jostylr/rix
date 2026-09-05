@@ -14,8 +14,12 @@ required. Existing repository consumers will be updated directly.
    Name-based algorithm consumers reject scoped expressions pending stage 7.
 3. Immutable definitions: implemented (`::y = expression`), including cycle
    checks, inspection, expansion, and conservative definition-aware equality.
-   Local equality assumptions remain pending with mathematical contexts.
-4. Mathematical headers, binders, and domain descriptors: pending.
+   Local equality assumptions can now be retained as context data; rewriting
+   under them remains stage 6 work.
+4. Mathematical headers and fresh binders: foundation implemented. Rational
+   interval, direction-tuple, and exact-endpoint object domains normalize and
+   intersect; product tuples bind multiple symbols. Symbolic/dependent endpoint
+   domains and arbitrary ordered traversal sources remain pending.
 5. Mathematical constant-provider capabilities: pending.
 6. Context inspection, substitution, evaluation, and bounded reasoning: pending.
 7. Repository-wide consumer and schema conversion: pending.

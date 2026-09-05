@@ -203,9 +203,11 @@ function isOperatorCharacter(next) {
 }
 
 export const rixTokens = new ExternalTokenizer((input, stack) => {
+  // A lone ampersand delimits a mathematical header; && remains an operator.
+  if (input.next === 38 && input.peek(1) !== 38) return;
   const symbolicPrefix = input.next === code.at ? 1 : 0;
   if (input.peek(symbolicPrefix) === 58 && input.peek(symbolicPrefix+1) === 58 && stack.canShift(SymbolicVariable)) {
-    const symbol = scanIdentifier(input,symbolicPrefix+2);
+    const symbol = scanIdentifier(input,symbolicPrefix+(input.peek(symbolicPrefix+2) === 58 ? 3 : 2));
     if (symbol) {
       input.advance(symbol.length);
       return input.acceptToken(SymbolicVariable);

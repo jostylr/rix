@@ -44,6 +44,7 @@ const symbols = [
   "||>",
   "~~=",
   "::=",
+  ":::",
   "//=",
   "**=",
   "/^=",
@@ -1240,7 +1241,7 @@ function tryMatchBrace(input, position) {
   }
 
   // 2. Sigil container detection
-  const sigilChars = new Set(["@", ";", "|", ":", "=", "?", "$", "#", "^", ">", "~"]);
+  const sigilChars = new Set(["@", ";", "|", ":", "=", "?", "$", "#", "^", ">", "~", "&"]);
   if (sigilChars.has(ch)) {
     const sigil = ch;
     const after = input[position + 2];

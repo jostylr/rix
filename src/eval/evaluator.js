@@ -9,6 +9,7 @@
 
 import { Registry } from "./registry.js";
 import { expressionCapabilities, expressionSyntaxFunctions, installExpressionVariants } from "../runtime/math-expression.js";
+import { mathContextSyntaxFunctions } from "../runtime/math-context.js";
 import { SystemContext } from "../runtime/system-context.js";
 import { PluginCatalog } from "../runtime/plugin-catalog.js";
 import { createSystemLookup } from "../runtime/system-manifest.js";
@@ -247,6 +248,7 @@ export function createDefaultRegistry(options = {}) {
     registry.registerAll(unitExactFunctions);
     registry.registerAll(symbolicFunctions);
     registry.registerAll(expressionSyntaxFunctions);
+    registry.registerAll(mathContextSyntaxFunctions);
     registry.registerAll(outputFunctions);
     registry.registerAll(formulaSheetFunctions);
     registry.registerAll(reactiveGraphFunctions);

@@ -43,8 +43,8 @@ reject scoped expressions until their identity-aware conversion lands. This
 prevents silent identification of distinct same-named symbols. Existing
 constructor-based plugin examples are unaffected.
 
-`:::x` and mathematical-context headers are not part of this stage. Their intended semantics are recorded in
-[the implementation ledger](../../docs/design/core-mathematics.md).
+`:::x` introduces a bound identity in a [mathematical context](mathematical-contexts.md).
+Remaining stages are recorded in [the implementation ledger](../../docs/design/core-mathematics.md).
 
 ## Immutable definitions
 

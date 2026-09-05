@@ -503,6 +503,8 @@ const SYMBOL_TABLE = {
   "{^": { precedence: 0, type: "brace_sigil" },
   "{>": { precedence: 0, type: "brace_sigil" },
   "{~": { precedence: 0, type: "brace_sigil" },
+  "{&": { precedence: 0, type: "brace_sigil" },
+  "&": { precedence: 0, type: "separator" },
 
   // Mutation brace
   "{!": { precedence: 0, type: "brace_sigil" },
@@ -897,6 +899,10 @@ class Parser {
           return this.parseAngleForm();
         } else if (token.value === "{") {
           return this.parseBraceContainer();
+        } else if (token.value === "{&") {
+          return this.parseMathematicalContext();
+        } else if (token.value === ":::") {
+          return this.parseSymbolicVariable(false);
         } else if (token.value === "{=" || token.value === "{?" || token.value === "{;" || token.value === "{|" || token.value === "{:" || token.value === "{@" || token.value === "{#" || token.value === "{.." || token.value === "{>" || token.value === "{~"
           || token.value === "{^"
           || token.value === "{$"
@@ -3897,6 +3903,35 @@ class Parser {
     });
   }
 
+  parseMathematicalContext() {
+    const start = this.current;
+    if (start.containerName) this.error("Mathematical contexts do not have named headers");
+    this.advance();
+    const header = [], elements = [];
+    while (this.current.value !== "&") {
+      if (this.current.type === "End" || this.current.value === "}") this.error("Expected '&' after mathematical header");
+      const declaration = this.parseExpression(0);
+      let source = null;
+      if (this.current.value === "|") {
+        this.advance();
+        source = this.parseExpression(0);
+      }
+      header.push({ declaration, source });
+      if (this.current.value === ";") this.advance();
+      else if (this.current.value !== "&") this.error("Expected ';' or '&' after mathematical declaration");
+    }
+    this.advance();
+    while (this.current.value !== "}") {
+      if (this.current.type === "End") this.error("Expected '}' after mathematical body");
+      if (this.current.value === ";") { this.advance(); continue; }
+      elements.push(this.parseExpression(0));
+      if (this.current.value === ";") this.advance();
+      else if (this.current.value !== "}") this.error("Expected ';' or '}' after mathematical body statement");
+    }
+    this.advance();
+    return this.createNode("MathematicalContext", {header,elements,pos:start.pos,original:start.original});
+  }
+
   parseSymbolicVariable(outer, startToken = this.current) {
     const prefix = this.current;
     this.advance();
@@ -3904,9 +3939,9 @@ class Parser {
       this.error("Symbolic '::' must be immediately followed by a name");
     }
     const name = this.current.value;
-    const original = (outer ? "@::" : "::") + this.current.original;
+    const original = (outer ? "@::" : prefix.value) + this.current.original;
     this.advance();
-    return this.createNode("SymbolicVariable", {name,outer,pos:startToken.pos,original});
+    return this.createNode(prefix.value === ":::" ? "BoundSymbol" : "SymbolicVariable", {name,outer,pos:startToken.pos,original});
   }
 
   parseBracketSpec() {
