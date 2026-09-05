@@ -13,6 +13,7 @@
 import { Integer } from "@ratmath/core";
 import { builtinMethodNamesForType, isCallableValue, resolveMethod } from "./methods.js";
 import { isMultifunctionValue } from "./multifunction.js";
+import { callWithConcreteArgs as invokeSync } from "../eval/functions/functions.js";
 
 // Trust is attached to the descriptor object by the host boundary, never to a
 // caller-controlled field.  The WeakMap also binds the descriptor to the exact
@@ -168,7 +169,7 @@ function namespaceEntry(context, namespace) {
     value._ext.set("REGISTER", {
         type: "method_builtin",
         name: "Register",
-        impl(args, evaluationContext, _evaluate, callWithConcreteArgs) {
+        impl(args, evaluationContext, _evaluate) {
             if (!canRegister(evaluationContext)) {
                 throw new Error(`.${title}.Register is not permitted in this execution context`);
             }
@@ -177,8 +178,10 @@ function namespaceEntry(context, namespace) {
             const doc = args[3]?.type === "string" ? args[3].value : "";
             const groups = rixStringList(args[4], `.${title}.Register groups`);
             const definition = {
-                impl(callArgs, callContext, callEvaluate) {
-                    return callWithConcreteArgs(callable, callArgs, callContext, callEvaluate);
+                impl(callArgs, callContext, callEvaluate, execution) {
+                    return execution?.promiseAware
+                        ? execution.invoke(callable, callArgs)
+                        : invokeSync(callable, callArgs, callContext, callEvaluate);
                 },
                 doc,
             };
@@ -226,7 +229,7 @@ function namespaceEntry(context, namespace) {
     value._ext.set("REGISTERCALLABLEVALUE", {
         type: "method_builtin",
         name: "RegisterCallableValue",
-        impl(args, evaluationContext, _evaluate, callWithConcreteArgs) {
+        impl(args, evaluationContext, _evaluate) {
             if (!canRegister(evaluationContext)) {
                 throw new Error(`.${title}.RegisterCallableValue is not permitted in this execution context`);
             }
@@ -235,8 +238,10 @@ function namespaceEntry(context, namespace) {
             const doc = args[3]?.type === "string" ? args[3].value : "";
             const groups = rixStringList(args[4], `.${title}.RegisterCallableValue groups`);
             const definition = {
-                impl(callArgs, callContext, callEvaluate) {
-                    return callWithConcreteArgs(callableValue, callArgs, callContext, callEvaluate);
+                impl(callArgs, callContext, callEvaluate, execution) {
+                    return execution?.promiseAware
+                        ? execution.invoke(callableValue, callArgs)
+                        : invokeSync(callableValue, callArgs, callContext, callEvaluate);
                 },
                 doc,
             };
@@ -257,7 +262,7 @@ function namespaceEntry(context, namespace) {
     value._ext.set("REGISTERMETHOD", {
         type: "method_builtin",
         name: "RegisterMethod",
-        impl(args, evaluationContext, _evaluate, invoke) {
+        impl(args, evaluationContext, _evaluate) {
             if (!canRegister(evaluationContext)) {
                 throw new Error(`.${title}.RegisterMethod is not permitted in this execution context`);
             }
@@ -278,7 +283,7 @@ function namespaceEntry(context, namespace) {
             const wrapped = {
                 type: "method_builtin",
                 name: methodName,
-                impl(callArgs, callContext, callEvaluate) {
+                impl(callArgs, callContext, callEvaluate, _invoke, execution) {
                     const envKey = "__embedded_caller_scopes__";
                     const hadCallerScopes = callContext.env.has(envKey);
                     const priorCallerScopes = callContext.getEnv(envKey, null);
@@ -289,11 +294,23 @@ function namespaceEntry(context, namespace) {
                         readThrough: true,
                         callableBoundary: false,
                     }, ...callContext.captureClosureScopes()]);
-                    try {
-                        return invoke(callable, callArgs, callContext, callEvaluate);
-                    } finally {
+                    const restoreCallerScopes = () => {
                         if (hadCallerScopes) callContext.setEnv(envKey, priorCallerScopes);
                         else callContext.env.delete(envKey);
+                    };
+                    if (execution?.promiseAware) {
+                        return (async () => {
+                            try {
+                                return await execution.invoke(callable, callArgs);
+                            } finally {
+                                restoreCallerScopes();
+                            }
+                        })();
+                    }
+                    try {
+                        return invokeSync(callable, callArgs, callContext, callEvaluate);
+                    } finally {
+                        restoreCallerScopes();
                     }
                 },
             };

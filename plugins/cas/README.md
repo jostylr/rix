@@ -86,15 +86,22 @@ not need `??>`; that operator is for an explicitly undecided check, not an
 unsupported symbolic expression. This refactor does not add integration
 rules or strengthen replay into a general proof checker.
 
-### Follow-up: async symbolic evaluation
+### Async symbolic evaluation
 
-The guard refactor is covered by synchronous integration/replay tests and
-sync/async malformed-envelope tests. A separate async integration problem
-remains: after synchronously loading CAS and constructing `Sin(x^2)`, calling
-`.cas.Integrate(source,:x)` through `parseAndEvaluateAsync` produces an incorrect
-result followed by an `RX1001` enclosing-scope error in Calculus `IsExpression`.
-This also reproduces with the pre-refactor CAS source. Investigate async
-call/context handling separately; full async CAS parity is not claimed here.
+CAS supports the promise-aware evaluator. Receiver callbacks are awaited in
+order, including the independence checks used during integration. Regression
+tests build expressions asynchronously and compare integration and replay with
+synchronous results across affine, trigonometric, polynomial, exponential,
+reciprocal, rational partial-fraction, and unsupported cases. In particular, `Sin(x^2)` correctly returns
+`:nonAffineSineArgument`; it is not mistaken for a constant. The earlier scope
+error in this case was caused by unawaited collection callbacks and is fixed
+in the shared receiver-method runtime.
+
+A separate pre-existing limitation remains for directly integrating the
+callable Polynomial returned by `Collect(... )[:polynomial]`: that route can
+report "CAS expected a Calculus expression or exact scalar" in both evaluators.
+Use the polynomial expression graph as input for now; investigate the direct
+Polynomial dispatch separately. This is not the async callback failure.
 
 Unsupported inputs return `status=:unsupported`, `antiderivative=_`, and a
 reason such as `:unsupportedSemanticFunction` or

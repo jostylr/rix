@@ -53,6 +53,36 @@ function numericalGraph(graph, x) {
 }
 
 describe("browser-safe course CAS plugin", () => {
+    test("async integration and replay agree with sync across expression families", async () => {
+        const scope = runtime();
+        // Construct sources through the async entry point too: graph-building
+        // callbacks must not leave promises inside expression records.
+        const result = await parseAndEvaluateAsync(`
+            .Plugin.Load("cas");
+            x := .calculus.Variable(:x);
+            Sin := .calculus.Sin(); Cos := .calculus.Cos(); Exp := .calculus.Exp();
+            sources := [Sin(x^2),Sin(x^2)+x,Sin(2*x+1),Sin(x)^2,
+                Sin(x)*Cos(3*x),x^2*Exp(2*x),1/(2*x+1),x^3+2*x,
+                .rf\`(2*x+3)/(x^2-1)\`,.rf\`1/(x^2+1)\`];
+            sources.Map((source)->{;
+                result = .cas.Integrate(source,:x);
+                {: result,.cas.CheckIntegral(result) };
+            });
+        `, scope);
+        const sync = parseAndEvaluate(`sources.Map((source)->.cas.Integrate(source,:x));`, scope);
+        for (let i=0;i<result.values.length;i++) {
+            const [integral,replay] = result.values[i].values;
+            expect(text(entry(integral,"status"))).toBe(i<2 ? "unsupported" : "complete");
+            expect(text(entry(integral,"reason"))).toBe(text(entry(sync.values[i],"reason")));
+            expect(entry(replay,"accepted").value).toBe(1n);
+            if (i>=2) {
+                scope.context.set("asyncprimitive",entry(integral,"antiderivative"));
+                scope.context.set("syncprimitive",entry(sync.values[i],"antiderivative"));
+                expect(parseAndEvaluate('.calculus.StructuralKey(asyncPrimitive)==.calculus.StructuralKey(syncPrimitive)',scope).value).toBe(1n);
+            }
+        }
+    }, 120_000);
+
     test("diagnostic guards preserve rejection reasons across rule families", () => {
         const scope = runtime();
         parseAndEvaluate('.Plugin.Load("cas");',scope);

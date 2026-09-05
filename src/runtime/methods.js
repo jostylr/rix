@@ -463,8 +463,28 @@ function callIterator(fn, args, context, evaluate, invoke) {
     return invoke(fn, args, context, evaluate);
 }
 
-function predicateResult(fn, args, context, evaluate, invoke) {
-    return truthy(callIterator(fn, args, context, evaluate, invoke));
+// Drive the same ordered traversal in both evaluators. In async mode each
+// callback must settle before another can reuse the caller's scope stack.
+// A rejected callback stops the traversal; no later callbacks are launched.
+function callbackSteps(steps, execution) {
+    if (execution?.promiseAware) {
+        return (async () => {
+            let step = steps.next();
+            while (!step.done) step = steps.next(await step.value);
+            return step.value;
+        })();
+    }
+    let step = steps.next();
+    while (!step.done) step = steps.next(step.value);
+    return step.value;
+}
+
+function mapCallbacks(values, mapper, execution) {
+    return callbackSteps((function* () {
+        const results = [];
+        for (const value of values) results.push(yield mapper(value));
+        return results;
+    })(), execution);
 }
 
 function sequenceAt(target, rawIndex) {
@@ -564,50 +584,60 @@ function flattenValues(values, depth) {
     return out;
 }
 
-function reduceEntries(target, iterator, initial, context, evaluate, invoke, entryMapper = (entry) => [entry.value, entry.key, target]) {
-    const entries = iterateEntries(target);
-    let accumulator = initial === undefined ? defaultAccumulator(target) : initial;
-    for (const entry of entries) {
-        accumulator = invoke(iterator, [accumulator, ...entryMapper(entry)], context, evaluate);
-    }
-    return accumulator;
+function reduceEntries(target, iterator, initial, context, evaluate, invoke, execution, entryMapper = (entry) => [entry.value, entry.key, target]) {
+    return callbackSteps((function* () {
+        const entries = iterateEntries(target);
+        let accumulator = initial === undefined ? defaultAccumulator(target) : initial;
+        for (const entry of entries) {
+            accumulator = yield invoke(iterator, [accumulator, ...entryMapper(entry)], context, evaluate);
+        }
+        return accumulator;
+    })(), execution);
 }
 
-function anyEntries(target, iterator, context, evaluate, invoke) {
-    for (const entry of iterateEntries(target)) {
-        if (predicateResult(iterator, [entry.value, entry.key, target], context, evaluate, invoke)) {
-            return int(1);
+function anyEntries(target, iterator, context, evaluate, invoke, execution) {
+    return callbackSteps((function* () {
+        for (const entry of iterateEntries(target)) {
+            if (truthy(yield callIterator(iterator, [entry.value, entry.key, target], context, evaluate, invoke))) {
+                return int(1);
+            }
         }
-    }
-    return null;
+        return null;
+    })(), execution);
 }
 
-function allEntries(target, iterator, context, evaluate, invoke) {
-    for (const entry of iterateEntries(target)) {
-        if (!predicateResult(iterator, [entry.value, entry.key, target], context, evaluate, invoke)) {
-            return null;
+function allEntries(target, iterator, context, evaluate, invoke, execution) {
+    return callbackSteps((function* () {
+        for (const entry of iterateEntries(target)) {
+            if (!truthy(yield callIterator(iterator, [entry.value, entry.key, target], context, evaluate, invoke))) {
+                return null;
+            }
         }
-    }
-    return int(1);
+        return int(1);
+    })(), execution);
 }
 
-function countEntries(target, iterator, context, evaluate, invoke) {
-    let count = 0;
-    for (const entry of iterateEntries(target)) {
-        if (!iterator || predicateResult(iterator, [entry.value, entry.key, target], context, evaluate, invoke)) {
-            count += 1;
+function countEntries(target, iterator, context, evaluate, invoke, execution) {
+    return callbackSteps((function* () {
+        let count = 0;
+        for (const entry of iterateEntries(target)) {
+            if (!iterator || truthy(yield callIterator(iterator, [entry.value, entry.key, target], context, evaluate, invoke))) {
+                count += 1;
+            }
         }
-    }
-    return int(count);
+        return int(count);
+    })(), execution);
 }
 
-function findEntry(target, iterator, context, evaluate, invoke, wantKey = false) {
-    for (const entry of iterateEntries(target)) {
-        if (predicateResult(iterator, [entry.value, entry.key, target], context, evaluate, invoke)) {
-            return wantKey ? entry.key : entry.value;
+function findEntry(target, iterator, context, evaluate, invoke, wantKey = false, execution) {
+    return callbackSteps((function* () {
+        for (const entry of iterateEntries(target)) {
+            if (truthy(yield callIterator(iterator, [entry.value, entry.key, target], context, evaluate, invoke))) {
+                return wantKey ? entry.key : entry.value;
+            }
         }
-    }
-    return null;
+        return null;
+    })(), execution);
 }
 
 function arithmeticAdd(a, b) {
@@ -799,40 +829,31 @@ const arrayMethods = {
     }),
     MAP: method("MAP", ([target, iterator], context, evaluate, invoke, execution) => {
         ensureSequence(target, "Map");
-        if (execution?.promiseAware) {
-            return (async () => {
-                const values = [];
-                // Ordinary receiver Map is ordered. Await each callback before
-                // reusing its context; concurrent traversal has a separate API.
-                for (const entry of iterateEntries(target)) {
-                    values.push(await invoke(iterator, [entry.value, entry.key, target], context, evaluate));
-                }
-                return { type: "sequence", values, _ext: mutableExt() };
-            })();
-        }
-        return {
-            type: "sequence",
-            values: iterateEntries(target).map((entry) => invoke(iterator, [entry.value, entry.key, target], context, evaluate)),
-            _ext: mutableExt(),
-        };
+        return callbackSteps((function* () {
+            const values = yield mapCallbacks(iterateEntries(target),
+                entry => invoke(iterator, [entry.value, entry.key, target], context, evaluate), execution);
+            return { type: "sequence", values, _ext: mutableExt() };
+        })(), execution);
     }),
-    FILTER: method("FILTER", ([target, iterator], context, evaluate, invoke) => {
+    FILTER: method("FILTER", ([target, iterator], context, evaluate, invoke, execution) => {
         ensureSequence(target, "Filter");
-        return {
-            type: "sequence",
-            values: iterateEntries(target)
-                .filter((entry) => predicateResult(iterator, [entry.value, entry.key, target], context, evaluate, invoke))
-                .map((entry) => entry.value),
-            _ext: mutableExt(),
-        };
+        return callbackSteps((function* () {
+            const values = [];
+            for (const entry of iterateEntries(target)) {
+                if (truthy(yield callIterator(iterator, [entry.value, entry.key, target], context, evaluate, invoke))) {
+                    values.push(entry.value);
+                }
+            }
+            return { type: "sequence", values, _ext: mutableExt() };
+        })(), execution);
     }),
-    ANY: method("ANY", ([target, iterator], context, evaluate, invoke) => anyEntries(target, iterator, context, evaluate, invoke)),
-    ALL: method("ALL", ([target, iterator], context, evaluate, invoke) => allEntries(target, iterator, context, evaluate, invoke)),
-    COUNT: method("COUNT", ([target, iterator], context, evaluate, invoke) => countEntries(target, iterator, context, evaluate, invoke)),
-    FIND: method("FIND", ([target, iterator], context, evaluate, invoke) => findEntry(target, iterator, context, evaluate, invoke, false)),
-    FINDINDEX: method("FINDINDEX", ([target, iterator], context, evaluate, invoke) => findEntry(target, iterator, context, evaluate, invoke, true)),
-    REDUCE: method("REDUCE", ([target, iterator, initial], context, evaluate, invoke) =>
-        reduceEntries(target, iterator, initial, context, evaluate, invoke)),
+    ANY: method("ANY", ([target, iterator], context, evaluate, invoke, execution) => anyEntries(target, iterator, context, evaluate, invoke, execution)),
+    ALL: method("ALL", ([target, iterator], context, evaluate, invoke, execution) => allEntries(target, iterator, context, evaluate, invoke, execution)),
+    COUNT: method("COUNT", ([target, iterator], context, evaluate, invoke, execution) => countEntries(target, iterator, context, evaluate, invoke, execution)),
+    FIND: method("FIND", ([target, iterator], context, evaluate, invoke, execution) => findEntry(target, iterator, context, evaluate, invoke, false, execution)),
+    FINDINDEX: method("FINDINDEX", ([target, iterator], context, evaluate, invoke, execution) => findEntry(target, iterator, context, evaluate, invoke, true, execution)),
+    REDUCE: method("REDUCE", ([target, iterator, initial], context, evaluate, invoke, execution) =>
+        reduceEntries(target, iterator, initial, context, evaluate, invoke, execution)),
     "SWAP!": method("SWAP!", ([target, i, j]) => {
         ensureSequence(target, "Swap!");
         const len = target.values.length;
@@ -1083,22 +1104,26 @@ const mapMethods = {
         for (const [key, value] of other.entries) target.entries.set(key, value);
         return target;
     }),
-    UPDATE: method("UPDATE", ([target, key, updater], context, evaluate, invoke) => {
-        ensureMap(target, "Update");
-        const canonical = keyOf(key);
-        const current = target.entries.has(canonical) ? target.entries.get(canonical) : null;
-        const next = invoke(updater, [current, stringObj(canonical), target], context, evaluate);
-        const copy = shallowCopyValue(target);
-        copy.entries.set(canonical, next);
-        return copy;
+    UPDATE: method("UPDATE", ([target, key, updater], context, evaluate, invoke, execution) => {
+        return callbackSteps((function* () {
+            ensureMap(target, "Update");
+            const canonical = keyOf(key);
+            const current = target.entries.has(canonical) ? target.entries.get(canonical) : null;
+            const next = yield invoke(updater, [current, stringObj(canonical), target], context, evaluate);
+            const copy = shallowCopyValue(target);
+            copy.entries.set(canonical, next);
+            return copy;
+        })(), execution);
     }),
-    "UPDATE!": method("UPDATE!", ([target, key, updater], context, evaluate, invoke) => {
-        ensureMap(target, "Update!");
-        const canonical = keyOf(key);
-        const current = target.entries.has(canonical) ? target.entries.get(canonical) : null;
-        const next = invoke(updater, [current, stringObj(canonical), target], context, evaluate);
-        target.entries.set(canonical, next);
-        return target;
+    "UPDATE!": method("UPDATE!", ([target, key, updater], context, evaluate, invoke, execution) => {
+        return callbackSteps((function* () {
+            ensureMap(target, "Update!");
+            const canonical = keyOf(key);
+            const current = target.entries.has(canonical) ? target.entries.get(canonical) : null;
+            const next = yield invoke(updater, [current, stringObj(canonical), target], context, evaluate);
+            target.entries.set(canonical, next);
+            return target;
+        })(), execution);
     }),
     DEFAULT: method("DEFAULT", ([target, key, value]) => {
         ensureMap(target, "Default");
@@ -1146,37 +1171,43 @@ const mapMethods = {
         for (const key of blocked) target.entries.delete(key);
         return target;
     }),
-    MAPVALUES: method("MAPVALUES", ([target, iterator], context, evaluate, invoke) => {
-        ensureMap(target, "MapValues");
-        const entries = new Map();
-        for (const [key, value] of target.entries) {
-            entries.set(key, invoke(iterator, [value, stringObj(key), target], context, evaluate));
-        }
-        return { type: "map", entries, _ext: mutableExt() };
-    }),
-    REDUCEKEYS: method("REDUCEKEYS", ([target, iterator, initial], context, evaluate, invoke) => {
-        ensureMap(target, "ReduceKeys");
-        let acc = initial === undefined ? defaultAccumulator(target) : initial;
-        for (const [key, value] of target.entries) {
-            acc = invoke(iterator, [acc, stringObj(key), value, target], context, evaluate);
-        }
-        return acc;
-    }),
-    FILTER: method("FILTER", ([target, iterator], context, evaluate, invoke) => {
-        ensureMap(target, "Filter");
-        const entries = new Map();
-        for (const [key, value] of target.entries) {
-            if (predicateResult(iterator, [value, stringObj(key), target], context, evaluate, invoke)) {
-                entries.set(key, value);
+    MAPVALUES: method("MAPVALUES", ([target, iterator], context, evaluate, invoke, execution) => {
+        return callbackSteps((function* () {
+            ensureMap(target, "MapValues");
+            const entries = new Map();
+            for (const [key, value] of target.entries) {
+                entries.set(key, yield invoke(iterator, [value, stringObj(key), target], context, evaluate));
             }
-        }
-        return { type: "map", entries, _ext: mutableExt() };
+            return { type: "map", entries, _ext: mutableExt() };
+        })(), execution);
     }),
-    ANY: method("ANY", ([target, iterator], context, evaluate, invoke) => anyEntries(target, iterator, context, evaluate, invoke)),
-    ALL: method("ALL", ([target, iterator], context, evaluate, invoke) => allEntries(target, iterator, context, evaluate, invoke)),
-    COUNT: method("COUNT", ([target, iterator], context, evaluate, invoke) => countEntries(target, iterator, context, evaluate, invoke)),
-    REDUCE: method("REDUCE", ([target, iterator, initial], context, evaluate, invoke) =>
-        reduceEntries(target, iterator, initial, context, evaluate, invoke)),
+    REDUCEKEYS: method("REDUCEKEYS", ([target, iterator, initial], context, evaluate, invoke, execution) => {
+        return callbackSteps((function* () {
+            ensureMap(target, "ReduceKeys");
+            let acc = initial === undefined ? defaultAccumulator(target) : initial;
+            for (const [key, value] of target.entries) {
+                acc = yield invoke(iterator, [acc, stringObj(key), value, target], context, evaluate);
+            }
+            return acc;
+        })(), execution);
+    }),
+    FILTER: method("FILTER", ([target, iterator], context, evaluate, invoke, execution) => {
+        ensureMap(target, "Filter");
+        return callbackSteps((function* () {
+            const entries = new Map();
+            for (const [key, value] of target.entries) {
+                if (truthy(yield callIterator(iterator, [value, stringObj(key), target], context, evaluate, invoke))) {
+                    entries.set(key, value);
+                }
+            }
+            return { type: "map", entries, _ext: mutableExt() };
+        })(), execution);
+    }),
+    ANY: method("ANY", ([target, iterator], context, evaluate, invoke, execution) => anyEntries(target, iterator, context, evaluate, invoke, execution)),
+    ALL: method("ALL", ([target, iterator], context, evaluate, invoke, execution) => allEntries(target, iterator, context, evaluate, invoke, execution)),
+    COUNT: method("COUNT", ([target, iterator], context, evaluate, invoke, execution) => countEntries(target, iterator, context, evaluate, invoke, execution)),
+    REDUCE: method("REDUCE", ([target, iterator, initial], context, evaluate, invoke, execution) =>
+        reduceEntries(target, iterator, initial, context, evaluate, invoke, execution)),
 };
 
 const setMethods = {
@@ -1263,19 +1294,23 @@ const setMethods = {
         ensureSet(other, "Disjoint");
         return bool(target.values.every((value) => !setHas(other, value)));
     }),
-    FILTER: method("FILTER", ([target, iterator], context, evaluate, invoke) => {
+    FILTER: method("FILTER", ([target, iterator], context, evaluate, invoke, execution) => {
         ensureSet(target, "Filter");
-        return {
-            type: "set",
-            values: target.values.filter((value) => predicateResult(iterator, [value, value, target], context, evaluate, invoke)),
-            _ext: mutableExt(),
-        };
+        return callbackSteps((function* () {
+            const values = [];
+            for (const entry of iterateEntries(target)) {
+                if (truthy(yield callIterator(iterator, [entry.value, entry.key, target], context, evaluate, invoke))) {
+                    values.push(entry.value);
+                }
+            }
+            return { type: "set", values, _ext: mutableExt() };
+        })(), execution);
     }),
-    ANY: method("ANY", ([target, iterator], context, evaluate, invoke) => anyEntries(target, iterator, context, evaluate, invoke)),
-    ALL: method("ALL", ([target, iterator], context, evaluate, invoke) => allEntries(target, iterator, context, evaluate, invoke)),
-    COUNT: method("COUNT", ([target, iterator], context, evaluate, invoke) => countEntries(target, iterator, context, evaluate, invoke)),
-    REDUCE: method("REDUCE", ([target, iterator, initial], context, evaluate, invoke) =>
-        reduceEntries(target, iterator, initial, context, evaluate, invoke)),
+    ANY: method("ANY", ([target, iterator], context, evaluate, invoke, execution) => anyEntries(target, iterator, context, evaluate, invoke, execution)),
+    ALL: method("ALL", ([target, iterator], context, evaluate, invoke, execution) => allEntries(target, iterator, context, evaluate, invoke, execution)),
+    COUNT: method("COUNT", ([target, iterator], context, evaluate, invoke, execution) => countEntries(target, iterator, context, evaluate, invoke, execution)),
+    REDUCE: method("REDUCE", ([target, iterator, initial], context, evaluate, invoke, execution) =>
+        reduceEntries(target, iterator, initial, context, evaluate, invoke, execution)),
 };
 
 const stringMethods = {
@@ -1377,8 +1412,8 @@ const stringMethods = {
         ensureString(target, "Repeat");
         return stringObj(target.value.repeat(numericIndex(count)));
     }),
-    REDUCE: method("REDUCE", ([target, iterator, initial], context, evaluate, invoke) =>
-        reduceEntries(target, iterator, initial, context, evaluate, invoke)),
+    REDUCE: method("REDUCE", ([target, iterator, initial], context, evaluate, invoke, execution) =>
+        reduceEntries(target, iterator, initial, context, evaluate, invoke, execution)),
 };
 
 const tupleMethods = {
@@ -1415,8 +1450,8 @@ const tupleMethods = {
         ensureTuple(target, "ToArray");
         return { type: "sequence", values: [...target.values], _ext: mutableExt() };
     }),
-    REDUCE: method("REDUCE", ([target, iterator, initial], context, evaluate, invoke) =>
-        reduceEntries(target, iterator, initial, context, evaluate, invoke)),
+    REDUCE: method("REDUCE", ([target, iterator, initial], context, evaluate, invoke, execution) =>
+        reduceEntries(target, iterator, initial, context, evaluate, invoke, execution)),
 };
 
 function shapedSelectorsFromArgs(args) {
@@ -1505,13 +1540,13 @@ const shapedMethods = {
             offset: target.offset,
         });
     }),
-    MAP: method("MAP", ([target, iterator], context, evaluate, invoke) => {
+    MAP: method("MAP", ([target, iterator], context, evaluate, invoke, execution) => {
         ensureShaped(target, "Map");
-        const data = [];
-        forEachShapedCell(target, (value, tuple) => {
-            data.push(invoke(iterator, [value, shapedIndexTuple(tuple), target], context, evaluate));
-        });
-        return createShaped(target.shape, data);
+        return callbackSteps((function* () {
+            const data = yield mapCallbacks(iterateEntries(target),
+                entry => invoke(iterator, [entry.value, entry.key, target], context, evaluate), execution);
+            return createShaped(target.shape, data);
+        })(), execution);
     }),
     "FILL!": method("FILL!", ([target, value]) => {
         ensureShaped(target, "Fill!");
@@ -1538,8 +1573,8 @@ const shapedMethods = {
         if (size === 0) return null;
         return arithmeticDiv(shapedMethods.SUM.impl([target]), int(size));
     }),
-    REDUCE: method("REDUCE", ([target, iterator, initial], context, evaluate, invoke) =>
-        reduceEntries(target, iterator, initial, context, evaluate, invoke)),
+    REDUCE: method("REDUCE", ([target, iterator, initial], context, evaluate, invoke, execution) =>
+        reduceEntries(target, iterator, initial, context, evaluate, invoke, execution)),
 };
 
 const commonMethods = {
@@ -1769,7 +1804,7 @@ const structuralMethods = {
     INSPECT: method("Inspect", ([target]) => inspectStructuralValue(target)),
     RENDER: method("Render", ([target]) => stringObj(formatStructuralValue(target, valueKey))),
     COLLAPSE: method("Collapse", ([target], context) => collapseStructuralValue(target, context)),
-    TOEXACT: method("ToExact", ([target], context, evaluate, invoke) => {
+    TOEXACT: method("ToExact", ([target], context, evaluate, invoke, execution) => {
         if (target.type !== "structural_algebra") return collapseStructuralValue(target, context);
         const components = target.components.map((component) =>
             collapseStructuralValue(component, context));
@@ -1800,7 +1835,7 @@ const structuralMethods = {
         const methodName = target.profile === "Complex" ? "FROMPARTS" : target.profile.toUpperCase();
         const constructor = resolveMethod(receiver, methodName);
         if (constructor.type === "method_builtin") {
-            return constructor.impl([receiver, ...components], context, evaluate, invoke);
+            return constructor.impl([receiver, ...components], context, evaluate, invoke, execution);
         }
         return invoke(constructor, [receiver, ...components], context, evaluate);
     }),
@@ -1829,25 +1864,27 @@ const structuralMethods = {
             _ext: mutableExt(),
         };
     }),
-    MAPARGUMENTS: method("MapArguments", ([target, mapper], context, evaluate, invoke) => {
-        if (target.type === "structural_algebra") {
-            const profile = createStructuralAlgebraProfile(target.profile, target.basis, {
-                cayleyDickson: ["Complex", "Quaternion", "Octonion"].includes(target.profile),
-            });
-            return structuralAlgebra(
-                profile,
-                target.components.map((component) => invoke(mapper, [component], context, evaluate)),
+    MAPARGUMENTS: method("MapArguments", ([target, mapper], context, evaluate, invoke, execution) => {
+        return callbackSteps((function* () {
+            if (target.type === "structural_algebra") {
+                const profile = createStructuralAlgebraProfile(target.profile, target.basis, {
+                    cayleyDickson: ["Complex", "Quaternion", "Octonion"].includes(target.profile),
+                });
+                return structuralAlgebra(
+                    profile,
+                    yield mapCallbacks(target.components, component => invoke(mapper, [component], context, evaluate), execution),
+                    target.mode,
+                    structuralSourceSpan(target),
+                );
+            }
+            if (target.type !== "structural_form") return target;
+            return structuralForm(
+                target.head,
+                yield mapCallbacks(target.args, argument => invoke(mapper, [argument], context, evaluate), execution),
                 target.mode,
                 structuralSourceSpan(target),
             );
-        }
-        if (target.type !== "structural_form") return target;
-        return structuralForm(
-            target.head,
-            target.args.map((argument) => invoke(mapper, [argument], context, evaluate)),
-            target.mode,
-            structuralSourceSpan(target),
-        );
+        })(), execution);
     }),
 };
 

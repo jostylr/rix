@@ -22,6 +22,40 @@ object.Method!(argument1, argument2)
 
 Built-in prototypes are frozen and do not chain. Lookup checks direct value metadata, semantic trait and type methods, active plugin extensions, and finally the built-in prototype. See the [types and traits guide](./types-and-traits-guide.md) for the semantic layers.
 
+## Callback methods and asynchronous evaluation
+
+Ordinary eager receiver methods run their callbacks in iteration order, one
+at a time. Under the promise-aware evaluator, each callback is awaited before
+its result is tested, stored, or passed to the next callback. This applies to
+mapping, filtering, searching, counting, reductions, map updates, shaped maps,
+and structural `MapArguments`, where those methods are available.
+
+`Any`, `All`, `Find`, and `FindIndex` stop as soon as their answer is known.
+A callback error propagates and prevents later callbacks from starting.
+`Update!` stores its replacement only after its callback succeeds; changes
+performed by the callback itself are not rolled back. Callback value/key/source
+positions and the existing predicate truth convention are unchanged.
+These methods do not implicitly introduce parallel work; AsyncStream and
+explicit concurrency facilities have their own contracts.
+
+```{.rix exec=true}
+kept := [1,2,3].Filter((value)->{;
+    value>1 ?_> _;
+    1;
+});
+total := kept.Reduce((acc,value)->acc+value,0);
+total==5 ?: 1 ?_ .Error("Expected only 2 and 3 to contribute");
+{: kept,total };
+```
+
+The guard returns from the predicate invocation, not from the whole traversal.
+The result is `[2,3]` and `5` in either evaluator.
+
+Registered RiX capabilities and receiver methods likewise use the evaluator of
+the current call, not the evaluator that registered them. An asynchronous call
+keeps its function and embedded-caller scopes alive until completion, including
+when the registered function returns through a diagnostic guard.
+
 ## Object type index
 
 | Object type | Dedicated reference | Role |

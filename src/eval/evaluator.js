@@ -1894,6 +1894,7 @@ async function invokeCallableAsync(fn, callArgs, context, registry, systemContex
                 evaluateAsyncInternal(node, context, registry, systemContext, state), {
                 promiseAware: true,
                 signal: state?.signal ?? null,
+                invoke: (callable, values) => invokeCallableAsync(callable, values, context, registry, systemContext, state),
             });
         }
         return evaluateAsyncInternal({ fn: fn.name, args: callArgs }, context, registry, systemContext, state);
@@ -4137,6 +4138,7 @@ async function evaluateAsyncInternal(irNode, context, registry, systemContext, s
             if (capability.lazy) return await capability.impl(callArgNodes, context, evalAsync, {
                 promiseAware: true,
                 signal: state?.signal ?? null,
+                invoke: (callable, values) => invokeCallableAsync(callable, values, context, registry, systemContext, state),
             });
             const values = [];
             for (const arg of callArgNodes) values.push(await evalAsync(arg));
@@ -4152,6 +4154,7 @@ async function evaluateAsyncInternal(irNode, context, registry, systemContext, s
             return await capability.impl(values, context, capabilityEvaluate, {
                 promiseAware: true,
                 signal: state?.signal ?? null,
+                invoke: (callable, values) => invokeCallableAsync(callable, values, context, registry, systemContext, state),
             });
         }
         if (["SYS_GET", "SYS_OBJ"].includes(fn)) return evaluate(irNode, context, registry, systemContext);
