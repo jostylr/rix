@@ -241,6 +241,7 @@ ans[:budgets][:maxProductPairs] ##@ == 2048;
 | `maxDegree` | 10000 | Absolute power per generator in a term |
 | `maxExponent` | 256 | Absolute integer exponent evaluated |
 | `rootBits` | 64 | Dyadic fractional bits for interval square-root endpoints |
+| `transcendentalBits` | 64 | Absolute endpoint enclosure precision for the trusted exponential kernel |
 
 `.MathBudgets(options)` returns the merged settings; reports expose `budgets`.
 Unknown keys, non-Integer values, nonpositive values, and integers above the JS
@@ -262,7 +263,39 @@ request options such as `maxWork`; evaluation never refines automatically.
 
 ## Trusted semantic applications
 
-The first supported meanings are `rix.function.abs.real@1` and
+The trusted real exponential meaning `rix.function.exp@1` now supports rational
+points and bounded rational intervals, including stored real enclosures. It does
+not invoke linked procedures or implicitly refine a real provider. Frozen-real
+provenance remains conditional. Exact scalars that cannot be reduced to rational
+inputs remain unsupported by this kernel.
+
+```{.rix exec=true}
+.Plugin.Load("calculus");
+expr := .calculus.Exp()(::x);
+expr.Eval([(::x,0)])[:value] ##@ == 1;
+ans := expr.Eval([(::x,1)],{= transcendentalBits=32 });
+ans[:status] ##@ == :enclosed;
+ans[:value] ##@ == _;
+ans[:budgets][:transcendentalBits] ##@ == 32;
+```
+
+For a positive reduced argument `0 < r <= 1`, the kernel sums `r^k/k!` using
+exact rationals. After term `n`, the remaining positive tail is bounded above
+by the next term divided by `1-r/(n+2)`. Larger arguments are reduced by halving
+and the enclosure is squared back; negative arguments use reciprocal bounds.
+Monotonicity supplies interval endpoint bounds. This is a closed trusted kernel,
+not a user-provided implementation selected by display name.
+
+`transcendentalBits` requests endpoint widths at most `2^-bits`; for an interval
+input it does not remove uncertainty in the input itself. `maxSumTerms` caps
+series iterations per endpoint, `maxExponent` caps halving steps, and `maxDigits`
+caps rational components throughout. These options are per call. Series/reduction
+exhaustion returns an unresolved report with a reason; digit-budget exhaustion
+throws. `Exp(0)` is exact; other point results are enclosures rather than exact
+scalar answers. This kernel does not add extended-constant CAS differentiation
+or make the older arithmetic graph-range engine support semantic applications.
+
+The original supported meanings are `rix.function.abs.real@1` and
 `rix.function.sqrt.real-principal@1`, each taking exactly one argument. They match
 the calculus plugin's semantic IDs, but evaluation does not load that plugin or call
 its implementation. Display names are labels only. `semantics` records attempted

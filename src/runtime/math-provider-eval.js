@@ -59,7 +59,7 @@ export function compareProviderValues(left,right,op) {
 export function createProviderEvaluation(reasons,limits) {
     const check=value=>budget(value,limits);
     const providers=new Map(),reals=new Map(),semantics=new Set();
-    let sawReal=false,sawSet=false,unverified=false;
+    let sawReal=false,sawSet=false,unverified=false,sawSemanticEnclosure=false;
     const unsupported=reason=>{reasons.add(reason);return null;};
     function read(value) {
         const real=realConstantState(value);
@@ -124,8 +124,10 @@ export function createProviderEvaluation(reasons,limits) {
         return unsupported('unsupportedOperation');
     }
     return {read,operate,supportsApplication:id=>REAL_SEMANTICS.includes(id),
-        apply:(id,args)=>{semantics.add(id);return evaluateRealSemantic(id,args,limits,check,unsupported);},
+        apply:(id,args)=>{semantics.add(id);const result=evaluateRealSemantic(id,args,limits,check,unsupported);
+            if(id==='rix.function.exp@1' && result instanceof RationalInterval) sawSemanticEnclosure=true;
+            return result;},
         get semantics(){return [...semantics];},get unverified(){return unverified;},get providers(){return [...providers.values()];},
-        isApproximation:value=>sawReal && value instanceof RationalInterval,
+        isApproximation:value=>(sawReal || sawSemanticEnclosure) && value instanceof RationalInterval,
         resultKind:value=>value===null ? 'unresolved' : value instanceof RationalInterval ? sawSet ? 'setEnclosure' : 'singletonEnclosure' : isExactValue(value) ? 'exactScalar' : 'rational'};
 }

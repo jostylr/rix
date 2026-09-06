@@ -2,7 +2,33 @@
 import {Integer,Rational,RationalInterval} from '@ratmath/core';
 import {exactSquareRoot} from './exact-values.js';
 
-export const REAL_SEMANTICS=Object.freeze(['rix.function.abs.real@1','rix.function.sqrt.real-principal@1']);
+export const REAL_SEMANTICS=Object.freeze(['rix.function.abs.real@1','rix.function.sqrt.real-principal@1','rix.function.exp@1']);
+
+function exponentialBounds(value,limits,check,unsupported) {
+    const zero=new Rational(0n),one=new Rational(1n),two=new Rational(2n);
+    if (value.equals(zero)) return [one,one];
+    if (Math.ceil(limits.transcendentalbits/3)+1>limits.maxdigits) throw new Error('Mathematical exponential precision integer budget exceeded');
+    const target=check(new Rational(1n,1n<<BigInt(limits.transcendentalbits)));
+    const negative=value.lessThan(zero);
+    let reduced=value.abs(),halvings=0;
+    while (reduced.greaterThan(one)) {
+        if (halvings>=limits.maxexponent) return unsupported('exponentialReductionBudgetExceeded');
+        reduced=check(reduced.divide(two));halvings++;
+    }
+    let sum=one,term=one;
+    for(let n=0;n<limits.maxsumterms;n++) {
+        const next=check(check(term.multiply(reduced)).divide(new Rational(BigInt(n)+1n)));
+        const ratio=check(reduced.divide(new Rational(BigInt(n)+2n)));
+        // All remaining positive series-term ratios are at most this ratio.
+        const tail=check(next.divide(check(one.subtract(ratio))));
+        let low=sum,high=check(sum.add(tail));
+        for(let i=0;i<halvings;i++) {low=check(low.multiply(low));high=check(high.multiply(high));}
+        if(negative) [low,high]=[check(high.reciprocal()),check(low.reciprocal())];
+        if(check(high.subtract(low)).lessThanOrEqual(target)) return [low,high];
+        sum=check(sum.add(next));term=next;
+    }
+    return unsupported('exponentialSeriesBudgetExceeded');
+}
 
 function integerRoot(value) {
     if (value<2n) return value;
@@ -30,6 +56,13 @@ export function evaluateRealSemantic(id,args,limits,check,unsupported) {
     const value=args[0] instanceof Integer ? new Rational(args[0].value,1n) : args[0];
     if (!(value instanceof Rational) && !(value instanceof RationalInterval)) return unsupported('unsupportedSemanticProvider');
     const zero=new Rational(0n);
+    if(id==='rix.function.exp@1') {
+        const low=exponentialBounds(value instanceof Rational ? value : value.low,limits,check,unsupported);
+        if(!low) return null;
+        const high=value instanceof Rational || value.low.equals(value.high) ? low : exponentialBounds(value.high,limits,check,unsupported);
+        if(!high) return null;
+        return check(low[0].equals(high[1]) ? low[0] : new RationalInterval(low[0],high[1]));
+    }
     if (id==='rix.function.abs.real@1') {
         if (value instanceof Rational) return check(value.abs());
         if (value.high.lessThan(zero)) return check(value.negate());
