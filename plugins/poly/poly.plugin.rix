@@ -133,8 +133,12 @@ PolyDegree(polynomial) -> {;
     (coefficients.Len() == 1 && PolyIsZero(coefficients[1])) ?: -1 ?_ coefficients.Len() - 1;
 };
 
+PolyVariableEqual(left,right) ->
+    .IsExpression(left) ?: .ExpressionVariableMatches(left,right)
+      ?_ .IsExpression(right) ?: .ExpressionVariableMatches(right,left)
+      ?_ left==right;
 PolySameVariable(left, right) -> {;
-    left.variable == right.variable ?: 1 ?_ .Error(@"Polynomial variables must match: @{left.variable} and @{right.variable}");
+    PolyVariableEqual(left.variable,right.variable) ?: 1 ?_ .Error("Polynomial variable identities must match");
 };
 
 PolyPromote(value, variable) -> value ? :Polynomial ?: value ?_ PolyFromAscending([PolyExact(value, "Polynomial operand")], variable, 0, _, [:scalar]);
@@ -167,7 +171,7 @@ PolyArraysEqual(left, right) -> {;
 
 PolyEqual(left, right) -> {;
     (left ? :Polynomial) && (right ? :Polynomial)
-      ?: (left.variable == right.variable && PolyArraysEqual(PolyCurrentAscending(left), PolyCurrentAscending(right)))
+      ?: (PolyVariableEqual(left.variable,right.variable) && PolyArraysEqual(PolyCurrentAscending(left), PolyCurrentAscending(right)))
       ?_ 0;
 };
 
@@ -322,6 +326,11 @@ PolyFromRecord(source, second) -> {;
 };
 
 PolyConstruct(source, second ?= _) -> {;
+    !.IsExpression(source) ?_> {;
+        variable = .ExpressionVariableSelector(@source,@second);
+        coefficients = .MathPolynomialCoefficients(@source,variable);
+        PolyFromAscending(coefficients,variable,_,_,[:coreSymbolicSource]);
+    };
     isPolynomial = source ? :Polynomial;
     isArray = source ? :Array;
     isMap = source ? :Map;

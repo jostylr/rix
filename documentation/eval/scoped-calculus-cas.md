@@ -48,9 +48,48 @@ and open-unit-interval conditions translate to core checks. Other domain or bran
 obligations remain explicit and conditional. Extracting `[:expression]` deliberately
 leaves those transformation conditions behind; prefer evaluating the entire result.
 
+## Scoped univariate polynomials
+
+`poly(expr,variable)` accepts a core univariate expression and an explicit symbol.
+CAS `NormalizePolynomial`, `Expand`, `Collect`, and `Factor` use this identity-aware
+coefficient compiler for scoped inputs. Coefficients are rational; a second distinct
+symbol is rejected, even if it has the same name. The callable polynomial retains
+the symbol in `Variable()` and in its records. Its derivatives, arithmetic, factors,
+and subsequent CAS integration retain that identity too.
+
+```{.rix exec=true}
+.Plugin.Load("cas");
+p := .cas.Collect((::x+1)^3,::x);
+.SameSymbol(p[:polynomial].Variable(),::x) ##@ == 1;
+p[:polynomial].Evaluate(2) ##@ == 27;
+.cas.Expand((::x+1)^3,::x)[:expression].Eval([(::x,0)])[:value] ##@ == 1;
+.cas.Integrate(p[:polynomial])[:antiderivative].Eval([(::x,1)])[:value] ##@ == 15/4;
+```
+
+`.MathPolynomialCoefficients(expr,variable,options)` returns ascending coefficients
+using the core configurable traversal, digit, degree, term, sum, product-pair, and
+exponent budgets. This is coefficient lowering, not name-based specification
+conversion; it does not create a hidden programming variable. To use explicit
+budgets with CAS, compile coefficients first and construct a polynomial record:
+
+```{.rix exec=true}
+.Plugin.Load("cas");
+coefficients := .MathPolynomialCoefficients((::x+1)^32,::x,{= maxProductPairs=4096 });
+p := .poly({= coefficients=coefficients,order=:ascending,variable=::x });
+.SameSymbol(p.Variable(),::x) ##@ == 1;
+p.Degree() ##@ == 32;
+```
+
+Only total polynomial operations are compiled: rational constants, the selected
+variable, addition/subtraction/multiplication, nonnegative integer powers, and division
+by a nonzero constant polynomial. A zero power with a potentially zero base is rejected
+instead of erasing an undefined point. Semantic applications, nonconstant denominators,
+and nonrational coefficients are not accepted. Reconstruction skips zero coefficients
+and emits constant terms without `x^0`, so the returned polynomial works at zero.
+
 Current boundary: differentiation, symbolic integration, and graph simplification
 require rational constants. Extended constants can be constructed and numerically
-evaluated, but derivative/rewrite laws for those providers are not assumed. Polynomial
-compilation, specification conversion, and the older certified range/primitive-graph
+evaluated, but derivative/rewrite laws for those providers are not assumed. General
+specification conversion and the older certified range/primitive-graph
 pipeline still require their own identity-aware conversions; they reject scoped input
 rather than forgetting identities. Use core `Eval` for scoped enclosure evaluation.

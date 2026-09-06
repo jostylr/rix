@@ -82,7 +82,9 @@ CasPolynomial(value, variable) -> {;
     name = CasVariableName(variable);
     value ? :Polynomial
       ?: value
-      ?_ .poly(.calculus.ToSpec(CasExpression(value),[name]),name);
+      ?_ (.ExpressionHasScopedSymbols(value)
+          ?: .poly(CasExpression(value),name)
+          ?_ .poly(.calculus.ToSpec(CasExpression(value),[name]),name));
 };
 
 CasPolynomialExpression(polynomial) ?!- [
@@ -91,7 +93,9 @@ CasPolynomialExpression(polynomial) ?!- [
     variable = .calculus.Variable(polynomial.Variable());
     coefficients = polynomial.Coefficients(:ascending);
     coefficients.Reduce((sum,coefficient,index)->
-        sum+coefficient*(variable^(index-1)),
+        coefficient==0 ?: sum
+          ?_ index==1 ?: sum+coefficient
+          ?_ sum+coefficient*(variable^(index-1)),
         .calculus.Constant(0)
     );
 };

@@ -1,6 +1,12 @@
 /** Semantic callable univariate polynomials backed by exact symbolic IR. */
 
 import { Integer, Rational } from "@ratmath/core";
+import {isMathExpression,expressionStructuralKey} from '../../src/runtime/math-expression.js';
+
+const variableRecord=value=>isMathExpression(value) ? value : str(value);
+const sameVariable=(a,b)=>isMathExpression(a) || isMathExpression(b)
+    ? isMathExpression(a) && isMathExpression(b) && expressionStructuralKey(a)===expressionStructuralKey(b)
+    : a===b;
 import { parse } from "../../src/parser/parser.js";
 import { lower } from "../../src/eval/lower.js";
 import { callWithConcreteArgs } from "../../src/eval/functions/functions.js";
@@ -211,6 +217,8 @@ function activePolyEntry(context) {
 function attachCanonicalSpec(value, context, evaluate) {
     const metadata = purePolynomialMetadata(value);
     if (!metadata) return value;
+    // The name-based specification representation cannot carry this identity yet.
+    if (isMathExpression(metadata.variable)) return value;
     const coefficients = polynomialCoefficients(value, context, evaluate);
     const polynomial = new Map();
     const degree = coefficients.length - 1;
@@ -295,7 +303,7 @@ export function polynomialCoefficients(polynomial, context, evaluate, { trim = t
 export function polynomialRecord(polynomial, context, evaluate) {
     return rixMap([
         ["schema", str(POLYNOMIAL_SCHEMA)],
-        ["variable", str(requirePolynomial(polynomial).variable)],
+        ["variable", variableRecord(requirePolynomial(polynomial).variable)],
         ["coefficients", seq(polynomialCoefficients(polynomial, context, evaluate))],
         ["canonical", int(1)],
         ["equalityPolicy", str(polynomial.equalityPolicy)],
@@ -317,7 +325,7 @@ function closureCells(spec) {
 }
 
 export function polynomialsEqual(left, right) {
-    if (!isPolynomial(left) || !isPolynomial(right) || left.variable !== right.variable) return false;
+    if (!isPolynomial(left) || !isPolynomial(right) || !sameVariable(left.variable,right.variable)) return false;
     const a = polynomialMetadata(left).coefficients;
     const b = polynomialMetadata(right).coefficients;
     if (!(a instanceof Map) || !(b instanceof Map)) return left === right;
@@ -337,7 +345,7 @@ function polynomialVariable(left, right = null) {
 }
 
 function symbolicPolynomial(operator, left, right, context) {
-    if (isPolynomial(left) && isPolynomial(right) && left.variable !== right.variable) {
+    if (isPolynomial(left) && isPolynomial(right) && !sameVariable(left.variable,right.variable)) {
         throw new Error(`Polynomial operators require the same variable, received '${left.variable}' and '${right.variable}'`);
     }
     const combined = combineSymbolic(operator, left, right);
@@ -415,7 +423,7 @@ export function registerPolynomialMethods(systemContext, owner = {}) {
     register("Polynomial", "Coefficients", ([value], context, evaluate) => seq(polynomialCoefficients(value, context, evaluate)));
     register("Polynomial", "Record", ([value], context, evaluate) => polynomialRecord(value, context, evaluate));
     register("Polynomial", "Degree", ([value], context, evaluate) => polynomialDegreeValue(value, context, evaluate));
-    register("Polynomial", "Variable", ([value]) => str(requirePolynomial(value).variable));
+    register("Polynomial", "Variable", ([value]) => variableRecord(requirePolynomial(value).variable));
     register("Polynomial", "Spec", ([value]) => getAttachedSpec(requirePolynomial(value)));
     register("Polynomial", "Evaluate", ([value, argument], context, evaluate) => callWithConcreteArgs(value, [argument], context, evaluate));
 }

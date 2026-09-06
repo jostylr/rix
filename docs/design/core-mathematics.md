@@ -42,7 +42,9 @@ required. Existing repository consumers will be updated directly.
 7. Consumer conversion in progress: calculus symbolic differentiation/semantic
    construction and CAS integration/simplification preserve scoped identities.
    Core calculus evaluation retains derivative obligations and provider evidence.
-   Polynomial/specification and older certified range consumers remain guarded;
+   Scoped univariate polynomial coefficient lowering and CAS normalization/collection/
+   expansion/factoring preserve polynomial variable identities. Specification and
+   older certified range consumers remain guarded;
    coordinated schema conversion is pending. See `documentation/eval/scoped-calculus-cas.md`.
 8. Identity-preserving mathematical serialization: implemented for the current
    expression/context/scalar model, including bounded JSONL and frozen real
@@ -56,7 +58,7 @@ required. Existing repository consumers will be updated directly.
 - Stage 6: bound-to-bound alpha-renaming, general domain reasoning, further semantic
   kernels beyond real Abs/Sqrt, additional numeric providers, and bounded assumption rewriting. Free substitution and
   exact rational evaluation are implemented; context inspection uses explicit records.
-- Stage 7: coordinated expression schema, polynomial/specification conversion,
+- Stage 7: coordinated expression schema, general specification conversion,
   and certified range consumers; symbolic calculus/CAS paths are identity-aware,
   with rational-only algorithm restrictions and core provider-aware evaluation.
 - Stage 8 follow-on: allowlisted portable real recipes and explicit, bounded

@@ -4,6 +4,7 @@ import {attachMathContextMethods} from './math-context-methods.js';
 import {createProviderEvaluation,compareProviderValues} from './math-provider-eval.js';
 import {isExpressionScalar} from './math-constant.js';
 import {mathBudgets,mathBudgetRecord} from './math-budgets.js';
+import {mathematicalPolynomialCoefficients} from './math-polynomial.js';
 import {expressionField as field,expressionDefinition,expressionOperation,expressionApplication,
     promoteExpression,isMathExpression} from './math-expression.js';
 
@@ -180,6 +181,7 @@ export function evaluateMathematics(value,bindings=seq([]),options) {
 }
 
 export const mathematicalLocalizationCapabilities={
+    MathPolynomialCoefficients:{impl:([expression,variable,options])=>mathematicalPolynomialCoefficients(expression,variable,options),pure:false,doc:'Compile a selected symbolic identity into bounded ascending rational coefficients'},
     MathEvaluateCalculus:{impl:([value,bindings=seq([]),options])=> {
         const transformation=field(value,'schema')?.value==='rix.calculus.transformation@1' ? value : null;
         const expression=transformation ? field(value,'expression') : value;
