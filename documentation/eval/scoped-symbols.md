@@ -45,6 +45,8 @@ constructor-based plugin examples are unaffected.
 
 `:::x` introduces a bound identity in a [mathematical context](mathematical-contexts.md).
 Remaining stages are recorded in [the implementation ledger](../../docs/design/core-mathematics.md).
+Supported scalar promotion and its limits are described in
+[mathematical constant providers](mathematical-constants.md).
 
 ## Immutable definitions
 

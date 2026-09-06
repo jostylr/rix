@@ -1,6 +1,7 @@
 /** Core expression construction. Algorithms belong to consumers, not constructors. */
 import { Integer, Rational } from "@ratmath/core";
 import { UNDECIDED } from "./decision.js";
+import {constantKey,constantEquality,constantProviderInfo,isExpressionScalar,isEnclosureConstant} from "./math-constant.js";
 
 // The schema rename and identity-aware consumer conversion are a separate stage.
 export const EXPRESSION_SCHEMA = "rix.calculus.expression@1";
@@ -129,11 +130,25 @@ export function hasScopedSymbols(expression) {
     return ["operands","arguments"].some(key=>expressionField(expression,key)?.values?.some(hasScopedSymbols));
 }
 
+export function hasExtendedConstants(expression) {
+    if (!isMathExpression(expression)) return false;
+    if (expressionField(expression,"kind")?.value === "constant") {
+        const value=expressionField(expression,"value");
+        return !(value instanceof Integer || value instanceof Rational);
+    }
+    return ["operands","arguments"].some(key=>expressionField(expression,key)?.values?.some(hasExtendedConstants));
+}
+
+function hasEnclosures(expression) {
+    if (expressionField(expression,"kind")?.value === "constant") return isEnclosureConstant(expressionField(expression,"value"));
+    return ["operands","arguments"].some(key=>expressionField(expression,key)?.values?.some(hasEnclosures));
+}
+
 export function expressionStructuralKey(expression) {
     if (!isMathExpression(expression)) return expressionStructuralKey(expressionConstant(expression));
     const kind=expressionField(expression,"kind")?.value;
     if (kind === "variable") return JSON.stringify([kind,symbolState(expression)?.id ?? ["named",expressionField(expression,"name")?.value]]);
-    if (kind === "constant") return JSON.stringify([kind,String(expressionField(expression,"value"))]);
+    if (kind === "constant") return JSON.stringify([kind,constantKey(expressionField(expression,"value"))]);
     if (kind === "operator") return JSON.stringify([kind,expressionField(expression,"operation")?.value,expressionField(expression,"operands").values.map(expressionStructuralKey)]);
     if (kind === "apply") return JSON.stringify([kind,expressionField(expression,"semanticid")?.value,expressionField(expression,"arguments").values.map(expressionStructuralKey)]);
     throw new Error("Unsupported mathematical expression kind");
@@ -177,9 +192,7 @@ export function expressionVariable(name) {
 }
 
 export function expressionConstant(value) {
-    if (!(value instanceof Integer || value instanceof Rational)) {
-        throw new Error("Expression constant currently requires an exact Integer or Rational");
-    }
+    constantKey(value);
     return expressionRecord("constant", [["value", value]]);
 }
 
@@ -216,10 +229,17 @@ export function installExpressionVariants(registry) {
         name:`CoreExpression_${operation}`, priority:250,
         prep:args=>args.some(isMathExpression),
         impl:args=> {
-            if (!args.every(value=>isMathExpression(value) || value instanceof Integer || value instanceof Rational)) return UNDECIDED;
+            // Null is absence, not an unresolved mathematical scalar. Plugin
+            // result sentinels must remain decidable for every expression kind.
+            if (args.some(value=>value === null)) return operation === "EQ" ? null : new Integer(1n);
+            if (!args.every(value=>isMathExpression(value) || isExpressionScalar(value))) return UNDECIDED;
             const expanded=args.map(value=>expandExpression(value));
+            if (expanded.every(value=>expressionField(value,"kind")?.value === "constant")) {
+                const equal=constantEquality(...expanded.map(value=>expressionField(value,"value")));
+                return equal === null ? UNDECIDED : equal === (operation === "EQ") ? new Integer(1n) : null;
+            }
+            if (expanded.some(hasEnclosures)) return UNDECIDED;
             if (equalityKey(expanded[0]) === equalityKey(expanded[1])) return operation === "EQ" ? new Integer(1n) : null;
-            if (expanded.every(value=>expressionField(value,"kind")?.value === "constant")) return operation === "EQ" ? null : new Integer(1n);
             // Distinct free symbols or trees do not establish mathematical inequality.
             return UNDECIDED;
         },
@@ -232,6 +252,8 @@ export const expressionSyntaxFunctions = {
 };
 
 export const expressionCapabilities = {
+    ExpressionConstantInfo: { impl:([value])=>constantProviderInfo(isMathExpression(value) && expressionField(value,"kind")?.value === "constant" ? expressionField(value,"value") : value), pure:true,groups:["Symbolic"],doc:"Inspect core constant denotation and algebraic laws without refinement" },
+    ExpressionHasExtendedConstants: { impl:([value])=>hasExtendedConstants(value) ? new Integer(1n) : null,pure:true,groups:["Symbolic"],doc:"Recognize constants requiring provider-aware consumers" },
     ExpressionDefinition: { impl:([symbol])=> {
         if (!expressionField(symbol,"symbolid")) throw new Error("ExpressionDefinition requires a scoped symbol");
         return expressionDefinition(symbol);
@@ -245,7 +267,7 @@ export const expressionCapabilities = {
         return a===b ? new Integer(1n) : null;
     }, pure:true, groups:["Symbolic"], doc:"Compare symbol identities independently of mathematical equality" },
     ExpressionVariable: { impl: ([name]) => expressionVariable(name), pure:true, groups:["Symbolic"], doc:"Construct a mathematical variable expression without loading a plugin" },
-    ExpressionConstant: { impl: ([value]) => expressionConstant(value), pure:true, groups:["Symbolic"], doc:"Construct an exact mathematical constant expression" },
+    ExpressionConstant: { impl: ([value]) => expressionConstant(value), pure:true, groups:["Symbolic"], doc:"Construct a mathematical constant from a supported core scalar provider" },
     ExpressionOperation: { impl: ([operation, operands]) => expressionOperation(operation?.value,operands?.values), pure:true, groups:["Symbolic"], doc:"Construct a validated mathematical arithmetic node" },
     ExpressionApply: { impl: ([id, name, args]) => {
         if (id?.type !== "string" || name?.type !== "string" || !Array.isArray(args?.values)) throw new Error("ExpressionApply requires semantic ID, name, and arguments");

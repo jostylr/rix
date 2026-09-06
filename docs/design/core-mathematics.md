@@ -20,7 +20,10 @@ required. Existing repository consumers will be updated directly.
    interval, direction-tuple, and exact-endpoint object domains normalize and
    intersect; product tuples bind multiple symbols. Symbolic/dependent endpoint
    domains and arbitrary ordered traversal sources remain pending.
-5. Mathematical constant-provider capabilities: pending.
+5. Mathematical constant providers: finite rational, bounded rational interval,
+   and core exact-scalar promotion/inspection implemented. Interval equality is
+   enclosure-aware; exact keys retain generator identity. Refinable-real,
+   dimensional-quantity, and noncommutative/nonassociative adapters remain pending.
 6. Context inspection, substitution, evaluation, and bounded reasoning: pending.
 7. Repository-wide consumer and schema conversion: pending.
 8. Identity-preserving mathematical serialization: pending.
@@ -33,8 +36,10 @@ ledger distinguishes implemented behavior from the target design.
 `ExpressionVariable`, `ExpressionConstant`, `ExpressionOperation`,
 `ExpressionApply`, and `IsExpression` are core Symbolic capabilities. They
 construct data without loading plugins or selecting numerical algorithms.
-At the foundation stage, constants are exact integers/rationals. Binary
-arithmetic promotes exact scalars; purely numerical arithmetic is unchanged.
+Constants include finite exact integers/rationals, bounded rational intervals,
+and core exact scalars. `ExpressionConstantInfo` reports denotation and laws;
+binary arithmetic promotes supported scalars, while purely numerical arithmetic
+is unchanged. Extended constants require provider-aware algorithm consumers.
 The current expression schema remains shared with existing consumers until
 the coordinated schema/consumer stage; there is no second representation.
 

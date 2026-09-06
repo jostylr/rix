@@ -1,4 +1,4 @@
-import { hasScopedSymbols } from "./math-expression.js";
+import { hasScopedSymbols, hasExtendedConstants } from "./math-expression.js";
 import {
     Integer,
     Rational,
@@ -67,6 +67,7 @@ function integerValue(value, fallback) {
 }
 
 function isExpression(value) {
+    if (hasExtendedConstants(value)) throw new Error("Extended mathematical constants require a provider-aware range consumer (not yet implemented)");
     if (hasScopedSymbols(value)) throw new Error("Scoped mathematical symbols require an identity-aware range consumer (not yet implemented)");
     return (value?.type === "map" || (value && typeof value === "object")) &&
         textValue(mapValue(value, "schema")) === "rix.calculus.expression@1";
