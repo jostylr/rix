@@ -56,17 +56,18 @@ export function constantProviderInfo(value) {
     const decision=value=>value ? new Integer(1n) : null;
     return {type:"map",entries:new Map([
         ["schema",text("rix.math.constant-provider@1")],
-        ["provider",text(real ? "refinableReal" : interval ? "rationalInterval" : exact ? "exactScalar" : "rational")],
+        ["provider",text(real ? real.source ? "refinableReal" : "realSnapshot" : interval ? "rationalInterval" : exact ? "exactScalar" : "rational")],
         ["denotation",text(interval ? "setEnclosure" : "singleton")],
         ["exact",decision(!interval)],
-        ["refinable",decision(!!real)],
+        ["refinable",decision(!!real?.source)],
         ["commutative",new Integer(1n)],
         ["associative",new Integer(1n)],
         ["distributive",decision(!interval)],
         ["cancellation",exact ? UNDECIDED : decision(!interval)],
         ["enclosure",real ? real.interval : interval ? value : null],
         ["evidencelevel",real ? real.evidence : null],
-        ["validation",real ? text("protocolChecked") : null],
+        ["validation",real ? text(real.source ? "protocolChecked" : "unverifiedImport") : null],
+        ["savedevidencelevel",real?.savedEvidence ? text(real.savedEvidence) : null],
         ["laststatus",real ? text(refinementEntry(real.result,"status")?.value) : null],
         ["lastgoalmet",real ? decision(refinementEntry(real.result,"goalmet")?.value === 1n) : null],
     ]),_ext:new Map([["immutable",new Integer(1n)]])};

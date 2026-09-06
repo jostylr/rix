@@ -10,6 +10,7 @@
 import { Registry } from "./registry.js";
 import { expressionCapabilities, expressionSyntaxFunctions, installExpressionVariants } from "../runtime/math-expression.js";
 import { mathContextSyntaxFunctions } from "../runtime/math-context.js";
+import { mathematicalJSONCapabilities } from "../runtime/math-json.js";
 import { SystemContext } from "../runtime/system-context.js";
 import { PluginCatalog } from "../runtime/plugin-catalog.js";
 import { createSystemLookup } from "../runtime/system-manifest.js";
@@ -556,6 +557,7 @@ export function createDefaultSystemContext(options = {}) {
     ctx.register("DefineUnit", unitExactFunctions.DEFINEUNIT);
     ctx.register("DefineExactGenerator", unitExactFunctions.DEFINEEXACTGENERATOR);
     for (const [name, definition] of Object.entries(expressionCapabilities)) ctx.register(name, definition);
+    for (const [name, definition] of Object.entries(mathematicalJSONCapabilities)) ctx.register(name, definition);
     ctx.installManagementNamespaces();
     const rendererRegistry = options.rendererRegistry || new RendererRegistry();
     ctx.attachRendererRegistry(rendererRegistry, {

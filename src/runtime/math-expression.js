@@ -65,6 +65,15 @@ export function expressionDefinition(symbol) {
     return symbolState(symbol)?.value ?? null;
 }
 
+/** Loader-only installation: fresh identities, never programming-scope writes. */
+export function restoreExpressionDefinition(symbol, value) {
+    const state=symbolState(symbol);
+    if (!state || state.value || expressionField(symbol,"bound")) throw new Error("Invalid saved symbolic definition");
+    const expression=promoteExpression(value);
+    if (referencesSymbol(expression,state.id)) throw new Error("Cyclic saved symbolic definition");
+    state.value=expression;
+}
+
 function referencesSymbol(expression, id, seen = new Set()) {
     if (!isMathExpression(expression) || seen.has(expression)) return false;
     seen.add(expression);
@@ -109,21 +118,22 @@ export function expandExpression(expression, memo = new Map()) {
     return result;
 }
 
-function equalityKey(expression) {
+function equalityTree(expression) {
     const operation=expressionField(expression,"operation")?.value;
-    if (!operation) return expressionStructuralKey(expression);
+    if (!operation) return expressionStructuralTree(expression);
     const operands=expressionField(expression,"operands").values;
-    const keys=operands.map(equalityKey);
-    const zero=expressionStructuralKey(expressionConstant(new Integer(0n)));
-    const one=expressionStructuralKey(expressionConstant(new Integer(1n)));
+    const keys=operands.map(equalityTree);
+    const isNumber=(tree,value)=>tree?.[0] === "constant" && tree[1]?.[0] === "rational" && tree[1][1] === `${value}/1`;
     // Neutral-element rules preserve partial-expression domains. Deliberately
     // do not erase domains using x/x=1, 0*x=0, or x^0=1.
-    if (["add","subtract"].includes(operation) && keys[1] === zero) return keys[0];
-    if (operation === "add" && keys[0] === zero) return keys[1];
-    if (["multiply","divide","power"].includes(operation) && keys[1] === one) return keys[0];
-    if (operation === "multiply" && keys[0] === one) return keys[1];
-    return JSON.stringify(["operator",operation,keys]);
+    if (["add","subtract"].includes(operation) && isNumber(keys[1],0)) return keys[0];
+    if (operation === "add" && isNumber(keys[0],0)) return keys[1];
+    if (["multiply","divide","power"].includes(operation) && isNumber(keys[1],1)) return keys[0];
+    if (operation === "multiply" && isNumber(keys[0],1)) return keys[1];
+    return ["operator",operation,keys];
 }
+
+const equalityKey=expression=>JSON.stringify(equalityTree(expression));
 
 export function hasScopedSymbols(expression) {
     if (!isMathExpression(expression)) return false;
@@ -146,12 +156,16 @@ function hasEnclosures(expression) {
 }
 
 export function expressionStructuralKey(expression) {
-    if (!isMathExpression(expression)) return expressionStructuralKey(expressionConstant(expression));
+    return JSON.stringify(expressionStructuralTree(expression));
+}
+
+function expressionStructuralTree(expression) {
+    if (!isMathExpression(expression)) return expressionStructuralTree(expressionConstant(expression));
     const kind=expressionField(expression,"kind")?.value;
-    if (kind === "variable") return JSON.stringify([kind,symbolState(expression)?.id ?? ["named",expressionField(expression,"name")?.value]]);
-    if (kind === "constant") return JSON.stringify([kind,constantKey(expressionField(expression,"value"))]);
-    if (kind === "operator") return JSON.stringify([kind,expressionField(expression,"operation")?.value,expressionField(expression,"operands").values.map(expressionStructuralKey)]);
-    if (kind === "apply") return JSON.stringify([kind,expressionField(expression,"semanticid")?.value,expressionField(expression,"arguments").values.map(expressionStructuralKey)]);
+    if (kind === "variable") return [kind,symbolState(expression)?.id ?? ["named",expressionField(expression,"name")?.value]];
+    if (kind === "constant") return [kind,constantKey(expressionField(expression,"value"))];
+    if (kind === "operator") return [kind,expressionField(expression,"operation")?.value,expressionField(expression,"operands").values.map(expressionStructuralTree)];
+    if (kind === "apply") return [kind,expressionField(expression,"semanticid")?.value,expressionField(expression,"arguments").values.map(expressionStructuralTree)];
     throw new Error("Unsupported mathematical expression kind");
 }
 

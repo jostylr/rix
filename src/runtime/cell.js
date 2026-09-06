@@ -82,8 +82,8 @@ export function shallowCopyValue(value) {
     if (value instanceof Rational) return new Rational(value.numerator, value.denominator);
     if (value instanceof RationalInterval) {
         return new RationalInterval(
-            new Rational(value.low.numerator, value.low.denominator),
-            new Rational(value.high.numerator, value.high.denominator),
+            new Rational(value.start.numerator, value.start.denominator),
+            new Rational(value.end.numerator, value.end.denominator),
         );
     }
     if (value instanceof RationalIntervalSet) return new RationalIntervalSet(value);
@@ -211,8 +211,8 @@ export function deepCopyValue(value, memo = new WeakMap()) {
     }
     if (value instanceof RationalInterval) {
         const copy = new RationalInterval(
-            new Rational(value.low.numerator, value.low.denominator),
-            new Rational(value.high.numerator, value.high.denominator),
+            new Rational(value.start.numerator, value.start.denominator),
+            new Rational(value.end.numerator, value.end.denominator),
         );
         memo.set(value, copy);
         return copy;

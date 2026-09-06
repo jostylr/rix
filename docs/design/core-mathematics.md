@@ -28,7 +28,21 @@ required. Existing repository consumers will be updated directly.
    adapters remain pending.
 6. Context inspection, substitution, evaluation, and bounded reasoning: pending.
 7. Repository-wide consumer and schema conversion: pending.
-8. Identity-preserving mathematical serialization: pending.
+8. Identity-preserving mathematical serialization: implemented for the current
+   expression/context/scalar model, including bounded JSONL and frozen real
+   snapshots. Portable refinement recipes and explicit recipe restoration
+   remain pending; saved code or closures are never executed.
+
+## Remaining work (serialization is not the end of this scope)
+
+- Stage 4: dependent/symbolic domains and arbitrary ordered traversal sources.
+- Stage 5: dimensional-quantity and noncommutative/nonassociative adapters.
+- Stage 6: capture-safe substitution, context-aware numerical evaluation and
+  bounded assumption reasoning. Current context inspection is raw-record only.
+- Stage 7: coordinated expression schema and repository-wide consumer conversion;
+  name-based calculus/CAS/range paths still reject identity/provider-aware inputs.
+- Stage 8 follow-on: allowlisted portable real recipes and explicit, bounded
+  restoration after inert loading. Snapshots are usable now without this work.
 
 Each completed stage requires executable tests and a RiX-Web tutorial. This
 ledger distinguishes implemented behavior from the target design.

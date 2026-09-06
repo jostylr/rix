@@ -82,6 +82,11 @@ describe("Built-in exact-number methods", () => {
         ]);
     });
 
+    test("shallow and deep interval copies preserve source orientation", () => {
+        const result=evalRiX('original = 3:1; shallow := original; deep ::= original; {: shallow.Start(),deep.Start(),deep.IsAscending() };');
+        expect(unbox(result)).toEqual(["3/1","3/1",null]);
+    });
+
     test("ordinary interval literals expose bounds, width, midpoint, and mediant", () => {
         const result = evalRiX(`
             i := 3/4 : 1/4;
@@ -94,8 +99,8 @@ describe("Built-in exact-number methods", () => {
         `);
         expect(result.values[10]).toBeInstanceOf(RationalIntervalSet);
         expect(unbox({ type: "tuple", values: result.values.slice(0, 10) })).toEqual([
-            "1/4", "3/4", "1/4", "3/4", "1/2",
-            1, "1/2", "1/2", 1, 1,
+            "3/4", "1/4", "1/4", "3/4", "1/2",
+            null, "1/2", "1/2", 1, 1,
         ]);
         expect(result.values[10].toString()).toBe("[1/2,3/4]");
     });

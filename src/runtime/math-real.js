@@ -17,6 +17,15 @@ export function realConstantState(value) {
     return state;
 }
 
+export function restoreRealSnapshot(interval, savedEvidence) {
+    if (!(interval instanceof RationalInterval) || interval.low.denominator === 0n || interval.high.denominator === 0n) throw new Error("Invalid saved real enclosure");
+    const token=()=>{throw new Error("Opaque real identity is not callable");};
+    states.set(token,{id:`real:${nextIdentity++}`,source:null,capabilities:null,interval,
+        evidence:{type:"string",value:"declared"},savedEvidence,
+        result:{type:"map",entries:new Map([["status",{type:"string",value:"snapshot"}],["goalmet",null]])}});
+    return {type:"math_real",_ext:new Map([[TOKEN,token],["immutable",new Integer(1n)]])};
+}
+
 function requestFor(options,capabilities) {
     if (options !== null && options !== undefined && options?.type !== "map") throw new Error("Real refinement options require a map");
     return normalizeRefinementRequest(options,{operation:"refine",capabilities});
@@ -53,6 +62,7 @@ export function adaptRealConstant(source,options,context,evaluate) {
 export function refineRealConstant(value,options,context,evaluate) {
     const state=realConstantState(value);
     if (!state) throw new Error("ExpressionRefine requires an adapted real constant");
+    if (!state.source) throw new Error("Saved real is a frozen snapshot; no refinement recipe is installed");
     const request=requestFor(options,state.capabilities);
     return then(method(state.source,"REFINE",[request],context,evaluate),result=> {
         const interval=checkedInterval(result,request,state.capabilities);

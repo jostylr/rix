@@ -40,6 +40,9 @@
 
 ## Bounds and interval operations
 
+Copies preserve source endpoint order: copying `3:1` keeps `Start()==3`,
+`End()==1`, and `IsAscending()==_`. `Low()` and `High()` remain sorted bounds.
+
 ```{.rix exec=true id=rational-interval-operations}
 i := 1/4:3/4;
 j := 1/2:1;

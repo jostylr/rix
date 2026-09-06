@@ -79,6 +79,7 @@ result[:goalMet] ##@ == _;
 ```
 
 The adapter retains a live in-memory procedure, not executable text in a saved
-file. Portable serialization, safe recipe restoration, context evaluation,
-and provider-aware calculus/CAS remain separate roadmap stages. The older
+file. [Mathematical serialization](mathematical-serialization.md) preserves
+frozen snapshots; safe recipe restoration, context evaluation,
+and provider-aware calculus/CAS remain separate roadmap work. The older
 name-based consumers continue to reject extended constants explicitly.

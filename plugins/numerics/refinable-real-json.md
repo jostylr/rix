@@ -7,8 +7,11 @@ status: proposed
 
 # Certified and refinable real JSON interchange
 
-Status: Phase 3 design specification. The format is specified here before an
-importer is enabled. Examples are JSON data, not executable tutorial cells.
+Status: Phase 3 design specification for the full format and recipe system.
+The core mathematical graph loader now implements a strict frozen opaque-real
+snapshot subset; see `docs/design/mathematical-json.md`. General standalone
+import and executable recipe restoration are not enabled. Examples here are
+JSON data, not executable tutorial cells.
 
 ## 1. Purpose
 
