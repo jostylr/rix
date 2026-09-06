@@ -26,7 +26,10 @@ required. Existing repository consumers will be updated directly.
    stable identity. Interval equality is enclosure-aware; exact keys retain
    generator identity. Dimensional-quantity and noncommutative/nonassociative
    adapters remain pending.
-6. Context inspection, substitution, evaluation, and bounded reasoning: pending.
+6. Context inspection and bounded free substitution/rational evaluation implemented
+   (`MathSubstitute`, `MathEvaluate`); conditions remain attached to reports. Bound
+   instantiation, domain discharge, provider evaluation, and assumption rewriting
+   remain pending. See `documentation/eval/mathematical-localization.md`.
 7. Repository-wide consumer and schema conversion: pending.
 8. Identity-preserving mathematical serialization: implemented for the current
    expression/context/scalar model, including bounded JSONL and frozen real
@@ -37,8 +40,9 @@ required. Existing repository consumers will be updated directly.
 
 - Stage 4: dependent/symbolic domains and arbitrary ordered traversal sources.
 - Stage 5: dimensional-quantity and noncommutative/nonassociative adapters.
-- Stage 6: capture-safe substitution, context-aware numerical evaluation and
-  bounded assumption reasoning. Current context inspection is raw-record only.
+- Stage 6: binder instantiation/alpha-renaming, domain discharge, provider-aware
+  numerical evaluation and bounded assumption rewriting. Free substitution and
+  exact rational evaluation are implemented; context inspection uses explicit records.
 - Stage 7: coordinated expression schema and repository-wide consumer conversion;
   name-based calculus/CAS/range paths still reject identity/provider-aware inputs.
 - Stage 8 follow-on: allowlisted portable real recipes and explicit, bounded

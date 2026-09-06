@@ -86,6 +86,13 @@ box := {& (:::u,:::v) | (0:1,2:3) & :::u+:::v };
 .SameSymbol(box[:binders][1],box[:binders][2]) ##@ == _;
 ```
 
-Context reasoning, capture-safe substitution, identity-aware calculus/CAS
-consumers, and portable context serialization remain subsequent stages. Do
-not treat this session-local record schema as the portable file format.
+Bounded free substitution and rational evaluation are available below. General
+context reasoning and identity-aware calculus/CAS consumers remain subsequent stages.
+Use [mathematical graph serialization](mathematical-serialization.md) for portable
+storage rather than treating this runtime record schema as the file format.
+
+## Localizing a retained context
+
+Use [MathSubstitute and MathEvaluate](mathematical-localization.md) for explicit
+identity-based free substitution and bounded exact rational evaluation. Evaluation
+reports retain the context and distinguish conditional candidates from complete values.
