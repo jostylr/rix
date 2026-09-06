@@ -1,5 +1,11 @@
 # Local substitution and exact evaluation
 
+Expression methods `expr.Eval(bindings)` and `expr.Substitute(bindings)` are
+receiver-first forms of `.MathEvaluate(expr,bindings)` and
+`.MathSubstitute(expr,bindings)`. Use capitalized method names, as for functions.
+They use the same capability checks and evaluator, do not mutate the expression,
+and `Eval` returns the same diagnostic report, not an unwrapped candidate.
+
 `MathSubstitute(expressionOrContext, [(symbol,value), ...])` replaces free
 scoped identities, never spelling-based names. Bindings are simultaneous: replacing
 x with y and y with x swaps them, rather than recursively rewriting inserted values.

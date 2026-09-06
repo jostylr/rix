@@ -182,6 +182,11 @@ export function expressionRecord(kind, fields = []) {
         ["SEMANTICID", method("SemanticId", self => expressionField(self,"semanticid") || null)],
     ]) };
     proto.entries.set("SYMBOLID",method("SymbolId",self=>expressionField(self,"symbolid") || null));
+    // Use the current evaluator and capability policy, just like a direct system call.
+    for (const [name,capability] of [["Eval","MathEvaluate"],["Substitute","MathSubstitute"]]) {
+        proto.entries.set(name.toUpperCase(),{type:"method_builtin",name,
+            impl:(args,context,evaluate)=>evaluate({fn:"SYS_CALL",args:[capability,...args]},context)});
+    }
     const record = {
         type: "map",
         entries: new Map([

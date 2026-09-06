@@ -3,6 +3,13 @@ import {Context,parseAndEvaluate,parseAndEvaluateAsync} from '../../src/index.js
 const get=(v,k)=>v.entries.get(k);
 for (const [mode,evaluate] of [['sync',parseAndEvaluate],['async',parseAndEvaluateAsync]]) {
     const run=source=>evaluate(source,{context:new Context()});
+    test(`${mode}: expression methods share system evaluation and substitution`,async()=> {
+        const value=await run('expr := ::x^2+1; ans := expr.Eval([(::x,3)]); changed := expr.Substitute([(::x,::y)]); (ans[:value],changed==::y^2+1,expr.Eval()[:status],.MathDecodeJSON(.MathEncodeJSON(expr)).Eval()[:status]);');
+        expect(String(value.values[0])).toBe('10');
+        expect(value.values[1].value).toBe(1n);
+        expect(value.values[2].value).toBe('unresolved');
+        expect(value.values[3].value).toBe('unresolved');
+    });
     test(`${mode}: exact simultaneous localization and immutable definitions`,async()=> {
         const result=await run('::y = ::x+1; .MathEvaluate(::y^2,[(::x,2)]);');
         expect(get(result,'status').value).toBe('complete');
