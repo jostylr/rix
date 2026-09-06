@@ -1,6 +1,7 @@
 import { Integer, Rational } from "@ratmath/core";
 import { runtimeDefaults } from "../../runtime/runtime-config.js";
-import { expressionRecord as calculusExpressionRecord, EXPRESSION_SCHEMA, hasScopedSymbols, hasExtendedConstants } from "../../runtime/math-expression.js";
+import { mathBudgets } from "../../runtime/math-budgets.js";
+import { expressionRecord as calculusExpressionRecord, EXPRESSION_SCHEMA, hasScopedSymbols, hasExtendedConstants, expressionStructuralKey, expressionDefinition, expressionField, isMathExpression } from "../../runtime/math-expression.js";
 import {
     sortedStructuralFreeSymbols,
     structuralValueToIr,
@@ -91,6 +92,15 @@ export function createSymbolicSpec(meta, context = null) {
         outputs = [];
         statements = [];
     }
+    const symbolBindings = new Map(meta.symbolBindings || []);
+    const referenced = new Set(inputs);
+    if (expression) retrieveNames(expression, referenced);
+    for (const statement of statements) retrieveNames(statement.expr, referenced);
+    for (const name of referenced) {
+        if (name.startsWith("$symbol:") && !symbolBindings.has(name)) {
+            throw new Error("This specification consumer does not preserve scoped symbol bindings yet");
+        }
+    }
     return {
         type: "symbolic_spec",
         syntax: "#",
@@ -104,6 +114,7 @@ export function createSymbolicSpec(meta, context = null) {
         __closureScopes: meta.__closureScopes || context?.captureClosureScopes?.() || [],
         origin: meta.origin || null,
         transform: meta.transform || null,
+        symbolBindings,
     };
 }
 
@@ -115,6 +126,7 @@ function specWithExpression(source, expression, options = {}) {
         __closureScopes: options.__closureScopes || source.__closureScopes,
         origin: options.origin || source.origin,
         transform: options.transform || source.transform,
+        symbolBindings: options.symbolBindings || source.symbolBindings,
     };
     if (outputMode === "named") {
         const target = source.outputs[0];
@@ -263,6 +275,7 @@ export function inspectSymbolicSpec(spec) {
         ["form", rixString(outputModeOf(spec))],
         ["source", rixString(formatSymbolicSpec(spec))],
         ["inputs", rixTuple(spec.inputs.map(rixString))],
+        ["symbolbindings", rixTuple([...(spec.symbolBindings || [])].map(([name, symbol]) => rixTuple([rixString(name), symbol])))],
         ["outputs", rixTuple(spec.outputs.map(rixString))],
         ["symbols", rixTuple(symbols.map(rixString))],
         ["definitions", rixTuple(definitions.map((statement) => rixMap([
@@ -344,7 +357,7 @@ export function calculusExpressionToSymbolicIr(value, path = "expression") {
 }
 
 /** Export supported private symbolic IR as a public Calculus expression record. */
-export function symbolicIrToCalculusExpression(node, path = "expression") {
+export function symbolicIrToCalculusExpression(node, path = "expression", bindings = new Map()) {
     if (!node?.fn) throw new Error(`${path} is not symbolic expression IR`);
     if (node.fn === "LITERAL") {
         const text = String(node.args[0]);
@@ -352,6 +365,8 @@ export function symbolicIrToCalculusExpression(node, path = "expression") {
         return calculusExpressionRecord("constant", [["value", new Integer(BigInt(text))]]);
     }
     if (node.fn === "RETRIEVE" || node.fn === "OUTER_RETRIEVE") {
+        if (bindings.has(node.args[0])) return bindings.get(node.args[0]);
+        if (node.args[0].startsWith("$symbol:")) throw new Error("Scoped specification lost its symbol binding metadata");
         return calculusExpressionRecord("variable", [
             ["name", rixString(node.args[0])],
             ["scope", rixString(node.fn === "OUTER_RETRIEVE" ? "outer" : "local")],
@@ -362,7 +377,7 @@ export function symbolicIrToCalculusExpression(node, path = "expression") {
         return calculusExpressionRecord("operator", [
             ["operation", rixString(operation)],
             ["operands", { type: "sequence", values: node.args.map((operand, index) =>
-                symbolicIrToCalculusExpression(operand, `${path}.${operation}[${index + 1}]`)) }],
+                symbolicIrToCalculusExpression(operand, `${path}.${operation}[${index + 1}]`, bindings)) }],
         ]);
     }
     if (node.fn === "SEMANTIC_APPLY") {
@@ -370,7 +385,7 @@ export function symbolicIrToCalculusExpression(node, path = "expression") {
             ["semanticid", rixString(node.args[0])],
             ["name", rixString(node.args[1])],
             ["arguments", { type: "sequence", values: node.args.slice(2).map((arg, index) =>
-                symbolicIrToCalculusExpression(arg, `${path}.arguments[${index + 1}]`)) }],
+                symbolicIrToCalculusExpression(arg, `${path}.arguments[${index + 1}]`, bindings)) }],
         ]);
     }
     throw new Error(`${path} contains unsupported symbolic operation '${node.fn}'`);
@@ -387,7 +402,8 @@ function calculusSpecInputs(value, expression) {
 }
 
 /** Build a core symbolic spec from a public Calculus expression record. */
-export function calculusExpressionToSpec(value, inputs = null, context = null) {
+export function calculusExpressionToSpec(value, inputs = null, context = null, options = null) {
+    if (hasScopedSymbols(value) || inputs?.values?.some(hasScopedSymbols)) return scopedExpressionToSpec(value, inputs, options);
     const expression = calculusExpressionToSymbolicIr(value);
     return createSymbolicSpec({
         inputs: calculusSpecInputs(inputs, expression),
@@ -401,7 +417,60 @@ export function calculusExpressionToSpec(value, inputs = null, context = null) {
 export function symbolicSpecToCalculusExpression(value) {
     const spec = getAttachedSpec(value);
     if (!isSymbolicSpec(spec)) throw new Error("ExpressionFromSpec expects a symbolic spec or spec-backed function");
-    return symbolicIrToCalculusExpression(expressionOf(spec));
+    return symbolicIrToCalculusExpression(expressionOf(spec), "expression", spec.symbolBindings);
+}
+
+// Private input slots cannot collide with source-language identifiers. Their
+// spelling is not a serialization format: the associated identities are required.
+function scopedExpressionToSpec(value, inputs, options) {
+    const limits = mathBudgets(options);
+    const bindings = new Map();
+    let visits = 0;
+    function visit(node, depth = 0) {
+        if (++visits > limits.maxvisits || depth > limits.maxdepth) throw new Error("Scoped specification traversal budget exceeded");
+        const definition = expressionDefinition(node);
+        if (definition) return visit(definition, depth + 1);
+        if (!isMathExpression(node)) throw new Error("Specification conversion requires a core expression");
+        const kind = expressionField(node, "kind")?.value;
+        if (kind === "variable") {
+            expressionStructuralKey(node); // Validate the opaque runtime identity.
+            const id = expressionField(node, "symbolid")?.value;
+            if (!id) throw new Error("Scoped specification conversion cannot mix named and scoped variables");
+            if (expressionField(node, "bound")) throw new Error("Instantiate mathematical binders before specification conversion");
+            const name = `$${id}`;
+            bindings.set(name, node);
+            return retrieve(name);
+        }
+        if (kind === "constant") return calculusExpressionToSymbolicIr(node);
+        if (kind === "operator") {
+            const fn = CALCULUS_OPERATOR_TO_IR.get(expressionField(node, "operation")?.value);
+            if (!fn) throw new Error("Unsupported scoped specification operation");
+            const operands = calculusRecordValues(node, "operands", "expression.operands");
+            if (operands.length !== (fn === "NEG" ? 1 : 2)) throw new Error("Invalid scoped specification operator arity");
+            return ir(fn, ...operands.map(child => visit(child, depth + 1)));
+        }
+        // Until executable semantic dispatch preserves the core domain contract,
+        // do not silently compile semantic nodes to registry-linked procedures.
+        throw new Error("Scoped specification conversion currently supports rational arithmetic, not semantic applications");
+    }
+    const expression = visit(value);
+    if (inputs === null || inputs === undefined) throw new Error("Scoped specifications require an explicit ordered array of symbolic inputs");
+    if (!["array", "sequence", "tuple"].includes(inputs?.type)) throw new Error("Scoped specification inputs must be an array of symbols");
+    const names = inputs.values.map(symbol => {
+        expressionStructuralKey(symbol);
+        const id = expressionField(symbol, "symbolid")?.value;
+        if (!id || expressionField(symbol, "kind")?.value !== "variable" || expressionDefinition(symbol) || expressionField(symbol, "bound")) throw new Error("Scoped specification inputs must be independent free symbols");
+        const name = `$${id}`;
+        bindings.set(name, symbol);
+        return name;
+    });
+    if (new Set(names).size !== names.length) throw new Error("Duplicate scoped specification input");
+    if ([...retrieveNames(expression)].some(name => !names.includes(name))) throw new Error("Scoped specification inputs omit a free symbolic identity");
+    return createSymbolicSpec({inputs: names, expression, outputMode: "expression", symbolBindings: bindings, __closureScopes: [], origin: ".SpecFromExpression"});
+}
+
+function mergeSymbolBindings(specs) {
+    return new Map(specs.flatMap(spec => [...(spec?.symbolBindings || [])]));
 }
 
 function supportedExpression(node) {
@@ -604,6 +673,11 @@ function variableName(value, spec, operation) {
         if (spec.inputs.length === 1) return spec.inputs[0];
         throw new Error(`${operation} needs an explicit variable for a multi-input spec`);
     }
+    if (spec.symbolBindings?.size) {
+        const key = isMathExpression(value) ? expressionStructuralKey(value) : null;
+        for (const [name, symbol] of spec.symbolBindings) if (expressionStructuralKey(symbol) === key) return name;
+        throw new Error(`${operation} requires an explicit symbolic input identity`);
+    }
     if (typeof value === "string") return value;
     if (value?.type === "string") return value.value;
     const selector = getAttachedSpec(value);
@@ -757,6 +831,7 @@ export function applySymbolicSpec(spec, args) {
         for (const input of inputs) capturedNames.delete(input);
         return createSymbolicSpec({
             inputs,
+            symbolBindings: mergeSymbolBindings([spec, ...argumentSpecs]),
             outputs: spec.outputs,
             outputsDeclared: spec.outputsDeclared,
             outputMode: "system",
@@ -772,6 +847,7 @@ export function applySymbolicSpec(spec, args) {
     for (const input of inputs) capturedNames.delete(input);
     return specWithExpression(spec, expression, {
         inputs,
+        symbolBindings: mergeSymbolBindings([spec, ...argumentSpecs]),
         __closureScopes: unionScopes([spec.__closureScopes, ...argumentSpecs.map((item) => item.__closureScopes)], capturedNames),
         outputMode: outputModeOf(spec) === "named" ? "named" : "expression",
         transform: { operation: "substitute" },
@@ -796,6 +872,7 @@ export function combineSymbolic(operator, leftValue, rightValue = null) {
     for (const input of inputs) capturedNames.delete(input);
     const spec = specWithExpression(template, expression, {
         inputs,
+        symbolBindings: mergeSymbolBindings([left.spec, right?.spec]),
         __closureScopes: unionScopes([left.spec?.__closureScopes, right?.spec?.__closureScopes], capturedNames),
         outputMode: outputModeOf(template) === "named" ? "named" : "expression",
         transform: { operation: BINARY_TEXT.get(operator) || operator },
@@ -1285,6 +1362,7 @@ function symbolicFractionParts(value, context) {
     const expression = expressionOf(source);
     const wrap = (part) => createSymbolicSpec({
         inputs: source.inputs,
+        symbolBindings: source.symbolBindings,
         outputMode: "expression",
         expression: part,
         imports: source.imports,
@@ -1310,7 +1388,7 @@ export const symbolicCapabilities = {
     INSPECTSPEC: { impl: ([value]) => inspectSymbolicSpec(getAttachedSpec(value) || value), pure: true, doc: "Return the structural inspection map for a symbolic spec" },
     SPECROLES: { impl: ([value, overrides = null]) => symbolicRolesValue(value, overrides), pure: true, doc: "Resolve all symbols and input/output roles, with optional role overrides" },
     SPECFRACTIONPARTS: { impl: ([value], context) => symbolicFractionParts(value, context), pure: true, doc: "Split a symbolic top-level fraction into numerator and denominator specs" },
-    SPECFROMEXPRESSION: { impl: ([value, inputs = null], context) => calculusExpressionToSpec(value, inputs, context), pure: true, doc: "Import a public Calculus expression record as a core symbolic specification" },
+    SPECFROMEXPRESSION: { impl: ([value, inputs = null, options = null], context) => calculusExpressionToSpec(value, inputs, context, options), pure: true, doc: "Import an expression with explicit identity-ordered inputs for scoped symbols" },
     EXPRESSIONFROMSPEC: { impl: ([value]) => symbolicSpecToCalculusExpression(value), pure: true, doc: "Export a symbolic specification through the public Calculus expression schema" },
 };
 

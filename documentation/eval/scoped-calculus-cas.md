@@ -87,9 +87,54 @@ instead of erasing an undefined point. Semantic applications, nonconstant denomi
 and nonrational coefficients are not accepted. Reconstruction skips zero coefficients
 and emits constant terms without `x^0`, so the returned polynomial works at zero.
 
+## Executable specifications with scoped inputs
+
+`.SpecFromExpression(expr,[::x,::y],options)` (also `.calculus.ToSpec`) compiles
+rational-arithmetic expression graphs into specification IR. The explicit array
+determines positional input order; symbols are matched by identity, never spelling.
+Definitions expand at conversion. Every free symbol must be supplied once. Unused
+independent input symbols are allowed, including for a constant expression.
+
+```{.rix exec=true}
+a := ::x; b := {; ::x };
+spec := .SpecFromExpression(a^2+b,[b,a]);
+F := .Poly(spec);
+F(2,3) ##@ == 11;
+expr := .ExpressionFromSpec(F);
+expr.Eval([(a,3),(b,2)])[:value] ##@ == 11;
+.InspectSpec(spec)[:symbolBindings].Len() ##@ == 2;
+```
+
+Private input slots carry a separate identity table, exposed by `InspectSpec` as
+`symbolBindings` pairs of `(slot,symbol)`. Displayed slot names are implementation
+details, not reusable variable names or portable source. Save the core expression
+with its ordered symbols using mathematical JSON/JSONL, not printed spec text.
+The spec captures no programming variables: outer-scope symbolic values must also
+be supplied explicitly. Arithmetic, partial application, composition, and supported
+specification transformations retain the table. Explicit derivative/integral selectors
+on these specs must be symbols, not colon-strings. An unconverted consumer that loses
+the table errors instead of exporting name-based substitutes.
+
+```{.rix exec=true}
+P := .SpecFromExpression(::x^2,[::x]);
+Q := .SpecFromExpression(::y+1,[::y]);
+expr := .ExpressionFromSpec(P(Q));
+expr.Eval([(::y,3)])[:value] ##@ == 16;
+.ExpressionFromSpec(.Deriv(P,::x)).Eval([(::x,3)])[:value] ##@ == 6;
+```
+
+Conversion accepts exact rational constants and arithmetic operators, preserving
+the original operation tree before any explicitly requested transformation.
+Per-call `maxVisits` and `maxDepth` options bound traversal, including definition
+expansion. This budget does not bound subsequent execution of the compiled callable.
+Mathematical contexts, bound symbols, extended constants, mixed named/scoped variables,
+and semantic applications are rejected in this increment. In particular, a context
+must not be stripped automatically: that would silently discard its assumptions.
+Use core `Eval` when conditions or provider evidence must accompany the answer.
+
 Current boundary: differentiation, symbolic integration, and graph simplification
 require rational constants. Extended constants can be constructed and numerically
-evaluated, but derivative/rewrite laws for those providers are not assumed. General
-specification conversion and the older certified range/primitive-graph
+evaluated, but derivative/rewrite laws for those providers are not assumed. Contextual
+and semantic specification conversion and the older certified range/primitive-graph
 pipeline still require their own identity-aware conversions; they reject scoped input
 rather than forgetting identities. Use core `Eval` for scoped enclosure evaluation.

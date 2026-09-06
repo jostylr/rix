@@ -1121,7 +1121,7 @@ calculusNamespace._proto = {=
         CalculusAntiderivativeFamily(integrand,variable,primitive,constant,options),
     DefiniteIntegral=(self, integrand, variable, lower, upper, options ?= {= })->
         CalculusDefiniteIntegral(integrand,variable,lower,upper,options),
-    ToSpec=(self, expression, inputs ?= _)->.SpecFromExpression(expression,inputs),
+    ToSpec=(self, expression, inputs ?= _, options ?= _)->.SpecFromExpression(expression,inputs,options),
     FromSpec=(self, value)->.ExpressionFromSpec(value),
     IsFunction=(self, value)->CalculusIsFunction(value) ?: 1 ?_ _,
     IsExpression=(self, value)->CalculusIsExpression(value) ?: 1 ?_ _,
