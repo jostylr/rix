@@ -210,3 +210,43 @@ input terms, 64 generators per term, generator polynomials at 64 coefficients, a
 absolute term powers at 10,000. The earlier rational, exponent, and traversal budgets
 still apply. Semantic function linking, quantities, noncommutative providers, and
 automatic precision scheduling remain future work.
+
+## Per-call work budgets
+
+These mathematical work limits are now defaults, not fixed algorithm limits. Pass
+an options map as the last argument to `Eval`, `Substitute`, or `Instantiate` (or
+their system forms). Use `[]` for evaluation without replacements. Options also
+work when the second argument is an assumption context. No global state changes.
+
+```{.rix exec=true}
+expr := (::x+1)^64;
+ans := expr.Eval([(::x,1~{pi})],{= maxProductPairs=2048 });
+ans[:status] ##@ == :complete;
+ans[:budgets][:maxProductPairs] ##@ == 2048;
+.MathBudgets()[:maxProductPairs] ##@ == 1024;
+```
+
+| Option | Default | Scope |
+| --- | ---: | --- |
+| `maxVisits` | 10000 | Traversal visits per phase |
+| `maxDepth` | 128 | Traversal nesting; host stack-safety ceiling 512 |
+| `maxDigits` | 10000 | Integer components, including conservative power preflight |
+| `maxTerms` | 1024 | Stored exact-expression terms |
+| `maxProductPairs` | 1024 | Input term pairs per exact multiplication |
+| `maxSumTerms` | 1024 | Input terms per exact addition/subtraction |
+| `maxGenerators` | 64 | Generators per exact term |
+| `maxPolynomialCoefficients` | 64 | Coefficients per generator polynomial |
+| `maxDegree` | 10000 | Absolute power per generator in a term |
+| `maxExponent` | 256 | Absolute integer exponent evaluated |
+
+`.MathBudgets(options)` returns the merged settings; reports expose `budgets`.
+Unknown keys, non-Integer values, nonpositive values, and integers above the JS
+safe-integer range are rejected. Raising work limits may substantially increase
+memory/time; these are operation-size limits, not a wall-clock deadline or unlimited
+mode. Substitution/instantiation use the traversal settings; arithmetic settings
+apply during evaluation. Domain safety and unsupported-provider checks cannot be disabled.
+Exponents above `maxExponent` remain unresolved; other exhausted budgets throw.
+
+These options do not change the separate defensive JSON/JSONL import limits or
+the settings of calculus/CAS algorithms. Real refinement still uses its explicit
+request options such as `maxWork`; evaluation never refines automatically.

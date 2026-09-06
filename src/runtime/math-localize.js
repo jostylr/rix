@@ -3,6 +3,7 @@ import {Integer,Rational,RationalInterval} from '@ratmath/core';
 import {attachMathContextMethods} from './math-context-methods.js';
 import {createProviderEvaluation,compareProviderValues} from './math-provider-eval.js';
 import {isExpressionScalar} from './math-constant.js';
+import {mathBudgets,mathBudgetRecord} from './math-budgets.js';
 import {expressionField as field,expressionDefinition,expressionOperation,expressionApplication,
     promoteExpression,isMathExpression} from './math-expression.js';
 
@@ -13,11 +14,11 @@ const rational=value=>value instanceof Integer ? new Rational(value.value,1n) : 
 const isContext=value=>field(value,'schema')?.value==='rix.math.context@1';
 const id=value=>field(value,'symbolid')?.value;
 
-function worker(bindings,allowedBinders=null) {
+function worker(bindings,allowedBinders=null,limits=mathBudgets()) {
     if (!['sequence','tuple'].includes(bindings?.type)) throw new Error('Mathematical bindings require a sequence of (symbol, value) pairs');
     const replacements=new Map();
     let visits=0;
-    const tick=depth=>{if (++visits>10000 || depth>128) throw new Error('Mathematical localization traversal budget exceeded');};
+    const tick=depth=>{if (++visits>limits.maxvisits || depth>limits.maxdepth) throw new Error('Mathematical localization traversal budget exceeded');};
     function checkReplacement(value,depth=0) {
         tick(depth);
         if (field(value,'bound')) throw new Error('Substitution cannot introduce bound symbols');
@@ -60,10 +61,10 @@ function worker(bindings,allowedBinders=null) {
     return {walk,tick};
 }
 
-export function instantiateMathematics(value,bindings) {
+export function instantiateMathematics(value,bindings,options) {
     if (!isContext(value) || field(value,'binders')?.type!=='sequence') throw new Error('MathInstantiate requires a mathematical context');
     const allowed=new Set(field(value,'binders').values.map(id));
-    const localized=worker(bindings,allowed).walk(value);
+    const localized=worker(bindings,allowed,mathBudgets(options)).walk(value);
     // Provenance is data, not an active binder list or a new definition.
     localized.entries.set('instantiations',seq([
         ...(field(localized,'instantiations')?.values || []),
@@ -72,19 +73,20 @@ export function instantiateMathematics(value,bindings) {
     return localized;
 }
 
-export function substituteMathematics(value,bindings) {
+export function substituteMathematics(value,bindings,options) {
     if (!isMathExpression(value) && !isContext(value)) throw new Error('MathSubstitute requires an expression or mathematical context');
-    return worker(bindings).walk(value);
+    return worker(bindings,null,mathBudgets(options)).walk(value);
 }
 
-export function evaluateMathematics(value,bindings=seq([])) {
+export function evaluateMathematics(value,bindings=seq([]),options) {
+    const limits=mathBudgets(options);
     const assumptionContext=isContext(bindings) ? bindings : null;
     if (assumptionContext) {
         if (!isMathExpression(value)) throw new Error('Evaluation under a context requires an expression receiver');
         const assumptions=field(assumptionContext,'assumptions');
         if (assumptions?.type!=='sequence' || field(assumptionContext,'domains')?.type!=='sequence' || field(assumptionContext,'binders')?.type!=='sequence') throw new Error('Invalid mathematical evaluation context');
         const inferred=new Map();
-        const inspector=worker(seq([]));
+        const inspector=worker(seq([]),null,limits);
         const exactValue=expr=> {
             const expanded=inspector.walk(expr);
             return rational(expanded) || (field(expanded,'kind')?.value==='constant' ? rational(field(expanded,'value')) : null);
@@ -105,10 +107,11 @@ export function evaluateMathematics(value,bindings=seq([])) {
         // no stored code runs and no ambient programming/symbol scope is changed.
         value=record({...Object.fromEntries(assumptionContext.entries),result:value});
     }
-    const localized=substituteMathematics(value,bindings);
-    const {tick}=worker(seq([]));
+    const localized=worker(bindings,null,limits).walk(value);
+    if (!isMathExpression(value) && !isContext(value)) throw new Error('MathEvaluate requires an expression or mathematical context');
+    const {tick}=worker(seq([]),null,limits);
     const reasons=new Set();
-    const provider=createProviderEvaluation(reasons);
+    const provider=createProviderEvaluation(reasons,limits);
     function calculate(expr,depth=0) {
         tick(depth);
         if (isExpressionScalar(expr)) return provider.read(expr);
@@ -167,11 +170,12 @@ export function evaluateMathematics(value,bindings=seq([])) {
     return record({schema:str('rix.math.evaluation@1'),status:str(status),value:status==='complete' ? candidate : null,
         candidate:invalid ? null : candidate,localized,context,assumptioncontext:assumptionContext,reasons:seq([...reasons].map(str)),
         resultkind:str(invalid ? 'unresolved' : resultKind),
-        enclosure:!invalid && candidate instanceof RationalInterval ? candidate : null,providers:seq(provider.providers)});
+        enclosure:!invalid && candidate instanceof RationalInterval ? candidate : null,providers:seq(provider.providers),budgets:mathBudgetRecord(limits)});
 }
 
 export const mathematicalLocalizationCapabilities={
-    MathInstantiate:{impl:([value,bindings])=>instantiateMathematics(value,bindings),pure:false,doc:'Instantiate selected local binders while retaining their domains and assumptions'},
-    MathSubstitute:{impl:([value,bindings])=>substituteMathematics(value,bindings),pure:false,doc:'Simultaneous identity-based free substitution retaining context conditions'},
-    MathEvaluate:{impl:([value,bindings])=>evaluateMathematics(value,bindings),pure:false,doc:'Bounded exact rational evaluation with explicit unresolved context obligations'},
+    MathBudgets:{impl:([options])=>mathBudgetRecord(mathBudgets(options)),pure:true,doc:'Inspect default or overridden per-call mathematical budgets'},
+    MathInstantiate:{impl:([value,bindings,options])=>instantiateMathematics(value,bindings,options),pure:false,doc:'Instantiate selected local binders while retaining their domains and assumptions'},
+    MathSubstitute:{impl:([value,bindings,options])=>substituteMathematics(value,bindings,options),pure:false,doc:'Simultaneous identity-based free substitution retaining context conditions'},
+    MathEvaluate:{impl:([value,bindings,options])=>evaluateMathematics(value,bindings,options),pure:false,doc:'Bounded provider evaluation with explicit unresolved context obligations'},
 };

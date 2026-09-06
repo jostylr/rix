@@ -34,7 +34,8 @@ required. Existing repository consumers will be updated directly.
    preserves nested identities, constraints, and provenance. Provider evaluation now
    supports rational intervals, bounded core exact-scalar ring arithmetic, and stored
    real enclosures with explicit evidence/status. Interval-domain containment checks
-   preserve undecided overlap. General domain reasoning and assumption rewriting
+   preserve undecided overlap. Localization/evaluation work budgets are per-call
+   options, inspectable through `MathBudgets` and evaluation reports. General domain reasoning and assumption rewriting
    remain pending. See `documentation/eval/mathematical-localization.md`.
 7. Repository-wide consumer and schema conversion: pending.
 8. Identity-preserving mathematical serialization: implemented for the current
