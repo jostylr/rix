@@ -6309,7 +6309,7 @@ numericsNamespace._proto = {=
     RewriteGraph = (self, source, target, theorem) ->
         .CalculusGraphRewrite(source,target,theorem),
     CheckGraphRewrite = (self, result) -> .CalculusGraphRewriteCheck(result),
-    CheckDerivativeGraph = (self, transformation) -> .CalculusDerivativeCheck(transformation),
+    CheckDerivativeGraph = (self, transformation, options ?= {= }) -> .CalculusDerivativeCheck(transformation,options),
     DerivativeSign = (self, transformation, bindings, options ?= {= }) ->
         .CalculusDerivativeSign(transformation,bindings,options),
     LipschitzRange = (self, transformation, bindings, options ?= {= }) ->
@@ -6329,8 +6329,8 @@ numericsNamespace._proto = {=
         .KrawczykBox(expressions,jacobian,bindings,options),
     CheckKrawczyk = (self, result) -> .KrawczykCheck(result),
     CheckMultivariateRange = (self, result) -> .MultivariateRangeCheck(result),
-    RecognizeGraph = (self, expression, variable) ->
-        .CalculusRangeRecognize(expression, variable),
+    RecognizeGraph = (self, expression, variable, options ?= {= }) ->
+        .CalculusRangeRecognize(expression, variable, options),
     FunctionFacts = (self, function) -> NumericsFunctionFacts(function),
     WithRangeKnowledge = (self, function, knowledge) ->
         NumericsWithRangeKnowledge(function, knowledge),

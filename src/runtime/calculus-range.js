@@ -1,5 +1,6 @@
 import { hasScopedSymbols, hasExtendedConstants, expressionConstant, expressionOperation, expressionApplication, expressionVariable, expressionDefinition, expandExpression } from "./math-expression.js";
-import { mathBudgets } from "./math-budgets.js";
+import { mathBudgets, mathBudgetRecord } from "./math-budgets.js";
+import { createProviderEvaluation } from "./math-provider-eval.js";
 import {
     Integer,
     Rational,
@@ -603,7 +604,7 @@ function differentiatePrimitiveNode(expression, variable) {
     const kind = expressionKind(expression);
     if (kind === "constant") return { expression: graphConstant(0), obligations: [] };
     if (kind === "variable") {
-        const name = textValue(mapValue(expression, "name"))?.toLowerCase();
+        const name = rangeVariableKey(expression);
         return { expression: graphConstant(name === variable ? 1 : 0), obligations: [] };
     }
     if (kind === "apply") return differentiateTrustedSemanticApplication(expression, variable);
@@ -676,19 +677,24 @@ function obligationFingerprint(value) {
 }
 
 /** Independently derive exact primitive derivative stages and obligations. */
-export function differentiateCalculusPrimitiveGraphN(expression, variableValues) {
-    if (hasScopedSymbols(expression)) throw new Error('Scoped differentiation requires the calculus plugin identity-aware API');
+export function differentiateCalculusPrimitiveGraphN(expression, variableValues, options = map([])) {
+    validateRangeTraversal(expression, options);
     if (!isExpression(expression)) throw new Error("Expected a Calculus expression graph");
     const rawVariables = Array.isArray(variableValues) ? variableValues : [variableValues];
-    const variables = rawVariables.map((value) => textValue(value)?.toLowerCase());
-    if (variables.length < 1 || variables.length > 16 || variables.some((value) => !value)) {
+    const variables = rawVariables.map((value) => mapValue(value, "symbolid") ? value : textValue(value)?.toLowerCase());
+    const maxOrder = derivativeOrderLimit(options);
+    if (hasScopedSymbols(expression) && variables.some(value => !mapValue(value, "symbolid"))) throw new Error("Scoped derivative checking requires symbolic selectors");
+    for (const variable of variables) if (mapValue(variable, "symbolid")) rangeVariableKey(variable);
+    if (variables.length < 1 || variables.length > maxOrder || variables.some((value) => !value)) {
         throw new Error("invalidDerivativeVariables");
     }
-    let current = expression;
+    let current = hasScopedSymbols(expression) ? expandExpression(expression) : expression;
     const obligations = [];
     const derivativeExpressions = [];
     for (const variable of variables) {
-        const result = differentiatePrimitiveNode(current, variable);
+        validateRangeTraversal(current, options);
+        const result = differentiatePrimitiveNode(current, typeof variable === "string" ? variable : rangeVariableKey(variable));
+        validateRangeTraversal(result.expression, options);
         current = result.expression;
         obligations.push(...result.obligations);
         derivativeExpressions.push(current);
@@ -707,12 +713,19 @@ export function differentiateCalculusPrimitiveGraphN(expression, variableValues)
 }
 
 /** Independently derive one exact primitive derivative graph and obligations. */
-export function differentiateCalculusPrimitiveGraph(expression, variableValue) {
-    return differentiateCalculusPrimitiveGraphN(expression, [variableValue]);
+export function differentiateCalculusPrimitiveGraph(expression, variableValue, options) {
+    return differentiateCalculusPrimitiveGraphN(expression, [variableValue], options);
 }
 
 /** Check a Calculus transformation without trusting its visible rule trace. */
-export function checkCalculusDerivativeTransformation(transformation) {
+function derivativeOrderLimit(options) {
+    const raw = mapValue(options, "maxderivativeorder");
+    const value = integerValue(raw, raw == null ? 16n : null);
+    if (value === null || value < 1n || value > BigInt(Number.MAX_SAFE_INTEGER)) throw new Error("maxDerivativeOrder must be a positive safe integer");
+    return Number(value);
+}
+
+export function checkCalculusDerivativeTransformation(transformation, options = map([])) {
     try {
         if (textValue(mapValue(transformation, "schema")) !== "rix.calculus.transformation@1" ||
             textValue(mapValue(transformation, "operation")) !== "differentiate") {
@@ -720,21 +733,22 @@ export function checkCalculusDerivativeTransformation(transformation) {
         }
         const source = mapValue(transformation, "source");
         const expression = mapValue(transformation, "expression");
-        const variable = textValue(mapValue(transformation, "variable"));
+        const variable = mapValue(transformation, "variable");
         const order = integerValue(mapValue(transformation, "order"), 1n);
-        if (order < 1n || order > 16n) throw new Error("unsupportedDerivativeOrder");
+        if (order < 1n || order > BigInt(derivativeOrderLimit(options))) throw new Error("unsupportedDerivativeOrder");
         const claimedObligations = collectionValues(mapValue(transformation, "obligations"));
         if (!isExpression(source) || !isExpression(expression) || !claimedObligations) {
             throw new Error("malformedDerivativeTransformation");
         }
         const claimedVariables = collectionValues(mapValue(transformation, "variables"));
         const variables = claimedVariables
-            ? claimedVariables.map((value) => textValue(value))
+            ? claimedVariables
             : Array.from({ length: Number(order) }, () => variable);
         if (variables.length !== Number(order) || variables.some((value) => !value)) {
             throw new Error("derivativeOrderVariableMismatch");
         }
-        const actual = differentiateCalculusPrimitiveGraphN(source, variables);
+        validateRangeTraversal(expression, options);
+        const actual = differentiateCalculusPrimitiveGraphN(source, variables, options);
         if (calculusGraphStructuralKey(expression) !== actual.derivativeGraph) {
             throw new Error("derivativeGraphMismatch");
         }
@@ -831,7 +845,7 @@ export function evaluateCalculusDerivativeSign(
     options,
     conventions = { zeroPowerZero: "undefined" },
 ) {
-    const identity = checkCalculusDerivativeTransformation(transformation);
+    const identity = checkCalculusDerivativeTransformation(transformation, options);
     if (!identity.accepted) {
         return Object.freeze({
             schema: CALCULUS_DERIVATIVE_SIGN_SCHEMA,
@@ -854,6 +868,7 @@ export function evaluateCalculusDerivativeSign(
             diagnostics: Object.freeze(["derivativeSignRequiresFirstDerivative"]),
         });
     }
+    if (mapValue(identity.variable, "symbolid") && bindings?.type === "map") throw new Error("Scoped derivative ranges require identity binding pairs");
     const derivativeExpression = mapValue(transformation, "expression");
     const derivativeRange = evaluateCalculusGraphRange(
         derivativeExpression,
@@ -878,8 +893,13 @@ export function evaluateCalculusDerivativeSign(
     if (rangeCertified && derivativeRange.range.equals(zero)) direction = "constant";
     else if (rangeCertified && nonnegative.contains(derivativeRange.range)) direction = "nondecreasing";
     else if (rangeCertified && nonpositive.contains(derivativeRange.range)) direction = "nonincreasing";
+    const variableKey = typeof identity.variable === "string" ? identity.variable : rangeVariableKey(identity.variable);
+    const variableDomain = normalizeBindings(bindings).get(variableKey);
+    const connectedDomain = variableDomain?.components.length === 1 && !variableDomain.isEmpty;
+    if (!connectedDomain) direction = "unknown";
     const monotonicityCertified = direction !== "unknown";
     const diagnostics = [];
+    if (!connectedDomain) diagnostics.push("monotonicityRequiresOneConnectedVariableDomain");
     if (!derivativeRange.certified || derivativeRange.domainStatus !== "allDefined") {
         diagnostics.push("derivativeRangeNotTotal");
     }
@@ -946,17 +966,19 @@ function closedStrategyPieces(input, maximum) {
 }
 
 function strategySetup(transformation, bindings, options, requiredOrder) {
-    const identity = checkCalculusDerivativeTransformation(transformation);
+    const identity = checkCalculusDerivativeTransformation(transformation, options);
     if (!identity.accepted) throw new Error(identity.reason);
     if (identity.order !== requiredOrder) throw new Error(`strategyRequiresDerivativeOrder${requiredOrder}`);
-    if (identity.variables.some((variable) => variable !== identity.variables[0])) {
+    if (mapValue(identity.variable, "symbolid") && bindings?.type === "map") throw new Error("Scoped derivative ranges require identity binding pairs");
+    const variableKey = value => typeof value === "string" ? value : rangeVariableKey(value);
+    if (identity.variables.some((variable) => variableKey(variable) !== variableKey(identity.variables[0]))) {
         throw new Error("strategyRequiresOneDifferentiationVariable");
     }
     const normalized = normalizeBindings(bindings);
-    if (normalized.size !== 1 || !normalized.has(identity.variable)) {
+    if (normalized.size !== 1 || !normalized.has(variableKey(identity.variable))) {
         throw new Error("strategyRequiresOneMatchingBinding");
     }
-    const input = normalized.get(identity.variable);
+    const input = normalized.get(variableKey(identity.variable));
     const pieces = closedStrategyPieces(input, subdivisionCount(options));
     let optionEntries = [];
     if (options?.type === "map" && options.entries instanceof Map) {
@@ -971,6 +993,7 @@ function strategySetup(transformation, bindings, options, requiredOrder) {
 }
 
 function pieceBindings(variable, piece) {
+    if (mapValue(variable, "symbolid")) return sequence([{type:"tuple",values:[variable,piece]}]);
     return map([[variable, piece]]);
 }
 
@@ -1261,42 +1284,52 @@ function trimPolynomial(coefficients) {
     return result;
 }
 
-function polynomialAdd(left, right, subtract = false) {
+function boundedPolynomial(values, budget) {
+    if (values.length > budget.maxterms || values.length - 1 > budget.maxdegree) throw new Error("recognitionDegreeTermBudget");
+    for (const value of values) budget.arithmetic.read(value);
+    return trimPolynomial(values);
+}
+
+function polynomialAdd(left, right, subtract, budget) {
+    if (left.length + right.length > budget.maxsumterms) throw new Error("recognitionSumBudget");
     const length = Math.max(left.length, right.length);
     const result = [];
     for (let index = 0; index < length; index += 1) {
         const a = left[index] ?? Rational.zero;
         const b = right[index] ?? Rational.zero;
-        result.push(subtract ? a.subtract(b) : a.add(b));
+        result.push(budget.arithmetic.operate(subtract ? "subtract" : "add", [a,b]));
     }
-    return trimPolynomial(result);
+    return boundedPolynomial(result, budget);
 }
 
 function polynomialNegate(value) {
     return trimPolynomial(value.map((coefficient) => coefficient.negate()));
 }
 
-function polynomialMultiply(left, right) {
+function polynomialMultiply(left, right, budget) {
+    if (left.length * right.length > budget.maxproductpairs) throw new Error("recognitionProductBudget");
+    if (left.length + right.length - 1 > budget.maxterms || left.length + right.length - 2 > budget.maxdegree) throw new Error("recognitionDegreeTermBudget");
     const result = Array.from(
         { length: left.length + right.length - 1 },
         () => Rational.zero,
     );
     for (let i = 0; i < left.length; i += 1) {
         for (let j = 0; j < right.length; j += 1) {
-            result[i + j] = result[i + j].add(left[i].multiply(right[j]));
+            result[i + j] = budget.arithmetic.operate("add", [result[i+j], budget.arithmetic.operate("multiply", [left[i],right[j]])]);
         }
     }
-    return trimPolynomial(result);
+    return boundedPolynomial(result, budget);
 }
 
-function polynomialPower(value, exponent) {
+function polynomialPower(value, exponent, budget) {
+    if (exponent > BigInt(budget.maxexponent)) throw new Error("recognitionExponentBudget");
     let power = exponent;
     let factor = value;
     let result = [Rational.one];
     while (power > 0n) {
-        if ((power & 1n) === 1n) result = polynomialMultiply(result, factor);
+        if ((power & 1n) === 1n) result = polynomialMultiply(result, factor, budget);
         power >>= 1n;
-        if (power > 0n) factor = polynomialMultiply(factor, factor);
+        if (power > 0n) factor = polynomialMultiply(factor, factor, budget);
     }
     return trimPolynomial(result);
 }
@@ -1305,45 +1338,48 @@ function isZeroPolynomial(value) {
     return value.length === 1 && value[0].equals(Rational.zero);
 }
 
-function rationalGraphValue(numerator, denominator = [Rational.one], restrictions = []) {
+function rationalGraphValue(numerator, denominator = [Rational.one], restrictions = [], budget) {
     return {
-        numerator: trimPolynomial(numerator),
-        denominator: trimPolynomial(denominator),
+        numerator: boundedPolynomial(numerator, budget),
+        denominator: boundedPolynomial(denominator, budget),
+        budget,
         restrictions: [...restrictions],
     };
 }
 
 function rationalGraphAdd(left, right, subtract = false) {
+    const budget = left.budget;
     return rationalGraphValue(
         polynomialAdd(
-            polynomialMultiply(left.numerator, right.denominator),
-            polynomialMultiply(right.numerator, left.denominator),
-            subtract,
+            polynomialMultiply(left.numerator, right.denominator, budget),
+            polynomialMultiply(right.numerator, left.denominator, budget),
+            subtract, budget,
         ),
-        polynomialMultiply(left.denominator, right.denominator),
-        [...left.restrictions, ...right.restrictions],
+        polynomialMultiply(left.denominator, right.denominator, budget),
+        [...left.restrictions, ...right.restrictions], budget,
     );
 }
 
 function rationalGraphMultiply(left, right) {
+    const budget = left.budget;
     return rationalGraphValue(
-        polynomialMultiply(left.numerator, right.numerator),
-        polynomialMultiply(left.denominator, right.denominator),
-        [...left.restrictions, ...right.restrictions],
+        polynomialMultiply(left.numerator, right.numerator, budget),
+        polynomialMultiply(left.denominator, right.denominator, budget),
+        [...left.restrictions, ...right.restrictions], budget,
     );
 }
 
-function recognizeRationalGraphNode(expression, variable) {
+function recognizeRationalGraphNode(expression, variable, budget) {
     const kind = expressionKind(expression);
     if (kind === "constant") {
         const value = exactRational(mapValue(expression, "value"));
         if (!value) throw new Error("nonRationalGraphConstant");
-        return rationalGraphValue([value]);
+        return rationalGraphValue([value], undefined, [], budget);
     }
     if (kind === "variable") {
-        const name = textValue(mapValue(expression, "name"))?.toLowerCase();
+        const name = rangeVariableKey(expression);
         if (name !== variable) throw new Error(`unexpectedGraphVariable:${String(name)}`);
-        return rationalGraphValue([Rational.zero, Rational.one]);
+        return rationalGraphValue([Rational.zero, Rational.one], undefined, [], budget);
     }
     if (kind !== "operator") {
         if (kind === "apply") {
@@ -1355,35 +1391,35 @@ function recognizeRationalGraphNode(expression, variable) {
     const operands = expressionChildren(expression, "operands");
     if (operation === "negate") {
         if (operands.length !== 1) throw new Error("graphOperatorArity");
-        const value = recognizeRationalGraphNode(operands[0], variable);
+        const value = recognizeRationalGraphNode(operands[0], variable, budget);
         return rationalGraphValue(
             polynomialNegate(value.numerator),
             value.denominator,
-            value.restrictions,
+            value.restrictions, budget,
         );
     }
     if (operands.length !== 2) throw new Error("graphOperatorArity");
-    const left = recognizeRationalGraphNode(operands[0], variable);
+    const left = recognizeRationalGraphNode(operands[0], variable, budget);
     if (operation === "power") {
         const exponent = exactIntegerConstant(operands[1]);
         if (exponent === null) throw new Error("graphPowerRequiresIntegerConstant");
         if (exponent >= 0n) {
             return rationalGraphValue(
-                polynomialPower(left.numerator, exponent),
-                polynomialPower(left.denominator, exponent),
+                polynomialPower(left.numerator, exponent, budget),
+                polynomialPower(left.denominator, exponent, budget),
                 exponent === 0n
                     ? [...left.restrictions, `zeroPowerZero:${calculusGraphStructuralKey(operands[0])}`]
-                    : left.restrictions,
+                    : left.restrictions, budget,
             );
         }
         if (isZeroPolynomial(left.numerator)) throw new Error("identicallyZeroDenominator");
         return rationalGraphValue(
-            polynomialPower(left.denominator, -exponent),
-            polynomialPower(left.numerator, -exponent),
-            [...left.restrictions, calculusGraphStructuralKey(operands[0])],
+            polynomialPower(left.denominator, -exponent, budget),
+            polynomialPower(left.numerator, -exponent, budget),
+            [...left.restrictions, calculusGraphStructuralKey(operands[0])], budget,
         );
     }
-    const right = recognizeRationalGraphNode(operands[1], variable);
+    const right = recognizeRationalGraphNode(operands[1], variable, budget);
     if (operation === "add") return rationalGraphAdd(left, right);
     if (operation === "subtract") return rationalGraphAdd(left, right, true);
     if (operation === "multiply") return rationalGraphMultiply(left, right);
@@ -1392,13 +1428,13 @@ function recognizeRationalGraphNode(expression, variable) {
         const divisorKnownNonzeroConstant = right.numerator.length === 1 &&
             right.denominator.length === 1 && !right.numerator[0].equals(Rational.zero);
         return rationalGraphValue(
-            polynomialMultiply(left.numerator, right.denominator),
-            polynomialMultiply(left.denominator, right.numerator),
+            polynomialMultiply(left.numerator, right.denominator, budget),
+            polynomialMultiply(left.denominator, right.numerator, budget),
             [
                 ...left.restrictions,
                 ...right.restrictions,
                 ...(divisorKnownNonzeroConstant ? [] : [calculusGraphStructuralKey(operands[1])]),
-            ],
+            ], budget,
         );
     }
     throw new Error(`unsupportedGraphOperator:${String(operation)}`);
@@ -1408,15 +1444,20 @@ function recognizeRationalGraphNode(expression, variable) {
  * Recognize an exact univariate polynomial or source-domain-preserving
  * rational function without cancelling denominator restrictions.
  */
-export function recognizeCalculusGraph(expression, variableValue) {
-    if (hasScopedSymbols(expression)) throw new Error('Scoped polynomial recognition requires an identity-aware specification bridge');
+export function recognizeCalculusGraph(expression, variableValue, options) {
+    const limits = mathBudgets(options);
+    validateRangeTraversal(expression, map([["maxdepth",new Integer(BigInt(limits.maxdepth))],["maxwork",new Integer(BigInt(limits.maxvisits))]]));
     if (!isExpression(expression)) {
         return Object.freeze({ recognized: false, reason: "notCalculusExpression" });
     }
-    const variable = textValue(variableValue)?.toLowerCase();
+    const scoped = hasScopedSymbols(expression) || !!mapValue(variableValue, "symbolid");
+    const variable = scoped ? variableValue : textValue(variableValue)?.toLowerCase();
     if (!variable) return Object.freeze({ recognized: false, reason: "invalidPolynomialVariable" });
     try {
-        const value = recognizeRationalGraphNode(expression, variable);
+        if (scoped && !mapValue(variable, "symbolid")) throw new Error("Scoped recognition requires a symbolic selector");
+        const budget = {...limits, arithmetic:createProviderEvaluation(new Set(),limits)};
+        const expanded = scoped ? expandExpression(expression) : expression;
+        const value = recognizeRationalGraphNode(expanded, scoped ? rangeVariableKey(variable) : variable, budget);
         if (isZeroPolynomial(value.denominator)) {
             return Object.freeze({ recognized: false, reason: "identicallyZeroDenominator" });
         }
@@ -1424,7 +1465,7 @@ export function recognizeCalculusGraph(expression, variableValue) {
         let denominator = value.denominator;
         if (denominator.length === 1 && !denominator[0].equals(Rational.zero)) {
             const scale = denominator[0].reciprocal();
-            numerator = numerator.map((coefficient) => coefficient.multiply(scale));
+            numerator = numerator.map((coefficient) => budget.arithmetic.operate("multiply",[coefficient,scale]));
             denominator = [Rational.one];
         }
         const polynomial = denominator.length === 1 && denominator[0].equals(Rational.one) &&
@@ -1434,6 +1475,7 @@ export function recognizeCalculusGraph(expression, variableValue) {
             schema: "rix.numerics.calculus-graph-recognition@1",
             kind: polynomial ? "polynomial" : "rationalFunction",
             variable,
+            budgets: mathBudgetRecord(limits),
             graphIdentity: calculusGraphStructuralKey(expression),
             numerator: Object.freeze(trimPolynomial(numerator)),
             denominator: Object.freeze(trimPolynomial(denominator)),
@@ -2076,8 +2118,8 @@ export function calculusGraphRangeCheckValue(value) {
     });
 }
 
-export function calculusGraphRecognitionValue(expression, variable) {
-    return portable(recognizeCalculusGraph(expression, variable));
+export function calculusGraphRecognitionValue(expression, variable, options) {
+    return portable(recognizeCalculusGraph(expression, variable, options));
 }
 
 /** RiX adapter for canonical, domain-preserving graph simplification. */
@@ -2102,8 +2144,8 @@ export function calculusGraphRewriteCheckValue(value) {
 }
 
 /** RiX adapter for the independently recomputed primitive derivative check. */
-export function calculusDerivativeCheckValue(transformation) {
-    return portable(checkCalculusDerivativeTransformation(transformation));
+export function calculusDerivativeCheckValue(transformation, options) {
+    return portable(checkCalculusDerivativeTransformation(transformation, options));
 }
 
 /** RiX adapter for generic checked derivative-sign reasoning. */

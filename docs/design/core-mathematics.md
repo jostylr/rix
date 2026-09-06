@@ -49,7 +49,9 @@ required. Existing repository consumers will be updated directly.
    Certified arithmetic GraphRange and its independent checker now preserve scoped
    identities and source-domain holes, with explicit identity binding pairs and
    configurable depth/work/subdivision budgets. Context/semantic specification
-   conversion and derivative-sign/Lipschitz/Taylor/recognition consumers remain guarded;
+   conversion remains guarded. Scoped derivative-sign/Lipschitz/Taylor consumers and
+   polynomial/rational recognition now preserve identities, with checked obligations
+   and configurable per-stage derivative and recognition budgets;
    coordinated schema conversion is pending. See `documentation/eval/scoped-calculus-cas.md`.
 8. Identity-preserving mathematical serialization: implemented for the current
    expression/context/scalar model, including bounded JSONL and frozen real
@@ -64,7 +66,9 @@ required. Existing repository consumers will be updated directly.
   kernels beyond real Abs/Sqrt, additional numeric providers, and bounded assumption rewriting. Free substitution and
   exact rational evaluation are implemented; context inspection uses explicit records.
 - Stage 7: coordinated expression schema, contextual/semantic specification conversion,
-  and derivative-based certified range/recognition consumers; arithmetic GraphRange
+  broader provider-aware certified kernels, and name-keyed proof-transcript adapters;
+  arithmetic and derivative-based ranges,
+  polynomial/rational recognition,
   and symbolic calculus/CAS paths are identity-aware,
   with rational-only algorithm restrictions and core provider-aware evaluation.
 - Stage 8 follow-on: allowlisted portable real recipes and explicit, bounded

@@ -240,10 +240,10 @@ export const arithmeticFunctions = {
 
     CALCULUS_RANGE_RECOGNIZE: {
         impl(args) {
-            if (args.length !== 2) {
-                throw new Error("CalculusRangeRecognize expects an expression and variable");
+            if (args.length < 2 || args.length > 3) {
+                throw new Error("CalculusRangeRecognize expects an expression, variable, and optional budgets");
             }
-            return calculusGraphRecognitionValue(args[0], args[1]);
+            return calculusGraphRecognitionValue(args[0], args[1], args[2]);
         },
         pure: true,
         doc: "Recognize an exact polynomial or source-domain-preserving rational graph",
@@ -293,10 +293,10 @@ export const arithmeticFunctions = {
 
     CALCULUS_DERIVATIVE_CHECK: {
         impl(args) {
-            if (args.length !== 1) {
-                throw new Error("CalculusDerivativeCheck expects one transformation");
+            if (args.length < 1 || args.length > 2) {
+                throw new Error("CalculusDerivativeCheck expects a transformation and optional work options");
             }
-            return calculusDerivativeCheckValue(args[0]);
+            return calculusDerivativeCheckValue(args[0], args[1]);
         },
         pure: true,
         doc: "Independently recompute and check a primitive Calculus derivative transformation",

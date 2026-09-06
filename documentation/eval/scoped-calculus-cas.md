@@ -183,10 +183,77 @@ still enforces a separate 512-level host stack-safety ceiling. That is not an al
 degree limit; supporting deeper expressions safely requires iterative replacements for
 the remaining recursive routines, rather than merely removing the stack guard.
 
+## Checked derivatives, Lipschitz and Taylor ranges
+
+`CheckDerivativeGraph` independently recomputes scoped derivative stages and their
+obligations. `DerivativeSign`, `LipschitzRange`, and `TaylorRange` now use the same
+identities in their bindings and replayable evidence. Definitions expand before the
+independent differentiation; another same-named symbol is never substituted for the
+selected differentiation variable.
+
+```{.rix exec=true}
+.Plugin.Load("calculus"); .Plugin.Load("numerics");
+d := .calculus.DifferentiateResult(::x^2,::x);
+dd := .calculus.DifferentiateNResult(::x^2,::x,2);
+.numerics.DerivativeSign(d,[(::x,1:2)])[:direction] ##@ == :nondecreasing;
+ans := .numerics.LipschitzRange(d,[(::x,(-1):1)],{= maxSubintervals=2 });
+ans[:checker][:accepted] ##@ == 1;
+taylor := .numerics.TaylorRange(dd,[(::x,(-1):1)]);
+taylor[:certified] ##@ == 1;
+taylor[:curvature] ##@ == :convex;
+```
+
+The midpoint Lipschitz enclosure bounds variation using the first derivative.
+Subdivision often tightens it. Taylor uses the first derivative at the midpoint
+and a second-derivative remainder bound. These strategies currently require one
+matching, closed, bounded input range (possibly subdivided). Carried domain
+obligations must be discharged: an interval crossing a pole is not certified.
+
+A uniform derivative sign establishes monotonicity only on a connected variable
+domain. For example, the derivative of `1/x` is negative on both `[-2,-1]` and
+`[1,2]`, but the function is not globally nonincreasing across their union.
+The sign report can still certify the derivative enclosure while leaving
+`monotonicityCertified` false and `direction` unknown.
+
+`CheckDerivativeGraph(d,options)` and the range strategies accept `maxDepth`,
+`maxWork`, and `maxDerivativeOrder` (default 16, configurable positive safe integer).
+Depth and node budgets apply to the source, claimed derivative, and each recomputed
+derivative stage. The shared 512-level stack ceiling still applies. These are
+per-stage/per-partition limits, not a global deadline. The checker order budget is
+separate from any course-level derivative-construction limits.
+
+## Scoped polynomial and rational recognition
+
+`RecognizeGraph(expr,::x,options)` retains the selected symbol and uses it as the
+only independent polynomial coordinate. Unlike polynomial-only collection, it
+can recognize a rational expression while preserving all source denominator
+restrictions. Recognition is structural, not a proof that the function is defined
+everywhere, and it never cancels away source holes.
+
+```{.rix exec=true}
+.Plugin.Load("numerics");
+ans := .numerics.RecognizeGraph(::x/::x,::x);
+ans[:kind] ##@ == :rationalFunction;
+ans[:sourceDomainRestrictions].Len() ##@ == 1;
+.SameSymbol(ans[:variable],::x) ##@ == 1;
+limited := .numerics.RecognizeGraph((::x+1)^8,::x,{= maxProductPairs=2 });
+limited[:recognized] ##@ == _;
+raised := .numerics.RecognizeGraph((::x+1)^8,::x,{= maxProductPairs=100 });
+raised[:recognized] ##@ == 1;
+```
+
+Recognition accepts core `MathBudgets` options: `maxVisits`, `maxDepth`, `maxDigits`,
+`maxTerms`, `maxDegree`, `maxProductPairs`, `maxSumTerms`, and `maxExponent` govern
+the relevant work. Effective core settings appear in `budgets` on success.
+Malformed options or preflight traversal exhaustion throw; unsupported algebra and
+arithmetic-budget exhaustion return `recognized=_` with a reason. Coefficients
+remain rational, and foreign symbols and semantic applications remain unsupported.
+
 Current boundary: differentiation, symbolic integration, and graph simplification
 require rational constants. Extended constants can be constructed and numerically
 evaluated, but derivative/rewrite laws for those providers are not assumed. Contextual
-and semantic specification conversion, polynomial/rational graph recognition, and the
-derivative-sign/Lipschitz/Taylor primitive-graph pipeline still require their own
-identity-aware conversions; they reject scoped input rather than forgetting identities.
-Use core `Eval` for provider-aware scoped enclosure evaluation.
+and semantic specification conversion and broader provider-aware certified kernels
+remain pending, as do name-keyed proof-transcript adapters such as the complete
+critical-point rule. A trusted semantic derivative identity does not automatically make
+its function numerically evaluable by the arithmetic range engine. Use core `Eval`
+for the supported provider-aware scoped enclosure surface.
