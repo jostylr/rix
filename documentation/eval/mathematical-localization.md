@@ -250,8 +250,14 @@ mode. Substitution/instantiation use the traversal settings; arithmetic settings
 apply during evaluation. Domain safety and unsupported-provider checks cannot be disabled.
 Exponents above `maxExponent` remain unresolved; other exhausted budgets throw.
 
+The specification bridge also accepts `maxDepth` and `maxVisits` for conversion.
+Certified arithmetic `GraphRange` accepts `maxDepth`, but calls its traversal/work
+budget `maxWork` and additionally accepts `maxSubintervals`; its report exposes
+the effective settings. Both allow raising depth above 128, subject to the documented
+512-level host stack-safety ceiling.
+
 These options do not change the separate defensive JSON/JSONL import limits or
-the settings of calculus/CAS algorithms. Real refinement still uses its explicit
+other algorithm-specific calculus/CAS settings. Real refinement still uses its explicit
 request options such as `maxWork`; evaluation never refines automatically.
 
 ## Trusted semantic applications

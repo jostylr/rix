@@ -132,9 +132,61 @@ and semantic applications are rejected in this increment. In particular, a conte
 must not be stripped automatically: that would silently discard its assumptions.
 Use core `Eval` when conditions or provider evidence must accompany the answer.
 
+## Certified arithmetic graph ranges
+
+`.numerics.GraphRange` accepts scoped arithmetic expressions with `(symbol,range)`
+binding pairs. It retains symbol identities in dependency tracking, expands immutable
+definitions, and records the original identity bindings for independent checker replay.
+Name-keyed maps are rejected for scoped graphs. Bound symbols must be instantiated;
+mathematical contexts and extended constant providers are not accepted by this engine.
+
+```{.rix exec=true}
+.Plugin.Load("numerics");
+a := ::x; b := {; ::x };
+same := .numerics.GraphRange(a-a,[(a,1:2)]);
+different := .numerics.GraphRange(a-b,[(a,1:2),(b,1:2)]);
+same[:interval] ##@ == 0:0;
+different[:interval] ##@ == (-1):1;
+.numerics.CheckGraphRange(different)[:certified] ##@ == 1;
+```
+
+Unlike naive interval subtraction, the repeated-input rule knows that `a-a` is zero.
+Different same-named symbols are independent coordinates. Certification does not mean
+an expression is defined everywhere: for `x/x`, the source hole at zero is retained.
+
+```{.rix exec=true}
+.Plugin.Load("numerics");
+ans := .numerics.GraphRange(::x/::x,[(::x,(-1):1)],
+    {= maxDepth=200,maxWork=20000,maxSubintervals=2 });
+ans[:interval] ##@ == 1:1;
+ans[:domainStatus] ##@ == :partiallyDefined;
+.numerics.CheckGraphRange(ans)[:certified] ##@ == 1;
+ans[:budgets][:maxDepth] ##@ == 200;
+```
+
+| Option | Default | Meaning |
+| --- | ---: | --- |
+| `maxDepth` | 128 | Nesting, including immutable definition expansion |
+| `maxWork` (`maxNodes` alias) | 10000 | Preflight traversal visits and evaluated nodes per partition |
+| `maxSubintervals` | 1 | Requested one-variable subdivision count; existing components are retained |
+
+The effective limits are exposed in `[:budgets]`; evidence retains options for replay.
+Depth and traversal validation runs before recursive key construction or simplification.
+Exceeding preflight limits throws rather than producing a certificate. Evaluation work
+exhaustion can return an uncertified `:unknown` report. Subdivision and work settings
+accept positive safe integers without the former 10000/1000000 upper caps. Increasing
+them can substantially increase runtime/memory; `maxWork` is not a total wall-clock
+or all-partitions budget. Arithmetic growth is not yet bounded by `maxDigits` here.
+
+`maxDepth` is configurable, including above 128. The shared mathematical budget parser
+still enforces a separate 512-level host stack-safety ceiling. That is not an algorithmic
+degree limit; supporting deeper expressions safely requires iterative replacements for
+the remaining recursive routines, rather than merely removing the stack guard.
+
 Current boundary: differentiation, symbolic integration, and graph simplification
 require rational constants. Extended constants can be constructed and numerically
 evaluated, but derivative/rewrite laws for those providers are not assumed. Contextual
-and semantic specification conversion and the older certified range/primitive-graph
-pipeline still require their own identity-aware conversions; they reject scoped input
-rather than forgetting identities. Use core `Eval` for scoped enclosure evaluation.
+and semantic specification conversion, polynomial/rational graph recognition, and the
+derivative-sign/Lipschitz/Taylor primitive-graph pipeline still require their own
+identity-aware conversions; they reject scoped input rather than forgetting identities.
+Use core `Eval` for provider-aware scoped enclosure evaluation.

@@ -1,4 +1,5 @@
-import { hasScopedSymbols, hasExtendedConstants, expressionConstant, expressionOperation, expressionApplication, expressionVariable } from "./math-expression.js";
+import { hasScopedSymbols, hasExtendedConstants, expressionConstant, expressionOperation, expressionApplication, expressionVariable, expressionDefinition, expandExpression } from "./math-expression.js";
+import { mathBudgets } from "./math-budgets.js";
 import {
     Integer,
     Rational,
@@ -1450,6 +1451,18 @@ export function recognizeCalculusGraph(expression, variableValue) {
 }
 
 function normalizeBindings(bindings) {
+    if (["array", "sequence", "tuple"].includes(bindings?.type)) {
+        const result = new Map();
+        for (const pair of bindings.values) {
+            if (!["array", "sequence", "tuple"].includes(pair?.type) || pair.values.length !== 2) throw new Error("Scoped graph bindings require (symbol,range) pairs");
+            const [symbol, value] = pair.values;
+            if (!mapValue(symbol, "symbolid") || expressionKind(symbol) !== "variable") throw new Error("Scoped graph bindings require symbolic identities");
+            const key = rangeVariableKey(symbol);
+            if (result.has(key)) throw new Error("Duplicate scoped graph binding");
+            result.set(key, asRationalIntervalSet(value));
+        }
+        return result;
+    }
     if (!bindings || bindings.type !== "map" || !(bindings.entries instanceof Map)) {
         throw new Error("Calculus graph range bindings must be a Map");
     }
@@ -1462,6 +1475,40 @@ function normalizeBindings(bindings) {
         }
     }
     return result;
+}
+
+function rangeVariableKey(symbol) {
+    const id = textValue(mapValue(symbol, "symbolid"));
+    if (mapValue(symbol, "symbolid")) {
+        if (!id) throw new Error("Invalid scoped graph symbol identity");
+        if (expressionDefinition(symbol)) throw new Error("Graph bindings require independent symbols; definitions expand before evaluation");
+        if (mapValue(symbol, "bound")) throw new Error("Instantiate bound symbols before graph range evaluation");
+        return `scoped:${id}`;
+    }
+    return textValue(mapValue(symbol, "name"))?.toLowerCase();
+}
+
+// Check before recursive structural-key/simplification routines run. Definition
+// expansion counts toward the same budget instead of bypassing it.
+function validateRangeTraversal(expression, options) {
+    const depth = mapValue(options, "maxdepth");
+    const limits = mathBudgets(depth === undefined ? null : map([["maxdepth", depth]]));
+    const maxVisits = maxNodeCount(options);
+    const stack = [[expression, 0]];
+    let visits = 0;
+    while (stack.length) {
+        const [node, level] = stack.pop();
+        if (++visits > maxVisits) throw new Error("calculusGraphWorkLimit");
+        if (level > limits.maxdepth) throw new Error("calculusGraphDepthLimit");
+        const definition = expressionDefinition(node);
+        if (definition) { stack.push([definition, level + 1]); continue; }
+        const kind = expressionKind(node);
+        if (kind === "variable") rangeVariableKey(node);
+        const children = kind === "operator" ? expressionChildren(node, "operands")
+            : kind === "apply" ? expressionChildren(node, "arguments") : [];
+        for (const child of children) stack.push([child, level + 1]);
+    }
+    return Object.freeze({ maxDepth: limits.maxdepth, maxWork: maxVisits, maxSubintervals: subdivisionCount(options) });
 }
 
 function bindingFingerprint(bindings) {
@@ -1618,7 +1665,7 @@ function evaluateNode(expression, bindings, state) {
         });
         result.nodeId = appendTrace(state, "given.constant", graphKey, [], exactSetConclusion(result));
     } else if (kind === "variable") {
-        const name = textValue(mapValue(expression, "name"))?.toLowerCase();
+        const name = rangeVariableKey(expression);
         if (!name || !bindings.has(name)) throw new Error(`missingGraphBinding:${String(name)}`);
         const range = bindings.get(name);
         result = graphNodeResult({
@@ -1716,15 +1763,15 @@ function evaluateNode(expression, bindings, state) {
 
 function subdivisionCount(options) {
     const raw = mapValue(options, "maxsubintervals");
-    const value = integerValue(raw, 1n);
-    if (value < 1n || value > 10_000n) throw new Error("maxSubintervals must be between 1 and 10000");
+    const value = integerValue(raw, raw == null ? 1n : null);
+    if (value === null || value < 1n || value > BigInt(Number.MAX_SAFE_INTEGER)) throw new Error("maxSubintervals must be a positive safe integer");
     return Number(value);
 }
 
 function maxNodeCount(options) {
     const raw = mapValue(options, "maxwork") ?? mapValue(options, "maxnodes");
-    const value = integerValue(raw, 10_000n);
-    if (value < 1n || value > 1_000_000n) throw new Error("maxWork must be between 1 and 1000000");
+    const value = integerValue(raw, raw == null ? 10_000n : null);
+    if (value === null || value < 1n || value > BigInt(Number.MAX_SAFE_INTEGER)) throw new Error("maxWork must be a positive safe integer");
     return Number(value);
 }
 
@@ -1766,7 +1813,6 @@ function aggregateCoverage(results) {
 }
 
 function evaluateWithBindings(expression, bindings, options, conventions) {
-    if (hasScopedSymbols(expression)) throw new Error('Scoped range evaluation requires the core Eval API');
     const state = {
         cache: new Map(),
         trace: [],
@@ -1788,11 +1834,15 @@ function checkedSimplificationRequested(options) {
 }
 
 function rangeResult(expression, sourceBindings, options, conventions = { zeroPowerZero: "undefined" }) {
+    const budgets = validateRangeTraversal(expression, options);
+    const scoped = hasScopedSymbols(expression);
+    if (scoped && sourceBindings?.type === "map") throw new Error("Scoped graph range evaluation requires identity binding pairs, not name maps");
     const bindings = normalizeBindings(sourceBindings);
+    const expanded = scoped ? expandExpression(expression) : expression;
     const simplification = checkedSimplificationRequested(options)
-        ? simplifyCalculusGraph(expression)
+        ? simplifyCalculusGraph(expanded)
         : null;
-    const evaluationExpression = simplification?.expression ?? expression;
+    const evaluationExpression = simplification?.expression ?? expanded;
     const maximumPieces = subdivisionCount(options);
     let partitions = [bindings];
     if (bindings.size === 1 && maximumPieces > 1) {
@@ -1822,6 +1872,7 @@ function rangeResult(expression, sourceBindings, options, conventions = { zeroPo
                 expression,
                 evaluationExpression,
                 simplification,
+                budgets,
                 bindings,
                 range: RationalIntervalSet.empty,
                 status: "unknown",
@@ -1837,7 +1888,7 @@ function rangeResult(expression, sourceBindings, options, conventions = { zeroPo
                     expression,
                     evaluationExpression,
                     simplification,
-                    bindings,
+                    bindings: sourceBindings,
                     options,
                     conventions,
                     trace: Object.freeze(trace),
@@ -1859,6 +1910,7 @@ function rangeResult(expression, sourceBindings, options, conventions = { zeroPo
         expression,
         evaluationExpression,
         simplification,
+        budgets,
         bindings,
         range,
         status: certified ? "enclosed" : "unknown",
@@ -1875,7 +1927,7 @@ function rangeResult(expression, sourceBindings, options, conventions = { zeroPo
             expression,
             evaluationExpression,
             simplification,
-            bindings,
+            bindings: sourceBindings,
             options,
             conventions,
             trace: Object.freeze(trace),
@@ -1899,9 +1951,7 @@ export function checkCalculusGraphRangeResult(candidate) {
         evidence?.checker !== CALCULUS_GRAPH_RANGE_CHECKER) {
         return Object.freeze({ accepted: false, certified: false, reason: "unsupportedGraphRangeEvidence" });
     }
-    const recomputed = rangeResult(evidence.expression, map(
-        [...evidence.bindings.entries()].map(([key, value]) => [key, value]),
-    ), evidence.options, evidence.conventions);
+    const recomputed = rangeResult(evidence.expression, evidence.bindings, evidence.options, evidence.conventions);
     const accepted = candidate.functionId === recomputed.functionId &&
         candidate.range.equals(recomputed.range) &&
         candidate.domainStatus === recomputed.domainStatus &&
@@ -1928,7 +1978,7 @@ function portable(value) {
     if (Array.isArray(value)) return sequence(value.map(portable));
     if (value instanceof Set) return sequence([...value].map(portable));
     if (value instanceof Map) return map([...value].map(([key, entry]) => [key, portable(entry)]));
-    if (value?.type === "map" || value?.type === "sequence" || value?.type === "string") return value;
+    if (["map", "sequence", "array", "tuple", "string"].includes(value?.type)) return value;
     if (typeof value === "object") {
         return map(Object.entries(value).map(([key, entry]) => [key, portable(entry)]));
     }
@@ -1958,6 +2008,7 @@ export function calculusGraphRangeValue(expression, bindings, options, context) 
         ["goalMet", portable(result.goalMet)],
         ["evidenceLevel", text(check.certified ? "checkedEvidence" : "heuristic")],
         ["work", portable(result.work)],
+        ["budgets", portable(result.budgets)],
         ["diagnostics", portable(result.diagnostics)],
         ["exclusions", portable(result.exclusions || [])],
         ["evidence", portable(result.evidence)],
@@ -1999,7 +2050,7 @@ export function calculusGraphRangeCheckValue(value) {
     if (textValue(mapValue(value, "schema")) !== CALCULUS_GRAPH_RANGE_SCHEMA ||
         textValue(mapValue(evidence, "kind")) !== "calculusGraphEvaluation" ||
         textValue(mapValue(evidence, "checker")) !== CALCULUS_GRAPH_RANGE_CHECKER ||
-        !isExpression(expression) || bindings?.type !== "map") {
+        !isExpression(expression) || !["map", "array", "sequence", "tuple"].includes(bindings?.type)) {
         return portable({
             accepted: false,
             certified: false,
