@@ -23,7 +23,7 @@ Contexts retain their binders, assumptions, domains, traversal information, and 
 validation. Substitution does not execute the original body again. Binder identities
 remain unchanged. Bound-symbol keys and replacement expressions containing bound
 symbols (including through definitions) are rejected: this conservative free-only API
-does not yet implement binder instantiation or alpha-renaming. Nested contexts are
+does not instantiate binders; use `Instantiate` below. Nested contexts are
 traversed with their own identities intact. Context consistency resets to `unresolved`.
 
 `MathEvaluate(expressionOrContext, bindings=[])` returns an immutable
@@ -47,15 +47,15 @@ no refinement is implicit. Open variables remain unresolved, not errors.
 
 Rational comparisons in assumptions are checked after substitution. A false comparison
 produces `invalidAssumptions`. With explicit replacement pairs, unknown comparisons,
-any binders or domains, and imported unverified contexts prevent a complete value.
-That substitution-only overload does not discharge domains. No assumption is
+remaining binders, unresolved domains, and imported unverified contexts prevent a
+complete value. Exact points now discharge rational domains in both overloads. No assumption is
 installed in programming scope or silently used for algebraic rewriting.
 
 ```{.rix exec=true}
 positive := {& ::x>0 & ::x+1 };
 report := .MathEvaluate(positive,[(::x,2)]);
-report[:status] ##@ == :conditional;
-report[:value] ##@ == _;
+report[:status] ##@ == :complete;
+report[:value] ##@ == 3;
 report[:candidate] ##@ == 3;
 ```
 
@@ -114,3 +114,30 @@ even when all arithmetic checks succeed. No external solver or proof engine runs
 Traversal is bounded to 10,000 visits and depth 128 per phase; computed integers are
 limited to 10,000 decimal characters, with a conservative preflight bound for powers.
 Budget exhaustion throws. These synchronous, browser-safe APIs run no external code.
+
+## Explicit binder instantiation
+
+`ctx.Instantiate([(binder,value), ...])` is the receiver form of
+`.MathInstantiate(ctx,bindings)`. Contexts also support `Eval` and `Substitute`.
+Select binders from `ctx[:binders]`, not by spelling. Only binders declared by
+that context may be selected. The new context removes selected identities from
+its active binder list, substitutes all their occurrences (including outer captures
+inside nested contexts), and retains every assumption and domain for evaluation.
+Same-named inner binders keep their distinct identities. The original context is unchanged.
+
+```{.rix exec=true}
+ctx := {& :::t | 1:0; :::t>0 & :::t^2 };
+point := ctx.Instantiate([(ctx[:binders][1],1/2)]);
+point.Eval()[:value] ##@ == 1/4;
+point[:domains][1][:domain][:orientation] ##@ == :desc;
+ctx.Instantiate([(ctx[:binders][1],0)]).Eval()[:status] ##@ == :invalidAssumptions;
+```
+
+Instantiation is simultaneous and may be partial. A replacement can contain free
+symbols; later `Eval` bindings can localize them. Replacement expressions containing
+bound symbols are rejected, including through definitions, so capture cannot occur.
+Foreign, duplicate, free-symbol, and already-instantiated binder keys are errors.
+`instantiations` records original selected symbols and replacements as provenance.
+This operation selects parameter values; it does not compute an integral or sum,
+change traversal direction, or rerun a context body. Imported contexts regain these
+trusted built-in methods but retain their unverified evidence status.

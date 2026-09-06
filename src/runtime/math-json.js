@@ -1,6 +1,7 @@
 /** Inert, bounded document-local graph interchange. No evaluator callbacks. */
 import {Integer,Rational,RationalInterval} from "@ratmath/core";
 import {UNDECIDED} from "./decision.js";
+import {attachMathContextMethods} from './math-context-methods.js';
 import {createExactGenerator} from "./exact-values.js";
 import {realConstantState,restoreRealSnapshot} from "./math-real.js";
 import {expressionField as field,isMathExpression,expressionStructuralKey,expressionDefinition,
@@ -10,7 +11,7 @@ export const MATH_DOCUMENT_SCHEMA="rix.math.document@1";
 const MAX_TEXT=2_000_000, MAX_NODES=10000, MAX_DEPTH=128, MAX_DIGITS=1024;
 const fail=message=>{throw new Error(`Mathematical JSON: ${message}`);};
 const text=value=>({type:"string",value});
-const immutable=entries=>({type:"map",entries:new Map(entries),_ext:new Map([["immutable",new Integer(1n)]])});
+const immutable=entries=>attachMathContextMethods({type:"map",entries:new Map(entries),_ext:new Map([["immutable",new Integer(1n)]])});
 function fields(value,keys) {
     if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).length !== keys.length || keys.some(key=>!Object.hasOwn(value,key))) fail("unexpected or missing fields");
 }

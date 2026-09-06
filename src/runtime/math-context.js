@@ -1,5 +1,6 @@
 /** Mathematical contexts retain conditions as data; they do not enable ambient rewrites. */
 import { Integer, Rational, RationalInterval } from "@ratmath/core";
+import {attachMathContextMethods} from './math-context-methods.js';
 import { expressionField, expressionStructuralKey, expandExpression, freshExpressionSymbol, isMathExpression } from "./math-expression.js";
 
 const str=value=>({type:"string",value});
@@ -153,9 +154,9 @@ function evaluateContext([header,body],context,evaluate) {
     }
     function statement(index,result) {
         if (index<body.length) return then(evaluateNode(body[index]),value=>statement(index+1,value));
-        return record({schema:str("rix.math.context@1"),result,binders:seq(binders),assumptions:seq(assumptions),
+        return attachMathContextMethods(record({schema:str("rix.math.context@1"),result,binders:seq(binders),assumptions:seq(assumptions),
             domains:seq([...bounds.values()].map(domain=>record({symbol:domain.symbol,domain:domainRecord(domain)}))),
-            consistency:str(unresolved ? "unresolved" : "checkedBounds")});
+            consistency:str(unresolved ? "unresolved" : "checkedBounds")}));
     }
     return declaration(0);
 }

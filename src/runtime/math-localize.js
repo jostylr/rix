@@ -1,23 +1,24 @@
 /** Bounded, inert localization. No semantic application or imported code is run. */
 import {Integer,Rational} from '@ratmath/core';
+import {attachMathContextMethods} from './math-context-methods.js';
 import {expressionField as field,expressionDefinition,expressionOperation,expressionApplication,
     promoteExpression,isMathExpression} from './math-expression.js';
 
 const str=value=>({type:'string',value});
 const seq=values=>({type:'sequence',values});
-const record=fields=>({type:'map',entries:new Map(Object.entries(fields)),_ext:new Map([['immutable',new Integer(1n)]])});
+const record=fields=>attachMathContextMethods({type:'map',entries:new Map(Object.entries(fields)),_ext:new Map([['immutable',new Integer(1n)]])});
 const rational=value=>value instanceof Integer ? new Rational(value.value,1n) : value instanceof Rational && value.denominator!==0n ? value : null;
 const isContext=value=>field(value,'schema')?.value==='rix.math.context@1';
 const id=value=>field(value,'symbolid')?.value;
 
-function worker(bindings) {
+function worker(bindings,allowedBinders=null) {
     if (!['sequence','tuple'].includes(bindings?.type)) throw new Error('Mathematical bindings require a sequence of (symbol, value) pairs');
     const replacements=new Map();
     let visits=0;
     const tick=depth=>{if (++visits>10000 || depth>128) throw new Error('Mathematical localization traversal budget exceeded');};
     function checkReplacement(value,depth=0) {
         tick(depth);
-        if (field(value,'bound')) throw new Error('Substitution cannot introduce bound symbols; binder instantiation is not supported');
+        if (field(value,'bound')) throw new Error('Substitution cannot introduce bound symbols');
         const definition=expressionDefinition(value);
         if (definition) checkReplacement(definition,depth+1);
         for (const key of ['operands','arguments']) for (const child of field(value,key)?.values || []) checkReplacement(child,depth+1);
@@ -25,7 +26,8 @@ function worker(bindings) {
     for (const pair of bindings.values) {
         if (pair?.type!=='tuple' || pair.values.length!==2) throw new Error('Expected a (symbol, value) binding');
         const [symbol,value]=pair.values;
-        if (!isMathExpression(symbol) || field(symbol,'kind')?.value!=='variable' || !id(symbol) || field(symbol,'bound')) throw new Error('Bindings require free scoped symbols');
+        if (!isMathExpression(symbol) || field(symbol,'kind')?.value!=='variable' || !id(symbol)) throw new Error('Bindings require scoped symbols');
+        if (allowedBinders ? !field(symbol,'bound') || !allowedBinders.has(id(symbol)) : field(symbol,'bound')) throw new Error(allowedBinders ? 'Instantiation requires a binder declared by this context' : 'Bindings require free scoped symbols');
         expressionDefinition(symbol); // Validate the opaque identity, not just its printed ID.
         if (replacements.has(id(symbol))) throw new Error('Duplicate mathematical binding');
         const replacement=promoteExpression(value);
@@ -45,13 +47,27 @@ function worker(bindings) {
         }
         if (['sequence','tuple'].includes(value?.type)) return {type:value.type,values:value.values.map(v=>walk(v,depth+1))};
         if (value?.type==='map') {
-            const fields=Object.fromEntries([...value.entries].map(([key,v])=>[key,walk(v,depth+1)]));
+            const fields=Object.fromEntries([...value.entries].map(([key,v])=>[key,
+                isContext(value) && key==='binders' && allowedBinders
+                    ? seq(v.values.filter(symbol=>!replacements.has(id(symbol)))) : walk(v,depth+1)]));
             if (isContext(value)) fields.consistency=str('unresolved');
             return record(fields);
         }
         return value;
     }
     return {walk,tick};
+}
+
+export function instantiateMathematics(value,bindings) {
+    if (!isContext(value) || field(value,'binders')?.type!=='sequence') throw new Error('MathInstantiate requires a mathematical context');
+    const allowed=new Set(field(value,'binders').values.map(id));
+    const localized=worker(bindings,allowed).walk(value);
+    // Provenance is data, not an active binder list or a new definition.
+    localized.entries.set('instantiations',seq([
+        ...(field(localized,'instantiations')?.values || []),
+        ...bindings.values.map(pair=>record({symbol:pair.values[0],value:promoteExpression(pair.values[1])})),
+    ]));
+    return localized;
 }
 
 export function substituteMathematics(value,bindings) {
@@ -123,9 +139,7 @@ export function evaluateMathematics(value,bindings=seq([])) {
     if (context) {
         conditional=!!field(context,'binders')?.values.length || field(context,'validation')?.value==='unverifiedImport';
         for (const entry of field(context,'domains')?.values || []) {
-            // Only the context-argument overload discharges exact point domains.
-            // Pair substitution retains its existing conservative contract.
-            const point=assumptionContext ? rational(field(field(entry,'symbol'),'value')) : null;
+            const point=rational(calculate(field(entry,'symbol')));
             const domain=field(entry,'domain');
             if (!point || !domain) {conditional=true;continue;}
             for (const [endpoint,closed,lower] of [['lower','lowerclosed',true],['upper','upperclosed',false]]) {
@@ -159,6 +173,7 @@ export function evaluateMathematics(value,bindings=seq([])) {
 }
 
 export const mathematicalLocalizationCapabilities={
+    MathInstantiate:{impl:([value,bindings])=>instantiateMathematics(value,bindings),pure:false,doc:'Instantiate selected local binders while retaining their domains and assumptions'},
     MathSubstitute:{impl:([value,bindings])=>substituteMathematics(value,bindings),pure:false,doc:'Simultaneous identity-based free substitution retaining context conditions'},
     MathEvaluate:{impl:([value,bindings])=>evaluateMathematics(value,bindings),pure:false,doc:'Bounded exact rational evaluation with explicit unresolved context obligations'},
 };

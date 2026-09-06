@@ -20,9 +20,9 @@ for (const [mode,evaluate] of [['sync',parseAndEvaluate],['async',parseAndEvalua
     test(`${mode}: conditions are checked without being erased`,async()=> {
         for (const [n,status] of [[2,'complete'],[-2,'invalidAssumptions']]) {
             const result=await run(`c := {& ::x>0 & ::x+1 }; .MathEvaluate(c,[(::x,${n})]);`);
-            // Domain obligations remain explicit even when comparisons decide.
-            expect(get(result,'status').value).toBe(status==='complete' ? 'conditional' : status);
-            expect(get(result,'value')).toBeNull();
+            expect(get(result,'status').value).toBe(status);
+            if (status==='complete') expect(String(get(result,'value'))).toBe('3');
+            else expect(get(result,'value')).toBeNull();
             expect(get(result,'context').entries.get('assumptions').values.length).toBe(1);
         }
         const result=await run('c := {& ::x==::y & ::x+1 }; .MathEvaluate(c,[(::x,2),(::y,2)]);');

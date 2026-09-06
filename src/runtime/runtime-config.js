@@ -43,7 +43,7 @@ export const runtimeDefaults = Object.freeze({
     Symbolic: Object.freeze(["POLY", "DERIV", "INTEGRATE", "TRANSFORM", "SIMPLIFY", "SPEC", "SPECCABILITY", "INSPECTSPEC", "SPECROLES", "SPECFRACTIONPARTS", "SArith", "ExpressionVariable", "ExpressionConstant", "ExpressionOperation", "ExpressionApply", "IsExpression", "ExpressionKey", "ExpressionHasScopedSymbols", "SameSymbol", "SYMBOL_RETRIEVE", "SYMBOL_DEFINE", "ExpressionDefinition", "ExpressionExpand"]),
     MathematicalContexts: Object.freeze(["MATH_CONTEXT", "BOUND_SYMBOL"]),
     MathematicalSerialization: Object.freeze(["MathEncodeJSON", "MathDecodeJSON", "MathEncodeJSONL", "MathDecodeJSONL"]),
-    MathematicalLocalization: Object.freeze(["MathSubstitute", "MathEvaluate"]),
+    MathematicalLocalization: Object.freeze(["MathSubstitute", "MathEvaluate", "MathInstantiate"]),
     SymbolicConstants: Object.freeze(["ExpressionConstantInfo", "ExpressionHasExtendedConstants", "ExpressionReal", "ExpressionRefine"]),
     Notation: Object.freeze(["SArith", "Poly", "NotationParser"]),
     Random: Object.freeze(["RNG", "RANDOMSEED", "RandomSeed", "RAND_NAME"]),
