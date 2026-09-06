@@ -24,6 +24,7 @@ p := 1~{pi};
 | Finite Integer/Rational | Exact singleton | Commutative, associative, distributive; cancellation with its ordinary nonzero precondition |
 | Bounded RationalInterval | Set enclosure, even when endpoints coincide | Addition/multiplication are commutative and associative; no general distributivity or cancellation |
 | Core exact generator/expression | Exact scalar | Commutative, associative, distributive; cancellation undecided |
+| Explicit adapted singleton real | Singleton with certified enclosure and procedure | Real scalar laws, subject to the provider's singleton guarantee |
 
 These are laws of the provider's addition and multiplication, not blanket
 claims about division, exponentiation, or partially defined expressions.
@@ -34,10 +35,11 @@ registry; it is not a numerical approximation to pi or a refinement oracle.
 The inspection record has schema `rix.math.constant-provider@1`, `provider`,
 `denotation`, `exact`, `refinable`, `commutative`, `associative`, `distributive`,
 `cancellation`, and `enclosure`. Decisions use `1`, `_`, or `?`. The
-`refinable` flag is `_` for these adapters: this interface currently provides
-no refinement procedure, including for trivially exactly known rationals.
-Intervals expose their unchanged oriented enclosure; other providers return
-`_` in that field. Unsupported objects and nonfinite rational components
+`refinable` flag is `_` for the rational, interval, and exact-generator adapters,
+including trivially exactly known rationals. Explicit real adapters return `1`.
+Intervals expose their unchanged oriented enclosure; adapted reals expose their
+accumulated enclosure. Rational and exact-generator providers return `_` in
+that field. Unsupported objects and nonfinite rational components
 error instead of acquiring inferred capabilities from a schema label.
 
 ## Equality and structural identity
@@ -60,10 +62,9 @@ display strings. Keys are session-local structural data, not saved-file IDs.
 
 ## Remaining adapters and consumer work
 
-Refinable reals need an adapter to the existing Numerics capability/refinement
-protocol, preserving singleton evidence, budgeted refinement, identity, and
-the distinction between certified and merely claimed facts. Merely wrapping
-a map with a real-looking schema is not supported. Physical quantities need
+The [explicit refinable-real adapter](mathematical-reals.md) uses the Numerics
+protocol; merely wrapping a map with a real-looking schema is not supported.
+Physical quantities need
 dimension-aware operations; quaternion/octonion values need their own
 noncommutative/nonassociative laws. They are not included by accepting the
 unrelated commutative core exact-generator representation.

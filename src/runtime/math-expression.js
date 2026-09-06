@@ -2,6 +2,7 @@
 import { Integer, Rational } from "@ratmath/core";
 import { UNDECIDED } from "./decision.js";
 import {constantKey,constantEquality,constantProviderInfo,isExpressionScalar,isEnclosureConstant} from "./math-constant.js";
+import {adaptRealConstant,refineRealConstant} from "./math-real.js";
 
 // The schema rename and identity-aware consumer conversion are a separate stage.
 export const EXPRESSION_SCHEMA = "rix.calculus.expression@1";
@@ -252,7 +253,12 @@ export const expressionSyntaxFunctions = {
 };
 
 export const expressionCapabilities = {
-    ExpressionConstantInfo: { impl:([value])=>constantProviderInfo(isMathExpression(value) && expressionField(value,"kind")?.value === "constant" ? expressionField(value,"value") : value), pure:true,groups:["Symbolic"],doc:"Inspect core constant denotation and algebraic laws without refinement" },
+    ExpressionReal: {impl:([source,options],context,evaluate)=> {
+        const adapted=adaptRealConstant(source,options,context,evaluate);
+        return adapted instanceof Promise ? adapted.then(expressionConstant) : expressionConstant(adapted);
+    },pure:false,groups:["Symbolic"],doc:"Adapt a certified singleton provider with one bounded initial refinement"},
+    ExpressionRefine: {impl:([value,options],context,evaluate)=>refineRealConstant(isMathExpression(value) && expressionField(value,"kind")?.value === "constant" ? expressionField(value,"value") : value,options,context,evaluate),pure:false,groups:["Symbolic"],doc:"Explicitly refine an adapted real constant and check its enclosure"},
+    ExpressionConstantInfo: { impl:([value])=>constantProviderInfo(isMathExpression(value) && expressionField(value,"kind")?.value === "constant" ? expressionField(value,"value") : value), pure:false,groups:["Symbolic"],doc:"Inspect core constant denotation and algebraic laws without refinement" },
     ExpressionHasExtendedConstants: { impl:([value])=>hasExtendedConstants(value) ? new Integer(1n) : null,pure:true,groups:["Symbolic"],doc:"Recognize constants requiring provider-aware consumers" },
     ExpressionDefinition: { impl:([symbol])=> {
         if (!expressionField(symbol,"symbolid")) throw new Error("ExpressionDefinition requires a scoped symbol");

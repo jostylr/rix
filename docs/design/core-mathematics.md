@@ -21,9 +21,11 @@ required. Existing repository consumers will be updated directly.
    intersect; product tuples bind multiple symbols. Symbolic/dependent endpoint
    domains and arbitrary ordered traversal sources remain pending.
 5. Mathematical constant providers: finite rational, bounded rational interval,
-   and core exact-scalar promotion/inspection implemented. Interval equality is
-   enclosure-aware; exact keys retain generator identity. Refinable-real,
-   dimensional-quantity, and noncommutative/nonassociative adapters remain pending.
+   and core exact-scalar promotion/inspection implemented. Explicit refinable-real
+   adapters now retain provider procedures, protocol-checked enclosures, and
+   stable identity. Interval equality is enclosure-aware; exact keys retain
+   generator identity. Dimensional-quantity and noncommutative/nonassociative
+   adapters remain pending.
 6. Context inspection, substitution, evaluation, and bounded reasoning: pending.
 7. Repository-wide consumer and schema conversion: pending.
 8. Identity-preserving mathematical serialization: pending.

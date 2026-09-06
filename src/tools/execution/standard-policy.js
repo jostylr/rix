@@ -17,7 +17,7 @@ export const STANDARD_CAPABILITY_NAMES = Object.freeze([
     "Complex", "Concat", "Config", "CONTROLPANEL", "Controls", "ConvertUnit", "DEBUG", "DEEPMUTABLE",
     "Define", "DefineExactGenerator", "DefineUnit", "DERIV", "Difference", "Disjoint", "Div", "DivMod",
     "DivRound", "DivUp", "DOCUMENT_TEMPLATE", "DoubleFactorial", "DUMP", "EMPHASIS", "EQ",
-    "Equal", "ERROR", "EVAL", "Exact", "ExpressionApply", "ExpressionConstant", "ExpressionConstantInfo", "ExpressionDefinition", "ExpressionExpand", "EXPRESSIONFROMSPEC", "ExpressionHasExtendedConstants", "ExpressionHasScopedSymbols", "ExpressionKey", "ExpressionOperation", "ExpressionVariable", "Factorial", "FIGURE", "Filter", "FIRST",
+    "Equal", "ERROR", "EVAL", "Exact", "ExpressionApply", "ExpressionConstant", "ExpressionConstantInfo", "ExpressionDefinition", "ExpressionExpand", "EXPRESSIONFROMSPEC", "ExpressionHasExtendedConstants", "ExpressionHasScopedSymbols", "ExpressionKey", "ExpressionOperation", "ExpressionReal", "ExpressionRefine", "ExpressionVariable", "Factorial", "FIGURE", "Filter", "FIRST",
     "FORMULASHEET", "FRAGMENT", "GETEL", "Graphics", "Greater", "GreaterEqual", "GRID", "GT",
     "GTE", "HEADING", "Hull", "If", "IMAGE", "ImmutableValue", "INFO", "INFOVALUE", "INSPECTSPEC",
     "IntDiv", "INTEGRATE", "Intersect", "Intersects", "Interval", "IRANGE", "IsExpression", "JacobianBoxRange", "KEYOF", "KEYS", "KrawczykBox", "KrawczykCheck", "Lambda",
