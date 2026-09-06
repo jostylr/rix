@@ -60,6 +60,33 @@ export function substituteMathematics(value,bindings) {
 }
 
 export function evaluateMathematics(value,bindings=seq([])) {
+    const assumptionContext=isContext(bindings) ? bindings : null;
+    if (assumptionContext) {
+        if (!isMathExpression(value)) throw new Error('Evaluation under a context requires an expression receiver');
+        const assumptions=field(assumptionContext,'assumptions');
+        if (assumptions?.type!=='sequence' || field(assumptionContext,'domains')?.type!=='sequence' || field(assumptionContext,'binders')?.type!=='sequence') throw new Error('Invalid mathematical evaluation context');
+        const inferred=new Map();
+        const inspector=worker(seq([]));
+        const exactValue=expr=> {
+            const expanded=inspector.walk(expr);
+            return rational(expanded) || (field(expanded,'kind')?.value==='constant' ? rational(field(expanded,'value')) : null);
+        };
+        for (const assumption of assumptions.values) {
+            if (field(assumption,'operator')?.value!=='==') continue;
+            const left=field(assumption,'left'),right=field(assumption,'right');
+            for (const [symbol,other] of [[left,right],[right,left]]) {
+                if (!isMathExpression(symbol) || field(symbol,'kind')?.value!=='variable' || !id(symbol) || field(symbol,'bound') || expressionDefinition(symbol)) continue;
+                const exact=exactValue(other);
+                // Keep the first value; a conflicting later assumption will fail
+                // during validation, rather than silently overriding it.
+                if (exact && !inferred.has(id(symbol))) inferred.set(id(symbol),{type:'tuple',values:[symbol,exact]});
+            }
+        }
+        bindings=seq([...inferred.values()]);
+        // The context body has already run. Only its retained conditions are used;
+        // no stored code runs and no ambient programming/symbol scope is changed.
+        value=record({...Object.fromEntries(assumptionContext.entries),result:value});
+    }
     const localized=substituteMathematics(value,bindings);
     const {tick}=worker(seq([]));
     const reasons=new Set();
@@ -94,7 +121,29 @@ export function evaluateMathematics(value,bindings=seq([])) {
     const candidate=calculate(context ? field(context,'result') : localized);
     let conditional=false,invalid=false;
     if (context) {
-        conditional=!!field(context,'binders')?.values.length || !!field(context,'domains')?.values.length || field(context,'validation')?.value==='unverifiedImport';
+        conditional=!!field(context,'binders')?.values.length || field(context,'validation')?.value==='unverifiedImport';
+        for (const entry of field(context,'domains')?.values || []) {
+            // Only the context-argument overload discharges exact point domains.
+            // Pair substitution retains its existing conservative contract.
+            const point=assumptionContext ? rational(field(field(entry,'symbol'),'value')) : null;
+            const domain=field(entry,'domain');
+            if (!point || !domain) {conditional=true;continue;}
+            for (const [endpoint,closed,lower] of [['lower','lowerclosed',true],['upper','upperclosed',false]]) {
+                const raw=field(domain,endpoint);
+                if (raw===null) continue;
+                const bound=rational(raw), inclusion=field(domain,closed);
+                if (!bound || !(inclusion===null || inclusion instanceof Integer && inclusion.value===1n)) {conditional=true;continue;}
+                const c=point.lessThan(bound) ? -1 : point.greaterThan(bound) ? 1 : 0;
+                if ((lower ? c<0 : c>0) || c===0 && inclusion===null) invalid=true;
+            }
+            const excluded=field(domain,'excluded');
+            if (excluded?.type!=='sequence') conditional=true;
+            else for (const raw of excluded.values) {
+                const bound=rational(raw);
+                if (!bound) conditional=true;
+                else if (!point.lessThan(bound) && !point.greaterThan(bound)) invalid=true;
+            }
+        }
         for (const assumption of field(context,'assumptions')?.values || []) {
             const a=calculate(field(assumption,'left')),b=calculate(field(assumption,'right'));
             if (!a || !b) {conditional=true;continue;}
@@ -106,7 +155,7 @@ export function evaluateMathematics(value,bindings=seq([])) {
     }
     const status=invalid ? 'invalidAssumptions' : candidate===null ? 'unresolved' : conditional ? 'conditional' : 'complete';
     return record({schema:str('rix.math.evaluation@1'),status:str(status),value:status==='complete' ? candidate : null,
-        candidate:invalid ? null : candidate,localized,context,reasons:seq([...reasons].map(str))});
+        candidate:invalid ? null : candidate,localized,context,assumptioncontext:assumptionContext,reasons:seq([...reasons].map(str))});
 }
 
 export const mathematicalLocalizationCapabilities={

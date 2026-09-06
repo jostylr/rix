@@ -27,8 +27,10 @@ required. Existing repository consumers will be updated directly.
    generator identity. Dimensional-quantity and noncommutative/nonassociative
    adapters remain pending.
 6. Context inspection and bounded free substitution/rational evaluation implemented
-   (`MathSubstitute`, `MathEvaluate`); conditions remain attached to reports. Bound
-   instantiation, domain discharge, provider evaluation, and assumption rewriting
+   (`MathSubstitute`, `MathEvaluate`, expression `Substitute`/`Eval` methods).
+   Context-argument evaluation infers direct exact-value equalities and checks
+   rational point domains; conditions remain attached to reports. Bound
+   instantiation, general domain reasoning, provider evaluation, and assumption rewriting
    remain pending. See `documentation/eval/mathematical-localization.md`.
 7. Repository-wide consumer and schema conversion: pending.
 8. Identity-preserving mathematical serialization: implemented for the current
@@ -40,7 +42,7 @@ required. Existing repository consumers will be updated directly.
 
 - Stage 4: dependent/symbolic domains and arbitrary ordered traversal sources.
 - Stage 5: dimensional-quantity and noncommutative/nonassociative adapters.
-- Stage 6: binder instantiation/alpha-renaming, domain discharge, provider-aware
+- Stage 6: binder instantiation/alpha-renaming, general domain reasoning, provider-aware
   numerical evaluation and bounded assumption rewriting. Free substitution and
   exact rational evaluation are implemented; context inspection uses explicit records.
 - Stage 7: coordinated expression schema and repository-wide consumer conversion;
