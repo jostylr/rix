@@ -35,7 +35,9 @@ required. Existing repository consumers will be updated directly.
    supports rational intervals, bounded core exact-scalar ring arithmetic, and stored
    real enclosures with explicit evidence/status. Interval-domain containment checks
    preserve undecided overlap. Localization/evaluation work budgets are per-call
-   options, inspectable through `MathBudgets` and evaluation reports. General domain reasoning and assumption rewriting
+   options, inspectable through `MathBudgets` and evaluation reports. Trusted real
+   Abs and principal Sqrt semantic evaluation is implemented; interval root precision
+   is configurable with `rootBits`. General domain reasoning and assumption rewriting
    remain pending. See `documentation/eval/mathematical-localization.md`.
 7. Repository-wide consumer and schema conversion: pending.
 8. Identity-preserving mathematical serialization: implemented for the current
@@ -47,8 +49,8 @@ required. Existing repository consumers will be updated directly.
 
 - Stage 4: dependent/symbolic domains and arbitrary ordered traversal sources.
 - Stage 5: dimensional-quantity and noncommutative/nonassociative adapters.
-- Stage 6: bound-to-bound alpha-renaming, general domain reasoning, semantic-function
-  linking, additional numeric providers, and bounded assumption rewriting. Free substitution and
+- Stage 6: bound-to-bound alpha-renaming, general domain reasoning, further semantic
+  kernels beyond real Abs/Sqrt, additional numeric providers, and bounded assumption rewriting. Free substitution and
   exact rational evaluation are implemented; context inspection uses explicit records.
 - Stage 7: coordinated expression schema and repository-wide consumer conversion;
   name-based calculus/CAS/range paths still reject identity/provider-aware inputs.

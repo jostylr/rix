@@ -3,6 +3,7 @@ import {Integer,Rational,RationalInterval} from '@ratmath/core';
 import {isExactValue,addScalars,subtractScalars,multiplyScalars,divideScalars,negateScalar} from './exact-values.js';
 import {constantProviderInfo,constantEquality} from './math-constant.js';
 import {realConstantState} from './math-real.js';
+import {REAL_SEMANTICS,evaluateRealSemantic} from './math-semantic-eval.js';
 
 export const asRational=value=>value instanceof Integer ? new Rational(value.value,1n) : value instanceof Rational && value.denominator!==0n ? value : null;
 const interval=value=>value instanceof RationalInterval ? value : asRational(value) ? new RationalInterval(asRational(value),asRational(value)) : null;
@@ -57,7 +58,7 @@ export function compareProviderValues(left,right,op) {
 
 export function createProviderEvaluation(reasons,limits) {
     const check=value=>budget(value,limits);
-    const providers=new Map(),reals=new Map();
+    const providers=new Map(),reals=new Map(),semantics=new Set();
     let sawReal=false,sawSet=false,unverified=false;
     const unsupported=reason=>{reasons.add(reason);return null;};
     function read(value) {
@@ -122,7 +123,9 @@ export function createProviderEvaluation(reasons,limits) {
         if (op==='negate') return check(negateScalar(a));
         return unsupported('unsupportedOperation');
     }
-    return {read,operate,get unverified(){return unverified;},get providers(){return [...providers.values()];},
+    return {read,operate,supportsApplication:id=>REAL_SEMANTICS.includes(id),
+        apply:(id,args)=>{semantics.add(id);return evaluateRealSemantic(id,args,limits,check,unsupported);},
+        get semantics(){return [...semantics];},get unverified(){return unverified;},get providers(){return [...providers.values()];},
         isApproximation:value=>sawReal && value instanceof RationalInterval,
         resultKind:value=>value===null ? 'unresolved' : value instanceof RationalInterval ? sawSet ? 'setEnclosure' : 'singletonEnclosure' : isExactValue(value) ? 'exactScalar' : 'rational'};
 }

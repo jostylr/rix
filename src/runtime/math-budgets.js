@@ -2,7 +2,7 @@ import {Integer} from '@ratmath/core';
 
 export const DEFAULT_MATH_BUDGETS=Object.freeze({maxvisits:10000,maxdepth:128,maxdigits:10000,
     maxterms:1024,maxproductpairs:1024,maxsumterms:1024,maxgenerators:64,
-    maxpolynomialcoefficients:64,maxdegree:10000,maxexponent:256});
+    maxpolynomialcoefficients:64,maxdegree:10000,maxexponent:256,rootbits:64});
 
 export function mathBudgets(options) {
     const result={...DEFAULT_MATH_BUDGETS};

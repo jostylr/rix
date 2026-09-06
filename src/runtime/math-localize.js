@@ -1,4 +1,4 @@
-/** Bounded, inert localization. No semantic application or imported code is run. */
+/** Bounded localization and closed semantic kernels. No imported code is run. */
 import {Integer,Rational,RationalInterval} from '@ratmath/core';
 import {attachMathContextMethods} from './math-context-methods.js';
 import {createProviderEvaluation,compareProviderValues} from './math-provider-eval.js';
@@ -121,7 +121,12 @@ export function evaluateMathematics(value,bindings=seq([]),options) {
             return provider.read(field(expr,'value'));
         }
         if (kind==='variable') {reasons.add('unboundSymbol');return null;}
-        if (kind==='apply') {reasons.add('unlinkedSemanticApplication');return null;}
+        if (kind==='apply') {
+            const semantic=field(expr,'semanticid').value;
+            if (!provider.supportsApplication(semantic)) {reasons.add('unlinkedSemanticApplication');return null;}
+            const args=field(expr,'arguments').values.map(v=>calculate(v,depth+1));
+            return args.some(v=>v===null) ? null : provider.apply(semantic,args);
+        }
         const args=field(expr,'operands').values.map(v=>calculate(v,depth+1));
         if (args.some(v=>v===null)) return null;
         return provider.operate(field(expr,'operation').value,args);
@@ -170,7 +175,8 @@ export function evaluateMathematics(value,bindings=seq([]),options) {
     return record({schema:str('rix.math.evaluation@1'),status:str(status),value:status==='complete' ? candidate : null,
         candidate:invalid ? null : candidate,localized,context,assumptioncontext:assumptionContext,reasons:seq([...reasons].map(str)),
         resultkind:str(invalid ? 'unresolved' : resultKind),
-        enclosure:!invalid && candidate instanceof RationalInterval ? candidate : null,providers:seq(provider.providers),budgets:mathBudgetRecord(limits)});
+        enclosure:!invalid && candidate instanceof RationalInterval ? candidate : null,providers:seq(provider.providers),
+        semantics:seq(provider.semantics.map(str)),budgets:mathBudgetRecord(limits)});
 }
 
 export const mathematicalLocalizationCapabilities={

@@ -37,6 +37,7 @@ traversed with their own identities intact. Context consistency resets to `unres
 | `resultKind` | `rational`, `exactScalar`, `setEnclosure`, `singletonEnclosure`, or `unresolved` |
 | `enclosure` | Interval candidate, including real approximations; otherwise `_` |
 | `providers` | Provider metadata for inputs inspected during calculation and condition checks |
+| `semantics` | Trusted semantic IDs attempted during evaluation |
 | `localized` | Substituted expression or context, preserving obligations |
 | `context` | The localized context, or `_` for bare expressions |
 | `assumptionContext` | Original context supplied as the second argument, or `_` |
@@ -44,8 +45,9 @@ traversed with their own identities intact. Context consistency resets to `unres
 
 Exact finite rational arithmetic, negation, and integer powers from -256 through 256
 are supported. Division by zero and zero to nonpositive powers remain unresolved.
-Symbolic function applications are inert: semantic IDs never trigger a registry or
-plugin lookup. Known core constant providers are supported as described below;
+Symbolic applications use only the explicit semantic kernels described below;
+unknown IDs remain inert and no ID triggers a registry or plugin lookup.
+Known core constant providers are supported as described below;
 no refinement is implicit. Open variables remain unresolved, not errors.
 
 Rational comparisons in assumptions are checked after substitution. A false comparison
@@ -208,7 +210,7 @@ supported equality does not prove arbitrary inequality.
 Additional budgets cap exact-scalar products at 1,024 input-term pairs, sums at 1,024
 input terms, 64 generators per term, generator polynomials at 64 coefficients, and
 absolute term powers at 10,000. The earlier rational, exponent, and traversal budgets
-still apply. Semantic function linking, quantities, noncommutative providers, and
+still apply. Further semantic kernels, quantities, noncommutative providers, and
 automatic precision scheduling remain future work.
 
 ## Per-call work budgets
@@ -238,6 +240,7 @@ ans[:budgets][:maxProductPairs] ##@ == 2048;
 | `maxPolynomialCoefficients` | 64 | Coefficients per generator polynomial |
 | `maxDegree` | 10000 | Absolute power per generator in a term |
 | `maxExponent` | 256 | Absolute integer exponent evaluated |
+| `rootBits` | 64 | Dyadic fractional bits for interval square-root endpoints |
 
 `.MathBudgets(options)` returns the merged settings; reports expose `budgets`.
 Unknown keys, non-Integer values, nonpositive values, and integers above the JS
@@ -250,3 +253,46 @@ Exponents above `maxExponent` remain unresolved; other exhausted budgets throw.
 These options do not change the separate defensive JSON/JSONL import limits or
 the settings of calculus/CAS algorithms. Real refinement still uses its explicit
 request options such as `maxWork`; evaluation never refines automatically.
+
+## Trusted semantic applications
+
+The first supported meanings are `rix.function.abs.real@1` and
+`rix.function.sqrt.real-principal@1`, each taking exactly one argument. They match
+the calculus plugin's semantic IDs, but evaluation does not load that plugin or call
+its implementation. Display names are labels only. `semantics` records attempted
+known IDs; it is not a proof certificate. Unknown IDs remain unresolved even if
+their name happens to be `Sqrt`.
+
+```{.rix exec=true}
+Root(x) -> .ExpressionApply("rix.function.sqrt.real-principal@1",:Sqrt,[x]);
+ans := Root(::x).Eval([(::x,2)]);
+ans[:status] ##@ == :complete;
+ans[:resultKind] ##@ == :exactScalar;
+.ExpressionConstant(ans[:value]^2) == .ExpressionConstant(2) ##@ == 1;
+Root(9/4).Eval()[:value] ##@ == 3/2;
+```
+
+For nonnegative rational inputs, square root returns an exact rational or the core
+canonical positive algebraic root. It does not approximate an irrational singleton.
+For rational intervals and real-adapter enclosures, it returns certified dyadic
+endpoint bounds, with error at each endpoint at most `2^(-rootBits)`. Input interval
+width remains: increasing `rootBits` does not refine a real adapter. Integer square
+root and rational comparisons establish the bounds without floating-point numerical
+evaluation. The scaled integer allocation is checked against `maxDigits` first.
+
+```{.rix exec=true}
+Root(x) -> .ExpressionApply("rix.function.sqrt.real-principal@1",:Sqrt,[x]);
+ans := Root(::x).Eval([(::x,2:3)],{= rootBits=32 });
+ans[:enclosure].Start()^2 <= 2 ##@ == 1;
+ans[:enclosure].End()^2 >= 3 ##@ == 1;
+Root(-1:2).Eval()[:status] ##@ == :unresolved;
+```
+
+An entirely negative input reports `outsideRealSquareRootDomain`; an interval
+crossing into negatives reports `squareRootDomainUnresolved`. The kernel does not
+discard invalid points or switch to a complex branch. Real `Abs` supports rational
+and interval arguments, including intervals straddling zero. Both kernels accept
+stored real enclosures and preserve their approximation/import evidence restrictions.
+General exact-scalar arguments, unsupported arity, and further semantic meanings
+remain diagnostic rather than invoking arbitrary code. Inert JSON loading is unchanged;
+an explicit subsequent `Eval` may use these known mathematical meanings.
