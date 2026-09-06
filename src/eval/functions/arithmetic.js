@@ -6,6 +6,7 @@
 
 import { Integer, Rational } from "@ratmath/core";
 import { formatValue } from "../format.js";
+import {calculusDerivativeProofValue} from '../../runtime/calculus-proof.js';
 import { executeRangeOperation, rangeEvidence } from "../../runtime/range-arithmetic.js";
 import {
     calculusGraphRangeValue,
@@ -300,6 +301,12 @@ export const arithmeticFunctions = {
         },
         pure: true,
         doc: "Independently recompute and check a primitive Calculus derivative transformation",
+    },
+
+    CALCULUS_DERIVATIVE_PROOF: {
+        impl: ([transformation, options]) => calculusDerivativeProofValue(transformation, options),
+        pure: true,
+        doc: "Build and independently check a first-derivative proof record without trusted leaves",
     },
 
     CALCULUS_DERIVATIVE_SIGN: {

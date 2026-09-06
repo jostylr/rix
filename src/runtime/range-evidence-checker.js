@@ -17,6 +17,7 @@ import {
     recognizeCalculusGraph,
     substituteCalculusGraphVariable,
 } from "./calculus-range.js";
+import {isMathExpression,expressionField,expressionDefinition,expressionStructuralKey} from "./math-expression.js";
 
 export const RANGE_EVIDENCE_SCHEMA = "rix.numerics.range-evidence@1";
 export const RANGE_CHECKER_VOCABULARY = "rix.numerics.range-checker@1";
@@ -205,11 +206,22 @@ function sameIdentity(left, right) {
     return typeof left === "string" && left.length > 0 && left === right;
 }
 
+function proofVariableKey(value) {
+    if (typeof value === "string" && value.length) return `named:${value.toLowerCase()}`;
+    if (!isMathExpression(value) || expressionField(value,"kind")?.value !== "variable" || !expressionField(value,"symbolid")) throw new Error("invalidProofVariable");
+    if (expressionDefinition(value) || expressionField(value,"bound")) throw new Error("proofVariableMustBeIndependent");
+    return expressionStructuralKey(value);
+}
+function isProofVariable(value) {
+    try { proofVariableKey(value); return true; } catch { return false; }
+}
+const sameVariable=(left,right)=>proofVariableKey(left)===proofVariableKey(right);
+
 function derivativeRangeFact(value) {
     if (value?.type !== "derivativeRange" ||
         typeof value.functionGraph !== "string" ||
         typeof value.derivativeGraph !== "string" ||
-        typeof value.variable !== "string") {
+        !isProofVariable(value.variable)) {
         throw new Error("wrongDerivativeRangeFact");
     }
     const input = asSet(value.input);
@@ -225,7 +237,7 @@ function derivativeIdentityFact(value) {
     if (value?.type !== "derivativeIdentity" ||
         typeof value.functionGraph !== "string" ||
         typeof value.derivativeGraph !== "string" ||
-        typeof value.variable !== "string" ||
+        !isProofVariable(value.variable) ||
         !Array.isArray(value.obligations)) {
         throw new Error("wrongDerivativeIdentityFact");
     }
@@ -266,7 +278,7 @@ function criticalPointsFact(value) {
     if (value?.type !== "criticalPoints" || value.complete !== true ||
         typeof value.functionGraph !== "string" ||
         typeof value.derivativeGraph !== "string" ||
-        typeof value.variable !== "string" ||
+        !isProofVariable(value.variable) ||
         !Array.isArray(value.isolatingComponents)) {
         throw new Error("expectedCriticalPointsFact");
     }
@@ -282,7 +294,7 @@ function monotonicityPartitionFact(value) {
     if (value?.type !== "monotonicityPartition" ||
         typeof value.functionGraph !== "string" ||
         typeof value.derivativeGraph !== "string" ||
-        typeof value.variable !== "string" ||
+        !isProofVariable(value.variable) ||
         !Array.isArray(value.pieces) || !Array.isArray(value.directions) ||
         value.pieces.length !== value.directions.length) {
         throw new Error("expectedMonotonicityPartitionFact");
@@ -538,6 +550,7 @@ function checkNode(node, premises, options) {
             const recognition = recognizeCalculusGraph(
                 identity.derivativeExpression,
                 identity.variable,
+                options.recognitionOptions,
             );
             if (!recognition.recognized || recognition.kind !== "polynomial" ||
                 !sameIdentity(recognition.graphIdentity, identity.derivativeGraph) ||
@@ -547,8 +560,8 @@ function checkNode(node, premises, options) {
             if (conclusion?.type !== "criticalPoints" || conclusion.complete !== true ||
                 !sameIdentity(conclusion.functionGraph, identity.functionGraph) ||
                 !sameIdentity(conclusion.derivativeGraph, identity.derivativeGraph) ||
-                typeof conclusion.variable !== "string" ||
-                conclusion.variable.toLowerCase() !== identity.variable.toLowerCase() ||
+                !isProofVariable(conclusion.variable) ||
+                !sameVariable(conclusion.variable, identity.variable) ||
                 conclusion.endpointPolicy !== isolated.endpointPolicy ||
                 !sameSet(conclusion.searchSet, isolated.searchSet) ||
                 !Array.isArray(conclusion.isolatingComponents) ||
@@ -620,7 +633,7 @@ function checkNode(node, premises, options) {
             const claimed = monotonicityPartitionFact(conclusion);
             if (!sameIdentity(claimed.functionGraph, critical.functionGraph) ||
                 !sameIdentity(claimed.derivativeGraph, critical.derivativeGraph) ||
-                claimed.variable.toLowerCase() !== critical.variable.toLowerCase() ||
+                !sameVariable(claimed.variable, critical.variable) ||
                 !claimed.parent.equals(critical.searchSet) ||
                 claimed.endpointPolicy !== critical.endpointPolicy ||
                 claimed.pieces.length !== pieces.length ||
@@ -638,12 +651,12 @@ function checkNode(node, premises, options) {
         case "derivative.graph": {
             if (premises.length !== 0) throw new Error("wrongPremiseCount");
             const claimed = derivativeIdentityFact(conclusion);
-            const checked = checkCalculusDerivativeTransformation(node.parameters?.transformation);
+            const checked = checkCalculusDerivativeTransformation(node.parameters?.transformation, options.derivativeOptions);
             if (!checked.accepted) throw new Error(checked.reason);
             if (checked.order !== 1) throw new Error("derivativeGraphRuleRequiresFirstDerivative");
             if (!sameIdentity(claimed.functionGraph, checked.functionGraph) ||
                 !sameIdentity(claimed.derivativeGraph, checked.derivativeGraph) ||
-                claimed.variable.toLowerCase() !== checked.variable ||
+                !sameVariable(claimed.variable, checked.variable) ||
                 claimed.obligations.length !== checked.obligationDescriptors.length ||
                 claimed.obligations.some((value, index) =>
                     value !== checked.obligationDescriptors[index])) {
@@ -669,7 +682,7 @@ function checkNode(node, premises, options) {
             const claimed = monotonicityFact(conclusion);
             if (identity && (!sameIdentity(identity.functionGraph, derivative.functionGraph) ||
                 !sameIdentity(identity.derivativeGraph, derivative.derivativeGraph) ||
-                identity.variable.toLowerCase() !== derivative.variable.toLowerCase())) {
+                !sameVariable(identity.variable, derivative.variable))) {
                 throw new Error("derivativeRangeIdentityMismatch");
             }
             if (!sameIdentity(claimed.functionGraph, derivative.functionGraph) ||
@@ -862,6 +875,10 @@ export function checkRangeEvidence(document, options = {}) {
         work: Object.freeze({ nodes: extra.nodes ?? 0, exactOperations: extra.exactOperations ?? 0 }),
     });
 
+    for (const [key,value] of Object.entries(limits)) {
+        if (!Object.hasOwn(DEFAULT_LIMITS,key) || !Number.isSafeInteger(value) || value < 0) return reject("invalidResourceLimit");
+    }
+
     if (document?.schema !== RANGE_EVIDENCE_SCHEMA ||
         document?.vocabulary !== RANGE_CHECKER_VOCABULARY) return reject("unsupportedSchema");
     if (!Array.isArray(document.nodes) || document.nodes.length > limits.maxNodes) {
@@ -878,25 +895,30 @@ export function checkRangeEvidence(document, options = {}) {
     const results = new Map();
     const trustedDependencies = [];
     let exactOperations = 0;
-    const visit = (id) => {
-        if (!byId.has(id)) throw new Error("danglingPremise");
-        if (states.get(id) === "visiting") throw new Error("evidenceCycle");
-        if (states.get(id) === "done") return results.get(id);
-        states.set(id, "visiting");
-        const node = byId.get(id);
-        if (!Array.isArray(node.premises)) throw new Error("invalidPremises");
-        const premises = node.premises.map(visit);
-        const result = checkNode(node, premises, { ...options, limits });
-        exactOperations += 1;
-        if (countComponents(result.fact) > limits.maxComponents) throw new Error("resourceLimit");
-        if (result.trusted) trustedDependencies.push(node.id);
-        states.set(id, "done");
-        results.set(id, result);
-        return result;
-    };
-
     try {
-        const root = visit(document.root);
+        // Explicit postorder stack: proof-chain depth is not a JS call-stack limit.
+        const pending = [[document.root,false]];
+        while (pending.length) {
+            const [id,leaving] = pending.pop();
+            if (!byId.has(id)) throw new Error("danglingPremise");
+            if (states.get(id) === "done") continue;
+            const node = byId.get(id);
+            if (!leaving) {
+                if (states.get(id) === "visiting") throw new Error("evidenceCycle");
+                if (!Array.isArray(node.premises)) throw new Error("invalidPremises");
+                states.set(id,"visiting");
+                pending.push([id,true]);
+                for (let i=node.premises.length-1;i>=0;i--) pending.push([node.premises[i],false]);
+                continue;
+            }
+            const result = checkNode(node,node.premises.map(key=>results.get(key)),{...options,limits});
+            exactOperations += 1;
+            if (countComponents(result.fact) > limits.maxComponents) throw new Error("resourceLimit");
+            if (result.trusted) trustedDependencies.push(node.id);
+            states.set(id,"done");
+            results.set(id,result);
+        }
+        const root = results.get(document.root);
         return Object.freeze({
             accepted: true,
             certified: true,

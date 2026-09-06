@@ -296,6 +296,7 @@ const CORE_SYNTAX_CAPABILITIES = {
     CalculusGraphRewrite: "CALCULUS_GRAPH_REWRITE",
     CalculusGraphRewriteCheck: "CALCULUS_GRAPH_REWRITE_CHECK",
     CalculusDerivativeCheck: "CALCULUS_DERIVATIVE_CHECK",
+    CalculusDerivativeProof: "CALCULUS_DERIVATIVE_PROOF",
     CalculusDerivativeSign: "CALCULUS_DERIVATIVE_SIGN",
     CalculusLipschitzRange: "CALCULUS_LIPSCHITZ_RANGE",
     CalculusTaylorRange: "CALCULUS_TAYLOR_RANGE",

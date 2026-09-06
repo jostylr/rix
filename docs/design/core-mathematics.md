@@ -51,7 +51,10 @@ required. Existing repository consumers will be updated directly.
    configurable depth/work/subdivision budgets. Context/semantic specification
    conversion remains guarded. Scoped derivative-sign/Lipschitz/Taylor consumers and
    polynomial/rational recognition now preserve identities, with checked obligations
-   and configurable per-stage derivative and recognition budgets;
+   and configurable per-stage derivative and recognition budgets. Derivative,
+   critical-point, and monotonicity-partition proof adapters preserve scoped symbols;
+   browser-safe DerivativeProof exposes a checked first-derivative transcript without
+   trusted leaves. Proof-DAG traversal is iterative with configurable resource limits;
    coordinated schema conversion is pending. See `documentation/eval/scoped-calculus-cas.md`.
 8. Identity-preserving mathematical serialization: implemented for the current
    expression/context/scalar model, including bounded JSONL and frozen real
@@ -66,7 +69,7 @@ required. Existing repository consumers will be updated directly.
   kernels beyond real Abs/Sqrt, additional numeric providers, and bounded assumption rewriting. Free substitution and
   exact rational evaluation are implemented; context inspection uses explicit records.
 - Stage 7: coordinated expression schema, contextual/semantic specification conversion,
-  broader provider-aware certified kernels, and name-keyed proof-transcript adapters;
+  broader provider-aware certified kernels, and scoped monotone-composition proof substitution;
   arithmetic and derivative-based ranges,
   polynomial/rational recognition,
   and symbolic calculus/CAS paths are identity-aware,

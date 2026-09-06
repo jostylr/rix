@@ -10,7 +10,7 @@
 export const STANDARD_CAPABILITY_NAMES = Object.freeze([
     "Abs", "Add", "AffineBoxRange", "Algebra", "All", "And", "Any", "Array", "ASSET", "Assign",
     "AssignCopy", "AssignDeepCopy", "AssignDeepUpdate", "AssignUpdate", "AUDIO", "BIND",
-    "Block", "CalculusDerivativeCheck", "CalculusDerivativeSign", "CalculusGraphRewrite",
+    "Block", "CalculusDerivativeCheck", "CalculusDerivativeProof", "CalculusDerivativeSign", "CalculusGraphRewrite",
     "CalculusGraphRewriteCheck", "CalculusGraphSimplificationCheck", "CalculusGraphSimplify",
     "CalculusLipschitzRange", "CalculusRange", "CalculusRangeCheck", "CalculusRangeRecognize",
     "CalculusTaylorRange", "CALLOUT", "Case", "CertifiedApproximation", "Chunk", "CODE", "CODEBLOCK",

@@ -249,11 +249,50 @@ Malformed options or preflight traversal exhaustion throw; unsupported algebra a
 arithmetic-budget exhaustion return `recognized=_` with a reason. Coefficients
 remain rational, and foreign symbols and semantic applications remain unsupported.
 
+## Inspecting a small derivative proof
+
+A proof adapter translates an algorithm's result into the checker's fixed vocabulary.
+The earlier adapters identified coordinates by strings such as `"x"`. Derivative,
+derivative-sign, complete polynomial critical-point, and monotonicity-partition proof
+rules now retain scoped symbols. They reject replacing a symbol with its name or with
+a different same-named symbol. Existing named graphs continue to use name strings.
+
+`DerivativeProof` builds a one-node `derivative.graph` transcript and checks it
+independently. This is a bounded, browser-safe proof example, not an external prover
+or a general-purpose proof language. No trusted-leaf resolver is exposed to RiX code.
+
+```{.rix exec=true}
+.Plugin.Load("calculus"); .Plugin.Load("numerics");
+d := .calculus.DifferentiateResult(::x^2,::x);
+proof := .numerics.DerivativeProof(d);
+proof[:accepted] ##@ == 1;
+proof[:evidenceLevel] ##@ == :checkedEvidence;
+proof[:trustedDependencies].Len() ##@ == 0;
+.SameSymbol(proof[:conclusion][:variable],::x) ##@ == 1;
+proof[:evidence][:nodes][1][:rule] ##@ == "derivative.graph";
+```
+
+The conclusion is a derivative identity **with its retained obligations**. It does
+not by itself prove that the source is defined throughout a particular interval.
+For that, continue with derivative-sign or certified range evaluation. This adapter
+currently accepts first derivatives only and forwards `maxDepth`, `maxWork`, and
+`maxDerivativeOrder` options to independent checking. It does not import arbitrary
+user-supplied proof transcripts or execute saved proof code.
+
+The native `checkRangeEvidence(document,options)` API also supports scoped symbols
+in these rules. Its `limits` object contains configurable nonnegative safe integers
+`maxNodes` (default 10000), `maxComponents` (10000), and `maxPolynomialDegree` (256).
+Optional `derivativeOptions` and `recognitionOptions` forward the corresponding
+algorithm budgets; they are host-supplied, not trusted limits asserted by a document.
+Proof-DAG traversal is iterative; a 2000-node chain is tested. This removes a proof
+chain's stack-depth restriction, **not** the separate expression traversal ceiling.
+Native trusted leaves still require explicit host authorization and remain tracked.
+
 Current boundary: differentiation, symbolic integration, and graph simplification
 require rational constants. Extended constants can be constructed and numerically
 evaluated, but derivative/rewrite laws for those providers are not assumed. Contextual
 and semantic specification conversion and broader provider-aware certified kernels
-remain pending, as do name-keyed proof-transcript adapters such as the complete
-critical-point rule. A trusted semantic derivative identity does not automatically make
+remain pending, as does scoped monotone-composition proof substitution. A trusted
+semantic derivative identity does not automatically make
 its function numerically evaluable by the arithmetic range engine. Use core `Eval`
 for the supported provider-aware scoped enclosure surface.
