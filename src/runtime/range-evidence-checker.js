@@ -16,6 +16,7 @@ import {
     checkCalculusDerivativeTransformation,
     recognizeCalculusGraph,
     substituteCalculusGraphVariable,
+    validateRangeTraversal,
 } from "./calculus-range.js";
 import {isMathExpression,expressionField,expressionDefinition,expressionStructuralKey} from "./math-expression.js";
 
@@ -216,6 +217,23 @@ function isProofVariable(value) {
     try { proofVariableKey(value); return true; } catch { return false; }
 }
 const sameVariable=(left,right)=>proofVariableKey(left)===proofVariableKey(right);
+
+function requireUnivariateCompositionGraph(expression, variable) {
+    const expected = proofVariableKey(variable);
+    const pending = [expression];
+    while (pending.length) {
+        const node = pending.pop();
+        const field = key => expressionField(node,key) ?? node?.[key];
+        const kind = field('kind')?.value ?? field('kind');
+        if (kind === 'variable') {
+            if (expressionDefinition(node)) throw new Error('compositionRequiresExpandedDefinitions');
+            const coordinate = field('symbolid') ? node : (field('name')?.value ?? field('name'));
+            if (proofVariableKey(coordinate) !== expected) throw new Error('monotoneCompositionRequiresUnivariateGraphs');
+        }
+        const children = kind === 'operator' ? field('operands') : kind === 'apply' ? field('arguments') : [];
+        for (const child of children?.values instanceof Array ? children.values : children || []) pending.push(child);
+    }
+}
 
 function derivativeRangeFact(value) {
     if (value?.type !== "derivativeRange" ||
@@ -727,10 +745,16 @@ function checkNode(node, premises, options) {
                     outerExpression,
                     outerVariable,
                     innerExpression,
+                    options.compositionOptions,
                 );
             } catch {
                 throw new Error("invalidMonotoneCompositionGraph");
             }
+            if (!isProofVariable(inner.variable) || !isProofVariable(outer.variable) ||
+                !sameVariable(outer.variable,outerVariable)) throw new Error("monotoneCompositionVariableMismatch");
+            requireUnivariateCompositionGraph(innerExpression,inner.variable);
+            requireUnivariateCompositionGraph(outerExpression,outerVariable);
+            validateRangeTraversal(composedExpression, options.compositionOptions);
             const innerGraph = calculusGraphStructuralKey(innerExpression);
             const outerGraph = calculusGraphStructuralKey(outerExpression);
             const composedGraph = calculusGraphStructuralKey(composedExpression);
@@ -764,6 +788,7 @@ function checkNode(node, premises, options) {
                     ...claimed,
                     innerFunctionGraph: innerGraph,
                     outerFunctionGraph: outerGraph,
+                    variable: inner.variable,
                 },
                 trusted: false,
             };

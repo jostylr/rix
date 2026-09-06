@@ -288,11 +288,50 @@ Proof-DAG traversal is iterative; a 2000-node chain is tested. This removes a pr
 chain's stack-depth restriction, **not** the separate expression traversal ceiling.
 Native trusted leaves still require explicit host authorization and remain tracked.
 
+## Scoped composition and its proof rule
+
+Substitution replaces the selected identity, not every symbol with the same printed
+name. The native `monotone.compose` proof rule now checks this scoped substitution,
+matches the outer coordinate to its monotonicity premise, and carries the inner
+coordinate into its conclusion. It also verifies that the inner image is covered
+by the outer premise's domain, without unresolved exclusions.
+
+```{.rix exec=true}
+.Plugin.Load("calculus"); .Plugin.Load("numerics");
+a := ::x; b := {; ::x };
+inner := a+1;
+outer := b^2;
+composed := outer.Substitute([(b,inner)],{= maxDepth=16 });
+composed.Eval([(a,2)])[:value] ##@ == 9;
+d := .calculus.DifferentiateResult(composed,a);
+.numerics.DerivativeSign(d,[(a,1:2)])[:direction] ##@ == :nondecreasing;
+```
+
+This executable example checks the derivative of the composed graph directly.
+Host applications can instead assemble the native `monotone.compose` transcript
+from monotonicity and image premises; RiX does not yet expose a general transcript
+authoring API. Trusted premises still require explicit host authorization and remain
+reported as trusted dependencies. Composition does not upgrade them to pure evidence.
+
+The composition proof rule deliberately requires univariate inner and outer graphs.
+For example, `100*x-y` decreases in `y` with `x` held fixed, but substituting `y=x`
+produces the increasing function `99*x`. Such hidden parameter dependence is rejected.
+This restriction belongs to the proof rule, not general core `Substitute`.
+Immutable definitions must be explicitly expanded before this native structural
+composition path; mathematical binders and contextual assumptions are not erased.
+
+Native `substituteCalculusGraphVariable(outer,symbol,inner,options)` and
+`checkRangeEvidence(document,{compositionOptions:options})` accept `maxDepth` and
+`maxWork` for the outer graph, replacement, and resulting graph. Limits are per
+traversal, with the existing expression stack-safety ceiling. They are supplied by
+the caller, not accepted as self-authorized limits from a proof document.
+
 Current boundary: differentiation, symbolic integration, and graph simplification
 require rational constants. Extended constants can be constructed and numerically
 evaluated, but derivative/rewrite laws for those providers are not assumed. Contextual
 and semantic specification conversion and broader provider-aware certified kernels
-remain pending, as does scoped monotone-composition proof substitution. A trusted
+remain pending. General parameterized composition proofs also remain outside the
+current univariate proof rule. A trusted
 semantic derivative identity does not automatically make
 its function numerically evaluable by the arithmetic range engine. Use core `Eval`
 for the supported provider-aware scoped enclosure surface.

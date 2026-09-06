@@ -54,7 +54,9 @@ required. Existing repository consumers will be updated directly.
    and configurable per-stage derivative and recognition budgets. Derivative,
    critical-point, and monotonicity-partition proof adapters preserve scoped symbols;
    browser-safe DerivativeProof exposes a checked first-derivative transcript without
-   trusted leaves. Proof-DAG traversal is iterative with configurable resource limits;
+   trusted leaves. Scoped univariate monotone-composition proof substitution checks
+   coordinate identity and image coverage, rejects hidden parameter dependence, and
+   accepts caller-supplied traversal budgets. Proof-DAG traversal is iterative with configurable resource limits;
    coordinated schema conversion is pending. See `documentation/eval/scoped-calculus-cas.md`.
 8. Identity-preserving mathematical serialization: implemented for the current
    expression/context/scalar model, including bounded JSONL and frozen real
@@ -69,7 +71,7 @@ required. Existing repository consumers will be updated directly.
   kernels beyond real Abs/Sqrt, additional numeric providers, and bounded assumption rewriting. Free substitution and
   exact rational evaluation are implemented; context inspection uses explicit records.
 - Stage 7: coordinated expression schema, contextual/semantic specification conversion,
-  broader provider-aware certified kernels, and scoped monotone-composition proof substitution;
+  broader provider-aware certified kernels, and general parameterized composition proofs;
   arithmetic and derivative-based ranges,
   polynomial/rational recognition,
   and symbolic calculus/CAS paths are identity-aware,

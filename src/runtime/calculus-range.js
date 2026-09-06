@@ -429,18 +429,22 @@ export function checkCalculusGraphRewrite(candidate) {
 }
 
 /** Structurally substitute one Calculus variable without algebraic rewriting. */
-export function substituteCalculusGraphVariable(expression, variableValue, replacement) {
-    if (hasScopedSymbols(expression) || hasScopedSymbols(replacement)) throw new Error('Scoped composition requires the core Substitute API');
+export function substituteCalculusGraphVariable(expression, variableValue, replacement, options) {
+    validateRangeTraversal(expression, options);
+    validateRangeTraversal(replacement, options);
     if (!isExpression(expression) || !isExpression(replacement)) {
         throw new Error("Calculus composition requires expression graphs");
     }
-    const variable = textValue(variableValue)?.toLowerCase();
+    const scoped = hasScopedSymbols(expression) || hasScopedSymbols(replacement) || !!mapValue(variableValue,"symbolid");
+    if (scoped && !mapValue(variableValue,"symbolid")) throw new Error("Scoped composition requires a symbolic selector");
+    const variable = scoped ? rangeVariableKey(variableValue) : textValue(variableValue)?.toLowerCase();
     if (!variable) throw new Error("invalidCompositionVariable");
     const visit = (node) => {
         const kind = expressionKind(node);
         if (kind === "constant") return node;
         if (kind === "variable") {
-            const name = textValue(mapValue(node, "name"))?.toLowerCase();
+            if (mapValue(node,"symbolid") && !scoped) throw new Error("Scoped composition requires a symbolic selector");
+            const name = rangeVariableKey(node);
             return name === variable ? replacement : node;
         }
         if (kind === "operator") {
@@ -458,7 +462,9 @@ export function substituteCalculusGraphVariable(expression, variableValue, repla
         }
         throw new Error(`unsupportedCompositionGraphKind:${String(kind)}`);
     };
-    return visit(expression);
+    const result = visit(expression);
+    validateRangeTraversal(result, options);
+    return result;
 }
 
 function exactGraphValue(expression, value) {
@@ -1532,7 +1538,7 @@ function rangeVariableKey(symbol) {
 
 // Check before recursive structural-key/simplification routines run. Definition
 // expansion counts toward the same budget instead of bypassing it.
-function validateRangeTraversal(expression, options) {
+export function validateRangeTraversal(expression, options) {
     const depth = mapValue(options, "maxdepth");
     const limits = mathBudgets(depth === undefined ? null : map([["maxdepth", depth]]));
     const maxVisits = maxNodeCount(options);
