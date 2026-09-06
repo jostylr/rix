@@ -58,7 +58,6 @@ test("lint keeps ordinary and symbolic namespaces separate", () => {
 test("name-based consumers reject scoped expressions until their conversion lands", () => {
     for (const source of [
         ".SpecFromExpression(::x+1);",
-        ".CalculusGraphSimplify(::x+1);",
         '.Plugin.Load("cas"); .cas.Integrate(::x^2,:x);',
     ]) expect(()=>parseAndEvaluate(source,{context:new Context()})).toThrow();
 });

@@ -1,4 +1,4 @@
-import { hasScopedSymbols, hasExtendedConstants } from "./math-expression.js";
+import { hasScopedSymbols, hasExtendedConstants, expressionConstant, expressionOperation, expressionApplication, expressionVariable } from "./math-expression.js";
 import {
     Integer,
     Rational,
@@ -68,7 +68,6 @@ function integerValue(value, fallback) {
 
 function isExpression(value) {
     if (hasExtendedConstants(value)) throw new Error("Extended mathematical constants require a provider-aware range consumer (not yet implemented)");
-    if (hasScopedSymbols(value)) throw new Error("Scoped mathematical symbols require an identity-aware range consumer (not yet implemented)");
     return (value?.type === "map" || (value && typeof value === "object")) &&
         textValue(mapValue(value, "schema")) === "rix.calculus.expression@1";
 }
@@ -91,7 +90,7 @@ export function calculusGraphStructuralKey(expression) {
     if (!isExpression(expression)) throw new Error("Expected a Calculus expression graph");
     const kind = expressionKind(expression);
     if (kind === "constant") return `constant(${String(mapValue(expression, "value"))})`;
-    if (kind === "variable") return `variable(${textValue(mapValue(expression, "name"))})`;
+    if (kind === "variable") return mapValue(expression,'symbolid') ? `scoped(${textValue(mapValue(expression,'symbolid'))})` : `variable(${textValue(mapValue(expression, "name"))})`;
     if (kind === "operator") {
         const operation = textValue(mapValue(expression, "operation"));
         const children = expressionChildren(expression, "operands")
@@ -119,33 +118,28 @@ function graphConstant(value) {
     const rational = exactRational(value);
     if (!rational) throw new Error("nonRationalGraphConstant");
     const exact = rational.denominator === 1n ? new Integer(rational.numerator) : rational;
-    return map([
-        ["valueKind", text("calculusExpression")],
-        ["schema", text("rix.calculus.expression@1")],
-        ["kind", text("constant")],
-        ["value", exact],
-    ]);
+    return map([['valueKind',text('calculusExpression')],['schema',text('rix.calculus.expression@1')],['kind',text('constant')],['value',exact]]);
 }
 
 function graphOperator(operation, operands) {
-    return map([
-        ["valueKind", text("calculusExpression")],
-        ["schema", text("rix.calculus.expression@1")],
-        ["kind", text("operator")],
-        ["operation", text(operation)],
-        ["operands", sequence(operands)],
-    ]);
+    return map([['valueKind',text('calculusExpression')],['schema',text('rix.calculus.expression@1')],['kind',text('operator')],['operation',text(operation)],['operands',sequence(operands)]]);
+}
+
+function coreGraph(node) {
+    if (node?.type==='map' && node._ext) return node;
+    const kind=expressionKind(node);
+    if (kind==='variable') {
+        if (mapValue(node,'symbolid')) throw new Error('Scoped graph identities require runtime symbol values');
+        return expressionVariable(textValue(mapValue(node,'name')));
+    }
+    if (kind==='constant') return expressionConstant(mapValue(node,'value'));
+    if (kind==='operator') return expressionOperation(textValue(mapValue(node,'operation')),expressionChildren(node,'operands').map(coreGraph));
+    if (kind==='apply') return expressionApplication(textValue(mapValue(node,'semanticid')),textValue(mapValue(node,'name')),expressionChildren(node,'arguments').map(coreGraph));
+    throw new Error('Unsupported calculus graph node');
 }
 
 function graphApplication(semanticId, name, argumentsValue) {
-    return map([
-        ["valueKind", text("calculusExpression")],
-        ["schema", text("rix.calculus.expression@1")],
-        ["kind", text("apply")],
-        ["semanticId", text(semanticId)],
-        ["name", text(name ?? semanticId)],
-        ["arguments", sequence(argumentsValue)],
-    ]);
+    return map([['valueKind',text('calculusExpression')],['schema',text('rix.calculus.expression@1')],['kind',text('apply')],['semanticId',text(semanticId)],['name',text(name ?? semanticId)],['arguments',sequence(argumentsValue)]]);
 }
 
 function simplificationRule(rule, path, source, expression) {
@@ -434,6 +428,7 @@ export function checkCalculusGraphRewrite(candidate) {
 
 /** Structurally substitute one Calculus variable without algebraic rewriting. */
 export function substituteCalculusGraphVariable(expression, variableValue, replacement) {
+    if (hasScopedSymbols(expression) || hasScopedSymbols(replacement)) throw new Error('Scoped composition requires the core Substitute API');
     if (!isExpression(expression) || !isExpression(replacement)) {
         throw new Error("Calculus composition requires expression graphs");
     }
@@ -681,6 +676,7 @@ function obligationFingerprint(value) {
 
 /** Independently derive exact primitive derivative stages and obligations. */
 export function differentiateCalculusPrimitiveGraphN(expression, variableValues) {
+    if (hasScopedSymbols(expression)) throw new Error('Scoped differentiation requires the calculus plugin identity-aware API');
     if (!isExpression(expression)) throw new Error("Expected a Calculus expression graph");
     const rawVariables = Array.isArray(variableValues) ? variableValues : [variableValues];
     const variables = rawVariables.map((value) => textValue(value)?.toLowerCase());
@@ -1412,6 +1408,7 @@ function recognizeRationalGraphNode(expression, variable) {
  * rational function without cancelling denominator restrictions.
  */
 export function recognizeCalculusGraph(expression, variableValue) {
+    if (hasScopedSymbols(expression)) throw new Error('Scoped polynomial recognition requires an identity-aware specification bridge');
     if (!isExpression(expression)) {
         return Object.freeze({ recognized: false, reason: "notCalculusExpression" });
     }
@@ -1769,6 +1766,7 @@ function aggregateCoverage(results) {
 }
 
 function evaluateWithBindings(expression, bindings, options, conventions) {
+    if (hasScopedSymbols(expression)) throw new Error('Scoped range evaluation requires the core Eval API');
     const state = {
         cache: new Map(),
         trace: [],
@@ -2034,7 +2032,7 @@ export function calculusGraphRecognitionValue(expression, variable) {
 /** RiX adapter for canonical, domain-preserving graph simplification. */
 export function calculusGraphSimplificationValue(expression) {
     const result = simplifyCalculusGraph(expression);
-    return portable({ ...result, checker: checkCalculusGraphSimplification(result) });
+    return portable({ ...result, expression:coreGraph(result.expression), checker: checkCalculusGraphSimplification(result) });
 }
 
 /** RiX adapter for independent graph-simplification checking. */

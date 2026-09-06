@@ -40,7 +40,7 @@ CalculusRegistryEvidence(semanticId, key, value) -> {;
     CalculusRegistrySet(:evidence,semanticId,evidence.Set(key,value));
 };
 
-CalculusIsExpression(value) -> (value ? :CalculusExpression) && !.ExpressionHasScopedSymbols(value) && !.ExpressionHasExtendedConstants(value);
+CalculusIsExpression(value) -> .IsExpression(value);
 CalculusIsFunction(value) -> value ? :MathematicalFunction;
 
 CalculusRequireExpression(value, label ?= "value") ->
@@ -49,7 +49,7 @@ CalculusRequireExpression(value, label ?= "value") ->
 CalculusExactScalar(value) -> (value ? :Integer) || (value ? :Rational);
 CalculusOperand(value) -> CalculusIsExpression(value) || CalculusExactScalar(value);
 
-CalculusVariable(name) -> .ExpressionVariable(name);
+CalculusVariable(name) -> (CalculusIsExpression(name) && name[:kind]==:variable) ?: name ?_ .ExpressionVariable(name);
 CalculusConstant(value) -> .ExpressionConstant(value);
 CalculusPromote(value) -> CalculusIsExpression(value) ?: value ?_ CalculusConstant(value);
 CalculusOperator(operation, operands) -> .ExpressionOperation(operation,operands);
@@ -517,6 +517,10 @@ CalculusEvaluateObligation(obligation, bindings, reuseCommon) -> {;
 };
 
 CalculusEvaluateResult(value, bindings ?= {= }, options ?= {= }) -> {;
+    graph = CalculusIsTransformation(value) ?: value[:expression] ?_ value;
+    !(.ExpressionHasScopedSymbols(graph) || .ExpressionHasExtendedConstants(graph) ||
+      .ExpressionHasScopedSymbols(value[:source]) || .ExpressionHasScopedSymbols(value[:variable]))
+      ?_> .MathEvaluateCalculus(value,bindings,options);
     bindings ? :Map ?: _ ?_ .Error("Calculus evaluation bindings must be a Map");
     options ? :Map ?: _ ?_ .Error("Calculus evaluation options must be a Map");
     reuseCommon = CalculusOption(options,"reusecommonsubexpressions",1) ?: 1 ?_ _;
@@ -544,6 +548,10 @@ CalculusEvaluateResult(value, bindings ?= {= }, options ?= {= }) -> {;
 
 CalculusEvaluate(value, bindings ?= {= }, options ?= {= }) -> {;
     result = CalculusEvaluateResult(value,bindings,options);
+    result[:schema]!="rix.math.evaluation@1" ?_> {;
+        @result[:status]==:complete ?_> .Error("Core calculus evaluation is not complete; use EvaluateResult to inspect conditions and enclosures");
+        @result[:value];
+    };
     result[:obligations].Len() == 0
       ?: result[:value]
       ?_ .Error("Calculus evaluation has unresolved domain or branch obligations; use .calculus.EvaluateResult");
@@ -589,7 +597,7 @@ CalculusExpressionKey(expression) -> {;
     kind == :constant
       ?: @"constant(@{exact[:value]})"
       ?_ kind == :variable
-      ?: @"variable(@{exact[:name]})"
+      ?: (exact[:symbolId]!=_ ?: @"scoped(@{exact[:symbolId]})" ?_ @"variable(@{exact[:name]})")
       ?_ kind == :operator
       ?: CalculusOperatorKey(exact)
       ?_ kind == :apply
@@ -619,7 +627,7 @@ CalculusDerivativeVariable(variable) ->
     variable ? :String
       ?: variable
       ?_ (CalculusIsExpression(variable) && variable[:kind] == :variable
-           ?: variable[:name]
+           ?: (variable[:symbolId]!=_ ?: variable ?_ variable[:name])
            ?_ .Error("Calculus differentiation variable must be a string or variable expression"));
 
 CalculusAppend(left, right) -> right.Reduce((result,value)->result.Push(value),left);
@@ -774,7 +782,7 @@ CalculusDifferentiateNode(expression, variable) -> {;
     kind == :constant ?: CalculusStateWithRule(CalculusConstant(0),[],[],:constant)
       ?_ (kind == :variable
            ?: CalculusStateWithRule(
-                CalculusConstant(exact[:name] == variable ?: 1 ?_ 0),
+                CalculusConstant(.ExpressionVariableMatches(exact,variable) ?: 1 ?_ 0),
                 [],
                 [],
                 :variable,
@@ -793,6 +801,9 @@ CalculusDifferentiateResult(value, variable) -> {;
     exact = previous == _
       ?: CalculusRequireExpression(value,"differentiate expression")
       ?_ previous[:expression];
+    exact = .ExpressionExpand(exact);
+    !.ExpressionHasExtendedConstants(exact) ?_> .Error("Calculus differentiation currently requires rational constants; extended providers need derivative rules");
+    differentiatedBy = .ExpressionVariableSelector(exact,differentiatedBy);
     source = previous == _ ?: exact ?_ previous[:source];
     priorVariables = previous == _
       ?: []

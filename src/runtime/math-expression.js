@@ -272,6 +272,23 @@ export const expressionSyntaxFunctions = {
 };
 
 export const expressionCapabilities = {
+    ExpressionVariableSelector:{impl:([expression,selector])=> {
+        if (selector?.type==='string') {
+            if (hasScopedSymbols(expression)) throw new Error('Scoped expressions require an explicit symbolic variable, not a name string');
+            return selector;
+        }
+        if (!isMathExpression(selector) || expressionField(selector,'kind')?.value!=='variable') throw new Error('Expected a symbolic variable or name string');
+        if (expressionDefinition(selector)) throw new Error('A defined symbol is not an independent differentiation/integration variable');
+        return selector;
+    },pure:false,groups:['Symbolic'],doc:'Validate an identity-preserving mathematical variable selector'},
+    ExpressionVariableMatches:{impl:([left,right])=> {
+        if (!isMathExpression(left) || expressionField(left,'kind')?.value!=='variable') return null;
+        const a=symbolState(left)?.id;
+        if (right?.type==='string') return !a && expressionField(left,'name')?.value===right.value ? new Integer(1n) : null;
+        if (!isMathExpression(right) || expressionField(right,'kind')?.value!=='variable') throw new Error('Expected a symbolic variable selector');
+        const b=symbolState(right)?.id;
+        return (a || b ? a===b : expressionField(left,'name')?.value===expressionField(right,'name')?.value) ? new Integer(1n) : null;
+    },pure:true,groups:['Symbolic'],doc:'Compare variable identities without conflating same-spelled scoped symbols'},
     ExpressionReal: {impl:([source,options],context,evaluate)=> {
         const adapted=adaptRealConstant(source,options,context,evaluate);
         return adapted instanceof Promise ? adapted.then(expressionConstant) : expressionConstant(adapted);

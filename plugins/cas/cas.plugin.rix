@@ -25,11 +25,15 @@ CasVariableName(variable) ->
       ?_ {;
           CasIsExpression(@variable) && @variable[:kind]==:variable
             ?_> .Error("CAS variable must be a string or Calculus variable");
-          @variable[:name];
+          @variable[:symbolId]!=_ ?: @variable ?_ @variable[:name];
       };
 CasExpression(value) ->
     CasIsExpression(value)
-      ?: value
+      ?: {;
+          exact = .ExpressionExpand(@value);
+          !.ExpressionHasExtendedConstants(exact) ?_> .Error("CAS algorithms currently require rational constants; extended providers need algebraic laws");
+          exact;
+      }
       ?_ {;
           (@value ? :Integer)||(@value ? :Rational)
             ?_> .Error("CAS expected a Calculus expression or exact scalar");
@@ -154,7 +158,7 @@ CasIndependent(expression, variable) -> {;
     kind==:constant
       ?: 1
       ?_ kind==:variable
-      ?: exact[:name]!=variable
+      ?: !.ExpressionVariableMatches(exact,variable)
       ?_ kind==:operator
       ?: exact[:operands].Filter((operand)->CasIndependent(operand,@variable)).Len()==exact[:operands].Len()
       ?_ kind==:apply
@@ -167,7 +171,7 @@ CasAffine(expression, variable) -> {;
     exact = CasExpression(expression);
     kind = exact[:kind];
     kind==:constant ?: CasAffineState(1,0,exact[:value])
-      ?_ kind==:variable ?: (exact[:name]==variable ?: CasAffineState(1,1,0) ?_ CasAffineState(_))
+      ?_ kind==:variable ?: (.ExpressionVariableMatches(exact,variable) ?: CasAffineState(1,1,0) ?_ CasAffineState(_))
       ?_ {;
           @kind==:operator ?_> CasAffineState(_);
           operation = @exact[:operation];
@@ -223,7 +227,7 @@ CasPowerExponent(expression) ?!- [
       ?_> _
 ] -> CasConstantValue(expression[:operands][2]);
 CasPurePowerDegree(expression, variable) ->
-    (expression[:kind]==:variable && expression[:name]==variable)
+    (expression[:kind]==:variable && .ExpressionVariableMatches(expression,variable))
       ?: 1
       ?_ {;
           @expression[:kind]==:operator && @expression[:operation]==:power ?_> _;
@@ -231,7 +235,7 @@ CasPurePowerDegree(expression, variable) ->
           exponent ? :Integer ?_> _;
           exponent>=0 ?_> _;
           base = @expression[:operands][1];
-          base[:kind]==:variable && base[:name]==@variable ?_> _;
+          base[:kind]==:variable && .ExpressionVariableMatches(base,@variable) ?_> _;
           exponent;
       };
 
@@ -403,7 +407,7 @@ CasIntegrateNode(expression, variable) -> {;
     CasIndependent(exact,variable)
       ?: {; @result ~= CasIntegrationState(:complete,@exact*@variableExpression,[],[{= rule=:constantMultiple }]); }
       ?_ _;
-    result==_ && exact[:kind]==:variable && exact[:name]==variable
+    result==_ && exact[:kind]==:variable && .ExpressionVariableMatches(exact,variable)
       ?: {; @result ~= CasIntegrationState(:complete,(@variableExpression^2)/2,[],[{= rule=:power,exponent=1 }]); }
       ?_ _;
     result==_ && exact[:kind]==:operator
@@ -554,6 +558,7 @@ CasIntegrate(value, variable ?= :x, options ?= {= }) -> {;
       ?_ (value ? :RationalFunction)
       ?: value.variable
       ?_ CasVariableName(variable);
+    name = CasIsExpression(value) ?: .ExpressionVariableSelector(.ExpressionExpand(value),name) ?_ name;
     state = (value ? :Polynomial)
       ?: CasIntegratePolynomial(value)
       ?_ (value ? :RationalFunction)

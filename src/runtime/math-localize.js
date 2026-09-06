@@ -180,6 +180,40 @@ export function evaluateMathematics(value,bindings=seq([]),options) {
 }
 
 export const mathematicalLocalizationCapabilities={
+    MathEvaluateCalculus:{impl:([value,bindings=seq([]),options])=> {
+        const transformation=field(value,'schema')?.value==='rix.calculus.transformation@1' ? value : null;
+        const expression=transformation ? field(value,'expression') : value;
+        if (bindings?.type==='map' && !isContext(bindings)) {
+            if (bindings.entries.size) throw new Error('Core calculus evaluation requires identity binding pairs or a mathematical context');
+            bindings=seq([]);
+        }
+        const assumptions=[],unknown=[];
+        const obligations=transformation ? field(transformation,'obligations')?.values || [] : [];
+        for (const obligation of obligations) {
+            const relation=field(obligation,'relation')?.value,subject=field(obligation,'expression');
+            const add=(operator,right)=>assumptions.push(record({operator:str(operator),left:subject,right:new Integer(BigInt(right))}));
+            if (field(obligation,'kind')?.value!=='domain') unknown.push(obligation);
+            else if (relation==='nonzero') add('!=',0);
+            else if (relation==='positive') add('>',0);
+            else if (relation==='nonnegative') add('>=',0);
+            else if (relation==='insideOpenUnitInterval') {add('>',-1);add('<',1);}
+            else unknown.push(obligation);
+        }
+        const base={schema:str('rix.math.context@1'),result:expression,binders:seq([]),domains:seq([]),consistency:str('unresolved')};
+        const report=isContext(bindings)
+            ? evaluateMathematics(expression,record({...Object.fromEntries(bindings.entries),assumptions:seq([...field(bindings,'assumptions').values,...assumptions])}),options)
+            : evaluateMathematics(record({...base,assumptions:seq(assumptions)}),bindings,options);
+        report.entries.set('transformation',transformation);
+        report.entries.set('obligations',seq(obligations));
+        report.entries.set('unresolvedobligations',seq(unknown));
+        if (unknown.length) {
+            report.entries.set('reasons',seq([...field(report,'reasons').values,str('unsupportedCalculusObligation')]));
+            if (['complete','enclosed'].includes(field(report,'status').value)) {
+                report.entries.set('status',str('conditional'));report.entries.set('value',null);
+            }
+        }
+        return report;
+    },pure:false,doc:'Evaluate core calculus transformations while retaining domain and branch obligations'},
     MathBudgets:{impl:([options])=>mathBudgetRecord(mathBudgets(options)),pure:true,doc:'Inspect default or overridden per-call mathematical budgets'},
     MathInstantiate:{impl:([value,bindings,options])=>instantiateMathematics(value,bindings,options),pure:false,doc:'Instantiate selected local binders while retaining their domains and assumptions'},
     MathSubstitute:{impl:([value,bindings,options])=>substituteMathematics(value,bindings,options),pure:false,doc:'Simultaneous identity-based free substitution retaining context conditions'},

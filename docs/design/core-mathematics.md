@@ -39,7 +39,11 @@ required. Existing repository consumers will be updated directly.
    Abs and principal Sqrt semantic evaluation is implemented; interval root precision
    is configurable with `rootBits`. General domain reasoning and assumption rewriting
    remain pending. See `documentation/eval/mathematical-localization.md`.
-7. Repository-wide consumer and schema conversion: pending.
+7. Consumer conversion in progress: calculus symbolic differentiation/semantic
+   construction and CAS integration/simplification preserve scoped identities.
+   Core calculus evaluation retains derivative obligations and provider evidence.
+   Polynomial/specification and older certified range consumers remain guarded;
+   coordinated schema conversion is pending. See `documentation/eval/scoped-calculus-cas.md`.
 8. Identity-preserving mathematical serialization: implemented for the current
    expression/context/scalar model, including bounded JSONL and frozen real
    snapshots. Portable refinement recipes and explicit recipe restoration
@@ -52,8 +56,9 @@ required. Existing repository consumers will be updated directly.
 - Stage 6: bound-to-bound alpha-renaming, general domain reasoning, further semantic
   kernels beyond real Abs/Sqrt, additional numeric providers, and bounded assumption rewriting. Free substitution and
   exact rational evaluation are implemented; context inspection uses explicit records.
-- Stage 7: coordinated expression schema and repository-wide consumer conversion;
-  name-based calculus/CAS/range paths still reject identity/provider-aware inputs.
+- Stage 7: coordinated expression schema, polynomial/specification conversion,
+  and certified range consumers; symbolic calculus/CAS paths are identity-aware,
+  with rational-only algorithm restrictions and core provider-aware evaluation.
 - Stage 8 follow-on: allowlisted portable real recipes and explicit, bounded
   restoration after inert loading. Snapshots are usable now without this work.
 
