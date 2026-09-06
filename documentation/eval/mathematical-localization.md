@@ -31,9 +31,12 @@ traversed with their own identities intact. Context consistency resets to `unres
 
 | Field | Meaning |
 | --- | --- |
-| `status` | `complete`, `conditional`, `unresolved`, or `invalidAssumptions` |
-| `value` | Exact rational result only when complete; otherwise `_` |
-| `candidate` | Computed rational, possibly conditional; `_` if unavailable or assumptions fail |
+| `status` | `complete`, `enclosed`, `conditional`, `unresolved`, or `invalidAssumptions` |
+| `value` | Completed rational/exact scalar or set-enclosure result; otherwise `_` |
+| `candidate` | Computed scalar or interval, possibly conditional; `_` if unavailable or assumptions fail |
+| `resultKind` | `rational`, `exactScalar`, `setEnclosure`, `singletonEnclosure`, or `unresolved` |
+| `enclosure` | Interval candidate, including real approximations; otherwise `_` |
+| `providers` | Provider metadata for inputs inspected during calculation and condition checks |
 | `localized` | Substituted expression or context, preserving obligations |
 | `context` | The localized context, or `_` for bare expressions |
 | `assumptionContext` | Original context supplied as the second argument, or `_` |
@@ -42,7 +45,7 @@ traversed with their own identities intact. Context consistency resets to `unres
 Exact finite rational arithmetic, negation, and integer powers from -256 through 256
 are supported. Division by zero and zero to nonpositive powers remain unresolved.
 Symbolic function applications are inert: semantic IDs never trigger a registry or
-plugin lookup. Interval, exact-generator, and real-provider evaluation remain pending;
+plugin lookup. Known core constant providers are supported as described below;
 no refinement is implicit. Open variables remain unresolved, not errors.
 
 Rational comparisons in assumptions are checked after substitution. A false comparison
@@ -141,3 +144,69 @@ Foreign, duplicate, free-symbol, and already-instantiated binder keys are errors
 This operation selects parameter values; it does not compute an integral or sum,
 change traversal direction, or rerun a context body. Imported contexts regain these
 trusted built-in methods but retain their unverified evidence status.
+
+## Provider-aware evaluation
+
+The supported provider set is closed and browser-safe; arbitrary maps cannot install
+an evaluator. Rational intervals use exact endpoint arithmetic. Their `setEnclosure`
+result is a conservative enclosure, not necessarily the exact image of the expression:
+`x-x` with x in 1:2 still gives -1:1. No dependency cancellation or floating-point
+conversion is used. An interval divisor containing zero remains unresolved.
+
+```{.rix exec=true}
+ans := (::x^2+1).Eval([(::x,-1:2)]);
+ans[:status] ##@ == :complete;
+ans[:resultKind] ##@ == :setEnclosure;
+ans[:enclosure].Start() ##@ == 1;
+ans[:enclosure].End() ##@ == 5;
+```
+
+Core exact scalars support bounded addition, subtraction, multiplication, negation,
+positive integer powers, and division by nonzero rationals. Generator identities and
+their declared polynomial relations are preserved. This does not assume the generator
+algebra is a field: division by an exact generator/expression, and zero/negative powers
+without established nonzero evidence, remain unresolved. Exact-scalar/interval mixing
+also remains unresolved; no approximate embedding is guessed.
+
+```{.rix exec=true}
+p := 1~{pi};
+ans := ((::x+1)^2/2).Eval([(::x,p)]);
+ans[:resultKind] ##@ == :exactScalar;
+.ExpressionConstant(ans[:value]) == .ExpressionConstant((p+1)^2/2) ##@ == 1;
+```
+
+Real adapters are singletons, not interval-valued quantities. Evaluation snapshots
+their stored enclosures once per identity, performs interval arithmetic, and reports
+`enclosed` with `value=_`, `resultKind=:singletonEnclosure`, and an `enclosure`.
+Use `.ExpressionRefine` explicitly before another evaluation if tighter bounds are
+needed. Evaluation never invokes the retained procedure or restores a recipe.
+
+```{.rix exec=true}
+.Plugin.Load("numerics");
+r := .ExpressionReal(.numerics.Sqrt(2));
+ans := (r^2).Eval();
+ans[:status] ##@ == :enclosed;
+ans[:value] ##@ == _;
+ans[:resultKind] ##@ == :singletonEnclosure;
+saved := .MathDecodeJSON(.MathEncodeJSON(r));
+(saved+1).Eval()[:status] ##@ == :conditional;
+```
+
+Live-adapter evidence is protocol-checked, not an independent verification of a user
+provider's proof. Metadata is retained in `providers`. Imported real evidence remains
+unverified: any use keeps the report conditional, even if arithmetic yields a point.
+Combining an actual interval set with a real reports `setEnclosure`; the real's
+approximation/evidence restrictions still apply. Other unresolved assumptions take
+precedence over the successful `enclosed` status.
+
+Domain and comparison checks use conservative enclosure relations: an interval wholly
+inside a domain can discharge it; one wholly outside contradicts it; partial overlap
+remains conditional. An excluded point inside a nonpoint enclosure likewise leaves
+an obligation. Exact-scalar ordering is unresolved unless it reduces to rationals;
+supported equality does not prove arbitrary inequality.
+
+Additional budgets cap exact-scalar products at 1,024 input-term pairs, sums at 1,024
+input terms, 64 generators per term, generator polynomials at 64 coefficients, and
+absolute term powers at 10,000. The earlier rational, exponent, and traversal budgets
+still apply. Semantic function linking, quantities, noncommutative providers, and
+automatic precision scheduling remain future work.

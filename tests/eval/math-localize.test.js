@@ -38,7 +38,7 @@ for (const [mode,evaluate] of [['sync',parseAndEvaluate],['async',parseAndEvalua
         ]) await expect((async()=>run(code))()).rejects.toThrow();
     });
     test(`${mode}: unsupported operations stay inert and partial domains are retained`,async()=> {
-        for (const [expr,reason] of [['::z','unboundSymbol'],['.ExpressionConstant(1:2)','unsupportedConstantProvider'],['.ExpressionApply(:unknown,:Danger,[])','unlinkedSemanticApplication'],['::x/0','divisionByZero'],['::x^0','undefinedPower'],['::x^257','unsupportedExponent']]) {
+        for (const [expr,reason] of [['::z','unboundSymbol'],['.ExpressionApply(:unknown,:Danger,[])','unlinkedSemanticApplication'],['::x/0','divisionByZero'],['::x^0','undefinedPower'],['::x^257','unsupportedExponent']]) {
             const result=await run(`.MathEvaluate(${expr},[(::x,0)]);`);
             expect(get(result,'status').value).toBe('unresolved');
             expect(get(result,'reasons').values.map(v=>v.value)).toContain(reason);

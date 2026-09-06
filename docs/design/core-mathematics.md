@@ -31,8 +31,10 @@ required. Existing repository consumers will be updated directly.
    Context-argument evaluation infers direct exact-value equalities and checks
    rational point domains in both overloads; conditions remain attached to reports.
    Explicit partial binder instantiation (`MathInstantiate`, context `Instantiate`)
-   preserves nested identities, constraints, and provenance. General domain reasoning,
-   provider evaluation, and assumption rewriting
+   preserves nested identities, constraints, and provenance. Provider evaluation now
+   supports rational intervals, bounded core exact-scalar ring arithmetic, and stored
+   real enclosures with explicit evidence/status. Interval-domain containment checks
+   preserve undecided overlap. General domain reasoning and assumption rewriting
    remain pending. See `documentation/eval/mathematical-localization.md`.
 7. Repository-wide consumer and schema conversion: pending.
 8. Identity-preserving mathematical serialization: implemented for the current
@@ -44,8 +46,8 @@ required. Existing repository consumers will be updated directly.
 
 - Stage 4: dependent/symbolic domains and arbitrary ordered traversal sources.
 - Stage 5: dimensional-quantity and noncommutative/nonassociative adapters.
-- Stage 6: bound-to-bound alpha-renaming, general domain reasoning, provider-aware
-  numerical evaluation and bounded assumption rewriting. Free substitution and
+- Stage 6: bound-to-bound alpha-renaming, general domain reasoning, semantic-function
+  linking, additional numeric providers, and bounded assumption rewriting. Free substitution and
   exact rational evaluation are implemented; context inspection uses explicit records.
 - Stage 7: coordinated expression schema and repository-wide consumer conversion;
   name-based calculus/CAS/range paths still reject identity/provider-aware inputs.

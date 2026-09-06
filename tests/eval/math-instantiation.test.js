@@ -15,7 +15,7 @@ for (const [mode,evaluate] of [['sync',parseAndEvaluate],['async',parseAndEvalua
         }
     });
     test(`${mode}: partial symbolic instantiation and later free localization`,async()=> {
-        const value=await run('c := {& (:::'+'x,:::y) | (0:1,0:2) & :::x+:::y }; d := .MathInstantiate(c,[(c[:binders][1],::a+1)]); e := d.Instantiate([(d[:binders][1],1)]); (d[:binders].Len(),e.Eval()[:status],e.Eval([(::a,0)])[:value],e[:instantiations].Len());');
+        const value=await run('c := {& (:::x,:::y) | (0:1,0:2) & :::x+:::y }; d := .MathInstantiate(c,[(c[:binders][1],::a+1)]); e := d.Instantiate([(d[:binders][1],1)]); (d[:binders].Len(),e.Eval()[:status],e.Eval([(::a,0)])[:value],e[:instantiations].Len());');
         expect(String(value.values[0])).toBe('1');
         expect(value.values[1].value).toBe('unresolved');
         expect(String(value.values[2])).toBe('2');

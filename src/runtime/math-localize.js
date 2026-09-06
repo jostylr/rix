@@ -1,6 +1,8 @@
 /** Bounded, inert localization. No semantic application or imported code is run. */
-import {Integer,Rational} from '@ratmath/core';
+import {Integer,Rational,RationalInterval} from '@ratmath/core';
 import {attachMathContextMethods} from './math-context-methods.js';
+import {createProviderEvaluation,compareProviderValues} from './math-provider-eval.js';
+import {isExpressionScalar} from './math-constant.js';
 import {expressionField as field,expressionDefinition,expressionOperation,expressionApplication,
     promoteExpression,isMathExpression} from './math-expression.js';
 
@@ -106,40 +108,29 @@ export function evaluateMathematics(value,bindings=seq([])) {
     const localized=substituteMathematics(value,bindings);
     const {tick}=worker(seq([]));
     const reasons=new Set();
+    const provider=createProviderEvaluation(reasons);
     function calculate(expr,depth=0) {
         tick(depth);
-        const direct=rational(expr);
-        if (direct) return direct;
+        if (isExpressionScalar(expr)) return provider.read(expr);
         if (!isMathExpression(expr)) {reasons.add('unsupportedResult');return null;}
         const kind=field(expr,'kind')?.value;
         if (kind==='constant') {
-            const result=rational(field(expr,'value'));
-            if (!result) reasons.add('unsupportedConstantProvider');
-            return result;
+            return provider.read(field(expr,'value'));
         }
         if (kind==='variable') {reasons.add('unboundSymbol');return null;}
         if (kind==='apply') {reasons.add('unlinkedSemanticApplication');return null;}
         const args=field(expr,'operands').values.map(v=>calculate(v,depth+1));
         if (args.some(v=>v===null)) return null;
-        const [a,b]=args,op=field(expr,'operation').value;
-        if (op==='divide' && b.numerator===0n) {reasons.add('divisionByZero');return null;}
-        if (op==='power') {
-            if (b.denominator!==1n || b.numerator>256n || b.numerator< -256n) {reasons.add('unsupportedExponent');return null;}
-            if (a.numerator===0n && b.numerator<=0n) {reasons.add('undefinedPower');return null;}
-            const magnitude=Number(b.numerator<0n ? -b.numerator : b.numerator);
-            if (Math.max(a.numerator.toString().length,a.denominator.toString().length)*magnitude>10000) throw new Error('Mathematical evaluation integer budget exceeded');
-        }
-        const result=({add:()=>a.add(b),subtract:()=>a.subtract(b),multiply:()=>a.multiply(b),divide:()=>a.divide(b),negate:()=>a.negate(),power:()=>a.pow(b.numerator)})[op]();
-        if (result.numerator.toString().length>10000 || result.denominator.toString().length>10000) throw new Error('Mathematical evaluation integer budget exceeded');
-        return result;
+        return provider.operate(field(expr,'operation').value,args);
     }
     const context=isContext(localized) ? localized : null;
     const candidate=calculate(context ? field(context,'result') : localized);
+    const resultKind=provider.resultKind(candidate),approximation=provider.isApproximation(candidate);
     let conditional=false,invalid=false;
     if (context) {
         conditional=!!field(context,'binders')?.values.length || field(context,'validation')?.value==='unverifiedImport';
         for (const entry of field(context,'domains')?.values || []) {
-            const point=rational(calculate(field(entry,'symbol')));
+            const point=calculate(field(entry,'symbol'));
             const domain=field(entry,'domain');
             if (!point || !domain) {conditional=true;continue;}
             for (const [endpoint,closed,lower] of [['lower','lowerclosed',true],['upper','upperclosed',false]]) {
@@ -147,29 +138,36 @@ export function evaluateMathematics(value,bindings=seq([])) {
                 if (raw===null) continue;
                 const bound=rational(raw), inclusion=field(domain,closed);
                 if (!bound || !(inclusion===null || inclusion instanceof Integer && inclusion.value===1n)) {conditional=true;continue;}
-                const c=point.lessThan(bound) ? -1 : point.greaterThan(bound) ? 1 : 0;
-                if ((lower ? c<0 : c>0) || c===0 && inclusion===null) invalid=true;
+                const truth=compareProviderValues(point,bound,lower ? inclusion===null ? '>' : '>=' : inclusion===null ? '<' : '<=');
+                if (truth===null) conditional=true;
+                else if (!truth) invalid=true;
             }
             const excluded=field(domain,'excluded');
             if (excluded?.type!=='sequence') conditional=true;
             else for (const raw of excluded.values) {
                 const bound=rational(raw);
                 if (!bound) conditional=true;
-                else if (!point.lessThan(bound) && !point.greaterThan(bound)) invalid=true;
+                else {
+                    const truth=compareProviderValues(point,bound,'!=');
+                    if (truth===null) conditional=true;
+                    else if (!truth) invalid=true;
+                }
             }
         }
         for (const assumption of field(context,'assumptions')?.values || []) {
             const a=calculate(field(assumption,'left')),b=calculate(field(assumption,'right'));
             if (!a || !b) {conditional=true;continue;}
-            const c=a.lessThan(b) ? -1 : a.greaterThan(b) ? 1 : 0;
-            const truth={'==':c===0,'!=':c!==0,'<':c<0,'>':c>0,'<=':c<=0,'>=':c>=0}[field(assumption,'operator')?.value];
-            if (truth===undefined) conditional=true;
+            const truth=compareProviderValues(a,b,field(assumption,'operator')?.value);
+            if (truth===null) conditional=true;
             else if (!truth) invalid=true;
         }
     }
-    const status=invalid ? 'invalidAssumptions' : candidate===null ? 'unresolved' : conditional ? 'conditional' : 'complete';
+    conditional ||= provider.unverified;
+    const status=invalid ? 'invalidAssumptions' : candidate===null ? 'unresolved' : conditional ? 'conditional' : approximation ? 'enclosed' : 'complete';
     return record({schema:str('rix.math.evaluation@1'),status:str(status),value:status==='complete' ? candidate : null,
-        candidate:invalid ? null : candidate,localized,context,assumptioncontext:assumptionContext,reasons:seq([...reasons].map(str))});
+        candidate:invalid ? null : candidate,localized,context,assumptioncontext:assumptionContext,reasons:seq([...reasons].map(str)),
+        resultkind:str(invalid ? 'unresolved' : resultKind),
+        enclosure:!invalid && candidate instanceof RationalInterval ? candidate : null,providers:seq(provider.providers)});
 }
 
 export const mathematicalLocalizationCapabilities={
