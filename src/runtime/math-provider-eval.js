@@ -125,7 +125,7 @@ export function createProviderEvaluation(reasons,limits) {
     }
     return {read,operate,supportsApplication:id=>REAL_SEMANTICS.includes(id),
         apply:(id,args)=>{semantics.add(id);const result=evaluateRealSemantic(id,args,limits,check,unsupported);
-            if(id==='rix.function.exp@1' && result instanceof RationalInterval) sawSemanticEnclosure=true;
+            if(['rix.function.exp@1','rix.function.log.real-principal@1'].includes(id) && result instanceof RationalInterval) sawSemanticEnclosure=true;
             return result;},
         get semantics(){return [...semantics];},get unverified(){return unverified;},get providers(){return [...providers.values()];},
         isApproximation:value=>(sawReal || sawSemanticEnclosure) && value instanceof RationalInterval,

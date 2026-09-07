@@ -36,8 +36,9 @@ required. Existing repository consumers will be updated directly.
    real enclosures with explicit evidence/status. Interval-domain containment checks
    preserve undecided overlap. Localization/evaluation work budgets are per-call
    options, inspectable through `MathBudgets` and evaluation reports. Trusted real
-   Abs, principal Sqrt, and certified real Exp semantic evaluation are implemented;
-   Exp uses bounded rational Taylor tails and configurable transcendentalBits,
+   Abs, principal Sqrt, and certified real Exp/Log semantic evaluation are implemented;
+   Exp uses bounded rational Taylor tails; Log uses range-reduced atanh series
+   with explicit positive-domain checks. Both use configurable transcendentalBits,
    maxSumTerms, maxExponent and maxDigits. Interval root precision
    is configurable with `rootBits`. General domain reasoning and assumption rewriting
    remain pending. See `documentation/eval/mathematical-localization.md`.
@@ -70,7 +71,7 @@ required. Existing repository consumers will be updated directly.
 - Stage 4: dependent/symbolic domains and arbitrary ordered traversal sources.
 - Stage 5: dimensional-quantity and noncommutative/nonassociative adapters.
 - Stage 6: bound-to-bound alpha-renaming, general domain reasoning, further semantic
-  kernels beyond real Abs/Sqrt/Exp, additional numeric providers, and bounded assumption rewriting. Free substitution and
+  kernels beyond real Abs/Sqrt/Exp/Log, additional numeric providers, and bounded assumption rewriting. Free substitution and
   exact rational evaluation are implemented; context inspection uses explicit records.
 - Stage 7: coordinated expression schema, contextual/semantic specification conversion,
   broader provider-aware certified kernels, and general parameterized composition proofs;

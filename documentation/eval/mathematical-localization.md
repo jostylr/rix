@@ -241,7 +241,7 @@ ans[:budgets][:maxProductPairs] ##@ == 2048;
 | `maxDegree` | 10000 | Absolute power per generator in a term |
 | `maxExponent` | 256 | Absolute integer exponent evaluated |
 | `rootBits` | 64 | Dyadic fractional bits for interval square-root endpoints |
-| `transcendentalBits` | 64 | Absolute endpoint enclosure precision for the trusted exponential kernel |
+| `transcendentalBits` | 64 | Absolute endpoint enclosure precision for trusted exponential/logarithm kernels |
 
 `.MathBudgets(options)` returns the merged settings; reports expose `budgets`.
 Unknown keys, non-Integer values, nonpositive values, and integers above the JS
@@ -294,6 +294,42 @@ exhaustion returns an unresolved report with a reason; digit-budget exhaustion
 throws. `Exp(0)` is exact; other point results are enclosures rather than exact
 scalar answers. This kernel does not add extended-constant CAS differentiation
 or make the older arithmetic graph-range engine support semantic applications.
+
+### Certified real logarithms
+
+`rix.function.log.real-principal@1` evaluates the natural logarithm on strictly
+positive rational points and intervals, including stored real enclosures, without
+calling linked code or refining providers. `Log(1)` is exactly zero; other rational
+points produce `:enclosed` reports with bounds in `enclosure`, not an exact `value`.
+Frozen-real provenance remains conditional; non-rational exact scalars remain
+unsupported. An interval entirely at or below zero reports
+`outsideRealLogarithmDomain`; an interval crossing or touching zero from above
+reports `logarithmDomainUnresolved`. Neither silently clips the input domain.
+
+```{.rix exec=true}
+.Plugin.Load("calculus");
+expr := .calculus.Log()(::x);
+expr.Eval([(::x,1)])[:value] ##@ == 0;
+ans := expr.Eval([(::x,2)],{= transcendentalBits=32 });
+ans[:status] ##@ == :enclosed;
+ans[:value] ##@ == _;
+expr.Eval([(::x,0:2)])[:status] ##@ == :unresolved;
+```
+
+The kernel takes a reciprocal below one, then halves until `1 <= r <= 2`.
+It uses `log(r) = 2 sum(z^(2k+1)/(2k+1))`, where `z=(r-1)/(r+1)`.
+After N terms, the positive tail is at most
+`2 z^(2N+1)/((2N+1)(1-z^2))`. Range reduction adds `h log(2)`;
+each series gets width tolerance `2^-transcendentalBits/(h+1)` so the final
+endpoint width meets the requested precision. Reciprocal inputs negate and
+reverse the bounds. All bounds use exact rational arithmetic.
+
+`maxExponent` caps halving steps per endpoint; `maxSumTerms` caps terms in each
+of its at most two series. Exhaustion reports `logarithmReductionBudgetExceeded`
+or `logarithmSeriesBudgetExceeded`. `maxDigits` bounds intermediate rational
+components and throws on exhaustion. All four limits are configurable per call.
+As with Exp, input interval uncertainty remains, and this does not extend the
+older arithmetic graph-range engine or CAS simplification laws.
 
 The original supported meanings are `rix.function.abs.real@1` and
 `rix.function.sqrt.real-principal@1`, each taking exactly one argument. They match
