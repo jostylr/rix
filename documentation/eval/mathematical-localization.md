@@ -241,7 +241,7 @@ ans[:budgets][:maxProductPairs] ##@ == 2048;
 | `maxDegree` | 10000 | Absolute power per generator in a term |
 | `maxExponent` | 256 | Absolute integer exponent evaluated |
 | `rootBits` | 64 | Dyadic fractional bits for interval square-root endpoints |
-| `transcendentalBits` | 64 | Absolute endpoint enclosure precision for trusted exponential/logarithm kernels |
+| `transcendentalBits` | 64 | Absolute point enclosure precision for trusted Exp/Log/Sin/Cos kernels |
 
 `.MathBudgets(options)` returns the merged settings; reports expose `budgets`.
 Unknown keys, non-Integer values, nonpositive values, and integers above the JS
@@ -330,6 +330,45 @@ or `logarithmSeriesBudgetExceeded`. `maxDigits` bounds intermediate rational
 components and throws on exhaustion. All four limits are configurable per call.
 As with Exp, input interval uncertainty remains, and this does not extend the
 older arithmetic graph-range engine or CAS simplification laws.
+
+### Certified real sine and cosine
+
+`rix.function.sin@1` and `rix.function.cos@1` support rational points and bounded
+rational intervals, in radians. Zero gives exact `Sin(0)=0` and `Cos(0)=1`;
+other rational points return certified enclosures. Their semantic IDs, not their
+display names, select these closed kernels. They execute no linked procedures,
+perform no implicit refinement, and retain conditional frozen-real provenance.
+Non-rational exact scalars remain unsupported, including symbolic multiples of pi.
+
+```{.rix exec=true}
+.Plugin.Load("calculus");
+expr := .calculus.Sin()(::x);
+expr.Eval([(::x,0)])[:value] ##@ == 0;
+ans := expr.Eval([(::x,1)],{= transcendentalBits=32 });
+ans[:status] ##@ == :enclosed;
+ans[:value] ##@ == _;
+expr.Eval([(::x,1:2)])[:enclosure].End() ##@ == 1;
+expr.Eval([(::x,1)],{= maxSumTerms=1 })[:status] ##@ == :unresolved;
+```
+
+Point evaluation sums the exact rational Taylor series. Once successive term
+magnitudes decrease, the alternating-series theorem encloses the answer between
+the partial sum and that sum plus the next term. The kernel stops when their
+distance is at most `2^-transcendentalBits`, then intersects with `[-1,1]`.
+`maxSumTerms` caps Taylor terms per point, with reason
+`trigonometricSeriesBudgetExceeded` on exhaustion; `maxDigits` caps intermediate
+rational sizes and throws on exhaustion. All three limits are configurable.
+This initial kernel does not do argument reduction, so `maxExponent` is not used
+by Sin/Cos. Large arguments may require more terms or hit the integer-size budget.
+
+For an interval `[a,b]`, the kernel evaluates its midpoint `m`, then widens those
+bounds by `(b-a)/2` and intersects with `[-1,1]`. The real derivatives of sine
+and cosine have absolute value at most one, so this also covers interior extrema.
+This conservative enclosure is **not** an endpoint-only or tight extrema-aware
+range. Its width can exceed the requested point precision because of input
+uncertainty. A wide interval may yield the whole `[-1,1]`. The report is `:enclosed`
+with `resultKind=:setEnclosure`; a stored real uses singleton provenance instead.
+This does not extend CAS simplification laws or the older graph-range engine.
 
 The original supported meanings are `rix.function.abs.real@1` and
 `rix.function.sqrt.real-principal@1`, each taking exactly one argument. They match
