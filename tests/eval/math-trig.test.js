@@ -47,7 +47,7 @@ for(const [mode,evaluate] of [['sync',parseAndEvaluate],['async',parseAndEvaluat
         await expect((async()=>run('S(100).Eval([], {= transcendentalBits=8,maxDigits=10 });'))()).rejects.toThrow('budget');
     });
     test(`${mode}: calculus graphs, serialization and stored real provenance remain coherent`,async()=> {
-        const result=await run('.Plugin.Load("calculus"); .Plugin.Load("numerics"); expr := .calculus.Sin()(::x)+.calculus.Cos()(::x); r := .ExpressionReal(.numerics.Sqrt(2)); saved := .MathDecodeJSON(.MathEncodeJSON(r)); (expr.Eval([(::x,0)])[:value],.MathDecodeJSON(.MathEncodeJSON(expr)).Eval([(::x,0)])[:status],S(r).Eval()[:status],C(saved).Eval()[:status],S(1~{pi}).Eval()[:status]);');
+        const result=await run('.Plugin.Load("calculus"); .Plugin.Load("numerics"); expr := .calculus.Sin()(::x)+.calculus.Cos()(::x); r := .ExpressionReal(.numerics.Sqrt(2)); saved := .MathDecodeJSON(.MathEncodeJSON(r)); (expr.Eval([(::x,0)])[:value],.MathDecodeJSON(.MathEncodeJSON(expr)).Eval([(::x,0)])[:status],S(r).Eval()[:status],C(saved).Eval()[:status],S(1~{pi^2}).Eval()[:status]);');
         expect(String(result.values[0])).toBe('1');
         // Decoding creates fresh graph identities: the original ::x is not its input.
         expect(result.values.slice(1).map(v=>v.value)).toEqual(['unresolved','enclosed','conditional','unresolved']);

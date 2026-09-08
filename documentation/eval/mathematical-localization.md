@@ -338,7 +338,8 @@ rational intervals, in radians. Zero gives exact `Sin(0)=0` and `Cos(0)=1`;
 other rational points return certified enclosures. Their semantic IDs, not their
 display names, select these closed kernels. They execute no linked procedures,
 perform no implicit refinement, and retain conditional frozen-real provenance.
-Non-rational exact scalars remain unsupported, including symbolic multiples of pi.
+Canonical rational multiples of pi are also supported, as described below.
+Other non-rational exact scalar inputs remain unsupported.
 
 ```{.rix exec=true}
 .Plugin.Load("calculus");
@@ -369,6 +370,54 @@ range. Its width can exceed the requested point precision because of input
 uncertainty. A wide interval may yield the whole `[-1,1]`. The report is `:enclosed`
 with `resultKind=:setEnclosure`; a stored real uses singleton provenance instead.
 This does not extend CAS simplification laws or the older graph-range engine.
+
+### Exact pi angles and turns
+
+The built-in exact generator `1~{pi}` has a trusted mathematical identity.
+Sin/Cos recognize a rational coefficient times this generator, reduce the
+coefficient modulo two exactly, and fold into the first quadrant. This removes
+arbitrarily many full revolutions without approximating pi (subject to the
+ordinary integer-size budget). A scoped `::pi` or a custom generator merely
+named `pi` does not have this meaning. Sums such as `pi+1` and powers such as
+`pi^2` remain unsupported inputs to this kernel.
+
+Angles reducing to `0`, `pi/6`, `pi/4`, `pi/3`, or `pi/2` return exact rational
+or algebraic values: `0`, `1/2`, `sqrt(2)/2`, `sqrt(3)/2`, or `1`, with the
+appropriate sign and cosine phase shift. These are `:complete` reports, not
+rounded approximations. Other rational pi angles return `:enclosed` reports.
+
+```{.rix exec=true}
+.Plugin.Load("calculus");
+expr := .calculus.Sin()(::x);
+expr.Eval([(::x,(1/6)~{pi})])[:value] ##@ == 1/2;
+expr.Eval([(::x,(1/4)~{pi})])[:value]^2 ##@ == 1/2;
+expr.Eval([(::x,(1/7)~{pi})])[:status] ##@ == :enclosed;
+angle := (1/12)~[turn];
+radians := angle/(1~[rad]);
+radians == (1/6)~{pi} ##@ == 1;
+expr.Eval([(::x,radians)])[:value] ##@ == 1/2;
+```
+
+The existing `turn` unit is exactly `2*pi` radians; `deg` is exactly `pi/180`
+radians. `.ConvertUnit(angle,.Units[:rad])` retains the angle dimension and
+displays its radian magnitude. Dividing by `1~[rad]` produces the scalar radian
+argument expected by core symbolic evaluation. Direct quantity-valued symbolic
+constants remain outside this provider implementation.
+
+For other rational pi angles the kernel uses Machin's identity
+`pi=16 atan(1/5)-4 atan(1/239)`, with exact alternating-series tail bounds.
+Each arctangent gets width at most `2^-transcendentalBits/80`. After quadrant
+reduction the pi coefficient is at most `1/2`; the sine midpoint series gets
+half the requested width. Derivative widening therefore keeps the final width
+within `2^-transcendentalBits`. `maxSumTerms` bounds each of the two arctangent
+series and the sine series; pi-series exhaustion reports
+`trigonometricPiSeriesBudgetExceeded`. `maxDigits` checks intermediate rational
+sizes. Exact special angles require no series work. No additional fixed work
+ceiling or floating-point pi approximation is used. Rational radian arguments
+still use the unreduced Taylor kernel described above.
+
+Canonical pi survives mathematical JSON/JSONL through the allowlisted
+`rix.constant.pi@1` named-constant node; generic named generators remain formal.
 
 The original supported meanings are `rix.function.abs.real@1` and
 `rix.function.sqrt.real-principal@1`, each taking exactly one argument. They match

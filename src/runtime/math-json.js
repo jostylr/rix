@@ -2,7 +2,7 @@
 import {Integer,Rational,RationalInterval} from "@ratmath/core";
 import {UNDECIDED} from "./decision.js";
 import {attachMathContextMethods} from './math-context-methods.js';
-import {createExactGenerator} from "./exact-values.js";
+import {createExactGenerator,exactPi,isExactPi} from "./exact-values.js";
 import {realConstantState,restoreRealSnapshot} from "./math-real.js";
 import {expressionField as field,isMathExpression,expressionStructuralKey,expressionDefinition,
     freshExpressionSymbol,restoreExpressionDefinition,expressionConstant,expressionOperation,expressionApplication} from "./math-expression.js";
@@ -59,6 +59,7 @@ export function encodeMathematicalJSON(root) {
             snapshot:{interval:{$interval:[child(real.interval.low),child(real.interval.high)]},status:real.source ? "certified" : "assumed",
                 evidenceLevel:real.savedEvidence || real.evidence?.value || "declared",verification:"unavailable",evidence:[],
                 achievedWidth:child(real.interval.high.subtract(real.interval.low)),work:{calls:"0",iterations:"0"}},recipe:null}});
+        else if (isExactPi(value)) Object.assign(node,{kind:"namedConstant",semanticId:"rix.constant.pi@1"});
         else if (value.type === "exact_generator") Object.assign(node,{kind:"generator",name:value.name,category:value.category,real:value.real,positiveRoot:value.positiveRoot,
             polynomial:value.minimalPolynomial ? value.minimalPolynomial.map(child) : null});
         else if (value.type === "exact_expression") Object.assign(node,{kind:"exact",terms:[...value.terms.values()].map(term=>({coefficient:child(term.coefficient),powers:[...term.powers].map(([g,e])=>[child(g),e])}))});
@@ -150,6 +151,11 @@ export function decodeMathematicalJSON(source) {
             case "operator": shape("operation","operands");result=expressionOperation(string(n.operation),list(n.operands).map(child));break;
             case "apply": shape("semanticId","name","arguments");result=expressionApplication(string(n.semanticId),string(n.name),list(n.arguments).map(child));break;
             case "interval": shape("start","end");result=new RationalInterval(exact(child(n.start)),exact(child(n.end)));break;
+            case "namedConstant": {
+                shape("semanticId");
+                if(n.semanticId!=="rix.constant.pi@1") fail("unknown named constant semantic ID");
+                result=exactPi();break;
+            }
             case "generator": {
                 shape("name","category","real","positiveRoot","polynomial");
                 if (typeof n.real!=="boolean" || typeof n.positiveRoot!=="boolean") fail("invalid generator flags");

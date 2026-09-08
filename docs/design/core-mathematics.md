@@ -41,8 +41,10 @@ required. Existing repository consumers will be updated directly.
    with explicit positive-domain checks. Both use configurable transcendentalBits,
    maxSumTerms, maxExponent and maxDigits. Sin/Cos use bounded exact rational
    alternating Taylor series (transcendentalBits/maxSumTerms/maxDigits) and
-   conservative midpoint/derivative interval bounds; argument reduction and tight
-   extrema-aware ranges remain pending. Interval root precision
+   conservative midpoint/derivative interval bounds. Canonical rational pi angles
+   reduce exactly modulo full revolutions, return exact course-angle values, and
+   otherwise use bounded Machin pi enclosures. General radian argument reduction
+   and tight extrema-aware ranges remain pending. Interval root precision
    is configurable with `rootBits`. General domain reasoning and assumption rewriting
    remain pending. See `documentation/eval/mathematical-localization.md`.
 7. Consumer conversion in progress: calculus symbolic differentiation/semantic
@@ -66,7 +68,7 @@ required. Existing repository consumers will be updated directly.
    coordinated schema conversion is pending. See `documentation/eval/scoped-calculus-cas.md`.
 8. Identity-preserving mathematical serialization: implemented for the current
    expression/context/scalar model, including bounded JSONL and frozen real
-   snapshots. Portable refinement recipes and explicit recipe restoration
+   snapshots and an allowlisted canonical pi named-constant node. Portable refinement recipes and explicit recipe restoration
    remain pending; saved code or closures are never executed.
 
 ## Remaining work (serialization is not the end of this scope)
@@ -74,7 +76,7 @@ required. Existing repository consumers will be updated directly.
 - Stage 4: dependent/symbolic domains and arbitrary ordered traversal sources.
 - Stage 5: dimensional-quantity and noncommutative/nonassociative adapters.
 - Stage 6: bound-to-bound alpha-renaming, general domain reasoning, further semantic
-  kernels beyond real Abs/Sqrt/Exp/Log/Sin/Cos, trigonometric argument reduction and
+  kernels beyond real Abs/Sqrt/Exp/Log/Sin/Cos, general radian trigonometric argument reduction and
   tight extrema-aware ranges, additional numeric providers, and bounded assumption rewriting. Free substitution and
   exact rational evaluation are implemented; context inspection uses explicit records.
 - Stage 7: coordinated expression schema, contextual/semantic specification conversion,

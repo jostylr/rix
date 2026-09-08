@@ -14,6 +14,11 @@ symbols are fresh, even when they share a display name with existing symbols.
 Use one document for values that need shared identity. Large integers and
 rationals remain exact. Descending interval endpoint order is preserved.
 
+Built-in pi is saved as an allowlisted `namedConstant` node with semantic ID
+`rix.constant.pi@1`, so exact trigonometric meanings survive loading. A generic
+generator named `pi` remains a fresh formal generator; its spelling does not
+grant it the built-in meaning. Named-constant loading executes no code.
+
 ```{.rix exec=true}
 lines := .MathEncodeJSONL([::x,::x]);
 rows := .MathDecodeJSONL(lines);

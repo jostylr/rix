@@ -772,8 +772,12 @@ export function formatExact(value, formatScalar = (scalar) => scalar.toString())
     return pieces.join(" ");
 }
 
+const canonicalPi = createExactGenerator("pi", { id: "exact:pi", category: "transcendental" });
+export function exactPi() { return canonicalPi; }
+export function isExactPi(value) { return value === canonicalPi; }
+
 export function createDefaultExactCollection() {
-    const pi = createExactGenerator("pi", { id: "exact:pi", category: "transcendental" });
+    const pi = exactPi();
     const e = createExactGenerator("e", { id: "exact:e", category: "transcendental" });
     const i = createExactGenerator("i", {
         id: "exact:i",

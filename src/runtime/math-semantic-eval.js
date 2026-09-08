@@ -1,7 +1,7 @@
 /** Explicit trusted mathematical meanings; display names are never executable. */
 import {Integer,Rational,RationalInterval} from '@ratmath/core';
 import {exactSquareRoot} from './exact-values.js';
-import {evaluateTrigonometric} from './math-trig-eval.js';
+import {evaluateTrigonometric,evaluatePiTrigonometric} from './math-trig-eval.js';
 
 export const REAL_SEMANTICS=Object.freeze(['rix.function.abs.real@1','rix.function.sqrt.real-principal@1','rix.function.exp@1','rix.function.log.real-principal@1','rix.function.sin@1','rix.function.cos@1']);
 
@@ -97,6 +97,7 @@ export function evaluateRealSemantic(id,args,limits,check,unsupported) {
     if (!REAL_SEMANTICS.includes(id)) return unsupported('unlinkedSemanticApplication');
     if (args.length!==1) return unsupported('semanticArityMismatch');
     const value=args[0] instanceof Integer ? new Rational(args[0].value,1n) : args[0];
+    if((id==='rix.function.sin@1' || id==='rix.function.cos@1') && !(value instanceof Rational) && !(value instanceof RationalInterval)) return evaluatePiTrigonometric(value,id==='rix.function.cos@1',limits,check,unsupported);
     if (!(value instanceof Rational) && !(value instanceof RationalInterval)) return unsupported('unsupportedSemanticProvider');
     const zero=new Rational(0n);
     if(id==='rix.function.sin@1' || id==='rix.function.cos@1') return evaluateTrigonometric(value,id==='rix.function.cos@1',limits,check,unsupported);

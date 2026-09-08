@@ -71,6 +71,7 @@ cycles—are rejected. Unreachable records are also validated.
 | `apply` | `semanticId` string, `name` string, `arguments` array of tagged expressions/scalars |
 | `interval` | `start`, `end`: tagged finite exact scalars, preserving original order |
 | `generator` | `name`, `category` strings; `real`, `positiveRoot` booleans; `polynomial`: null or ascending tagged rational coefficients |
+| `namedConstant` | `semanticId`: currently only `rix.constant.pi@1`, resolved to the built-in exact pi constant |
 | `exact` | `terms`: array of `{coefficient,powers}`, where `powers` is an array of `[generator-reference,exponent]` pairs |
 | `tuple`, `sequence` | `values`: array of tagged values |
 | `map` | `entries`: array of `[string-key,tagged-value]` pairs; no duplicate keys |
@@ -78,7 +79,11 @@ cycles—are rejected. Unreachable records are also validated.
 
 Operators are `add`, `subtract`, `multiply`, `divide`, `power` (arity 2), and
 `negate` (arity 1). Function applications are inert expression data: decoding
-does not resolve a semantic ID or call it. Exact generators acquire fresh
+does not resolve an application semantic ID or call it. The closed `namedConstant`
+allowlist restores mathematical pi without executing any code or loading a plugin;
+unknown IDs and extra fields are errors. Its complete node form is
+`{"id":"n0","kind":"namedConstant","semanticId":"rix.constant.pi@1"}`.
+Generic exact generators acquire fresh
 identities; their defining polynomials are normalized by the existing exact
 scalar constructor, not evaluated as source code. Exact terms cannot repeat
 the same generator within a monomial or duplicate a monomial. Bound symbols
