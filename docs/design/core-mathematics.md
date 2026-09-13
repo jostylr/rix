@@ -55,9 +55,11 @@ required. Existing repository consumers will be updated directly.
    expansion/factoring preserve polynomial variable identities. Rational-arithmetic
    specification conversion now uses explicit ordered symbolic inputs and retains
    identities through callable compilation, arithmetic, substitution, and restoration.
-   Certified arithmetic GraphRange and its independent checker now preserve scoped
+   Certified arithmetic and Sin/Cos GraphRange and its replay checker now preserve scoped
    identities and source-domain holes, with explicit identity binding pairs and
-   configurable depth/work/subdivision budgets. Context/semantic specification
+   configurable depth/work/subdivision budgets and nested semanticBudgets.
+   Sine/cosine derivative-sign and Lipschitz consumers use these closed kernels;
+   their range claims preserve exclusions and do not claim exact images. Context/semantic specification
    conversion remains guarded. Scoped derivative-sign/Lipschitz/Taylor consumers and
    polynomial/rational recognition now preserve identities, with checked obligations
    and configurable per-stage derivative and recognition budgets. Derivative,

@@ -134,7 +134,7 @@ Use core `Eval` when conditions or provider evidence must accompany the answer.
 
 ## Certified arithmetic graph ranges
 
-`.numerics.GraphRange` accepts scoped arithmetic expressions with `(symbol,range)`
+`.numerics.GraphRange` accepts scoped arithmetic and real Sin/Cos expressions with `(symbol,range)`
 binding pairs. It retains symbol identities in dependency tracking, expands immutable
 definitions, and records the original identity bindings for independent checker replay.
 Name-keyed maps are rejected for scoped graphs. Bound symbols must be instantiated;
@@ -331,7 +331,39 @@ require rational constants. Extended constants can be constructed and numericall
 evaluated, but derivative/rewrite laws for those providers are not assumed. Contextual
 and semantic specification conversion and broader provider-aware certified kernels
 remain pending. General parameterized composition proofs also remain outside the
-current univariate proof rule. A trusted
-semantic derivative identity does not automatically make
-its function numerically evaluable by the arithmetic range engine. Use core `Eval`
-for the supported provider-aware scoped enclosure surface.
+current univariate proof rule. A trusted semantic derivative identity alone does
+not make its function numerically evaluable. Sin/Cos now have explicit closed
+range kernels; other semantic applications remain guarded in GraphRange.
+
+## Certified trigonometric graph consumers
+
+`GraphRange` and `CheckGraphRange` now evaluate/replay real Sin/Cos over rational
+interval-set arguments. Each bounded component uses certified endpoint and
+extrema bounds; unbounded components use the global enclosure `[-1,1]`.
+Empty components contribute nothing. Open endpoints may be closed in the
+output enclosure. The source graph's excluded inputs and coverage are retained;
+trigonometric enclosures are never marked as exact images.
+
+```{.rix exec=true}
+.Plugin.Load("calculus"); .Plugin.Load("numerics");
+expr := .calculus.Sin()(::x);
+ans := .numerics.GraphRange(expr,[(::x,1:2)],
+    {= semanticBudgets={= transcendentalBits=32,maxSumTerms=128 } });
+ans[:certified] ##@ == 1;
+ans[:exactImage] ##@ == _;
+.numerics.CheckGraphRange(ans)[:certified] ##@ == 1;
+d := .calculus.DifferentiateResult(expr,::x);
+.numerics.DerivativeSign(d,[(::x,0:1)])[:direction] ##@ == :nondecreasing;
+.numerics.LipschitzRange(d,[(::x,0:1)])[:certified] ##@ == 1;
+```
+
+Use nested `semanticBudgets` for the core kernel's per-call options; they appear
+under the same key in the report's `budgets` and are retained for replay.
+`maxWork` also counts evaluated interval components. Exhaustion produces an
+uncertified unresolved graph-range report, not a guessed certificate. The
+checker recomputes from the graph, bindings and options; a modified range claim
+is rejected. Derivative-sign and Lipschitz consumers inherit this numerical
+support; it does not implement a new ODE or optimization algorithm. Constants
+on this graph path remain rational: core `Eval` is still the route for canonical
+pi and other extended constant providers. Broader semantic kernels and provider
+constants in GraphRange remain future work.

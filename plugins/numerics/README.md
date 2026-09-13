@@ -153,11 +153,17 @@ on the generic unresolved/unsupported path until a trusted invariant or a
 checkable witness is available.
 
 Immutable Calculus expression graphs have a separate checked entry point:
-`.numerics.GraphRange(expression, bindings, options?)`. The initial bridge
+`.numerics.GraphRange(expression, bindings, options?)`. The bridge also supports
+real Sin/Cos semantic applications over rational interval sets, with certified
+endpoint/extrema enclosures and replay checking. Set nested `semanticBudgets`
+for kernel precision and work limits; reports retain these limits. Source holes
+remain attached, and semantic enclosures are not claimed as exact images.
+Derivative-sign and Lipschitz consumers inherit this support. Extended constants
+and other semantic applications remain outside this graph path. The arithmetic bridge
 evaluates exact constants, variables, arithmetic composition, and Integer
 powers; memoizes structural identities; preserves correlated `g-g` and `g/g`;
 and can subdivide one exact rational binding. `.numerics.CheckGraphRange`
-independently recomputes the portable claim. Semantic `apply` nodes remain
+independently recomputes the portable claim. Other semantic `apply` nodes remain
 explicitly unresolved until their semantic ID is bound to checked or trusted
 domain and range providers.
 

@@ -376,7 +376,8 @@ includes the extremum. `maxExponent` also caps endpoint magnitude bits for this
 check. Range width can exceed point precision because of input uncertainty.
 The report is `:enclosed`
 with `resultKind=:setEnclosure`; a stored real uses singleton provenance instead.
-This does not extend CAS simplification laws or the older graph-range engine.
+This does not extend CAS simplification laws. Sin/Cos also work in the certified
+GraphRange engine for rational interval-set inputs; see `scoped-calculus-cas.md`.
 
 ### Exact pi angles and turns
 
