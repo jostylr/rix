@@ -36,11 +36,11 @@ its first useful future increment rather than treating it as abandoned.
 |---:|---|---|---|
 | 1 | `.radix` | Versioned numeral-system constructors plus common parse/format operations | **Phase 4:** specialized numeral systems do not gate the current path |
 | 2 | `.draw` | Declarative themes, constraints, and interactive handles | **Decision:** shared portable interaction/event descriptor |
-| 3 | `.plot` | Linked views and adapters for ODE trajectories, Solve boxes, and retained uncertainty | **Ready:** ODE and bounded-result records now exist |
+| 3 | `.plot` | Linked trajectory components, phase portraits, event overlays, and Solve boxes | **Ready:** time-component ODE plots now retain tube evidence and show omitted/uncomputed time |
 | 4 | `.float` | Typed-array tensors followed by optional SIMD/Wasm acceleration | **Phase 4:** scale/performance layer |
 | 5 | `.oracle` | Exchange exact sign and root evidence with algebraic solvers | **Waiting:** stable multivariate algebra evidence records |
 | 6 | `.numerics` | Validated interval-linear solves and bounded box subdivision | **Ready:** Krawczyk and interval-Newton foundations are present |
-| 7 | `.ode` | Trajectory views, then boundary-value records | **Ready:** forward/backward configurable-order interval Taylor IVPs extend adaptive subdivision; general affine/Taylor-model algebra remains future work |
+| 7 | `.ode` | Boundary-value records and bounded shooting; richer trajectory views | **Ready:** forward/backward certified IVPs and time-component trajectory plots exist; general affine/Taylor-model algebra remains future work |
 | 8 | `.algebra` | Multivariate Polynomial plus Groebner/elimination MVP | **Decision:** start with `Q` coefficients and explicit lex/graded orders |
 | 9 | `.linalg` | Characteristic/minimal polynomials, eigenspaces, and exact canonical forms | **Waiting:** algebraic extension/coefficient-domain contract |
 | 10 | `.optimize` | Bounded branch-and-bound integer and mixed-integer linear optimization | **Ready:** preserve partial bounds and unexplored nodes |
@@ -555,7 +555,9 @@ newline normalization.
      a checked endpoint bracket, total event derivative, and interval Newton.
    - [x] Add backward integration across fixed, adaptive, and certified methods,
      with signed dense output and physical-time event directions.
-   - [ ] Add Plot/Scene3D trajectory adapters.
+   - [x] Add time-component Plot trajectory views with whole certified tubes,
+     approximate paths, backward-time records, and visible partial/display-budget coverage.
+   - [ ] Add linked components, phase portraits, event overlays, and Scene3D trajectory adapters.
    - [ ] Add shooting/collocation-oriented boundary-value problem records and
      solvers after vector IVPs and nonlinear box services stabilize.
 4. **Phase 4 — Advanced differential equations**

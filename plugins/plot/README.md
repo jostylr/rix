@@ -30,6 +30,7 @@ to SVG by a web or notebook host.
 | `.plot.Polar(fn, angleDomain, options?)` | Polar curve whose function returns a radius. |
 | `.plot.Interval(data, options?)` | Exact interval-valued rows written as `[x, low:high]`. |
 | `.plot.ErrorBand(data, options?)` | Symmetric declared-error rows written as `[x, estimate, error]`. |
+| `.plot.Trajectory(solution, options?)` | Time-versus-component ODE paths, retained certified tubes, and visibly uncomputed time. |
 | `.plot.Implicit(fn, xDomain, yDomain, options?)` | Sample the boundary `fn(x,y) = level` with marching squares. |
 | `.plot.Inequality(fn, xDomain, yDomain, options?)` | Classify and fill cells using `:le`, `:lt`, `:ge`, or `:gt`. |
 | `.plot.Contour(fn, xDomain, yDomain, options?)` | Draw one or more scalar-field levels. |
@@ -119,6 +120,40 @@ of its displayed contour segment.
 and a hue range. Pass the resulting `rix.color-scale@1` map as `colorScale` to
 `HeatMap`, `.stats.HistogramGraphic`, or `.complexViz.DomainColoring`; each
 consumer retains the same record in its output metadata.
+
+## ODE trajectories
+
+Load `ode` to compute a solution, then pass its `rix.ode.solution@1` record to
+`.plot.Trajectory(solution,options?)`. Plot itself does not load or rerun an ODE
+solver. The time axis covers the entire requested interval, including a backward
+interval; records retain solver traversal order. `component` selects a one-based
+state coordinate (default 1), with the corresponding state name as the y label.
+
+Blue rectangles show each accepted certified segment's **whole tube**. Plot
+does not interpolate endpoint intervals into a supposedly certified band or
+invent a central solution curve. Orange lines show approximate segments using
+their existing linear dense-output convention. Gray shading marks uncomputed
+time, failed source segments, or omitted time after a display budget is reached.
+No line bridges a gap. A failed tube is not drawn as a solution.
+
+`maxSegments` defaults to 1000 and accepts any positive safe integer. It limits
+the prefix inspected/drawn, not solver work; truncation is explicit in metadata
+and shading. `tickCount` defaults to 5, `maxTicks` to 20 (caller-adjustable), and
+`tickDigits` to 3. Tick labels use bounded decimal approximations when inexact
+(a trailing `?` marks an inexact prefix); exact labels may retain rational
+notation. Retained coordinates and bounds stay rational. Standard
+`size`, `margin` (default 64), title and axis labels apply. Linear axes are
+required, x-domain cropping is rejected, and a supplied `yDomain` must contain
+all displayed enclosures. This prevents a view option from hiding unfinished time.
+
+The `rix.plot@1` metadata records `kind=:trajectory`, per-segment bounds and
+source evidence, source method/status, selected component, requested/displayed
+intervals, budgets, stable hit identities, and unresolved reasons. The evidence
+interpretation is `:retainedSourceEvidence`: Plot trusts the supplied ODE record
+and adds **no independent certification**, particularly for externally constructed
+or modified records. Certified tubes remain Graphics rectangles, not ordinary
+line series. Phase portraits, linked components, event overlays, and Scene3D
+trajectory adapters remain separate follow-on work.
 
 ## Dependencies
 

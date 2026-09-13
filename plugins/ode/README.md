@@ -252,5 +252,10 @@ and boundary-value records.
 Boundary-value problems then become a separate problem kind
 rather than being disguised as an IVP.
 
+For 2D time plots, load `plot` and call `.plot.Trajectory(solution,options?)`.
+It draws retained certified tubes separately from approximate paths, with gray
+uncomputed/omitted time and a selectable vector component. It never reruns the
+solver or adds a certificate. Phase portraits and Scene3D remain future work.
+
 See [tutorial.md](tutorial.md) for runnable approximate, validated, and
 bounded-failure examples.

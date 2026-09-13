@@ -114,6 +114,25 @@ certify whole-cell exclusion or inequality classification. The plotted crossing
 itself remains sampled unless a separate mathematical continuity/existence
 contract certifies it.
 
+## Plot an ODE trajectory
+
+```{.rix exec=true}
+.Plugin.Load("ode");
+.Plugin.Load("plot");
+y := .calculus.Variable(:y);
+problem := .ode.IVP(y,0,1,0:1);
+solution := problem.AdaptiveValidatedTaylor({= order=3,steps=2,maxSubintervals=1 });
+.plot.Trajectory(solution,{= maxSegments=1,title="One certified segment; the rest omitted" });
+```
+
+The blue box is a retained whole-segment enclosure. Gray time is omitted by
+`maxSegments=1`, not solved or extrapolated by the plot. Raise `maxSegments` to
+show the remaining stored segments. Passing `problem.RK4()` instead produces
+orange approximate paths. Plotting does not improve or independently check
+solver evidence. For a vector solution, use `{= component=2 }` to select its
+second coordinate. Backward solutions work without sorting or changing their
+stored trajectory. Tick-label approximations do not change the exact metadata.
+
 ## Share a color policy
 
 One portable scale can drive a heat map, a statistics graphic, and a complex
