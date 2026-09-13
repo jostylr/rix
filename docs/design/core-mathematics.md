@@ -44,7 +44,8 @@ required. Existing repository consumers will be updated directly.
    conservative midpoint/derivative interval bounds. Canonical rational pi angles
    reduce exactly modulo full revolutions, return exact course-angle values, and
    otherwise use bounded Machin pi enclosures. General radian argument reduction
-   and tight extrema-aware ranges remain pending. Interval root precision
+   is implemented with configurable precision-amplification budgets;
+   tight extrema-aware ranges remain pending. Interval root precision
    is configurable with `rootBits`. General domain reasoning and assumption rewriting
    remain pending. See `documentation/eval/mathematical-localization.md`.
 7. Consumer conversion in progress: calculus symbolic differentiation/semantic

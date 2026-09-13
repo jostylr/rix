@@ -359,8 +359,13 @@ distance is at most `2^-transcendentalBits`, then intersects with `[-1,1]`.
 `maxSumTerms` caps Taylor terms per point, with reason
 `trigonometricSeriesBudgetExceeded` on exhaustion; `maxDigits` caps intermediate
 rational sizes and throws on exhaustion. All three limits are configurable.
-This initial kernel does not do argument reduction, so `maxExponent` is not used
-by Sin/Cos. Large arguments may require more terms or hit the integer-size budget.
+Radian arguments with magnitude greater than four use certified periodic reduction.
+`maxExponent` caps the integer magnitude's bit length used to allocate additional
+pi precision; exhaustion reports `trigonometricReductionBudgetExceeded`. Machin
+pi bounds carry sufficient extra precision for multiplication by the revolution
+count. Subtracting an integral multiple of `2*pi` gives an enclosed small residual;
+Taylor bounds and derivative widening retain the requested final point precision.
+No floating-point quotient or assumed quadrant determines correctness.
 
 For an interval `[a,b]`, the kernel evaluates its midpoint `m`, then widens those
 bounds by `(b-a)/2` and intersects with `[-1,1]`. The real derivatives of sine
@@ -414,7 +419,7 @@ series and the sine series; pi-series exhaustion reports
 `trigonometricPiSeriesBudgetExceeded`. `maxDigits` checks intermediate rational
 sizes. Exact special angles require no series work. No additional fixed work
 ceiling or floating-point pi approximation is used. Rational radian arguments
-still use the unreduced Taylor kernel described above.
+use the certified periodic reduction described above when their magnitude exceeds four.
 
 Canonical pi survives mathematical JSON/JSONL through the allowlisted
 `rix.constant.pi@1` named-constant node; generic named generators remain formal.
