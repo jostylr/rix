@@ -159,13 +159,51 @@ every accepted Taylor segment. Unsupported derivative/domain graphs still
 produce explicit diagnostics; adaptation currently handles tube validation and
 local remainder rejections.
 
+## Configurable-order certified Taylor IVPs
+
+`ValidatedTaylor(problem,options?)` and `AdaptiveValidatedTaylor(problem,options?)`
+are also problem methods. `order` defaults to 4 and must be at least 2;
+`maxOrder` defaults to 8 and is a caller-adjustable construction-work limit.
+The existing `ValidatedTaylor2` methods remain fixed at order two.
+
+Starting from the RHS, repeated checked total derivatives construct `y^(k)`.
+For order n, terms through n-1 use derivative ranges at `(t0,Y0)`; the remainder
+uses the n-th derivative on the entire checked Picard tube:
+
+```text
+Y0 + sum(k=1..n-1, s^k/k! * y^(k)(t0,Y0)) + s^n/n! * y^(n)(tube).
+```
+
+Dense queries and endpoints evaluate these interval coefficients and intersect
+with the Picard enclosure. Each segment retains `taylorCoefficients`, derivative
+range evidence, the checked total-derivative chain, and the Picard existence/
+uniqueness evidence. This is an interval Taylor theorem calculation, not an
+affine or polynomial Taylor-model algebra.
+
+The adaptive controller applies `remainderTolerance` to
+`h^n sup|y^(n)|/n!`, not to the accumulated/global enclosure width. Its attempt
+and minimum-step limits retain the accepted prefix and rejected candidates.
+Fixed stepping stops on the first failed Picard tube. Unsupported derivative
+graphs, unresolved branch obligations, and failed range/checker budgets still
+raise explicit errors; adaptive retries handle tube and local-remainder failures,
+not arbitrary symbolic construction errors.
+
+`rangeOptions` forwards GraphRange options (including nested `semanticBudgets`)
+to Picard and Taylor range checks. Top-level `maxSubintervals` sets subdivision.
+`derivativeOptions` forwards derivative replay-checker limits. Their existing
+defaults and host stack-safety ceilings apply; `maxOrder` does not override them.
+The Taylor methods' `maxTubeIterations` and `maxSubintervals` now accept positive
+safe integers rather than the former fixed 32/64 caps. Inspect all these options
+in `work`. Increasing order may cost substantially more symbolic work and does
+not guarantee a narrower final enclosure.
+
 ## Deliberate first-release limits
 
 - forward first-order scalar and vector IVPs;
 - fixed or adaptively subdivided rational time steps;
 - unconditional differentiable Calculus graphs with exact rational range
   endpoints;
-- second-order interval Taylor recentering, but no general affine or
+- configurable-order interval Taylor recentering, but no general affine or
   polynomial Taylor-model algebra yet;
 - adaptive RK4 has estimates but no global certificate;
 - event existence/uniqueness is certified only on Taylor segments with a
@@ -174,8 +212,8 @@ local remainder rejections.
 - no Taylor-model flow, stiffness method, backward integration,
   boundary-value solver, or continuation yet.
 
-The record shapes reserve those extensions. The next validated rung is a
-general higher-order Taylor-model or affine flow using the adaptive controller.
+The record shapes reserve those extensions. Next is backward integration,
+followed by boundary-value records and richer trajectory plots.
 Boundary-value problems then become a separate problem kind
 rather than being disguised as an IVP.
 

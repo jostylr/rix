@@ -208,6 +208,28 @@ partial[:status]==:partial ?: 1 ?_ .Error("Expected a partial trajectory");
 {: partial[:coveredInterval],partial.At(1/4),partial[:work][:stopReason] };
 ```
 
+## Higher-order certified flow
+
+```{.rix exec=true}
+.Plugin.Load("ode");
+y := .calculus.Variable(:y);
+problem := .ode.IVP(y,0,1,0:1/2);
+second := problem.ValidatedTaylor({= order=2,steps=2,maxSubintervals=1 });
+fourth := problem.ValidatedTaylor({= order=4,maxOrder=8,steps=2,maxSubintervals=1 });
+fourth[:certified]==1 ?: 1 ?_ .Error("Expected a certified fourth-order trajectory");
+fourth[:finalState][1].Width()<second[:finalState][1].Width()
+  ?: 1 ?_ .Error("Expected tighter fourth-order enclosure for this example");
+{: fourth[:finalState],fourth.At(1/4),fourth[:wrappingControl][:order] };
+```
+
+Each segment uses start-point derivative bounds and a highest-derivative bound
+over a Picard existence tube. Try `order=3` or raise `maxOrder` explicitly.
+`AdaptiveValidatedTaylor` adds the existing attempt/minimum-step controller;
+`remainderTolerance` bounds only the local highest-order remainder. Stored
+interval uncertainty and wrapping remain. `rangeOptions` configures range work
+and semantic precision, while `derivativeOptions` configures derivative checking.
+Unsupported symbolic/domain cases report errors rather than fabricated enclosures.
+
 ## Exercises
 
 1. Compare Euler and RK4 for `y'=t+y` at several fixed step counts.
