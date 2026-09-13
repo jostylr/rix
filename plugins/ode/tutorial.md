@@ -230,6 +230,27 @@ interval uncertainty and wrapping remain. `rangeOptions` configures range work
 and semantic precision, while `derivativeOptions` configures derivative checking.
 Unsupported symbolic/domain cases report errors rather than fabricated enclosures.
 
+## Integrating backward in time
+
+Knowing the state at a later time can also define an IVP. The equation is
+unchanged; we take negative time steps. Here `y'=1` and `y(1)=1` give `y(0)=0`.
+
+```{.rix exec=true}
+.Plugin.Load("ode");
+backward := .ode.IVP(.calculus.Constant(1),1,1,1:0)
+    .ValidatedTaylor({= order=3,steps=2,maxSubintervals=1 });
+backward[:certified]==1 ?: 1 ?_ .Error("Expected a certified backward trajectory");
+backward.At(3/4)==(3/4:3/4) ?: 1 ?_ .Error("Expected backward dense output");
+{: backward[:problem][:direction],backward[:coveredInterval],backward[:finalState][1] };
+```
+
+The interval `1:0` retains its orientation; `0:1` with initial time 1 is rejected.
+The same convention works for Euler, RK4, Picard and adaptive methods. Certified
+methods use the magnitude of the step for contraction and remainder tests, but
+retain its sign in the integration formula. Event `:rising` means rising with
+increasing physical time, even when the solver is moving backward. Backward
+integration may amplify uncertainty; it is not guaranteed to undo numerical error.
+
 ## Exercises
 
 1. Compare Euler and RK4 for `y'=t+y` at several fixed step counts.

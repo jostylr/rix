@@ -31,6 +31,41 @@ The right-hand side must use public Calculus expressions rather than an opaque
 callback. This makes derivative identity, domain checking, interchange, and
 eventual recipe revival possible without serializing executable code.
 
+## Backward integration
+
+Backward integration starts from a state known at a later time and solves the
+same differential equation toward an earlier time. For example, `y'=1` with
+`y(1)=1` reaches `y(0)=0`. Use an oriented descending interval:
+
+```rix
+problem := .ode.IVP(.calculus.Constant(1),1,1,1:0);
+solution := problem.ValidatedTaylor({= order=3,steps=2,maxSubintervals=1 });
+solution.At(3/4);  # certified 3/4:3/4
+```
+
+`initialTime` must equal `interval.Start()`, and `End()` must differ. The
+problem records `direction=:backward` or `:forward`. Every stepping method
+honours this orientation. Points and segments remain in traversal order;
+`coveredInterval` preserves that order for partial certified trajectories.
+Dense `At` queries use ordinary time membership in either direction.
+
+The step h is signed in Euler/RK4 and Taylor terms. Picard self-map intervals
+use `0:h`, while contraction bounds, tube radii, adaptive minimum steps, and
+local remainder magnitudes use `|h|`. Thus an odd-order negative step cannot
+falsely pass a remainder or contraction test. Existing per-call budgets apply
+unchanged; failed adaptive steps halve the magnitude and retain their evidence.
+
+Event directions `:rising` and `:falling` refer to **increasing physical time**,
+not traversal order. Observed event bisection orders endpoints chronologically;
+certified interval-Newton brackets apply the same convention. Event intervals
+denote time sets and need not preserve trajectory orientation.
+
+Backward integration is not an algebraic inverse of numerical stepping. It can
+amplify initial uncertainty—especially when the forward equation is dissipative.
+A certified forward/backward round trip should enclose the original state, not
+necessarily reproduce a point or shrink its uncertainty. This remains an IVP,
+not a boundary-value solver.
+
 ## Educational approximate methods
 
 - `Euler(problem,{= steps=n })` uses fixed-step explicit Euler.
@@ -199,7 +234,7 @@ not guarantee a narrower final enclosure.
 
 ## Deliberate first-release limits
 
-- forward first-order scalar and vector IVPs;
+- forward and backward first-order scalar and vector IVPs;
 - fixed or adaptively subdivided rational time steps;
 - unconditional differentiable Calculus graphs with exact rational range
   endpoints;
@@ -209,11 +244,11 @@ not guarantee a narrower final enclosure.
 - event existence/uniqueness is certified only on Taylor segments with a
   checked endpoint bracket and nonzero total event derivative;
   and
-- no Taylor-model flow, stiffness method, backward integration,
+- no Taylor-model flow, stiffness method,
   boundary-value solver, or continuation yet.
 
-The record shapes reserve those extensions. Next is backward integration,
-followed by boundary-value records and richer trajectory plots.
+The record shapes reserve those extensions. Next are richer trajectory plots
+and boundary-value records.
 Boundary-value problems then become a separate problem kind
 rather than being disguised as an IVP.
 
