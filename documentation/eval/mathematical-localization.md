@@ -367,12 +367,14 @@ count. Subtracting an integral multiple of `2*pi` gives an enclosed small residu
 Taylor bounds and derivative widening retain the requested final point precision.
 No floating-point quotient or assumed quadrant determines correctness.
 
-For an interval `[a,b]`, the kernel evaluates its midpoint `m`, then widens those
-bounds by `(b-a)/2` and intersects with `[-1,1]`. The real derivatives of sine
-and cosine have absolute value at most one, so this also covers interior extrema.
-This conservative enclosure is **not** an endpoint-only or tight extrema-aware
-range. Its width can exceed the requested point precision because of input
-uncertainty. A wide interval may yield the whole `[-1,1]`. The report is `:enclosed`
+For an interval `[a,b]`, the kernel encloses both endpoints and all possible
+interior extrema. Certified pi bounds enclose the integer indices of critical
+points (`k*pi` for cosine, `(k+1/2)*pi` for sine). Even indices contribute +1,
+odd indices -1. Two or more consecutive indices immediately give `[-1,1]`;
+there is no loop over revolutions. Ambiguous boundary membership conservatively
+includes the extremum. `maxExponent` also caps endpoint magnitude bits for this
+check. Range width can exceed point precision because of input uncertainty.
+The report is `:enclosed`
 with `resultKind=:setEnclosure`; a stored real uses singleton provenance instead.
 This does not extend CAS simplification laws or the older graph-range engine.
 

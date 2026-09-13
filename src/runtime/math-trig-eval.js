@@ -114,17 +114,35 @@ function taylorBounds(value,cosine,limits,check,unsupported) {
 }
 
 export function evaluateTrigonometric(value,cosine,limits,check,unsupported) {
-    const one=new Rational(1n),minusOne=new Rational(-1n),two=new Rational(2n);
+    const one=new Rational(1n),minusOne=new Rational(-1n);
     const interval=value instanceof RationalInterval;
-    const center=interval ? check(check(value.low.add(value.high)).divide(two)) : value;
-    const bounds=pointBounds(center,cosine,limits,check,unsupported);
+    const bounds=pointBounds(interval ? value.low : value,cosine,limits,check,unsupported);
     if(!bounds) return null;
     let [low,high]=bounds;
-    if(interval) {
-        // Both real derivatives have absolute value <= 1. This covers interior
-        // extrema without pi approximations or untrusted floating-point tests.
-        const radius=check(check(value.high.subtract(value.low)).divide(two));
-        low=check(low.subtract(radius));high=check(high.add(radius));
+    if(interval && !value.low.equals(value.high)) {
+        const upper=pointBounds(value.high,cosine,limits,check,unsupported);
+        if(!upper) return null;
+        if(upper[0].lessThan(low)) low=upper[0];
+        if(upper[1].greaterThan(high)) high=upper[1];
+        const magnitude=value.low.abs().greaterThan(value.high.abs()) ? value.low.abs() : value.high.abs();
+        const bits=(magnitude.numerator/magnitude.denominator).toString(2).length;
+        if(bits>limits.maxexponent) return unsupported('trigonometricReductionBudgetExceeded');
+        const pi=piBounds({...limits,transcendentalbits:limits.transcendentalbits+bits+3},check,unsupported);
+        if(!pi) return null;
+        // Critical points are (k+1/2)*pi for sine, k*pi for cosine.
+        // An outward quotient interval includes every possible k; ambiguous
+        // endpoint membership includes the extremum rather than dropping it.
+        const quotients=[value.low,value.high].flatMap(x=>pi.map(p=>check(x.divide(p))));
+        let lower=quotients[0],upperQ=quotients[0];
+        for(const q of quotients) {if(q.lessThan(lower)) lower=q;if(q.greaterThan(upperQ)) upperQ=q;}
+        if(!cosine) {lower=check(lower.subtract(new Rational(1n,2n)));upperQ=check(upperQ.subtract(new Rational(1n,2n)));}
+        const floor=q=>q.numerator>=0n ? q.numerator/q.denominator : -((-q.numerator+q.denominator-1n)/q.denominator);
+        const first=-floor(lower.negate()),last=floor(upperQ);
+        if(first<=last) {
+            if(first<last) {low=minusOne;high=one;}
+            else if(first%2n===0n) high=one;
+            else low=minusOne;
+        }
     }
     if(low.lessThan(minusOne)) low=minusOne;
     if(high.greaterThan(one)) high=one;
