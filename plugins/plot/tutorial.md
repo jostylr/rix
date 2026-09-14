@@ -159,6 +159,26 @@ The retained metadata still gives the exact omitted time interval. Increase
 `maxSegments` to show more stored segments; this does not rerun the solver.
 Backward solutions retain their integration order in the segment records.
 
+## Mark an event
+
+```{.rix exec=true}
+.Plugin.Load("ode");
+.Plugin.Load("plot");
+y := .calculus.Variable(:y);
+event := .ode.Event(y-1/2,{= name=:half,direction=:rising });
+problem := .ode.IVP(.calculus.Constant(1),0,0,0:1,{= events=[event] });
+solution := problem.ValidatedTaylor({= steps=1,order=3,maxSubintervals=1 });
+result := solution.IsolateEvents()[1];
+.plot.EventTrajectory(result,{= title="A certified crossing of y=1/2" });
+```
+
+The green line marks a certified unique event. With `problem.RK4()` instead,
+the orange overlay is only an observed candidate. For vector solutions,
+`EventPhasePortrait(result)` marks the source segment's entire state box, not
+an exact crossing point. `maxEvents` limits overlay work; `maxSegments` still
+limits displayed trajectory coverage. The plot consumes existing evidence and
+does not strengthen it.
+
 ## Share a color policy
 
 One portable scale can drive a heat map, a statistics graphic, and a complex

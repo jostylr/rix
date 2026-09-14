@@ -32,6 +32,8 @@ to SVG by a web or notebook host.
 | `.plot.ErrorBand(data, options?)` | Symmetric declared-error rows written as `[x, estimate, error]`. |
 | `.plot.Trajectory(solution, options?)` | Time-versus-component ODE paths, retained certified tubes, and visibly uncomputed time. |
 | `.plot.PhasePortrait(solution, options?)` | Two state components, projected whole-tube boxes or approximate paths. |
+| `.plot.EventTrajectory(result, options?)` | Event-time overlays on the isolation result's own solution. |
+| `.plot.EventPhasePortrait(result, options?)` | Evidence-labeled source-segment boxes for event candidates. |
 | `.plot.Implicit(fn, xDomain, yDomain, options?)` | Sample the boundary `fn(x,y) = level` with marching squares. |
 | `.plot.Inequality(fn, xDomain, yDomain, options?)` | Classify and fill cells using `:le`, `:lt`, `:ge`, or `:gt`. |
 | `.plot.Contour(fn, xDomain, yDomain, options?)` | Draw one or more scalar-field levels. |
@@ -183,6 +185,29 @@ Metadata uses `kind=:phase_portrait`, `rendering=:odeProjectedTubeBoxes`, select
 `xComponent`/`yComponent` in evidence, and exact `xLow`, `xHigh`, `low`, `high`,
 `xStart`, `xEnd`, state endpoints, and oriented times in each record. Stable
 segment hit IDs remain `trajectory-N`; the warning is `phase-uncomputed`.
+
+### Event overlays
+
+Pass one result from `solution.IsolateEvents()` to
+`.plot.EventTrajectory(result,options?)` or
+`.plot.EventPhasePortrait(result,options?)`. The plot uses the solution retained
+inside that result, so an event cannot accidentally be attached to a different
+solution argument. No event analysis or solver is rerun.
+
+Green overlays label `certifiedUniqueEvent`, orange `observedCandidate`, and
+amber unresolved candidates. Time plots show event-time bands (a line for an
+exact time). Phase plots outline the **whole source segment's** state bounds;
+these are not a newly tightened event-state enclosure. Approximate state bounds
+remain approximate. Labels and metadata retain the original classification and
+evidence; the plot does not verify externally constructed records.
+
+`maxEvents` defaults to 100, is a caller-adjustable positive safe integer, and
+counts all candidates. Exceeding it errors rather than silently dropping events.
+Events outside the `maxSegments` displayed prefix are not drawn. Metadata
+`eventDisplay` reports candidate/displayed counts and the budget;
+`eventOverlays` retains each displayed candidate, name, and spatial interpretation.
+Exclusions are not event markers, and an unresolved candidate proves neither
+existence nor uniqueness. Use separate result views for different event functions.
 
 ## Dependencies
 
