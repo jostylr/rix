@@ -179,6 +179,32 @@ an exact crossing point. `maxEvents` limits overlay work; `maxSegments` still
 limits displayed trajectory coverage. The plot consumes existing evidence and
 does not strengthen it.
 
+## Link time plots and a phase portrait
+
+```{.rix exec=true}
+.Plugin.Load("ode");
+.Plugin.Load("plot");
+x := .calculus.Variable(:x);
+v := .calculus.Variable(:v);
+problem := .ode.IVP([v,-x],0,[1,0],0:1,{= stateNames=[:x,:v] });
+solution := problem.ValidatedTaylor({= steps=4,order=3,maxSubintervals=1 });
+.plot.LinkedTrajectory(solution,{= components=[1,2],phaseComponents=[1,2],columns=2 });
+```
+
+Select a blue segment box in any panel using the Graphics selection controls
+or keyboard. The corresponding solver segment highlights in all three panels.
+The selection links whole certified enclosures, not a guessed point on the
+solution. For approximate solvers the linked objects are approximate segments.
+`components` chooses time plots; `phaseComponents` optionally adds one phase
+portrait. `columns` arranges the panels; `size` sets each panel's dimensions.
+`maxPanels` (default 8) and `maxSegments` are adjustable display budgets.
+
+If your problem declares an event, use
+`.plot.LinkedEvents(solution.IsolateEvents()[1],options)` to link both segments
+and event overlays across the same panels. Static exports retain all panels
+and evidence but do not provide browser selection controls. This is segment
+selection, not continuous time scrubbing or a new dense-output computation.
+
 ## Share a color policy
 
 One portable scale can drive a heat map, a statistics graphic, and a complex

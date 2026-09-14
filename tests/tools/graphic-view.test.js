@@ -5,6 +5,7 @@ import {
     createGraphicHitIndex,
     describeGraphicNode,
     enhanceGraphicViews,
+    applyLinkedGraphicSelection,
     filterGraphicSelectionCatalog,
     graphicPointFromClient,
     graphicSelectionCatalog,
@@ -19,6 +20,19 @@ import {
 } from "../../src/tools/graphic-view.js";
 
 describe("portable Graphic host interaction helpers", () => {
+    test("explicit linked selection highlights peers, clears old selections, and stays local", () => {
+        const graphic={metadata:new Map([["linkedselection",[["a","b"]]]])};
+        const elements=['a','b','c'].map(id=>({dataset:{rixSemanticId:id},classList:new Set()}));
+        // DOMTokenList uses remove; Set uses delete.
+        for(const element of elements) element.classList.remove=element.classList.delete.bind(element.classList);
+        expect(applyLinkedGraphicSelection(elements,graphic,'b')).toEqual(['a','b']);
+        expect(elements.map(e=>e.classList.has('rix-output-semantic-selected'))).toEqual([true,true,false]);
+        expect(applyLinkedGraphicSelection(elements,graphic,'c')).toEqual(['c']);
+        expect(elements.map(e=>e.classList.has('rix-output-semantic-selected'))).toEqual([false,false,true]);
+        expect(applyLinkedGraphicSelection(elements,graphic,null)).toEqual([]);
+        expect(elements.every(e=>!e.classList.has('rix-output-semantic-selected'))).toBe(true);
+        expect(applyLinkedGraphicSelection(elements,{},'b')).toEqual(['b']);
+    });
     test("maps browser pixels into a scaled SVG coordinate space", () => {
         expect(graphicPointFromClient(
             { left: 10, top: 20, width: 400, height: 200 },
@@ -202,6 +216,25 @@ test("geometry construction export is deterministic and omits executable callbac
         schema: "rix.geometry.construction-record@1",
     });
     expect(JSON.parse(exported).nodes[0]).not.toHaveProperty("construct");
+});
+
+test("Graphics keyboard navigation applies linked selection through the host", () => {
+    const listeners=new Map();
+    const elements=['a','b','c'].map(id=>({dataset:{rixSemanticId:id},classList:new Set(),focus(){}}));
+    for(const element of elements) element.classList.remove=element.classList.delete.bind(element.classList);
+    const svg={
+        setAttribute(){},getAttribute(){return '100';},
+        addEventListener(name,callback){listeners.set(name,callback);},
+        querySelectorAll(selector){return selector==='[data-rix-semantic-id]'?elements:[];},
+    };
+    const graphic={dataset:{},matches:s=>s==='.rix-output-graphic',
+        querySelector:s=>s==='svg.rix-output-svg'?svg:null,querySelectorAll:()=>[],dispatchEvent(){}};
+    const state={};
+    enhanceGraphicViews(graphic,{state,graphic:{size:[100,100],children:[],metadata:new Map([['linkedselection',[['a','b']]]])}});
+    listeners.get('keydown')({key:']',preventDefault(){}});
+    expect(state.selection.ids).toEqual(['a','b']);
+    expect(state.selection.focus).toBe('a');
+    expect(elements.map(e=>e.classList.has('rix-output-semantic-selected'))).toEqual([true,true,false]);
 });
 
 test("Graphic actions emit semantic records for pointer and keyboard activation", () => {

@@ -36,7 +36,7 @@ its first useful future increment rather than treating it as abandoned.
 |---:|---|---|---|
 | 1 | `.radix` | Versioned numeral-system constructors plus common parse/format operations | **Phase 4:** specialized numeral systems do not gate the current path |
 | 2 | `.draw` | Declarative themes, constraints, and interactive handles | **Decision:** shared portable interaction/event descriptor |
-| 3 | `.plot` | Linked trajectory components and Solve boxes | **Ready:** time-component, phase-portrait, and event views retain source evidence and disclose missing time coverage |
+| 3 | `.plot` | Solve boxes and continuous-time trajectory interaction | **Ready:** linked time-component, phase-portrait, and event views retain evidence; continuous scrubbing needs an explicit dense-query interaction policy |
 | 4 | `.float` | Typed-array tensors followed by optional SIMD/Wasm acceleration | **Phase 4:** scale/performance layer |
 | 5 | `.oracle` | Exchange exact sign and root evidence with algebraic solvers | **Waiting:** stable multivariate algebra evidence records |
 | 6 | `.numerics` | Validated interval-linear solves and bounded box subdivision | **Ready:** Krawczyk and interval-Newton foundations are present |
@@ -562,7 +562,10 @@ newline normalization.
      missing-time warnings without inventing unknown spatial regions.
    - [x] Add evidence-labeled event-time overlays and conservative whole-segment
      event phase boxes, consuming an isolation result's own solution.
-   - [ ] Add linked components and Scene3D trajectory adapters.
+   - [x] Add linked component/phase/event panels with explicit shared-segment
+     selection, configurable layout/display budgets, and browser keyboard support.
+   - [ ] Add continuous-time scrubbing and independent panel viewports after
+     defining bounded dense-query interaction; add Scene3D trajectory adapters.
    - [ ] Add shooting/collocation-oriented boundary-value problem records and
      solvers after vector IVPs and nonlinear box services stabilize.
 4. **Phase 4 — Advanced differential equations**

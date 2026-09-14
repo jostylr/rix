@@ -40,6 +40,26 @@ function mapField(value, key) {
     return value?.[key] ?? value?.[String(key).toLowerCase()] ?? null;
 }
 
+/** Explicit portable links only; unrelated graphics and semantic IDs stay isolated. */
+export function linkedGraphicSelectionIds(graphic, id) {
+    if (!id) return [];
+    const groups = sequenceValue(mapField(graphic?.metadata, "linkedSelection"));
+    for (const group of groups) {
+        const ids = sequenceValue(group).map(stringValue).filter(Boolean);
+        if (ids.includes(id)) return [...new Set(ids)];
+    }
+    return [id];
+}
+
+export function applyLinkedGraphicSelection(elements, graphic, id) {
+    const ids = linkedGraphicSelectionIds(graphic, id);
+    for (const element of elements) {
+        element.classList?.remove("rix-output-semantic-selected");
+        if (ids.includes(element.dataset?.rixSemanticId)) element.classList?.add("rix-output-semantic-selected");
+    }
+    return ids;
+}
+
 function semanticId(node, path) {
     return stringValue(mapField(node?.style, "hitId"))
         || stringValue(mapField(node?.style, "id"))
@@ -1053,8 +1073,8 @@ function installNavigation(graphic, svg, status, options) {
     const setSelection = (element, source, scenePoint = null) => {
         clearClasses("rix-output-semantic-selected");
         const id = element?.dataset?.rixSemanticId || null;
-        if (element) element.classList?.add("rix-output-semantic-selected");
-        state.selection.ids = id ? [id] : [];
+        const linkedIds = applyLinkedGraphicSelection(semanticElements, options.graphic, id);
+        state.selection.ids = linkedIds;
         state.selection.focus = id;
         if (objectSelect && scopedSelectable().some((candidate) => candidate.dataset.rixSemanticId === id)) objectSelect.value = id;
         for (const textObject of graphic.querySelectorAll?.("[data-rix-graphics-text-object]") || []) {
@@ -1091,6 +1111,8 @@ function installNavigation(graphic, svg, status, options) {
         if (focus) element.focus?.();
         return true;
     };
+    const restoredLinks = linkedGraphicSelectionIds(options.graphic, state.selection.focus);
+    if (restoredLinks.length > 1) state.selection.ids = restoredLinks;
     for (const element of semanticElements) {
         if (state.selection.ids.includes(element.dataset.rixSemanticId)) element.classList?.add("rix-output-semantic-selected");
     }

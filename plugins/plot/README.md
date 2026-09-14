@@ -34,6 +34,8 @@ to SVG by a web or notebook host.
 | `.plot.PhasePortrait(solution, options?)` | Two state components, projected whole-tube boxes or approximate paths. |
 | `.plot.EventTrajectory(result, options?)` | Event-time overlays on the isolation result's own solution. |
 | `.plot.EventPhasePortrait(result, options?)` | Evidence-labeled source-segment boxes for event candidates. |
+| `.plot.LinkedTrajectory(solution, options?)` | Coordinated time-component panels and an optional phase portrait. |
+| `.plot.LinkedEvents(result, options?)` | Linked panels including the isolation result's event overlays. |
 | `.plot.Implicit(fn, xDomain, yDomain, options?)` | Sample the boundary `fn(x,y) = level` with marching squares. |
 | `.plot.Inequality(fn, xDomain, yDomain, options?)` | Classify and fill cells using `:le`, `:lt`, `:ge`, or `:gt`. |
 | `.plot.Contour(fn, xDomain, yDomain, options?)` | Draw one or more scalar-field levels. |
@@ -208,6 +210,32 @@ Events outside the `maxSegments` displayed prefix are not drawn. Metadata
 `eventOverlays` retains each displayed candidate, name, and spatial interpretation.
 Exclusions are not event markers, and an unresolved candidate proves neither
 existence nor uniqueness. Use separate result views for different event functions.
+
+### Linked component views
+
+`LinkedTrajectory(solution,{= components=[1,2],phaseComponents=[1,2] })`
+composes one portable Graphic containing two time plots and a phase portrait.
+`components` defaults to `[1]`; `phaseComponents` defaults to `[]` (no phase
+panel), or must contain two distinct valid components. At least one panel is
+required. `columns` defaults to 2 and `maxPanels` to 8; both are adjustable
+positive integers with columns at most maxPanels. `size` applies per panel.
+The usual solver-segment and tick display budgets apply separately per panel.
+
+Selecting a segment through the Graphics viewer's pointer or keyboard controls
+highlights its peers across every panel. `LinkedEvents(result,options)` also
+links the corresponding event overlays, using the result's own solution.
+Only explicit links within this Graphic participate: other worksheet outputs
+are not coupled. All panels share the viewport's pan/zoom controls. This first
+increment links discrete retained segments, not continuous cursor time,
+independent panel zoom, or interpolation/refinement. It never draws a selected
+exact point inside a certified tube.
+
+Metadata schema `rix.plot.linked-trajectory@1` contains `panels` (each panel's
+exact records, evidence, coverage and overlays), `components`, `phaseComponents`,
+`columns`, `maxPanels`, and `linkedSelection` arrays of semantic IDs. Panel IDs
+are prefixed `panel-N-`; unlinked plots keep their existing IDs. Selection
+retains a focused ID and all linked IDs in `rix.selection@1`. Static SVG keeps
+the layout and identities, but browser interaction requires the Graphics host.
 
 ## Dependencies
 
