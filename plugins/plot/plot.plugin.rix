@@ -3,7 +3,7 @@ id: plot
 description: Pure-RiX exact and numerics-backed 2D plotting that lowers to portable core Graphics scenes.
 kind: rix
 mount: plot
-exports: [Polynomial, PolynomialPOI, Function, Parametric, Scatter, Line, Bar, Step, Polar, ErrorBand, Interval, Trajectory, Implicit, Inequality, Contour, HeatMap, VectorField, ColorScale]
+exports: [Polynomial, PolynomialPOI, Function, Parametric, Scatter, Line, Bar, Step, Polar, ErrorBand, Interval, Trajectory, PhasePortrait, Implicit, Inequality, Contour, HeatMap, VectorField, ColorScale]
 groups: [Plot, Graphics, Exact]
 permissions: []
 requires: [rix.numerics@1]
@@ -664,7 +664,7 @@ PlotBandBounds(rows,settings) -> {;
     }; index+=1 };
     xDomain=PlotOption(settings,"xdomain"); yDomain=PlotOption(settings,"ydomain");
     xDomain==_ ?: {;
-        xPadding=(@xmax-@xmin)/20; @xmin-=xPadding; @xmax+=xPadding;
+        xPadding=@xmax==@xmin ?: 1 ?_ (@xmax-@xmin)/20; @xmin-=xPadding; @xmax+=xPadding;
     } ?_ {; fixed=PlotFixedYBounds(@xDomain); @xmin=fixed[1]; @xmax=fixed[2]; };
     yDomain==_ ?: {;
         @ymin==@ymax ?: {; @ymin-=1; @ymax+=1; } ?_ {; yPadding=(@ymax-@ymin)*2/25; @ymin-=yPadding; @ymax+=yPadding; };
@@ -1266,22 +1266,27 @@ PlotVectorField(fn,xDomain,yDomain,settings ?= {= }) -> {;
 
 PlotDataCall(data, options, kind) -> PlotGeneral(data, options, kind);
 
-PlotTrajectory(solution, settings ?= {= }) -> {;
+PlotTrajectory(solution, settings ?= {= }, phase ?= _) -> {;
     settings ? :Map ?_> .Error("trajectory options must be a map");
     settings=settings.Merge({= margin=PlotOption(settings,"margin",64) });
     solution ? :Map ?_> .Error("trajectory requires an ODE solution record");
     solution[:schema]=="rix.ode.solution@1" ?_> .Error("trajectory requires rix.ode.solution@1");
-    component=PlotOption(settings,"component",1) ~!: :Integer;
+    component=(phase ?: PlotOption(settings,"ycomponent",2) ?_ PlotOption(settings,"component",1)) ~!: :Integer;
     component>=1 && component<=solution[:stateNames].Len() ?_> .Error("trajectory component is out of range");
+    xcomponent=PlotOption(settings,"xcomponent",1) ~!: :Integer;
+    !phase || (xcomponent>=1 && xcomponent<=solution[:stateNames].Len() && xcomponent!=component)
+      ?_> .Error("phase portrait requires two distinct in-range components");
     maximum=PlotOption(settings,"maxsegments",1000) ~!: :Integer;
     maximum>=1 && maximum<=9007199254740991 ?_> .Error("trajectory maxSegments must be a positive safe integer");
     PlotOption(settings,"xscale",:linear)==:linear && PlotOption(settings,"yscale",:linear)==:linear
       ?_> .Error("trajectory currently requires linear axes");
-    PlotOption(settings,"xdomain")==_ ?_> .Error("trajectory retains the full requested time interval; xDomain overrides are not supported");
+    phase || PlotOption(settings,"xdomain")==_ ?_> .Error("trajectory retains the full requested time interval; xDomain overrides are not supported");
     domain=solution[:interval];
     start=solution[:problem][:initialTime]; target=domain.End();
     initial=solution[:problem][:initialState][component];
     ymin:=initial.Low(); ymax:=initial.High(); cursor:=start;
+    xinitial=phase ?: solution[:problem][:initialState][xcomponent] ?_ domain;
+    xmin:=xinitial.Low(); xmax:=xinitial.High();
     records:=[]; stopped:=_; certifiedCount:=0; approximateCount:=0;
     segments=solution[:segments];
     {@ index=1; index<=@segments.Len() && index<=@maximum && !@stopped; {;
@@ -1296,9 +1301,15 @@ PlotTrajectory(solution, settings ?= {= }) -> {;
           ?: {;
               low=@certified ?: @segment[:tube][@component].Low() ?_ .Min(@segment[:stateStart][@component],@segment[:stateEnd][@component]);
               high=@certified ?: @segment[:tube][@component].High() ?_ .Max(@segment[:stateStart][@component],@segment[:stateEnd][@component]);
+              xstart=@phase ?: @segment[:stateStart][@xcomponent] ?_ @a;
+              xend=@phase ?: @segment[:stateEnd][@xcomponent] ?_ @b;
+              xlow=(@phase && @certified) ?: @segment[:tube][@xcomponent].Low() ?_ .Min(xstart,xend);
+              xhigh=(@phase && @certified) ?: @segment[:tube][@xcomponent].High() ?_ .Max(xstart,xend);
+              @xmin ~= .Min(@xmin,xlow); @xmax ~= .Max(@xmax,xhigh);
               @ymin ~= .Min(@ymin,low); @ymax ~= .Max(@ymax,high);
               @records ~= @records.Push({=
                   id=@"trajectory-@{@index}",index=@index,tStart=@a,tEnd=@b,low=low,high=high,
+                  xLow=xlow,xHigh=xhigh,xStart=xstart,xEnd=xend,
                   kind=@certified ?: :certifiedTube ?_ :approximateSegment,
                   sourceEvidence=@certified ?: @segment[:evidence] ?_ _,
                   stateStart=@segment[:stateStart][@component],stateEnd=@segment[:stateEnd][@component]
@@ -1311,11 +1322,12 @@ PlotTrajectory(solution, settings ?= {= }) -> {;
     }; index+=1 };
     unresolved=cursor==target ?: [] ?_ [{= id=:trajectoryUncomputed,time=cursor:target,
         reason=stopped ?: :unresolvedSourceSegment ?_ (records.Len()<segments.Len() ?: :displayBudgetExceeded ?_ :uncomputedTime) }];
-    bounds=PlotBandBounds([{= x=domain.Low(),low=ymin,high=ymax },{= x=domain.High(),low=ymin,high=ymax }],settings.Merge({= xdomain=[domain.Low(),domain.High()] }));
+    bounds=PlotBandBounds([{= x=xmin,low=ymin,high=ymax },{= x=xmax,low=ymin,high=ymax }],phase ?: settings ?_ settings.Merge({= xdomain=[domain.Low(),domain.High()] }));
+    bounds[:xmin]<=xmin && bounds[:xmax]>=xmax ?_> .Error("phase portrait xDomain must contain the displayed enclosures");
     bounds[:ymin]<=ymin && bounds[:ymax]>=ymax ?_> .Error("trajectory yDomain must contain the displayed enclosures");
     config=PlotFieldConfig([bounds[:xmin],bounds[:xmax]],[bounds[:ymin],bounds[:ymax]],settings);
     children:=[]; series:=[];
-    {@ index=1; index<=@unresolved.Len(); {;
+    {@ index=1; !@phase && index<=@unresolved.Len(); {;
         range=@unresolved[index][:time];
         a=PlotProject([range.Low(),@bounds[:ymax]],@config); b=PlotProject([range.High(),@bounds[:ymin]],@config);
         @children ~= @children.Push(.Graphics.Rectangle(a,[b[1]-a[1],b[2]-a[2]],{= fill="#cbd5e1",opacity=1/2,stroke="none",hitId="trajectory-uncomputed" }));
@@ -1323,12 +1335,12 @@ PlotTrajectory(solution, settings ?= {= }) -> {;
     records.Reduce((ignored,record)->{;
         record[:kind]==:certifiedTube
           ?: {;
-              a=PlotProject([.Min(@record[:tStart],@record[:tEnd]),@record[:high]],@config);
-              b=PlotProject([.Max(@record[:tStart],@record[:tEnd]),@record[:low]],@config);
+              a=PlotProject([@record[:xLow],@record[:high]],@config);
+              b=PlotProject([@record[:xHigh],@record[:low]],@config);
               @children ~= @children.Push(.Graphics.Rectangle(a,[b[1]-a[1],b[2]-a[2]],{= fill="#93c5fd",stroke="#1d4ed8",width=1,opacity=1/2,hitId=@record[:id] }));
           }
           ?_ {;
-              data=[[@record[:tStart],@record[:stateStart]],[@record[:tEnd],@record[:stateEnd]]];
+              data=[[@record[:xStart],@record[:stateStart]],[@record[:xEnd],@record[:stateEnd]]];
               style={= fill="none",stroke="#c2410c",width=2,hitId=@record[:id] };
               @children ~= @children.Push(.Graphics.Path(data.Map((point)->PlotProject(point,@config)),style));
               @series ~= @series.Push({= kind=:approximateSegment,data=data,style=style });
@@ -1341,6 +1353,9 @@ PlotTrajectory(solution, settings ?= {= }) -> {;
         [config[:margin]+(index-1)*(config[:width]-2*config[:margin])/3,32],label,
         {= fill=legendColors[index],size=10,anchor="start" }
     )));
+    phase && unresolved.Len()>0 ?: {;
+        @children ~= @children.Push(.Graphics.Text([@config[:margin],48],"Partial time coverage; missing states are unknown",{= fill="#475569",size=10,anchor="start",hitId="phase-uncomputed" }));
+    } ?_ _;
     tickCount=PlotOption(settings,"tickcount",5) ~!: :Integer;
     maxTicks=PlotOption(settings,"maxticks",20) ~!: :Integer;
     tickDigits=PlotOption(settings,"tickdigits",3) ~!: :Integer;
@@ -1355,16 +1370,17 @@ PlotTrajectory(solution, settings ?= {= }) -> {;
         @children ~= @children.Push(.Graphics.Text([yp[1]-5,yp[2]],y.ToDecimalApproximation({= fractionalDigits=@tickDigits }).ToString(),{= size=10,fill="#334155",anchor="end" }));
     }; index+=1 };
     labels=settings.Merge({=
-        title=PlotOption(settings,"title","ODE trajectory"),
-        xlabel=PlotOption(settings,"xlabel",solution[:problem][:independent]),
+        title=PlotOption(settings,"title",phase ?: "ODE phase portrait" ?_ "ODE trajectory"),
+        xlabel=PlotOption(settings,"xlabel",phase ?: solution[:stateNames][xcomponent] ?_ solution[:problem][:independent]),
         ylabel=PlotOption(settings,"ylabel",solution[:stateNames][component])
     });
-    PlotFieldGraphic(:trajectory,config,labels,children,{=
+    PlotFieldGraphic(phase ?: :phase_portrait ?_ :trajectory,config,labels,children,{=
         status=unresolved.Len()>0 ?: :partial ?_ (approximateCount>0 ?: :approximate ?_ :enclosed),
-        records=records,series=series,unresolvedRegions=unresolved,rendering=:odeSegmentEnclosures,
+        records=records,series=series,unresolvedRegions=unresolved,rendering=phase ?: :odeProjectedTubeBoxes ?_ :odeSegmentEnclosures,
         sampling={= method=:retainedOdeSegments,maxSegments=maximum,renderedSegments=records.Len(),tickCount=tickCount,maxTicks=maxTicks,tickDigits=tickDigits },
         evidence={= interpretation=:retainedSourceEvidence,plotAddsCertification=_,
             component=component,sourceMethod=solution[:method],sourceStatus=solution[:status],
+            xComponent=phase ?: xcomponent ?_ _,yComponent=component,
             requestedInterval=domain,displayedInterval=start:cursor,
             certifiedSegments=certifiedCount,approximateSegments=approximateCount },
         legend=[{= label="Certified source tube",color="#1d4ed8" },{= label="Approximate segment",color="#c2410c" },{= label="Uncomputed / omitted",color="#cbd5e1" }]
@@ -1385,6 +1401,7 @@ plotNamespace._proto = {=
     ErrorBand=(self, data, options ?= {= })->PlotBand(data, options, :error_band),
     Interval=(self, data, options ?= {= })->PlotBand(data, options, :interval),
     Trajectory=(self, solution, options ?= {= })->PlotTrajectory(solution,options),
+    PhasePortrait=(self, solution, options ?= {= })->PlotTrajectory(solution,options,1),
     Implicit=(self, fn, xDomain, yDomain, options ?= {= })->PlotContourBuild(fn,xDomain,yDomain,options,:implicit),
     Inequality=(self, fn, xDomain, yDomain, options ?= {= })->PlotInequality(fn,xDomain,yDomain,options),
     Contour=(self, fn, xDomain, yDomain, options ?= {= })->PlotContourBuild(fn,xDomain,yDomain,options,:contour),

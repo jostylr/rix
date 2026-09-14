@@ -133,6 +133,32 @@ solver evidence. For a vector solution, use `{= component=2 }` to select its
 second coordinate. Backward solutions work without sorting or changing their
 stored trajectory. Tick-label approximations do not change the exact metadata.
 
+## Plot a phase portrait
+
+A phase portrait removes time from the axes: here position `x` is horizontal
+and velocity `v` is vertical for the oscillator `x'=v`, `v'=-x`.
+
+```{.rix exec=true}
+.Plugin.Load("ode");
+.Plugin.Load("plot");
+x := .calculus.Variable(:x);
+v := .calculus.Variable(:v);
+problem := .ode.IVP([v,-x],0,[1,0],0:1,{= stateNames=[:x,:v] });
+solution := problem.ValidatedTaylor({= steps=4,order=3,maxSubintervals=1 });
+.plot.PhasePortrait(solution,{= xComponent=1,yComponent=2,title="Oscillator: certified position/velocity boxes" });
+```
+
+Blue boxes enclose each accepted segment in both coordinates. They do not say
+that every point in a box is reachable, or trace a certified ellipse. Replace
+the solver call with `problem.RK4({= steps=16 })` for an orange **approximate**
+path. Swap `xComponent` and `yComponent` to exchange axes.
+
+Try adding `maxSegments=1` to the plot options. The visible warning reports
+missing time coverage; no gray spatial region is invented for unknown states.
+The retained metadata still gives the exact omitted time interval. Increase
+`maxSegments` to show more stored segments; this does not rerun the solver.
+Backward solutions retain their integration order in the segment records.
+
 ## Share a color policy
 
 One portable scale can drive a heat map, a statistics graphic, and a complex

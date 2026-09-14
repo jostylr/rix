@@ -36,7 +36,7 @@ its first useful future increment rather than treating it as abandoned.
 |---:|---|---|---|
 | 1 | `.radix` | Versioned numeral-system constructors plus common parse/format operations | **Phase 4:** specialized numeral systems do not gate the current path |
 | 2 | `.draw` | Declarative themes, constraints, and interactive handles | **Decision:** shared portable interaction/event descriptor |
-| 3 | `.plot` | Linked trajectory components, phase portraits, event overlays, and Solve boxes | **Ready:** time-component ODE plots now retain tube evidence and show omitted/uncomputed time |
+| 3 | `.plot` | Linked trajectory components, event overlays, and Solve boxes | **Ready:** time-component and phase-portrait ODE plots retain tube evidence and disclose missing time coverage |
 | 4 | `.float` | Typed-array tensors followed by optional SIMD/Wasm acceleration | **Phase 4:** scale/performance layer |
 | 5 | `.oracle` | Exchange exact sign and root evidence with algebraic solvers | **Waiting:** stable multivariate algebra evidence records |
 | 6 | `.numerics` | Validated interval-linear solves and bounded box subdivision | **Ready:** Krawczyk and interval-Newton foundations are present |
@@ -557,7 +557,10 @@ newline normalization.
      with signed dense output and physical-time event directions.
    - [x] Add time-component Plot trajectory views with whole certified tubes,
      approximate paths, backward-time records, and visible partial/display-budget coverage.
-   - [ ] Add linked components, phase portraits, event overlays, and Scene3D trajectory adapters.
+   - [x] Add two-component phase portraits with projected certified tube boxes,
+     separate approximate paths, configurable display budgets, and explicit
+     missing-time warnings without inventing unknown spatial regions.
+   - [ ] Add linked components, event overlays, and Scene3D trajectory adapters.
    - [ ] Add shooting/collocation-oriented boundary-value problem records and
      solvers after vector IVPs and nonlinear box services stabilize.
 4. **Phase 4 — Advanced differential equations**

@@ -31,6 +31,7 @@ to SVG by a web or notebook host.
 | `.plot.Interval(data, options?)` | Exact interval-valued rows written as `[x, low:high]`. |
 | `.plot.ErrorBand(data, options?)` | Symmetric declared-error rows written as `[x, estimate, error]`. |
 | `.plot.Trajectory(solution, options?)` | Time-versus-component ODE paths, retained certified tubes, and visibly uncomputed time. |
+| `.plot.PhasePortrait(solution, options?)` | Two state components, projected whole-tube boxes or approximate paths. |
 | `.plot.Implicit(fn, xDomain, yDomain, options?)` | Sample the boundary `fn(x,y) = level` with marching squares. |
 | `.plot.Inequality(fn, xDomain, yDomain, options?)` | Classify and fill cells using `:le`, `:lt`, `:ge`, or `:gt`. |
 | `.plot.Contour(fn, xDomain, yDomain, options?)` | Draw one or more scalar-field levels. |
@@ -152,8 +153,36 @@ intervals, budgets, stable hit identities, and unresolved reasons. The evidence
 interpretation is `:retainedSourceEvidence`: Plot trusts the supplied ODE record
 and adds **no independent certification**, particularly for externally constructed
 or modified records. Certified tubes remain Graphics rectangles, not ordinary
-line series. Phase portraits, linked components, event overlays, and Scene3D
-trajectory adapters remain separate follow-on work.
+line series. Linked components, event overlays, and Scene3D trajectory adapters
+remain separate follow-on work.
+
+### Phase portraits
+
+`.plot.PhasePortrait(solution,{= xComponent=1,yComponent=2 })` plots two distinct
+one-based state components, rather than time against one component. Defaults
+are components 1 and 2, so a vector IVP is required. A single solution produces
+a trajectory portrait, not the entire system's phase flow.
+
+Each blue box is the Cartesian projection of an accepted segment's **whole
+certified tube** onto the selected coordinates. It encloses the trajectory but
+does not claim every point in the box is reachable, retain cross-coordinate
+correlations, or identify a unique curve through the box. Orange paths join
+approximate segment endpoints in solver traversal order, including backward
+integration. Plot adds no certification to either source.
+
+The same `maxSegments`, `tickCount`, `maxTicks`, `tickDigits`, size, margin, and
+label options apply as for `Trajectory`. Both axes must be linear; optional
+`xDomain` and `yDomain` must contain the displayed bounds. Constant coordinates
+get a nonzero automatic viewing span. Axis labels default to selected state
+names. No solver is called and no source record is mutated.
+
+Missing or budget-omitted time is retained in `unresolvedRegions` and marked by
+a visible partial-coverage warning, **not shaded in state space**: its location
+is unknown. `status=:partial` takes precedence over approximate/enclosed status.
+Metadata uses `kind=:phase_portrait`, `rendering=:odeProjectedTubeBoxes`, selected
+`xComponent`/`yComponent` in evidence, and exact `xLow`, `xHigh`, `low`, `high`,
+`xStart`, `xEnd`, state endpoints, and oriented times in each record. Stable
+segment hit IDs remain `trajectory-N`; the warning is `phase-uncomputed`.
 
 ## Dependencies
 
