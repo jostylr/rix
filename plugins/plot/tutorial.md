@@ -216,6 +216,19 @@ resolution, while exact time entry is not restricted to its grid.
 `maxScrubWork` (default 10000) and `maxScrubDigits` (default 1000) bound each
 query. Budget failures are visible and do not call a solver or extrapolate.
 
+Choose **Panel to zoom**, then use **Zoom panel in**, **Zoom panel out**, or
+**Reset panel**. Scrolling over a panel zooms that panel around the pointer;
+the other panels keep their views. Scrub again after zooming: the selected time
+is still shared, and its marker follows the panel's zoom. A clipped marker has
+not disappeared mathematically—the exact readout remains available. Reset the
+panel to see its full original view.
+
+`panelMinZoom` (default `1/8`), `panelMaxZoom` (default `64`), and
+`panelZoomStep` (default `3/2`) configure these controls. Try
+`panelMaxZoom=128,panelZoomStep=2`. The main Graphics toolbar still changes the
+whole composed view. Panel zoom changes display only, including axes and labels;
+it does not request tighter enclosures or recompute tick positions.
+
 ## Share a color policy
 
 One portable scale can drive a heat map, a statistics graphic, and a complex

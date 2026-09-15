@@ -225,7 +225,7 @@ Selecting a segment through the Graphics viewer's pointer or keyboard controls
 highlights its peers across every panel. `LinkedEvents(result,options)` also
 links the corresponding event overlays, using the result's own solution.
 Only explicit links within this Graphic participate: other worksheet outputs
-are not coupled. All panels share the viewport's pan/zoom controls. This first
+are not coupled. The main viewport's pan/zoom controls affect the composition. This first
 increment supports time scrubbing as well as discrete segment selection.
 It never draws a selected exact point inside a certified tube.
 
@@ -244,6 +244,17 @@ reports an unavailable query, never extrapolation. No callback, solver,
 refinement, or external service runs. Red screen marks are display projections;
 exact rational readouts and retained evidence remain authoritative. Metadata
 `scrub` stores policy/budgets and `panelViews` stores projection bounds.
+
+Each panel also has an independent clipped viewport. Choose a panel and use
+its zoom-in/out/reset controls, or scroll over it to zoom around the pointer.
+`panelMinZoom=1/8`, `panelMaxZoom=64`, and `panelZoomStep=3/2` are configurable;
+require `0 < minimum <= 1 <= maximum` and `step > 1`. Values must be usable as
+finite browser viewport numbers; unusable projections report an error.
+Selection and scrub time survive panel zoom/reset; markers are drawn inside
+the same panel viewport. Clipping never changes the exact readout or evidence.
+This zooms the complete retained panel scene (including labels), not a resampled
+plot with regenerated axes. Metadata `panelZoom` retains its policy. Browser
+viewport changes are ephemeral, not modifications to the solution or static SVG.
 
 Metadata schema `rix.plot.linked-trajectory@1` contains `panels` (each panel's
 exact records, evidence, coverage and overlays), `components`, `phaseComponents`,

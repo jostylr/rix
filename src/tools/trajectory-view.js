@@ -57,6 +57,9 @@ export function installTrajectoryScrubber(root,svg,graphic,navigation) {
         try {
             const result=queryTrajectoryTime(graphic,time);
             input.value=String(result.time);
+            const steps=Number(slider.max),start=trajectorySliderTime(graphic,0),end=trajectorySliderTime(graphic,steps);
+            const fraction=number(result.time.subtract(start).divide(end.subtract(start)));
+            if(Number.isFinite(fraction))slider.value=String(Math.round(Math.max(0,Math.min(1,fraction))*steps));
             const first=result.panels.find(p=>p.id);
             first?navigation?.selectById(first.id,'scrub',false):navigation?.clearSelection();
             readout.textContent=`t=${result.time}: `+result.panels.map((p,i)=>`panel ${i+1}: ${p.status==='uncomputed'?'uncomputed / omitted':`${p.status} y=[${p.ylo}, ${p.yhi}]${p.phase?` x=[${p.xlo}, ${p.xhi}]`:''}`}`).join('; ');
@@ -74,7 +77,8 @@ export function installTrajectoryScrubber(root,svg,graphic,navigation) {
                 const node=doc.createElementNS('http://www.w3.org/2000/svg',p.status==='approximate'?'circle':w===0?'line':'rect');
                 const attrs=p.status==='approximate'?{cx:x,cy:y,r:4}:w===0?{x1:x,x2:x,y1:y,y2:y+h}:{x,y,width:w,height:h};
                 Object.entries({...attrs,stroke:'#be123c','stroke-width':3,fill:p.status==='approximate'?'#be123c':'none','pointer-events':'none'}).forEach(([k,v])=>node.setAttribute(k,String(v)));
-                const container=svg.querySelector(`[data-rix-semantic-id="linked-panel-${i+1}"]`);
+                const panel=svg.querySelector(`[data-rix-semantic-id="linked-panel-${i+1}"]`);
+                const container=panel?.querySelector?.('[data-rix-panel-viewport]')||panel;
                 if(container){container.append(node);overlays.push(node);}
             });
         } catch(error) {navigation?.clearSelection();readout.textContent=`Time query unavailable: ${error.message}`;}
@@ -82,4 +86,58 @@ export function installTrajectoryScrubber(root,svg,graphic,navigation) {
     slider.addEventListener('input',()=>update(trajectorySliderTime(graphic,Number(slider.value))));
     input.addEventListener('change',()=>update(input.value));
     update(trajectorySliderTime(graphic,0));
+}
+
+export function zoomTrajectoryPanel(state,factor,policy,anchor=[0.5,0.5]) {
+    const minimum=number(field(policy,'minimum')),maximum=number(field(policy,'maximum'));
+    if(![minimum,maximum,factor,...anchor].every(Number.isFinite)||minimum<=0||minimum>1||maximum<1||factor<=0)throw Error('Panel zoom policy is not browser-representable');
+    const next=Math.min(maximum,Math.max(minimum,state.zoom*factor));
+    const oldWidth=state.width/state.zoom,oldHeight=state.height/state.zoom;
+    if(![state.width/next,state.height/next].every(v=>Number.isFinite(v)&&v>0))throw Error('Panel zoom is not browser-representable');
+    state.x+=anchor[0]*(oldWidth-state.width/next);
+    state.y+=anchor[1]*(oldHeight-state.height/next);
+    state.zoom=next;
+    return state;
+}
+
+export function installTrajectoryPanelZoom(root,svg,graphic,navigation) {
+    const policy=field(graphic?.metadata,'panelZoom'),doc=root.ownerDocument;
+    if(!policy||!doc?.createElementNS)return [];
+    const controls=doc.createElement('div'),select=doc.createElement('select'),readout=doc.createElement('output');
+    controls.className='rix-trajectory-panel-controls';select.setAttribute('aria-label','Panel to zoom');readout.setAttribute('aria-live','polite');
+    controls.append(select);
+    const panels=list(field(graphic.metadata,'panelViews')).map((config,i)=>{
+        const container=svg.querySelector(`[data-rix-semantic-id="linked-panel-${i+1}"]`);
+        const width=number(field(config,'width')),height=number(field(config,'height'));
+        const viewport=doc.createElementNS('http://www.w3.org/2000/svg','svg');
+        viewport.setAttribute('width',String(width));viewport.setAttribute('height',String(height));
+        viewport.setAttribute('overflow','hidden');viewport.setAttribute('data-rix-panel-viewport',String(i+1));
+        if(container){while(container.firstChild)viewport.append(container.firstChild);container.append(viewport);}
+        const option=doc.createElement('option');option.value=String(i);option.textContent=`Panel ${i+1}`;select.append(option);
+        return {viewport,state:{x:0,y:0,width,height,zoom:1}};
+    });
+    select.value='0';
+    const apply=panel=>{const s=panel.state;panel.viewport.setAttribute('viewBox',`${s.x} ${s.y} ${s.width/s.zoom} ${s.height/s.zoom}`);navigation?.invalidateHitIndex?.();};
+    const change=(index,factor,anchor)=>{
+        const panel=panels[index];if(!panel)return;
+        try {zoomTrajectoryPanel(panel.state,factor,policy,anchor);apply(panel);readout.textContent=`Panel ${index+1}: ${panel.state.zoom}× zoom`;}
+        catch(error){readout.textContent=error.message;}
+    };
+    const button=(label,action)=>{const b=doc.createElement('button');b.type='button';b.textContent=label;b.addEventListener('click',action);controls.append(b);};
+    button('Zoom panel in',()=>change(Number(select.value),number(field(policy,'step'))));
+    button('Zoom panel out',()=>change(Number(select.value),1/number(field(policy,'step'))));
+    button('Reset panel',()=>{const p=panels[Number(select.value)];if(p){Object.assign(p.state,{x:0,y:0,zoom:1});apply(p);readout.textContent=`Panel ${Number(select.value)+1}: reset`;}});
+    controls.append(readout);root.insertBefore(controls,svg);
+    panels.forEach((p,i)=>{
+        apply(p);
+        p.viewport.addEventListener('wheel',event=>{
+            event.preventDefault();event.stopPropagation();
+            const rect=p.viewport.getBoundingClientRect();
+            if(rect.width<=0||rect.height<=0)return;
+            select.value=String(i);
+            const anchor=[(event.clientX-rect.left)/rect.width,(event.clientY-rect.top)/rect.height].map(v=>Math.max(0,Math.min(1,v)));
+            change(i,event.deltaY<0?number(field(policy,'step')):1/number(field(policy,'step')),anchor);
+        },{passive:false});
+    });
+    return panels;
 }
