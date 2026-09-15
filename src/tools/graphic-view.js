@@ -1,6 +1,7 @@
 /** Host-side pan, zoom, inspection, selection, drag, and action support for Graphics. */
 
 import { encodeGeometryConstructionSource } from "./geometry-construction-codec.js";
+import { installTrajectoryScrubber } from "./trajectory-view.js";
 
 const MIN_ZOOM = 1 / 8;
 const MAX_ZOOM = 64;
@@ -1282,7 +1283,7 @@ function installNavigation(graphic, svg, status, options) {
         applyViewport();
         announceViewport("keyboard");
     });
-    return Object.freeze({ selectById, cycleSelection, spatialSelection });
+    return Object.freeze({ selectById, cycleSelection, spatialSelection, clearSelection:()=>setSelection(null,"scrub") });
 }
 
 function enhanceGraphic(graphic, options) {
@@ -1303,6 +1304,7 @@ function enhanceGraphic(graphic, options) {
     if (!svg) return;
 
     const navigation = installNavigation(graphic, svg, status, options);
+    installTrajectoryScrubber(graphic, svg, options.graphic, navigation);
     const actionActivators = new Map();
     const pendingActionPayloads = new Map();
 

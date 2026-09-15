@@ -188,7 +188,7 @@ x := .calculus.Variable(:x);
 v := .calculus.Variable(:v);
 problem := .ode.IVP([v,-x],0,[1,0],0:1,{= stateNames=[:x,:v] });
 solution := problem.ValidatedTaylor({= steps=4,order=3,maxSubintervals=1 });
-.plot.LinkedTrajectory(solution,{= components=[1,2],phaseComponents=[1,2],columns=2 });
+.plot.LinkedTrajectory(solution,{= components=[1,2],phaseComponents=[1,2],columns=2,scrubSteps=2000 });
 ```
 
 Select a blue segment box in any panel using the Graphics selection controls
@@ -203,7 +203,18 @@ If your problem declares an event, use
 `.plot.LinkedEvents(solution.IsolateEvents()[1],options)` to link both segments
 and event overlays across the same panels. Static exports retain all panels
 and evidence but do not provide browser selection controls. This is segment
-selection, not continuous time scrubbing or a new dense-output computation.
+selection plus a time scrubber. Move the **Trajectory time** slider, or enter
+an exact time such as `1/3` in **Exact trajectory time**. The red mark moves
+through each time plot and displays the corresponding phase bounds. For
+certified segments these are the whole retained tube bounds, not tightened
+Taylor bounds at that time; approximate segments use exact arithmetic on their
+stored linear interpolation. The readout labels this distinction explicitly.
+
+Try `maxSegments=1` and scrub past the displayed prefix: the readout says
+uncomputed/omitted and clears old markers. `scrubSteps` controls slider
+resolution, while exact time entry is not restricted to its grid.
+`maxScrubWork` (default 10000) and `maxScrubDigits` (default 1000) bound each
+query. Budget failures are visible and do not call a solver or extrapolate.
 
 ## Share a color policy
 

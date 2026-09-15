@@ -226,9 +226,24 @@ highlights its peers across every panel. `LinkedEvents(result,options)` also
 links the corresponding event overlays, using the result's own solution.
 Only explicit links within this Graphic participate: other worksheet outputs
 are not coupled. All panels share the viewport's pan/zoom controls. This first
-increment links discrete retained segments, not continuous cursor time,
-independent panel zoom, or interpolation/refinement. It never draws a selected
-exact point inside a certified tube.
+increment supports time scrubbing as well as discrete segment selection.
+It never draws a selected exact point inside a certified tube.
+
+The slider visits rational times across increasing physical time, including
+backward solutions. `scrubSteps` defaults to 1000; a separate exact-time input
+accepts rational times outside that slider grid. Certified queries return the
+containing segment's whole tube, not a tightened Taylor query. Approximate
+queries use exact rational arithmetic on stored linear endpoints. Shared
+endpoints use the first matching segment in solver traversal order, as `At`
+does. Missing/omitted/out-of-range times clear marks and report uncomputed.
+
+`maxScrubWork` (10000) counts visited panels and records per query;
+`maxScrubDigits` (1000) bounds rational input/intermediate string lengths.
+All three limits are adjustable positive safe integers. Exceeding a budget
+reports an unavailable query, never extrapolation. No callback, solver,
+refinement, or external service runs. Red screen marks are display projections;
+exact rational readouts and retained evidence remain authoritative. Metadata
+`scrub` stores policy/budgets and `panelViews` stores projection bounds.
 
 Metadata schema `rix.plot.linked-trajectory@1` contains `panels` (each panel's
 exact records, evidence, coverage and overlays), `components`, `phaseComponents`,
