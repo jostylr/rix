@@ -227,23 +227,36 @@ links the corresponding event overlays, using the result's own solution.
 Only explicit links within this Graphic participate: other worksheet outputs
 are not coupled. The main viewport's pan/zoom controls affect the composition. This first
 increment supports time scrubbing as well as discrete segment selection.
-It never draws a selected exact point inside a certified tube.
+It never invents an exact point inside an enclosure; a genuinely point-valued
+Taylor enclosure is shown as an outlined marker.
 
 The slider visits rational times across increasing physical time, including
 backward solutions. `scrubSteps` defaults to 1000; a separate exact-time input
-accepts rational times outside that slider grid. Certified queries return the
-containing segment's whole tube, not a tightened Taylor query. Approximate
+accepts rational times outside that slider grid. By default (`scrubMode=:taylor`),
+certified Taylor queries evaluate retained interval coefficients at the selected
+time and intersect with the containing tube, matching the solver's `At` rule.
+The highest coefficient already includes the solver's certified remainder;
+it is not treated as an exact derivative or dropped. Negative time offsets
+retain their signs. Both Taylor2 and general-order formats are supported.
+Picard-only records explicitly use `wholeRetainedTube`; `scrubMode=:tube`
+requests that conservative behavior for every certified record. Approximate
 queries use exact rational arithmetic on stored linear endpoints. Shared
 endpoints use the first matching segment in solver traversal order, as `At`
 does. Missing/omitted/out-of-range times clear marks and report uncomputed.
 
-`maxScrubWork` (10000) counts visited panels and records per query;
+`maxScrubWork` (10000) counts visited panels, records, and Taylor terms per query;
 `maxScrubDigits` (1000) bounds rational input/intermediate string lengths.
-All three limits are adjustable positive safe integers. Exceeding a budget
+`maxScrubOrder` (16) limits coefficient count per coordinate and can be raised
+for higher-order solutions. All limits are adjustable positive safe integers. Exceeding a budget
 reports an unavailable query, never extrapolation. No callback, solver,
 refinement, or external service runs. Red screen marks are display projections;
 exact rational readouts and retained evidence remain authoritative. Metadata
 `scrub` stores policy/budgets and `panelViews` stores projection bounds.
+Each segment record retains selected-coordinate `yCoefficients` and
+`xCoefficients` (phase views). Query results/readouts distinguish
+`retainedTaylorIntersection`, `wholeRetainedTube`, and `linearApproximation`.
+An inconsistent Taylor/tube intersection errors; it never silently widens or
+pretends to certify imported records. Original segment/event boxes stay unchanged.
 
 Each panel also has an independent clipped viewport. Choose a panel and use
 its zoom-in/out/reset controls, or scroll over it to zoom around the pointer.

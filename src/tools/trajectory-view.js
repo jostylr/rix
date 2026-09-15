@@ -1,5 +1,5 @@
 /** Bounded, callback-free queries of retained trajectory plot evidence. */
-import {Rational} from '@ratmath/core';
+import {Rational,RationalInterval} from '@ratmath/core';
 const field=(v,k)=>v instanceof Map?v.get(k.toLowerCase()):v?.entries instanceof Map?v.entries.get(k.toLowerCase()):v?.[k];
 const list=v=>Array.isArray(v)?v:v?.values||[];
 const word=v=>v?.value??v;
@@ -13,6 +13,24 @@ export function queryTrajectoryTime(graphic,time) {
     const maxDigits=limit(field(policy,'maxDigits'),'maxScrubDigits');
     let work=0;
     const check=v=>{if(String(v).length>maxDigits)throw Error('maxScrubDigits exceeded');return q(v);};
+    const interval=v=>new RationalInterval(check(v.low??v),check(v.high??v));
+    const spend=()=>{if(++work>maxWork)throw Error('maxScrubWork exceeded');};
+    const mode=word(field(policy,'mode'))??'tube';
+    if(!['taylor','tube'].includes(mode))throw Error('Invalid scrub mode');
+    const maxOrder=limit(field(policy,'maxOrder')??16,'maxScrubOrder');
+    const atTime=(coefficients,start,delta,low,high)=>{
+        const rows=list(coefficients);
+        if(rows.length>maxOrder)throw Error('maxScrubOrder exceeded');
+        let value=interval(start),power=check(1);
+        for(const coefficient of rows){
+            spend();power=check(power.multiply(delta));
+            const term=interval(interval(coefficient).multiply(power));
+            value=interval(value.add(term));
+        }
+        const result=value.intersection(new RationalInterval(low,high));
+        if(!result)throw Error('Retained Taylor and tube enclosures are inconsistent');
+        return result;
+    };
     const t=check(time), panels=[];
     for(const panel of list(field(metadata,'panels'))) {
         if(++work>maxWork)throw Error('maxScrubWork exceeded');
@@ -24,16 +42,27 @@ export function queryTrajectoryTime(graphic,time) {
             const certified=word(field(record,'kind'))==='certifiedTube';
             const phase=word(field(panel,'rendering'))==='odeProjectedTubeBoxes';
             const interpolate=(start,end)=>check(check(start).add(check(check(end).subtract(check(start))).multiply(check(t.subtract(a).divide(b.subtract(a))))));
-            const ylo=certified?check(field(record,'low')):interpolate(field(record,'stateStart'),field(record,'stateEnd'));
-            const yhi=certified?check(field(record,'high')):ylo;
-            const xlo=phase?(certified?check(field(record,'xLow')):interpolate(field(record,'xStart'),field(record,'xEnd'))):t;
-            const xhi=phase&&certified?check(field(record,'xHigh')):xlo;
-            found={id:word(field(record,'id')),status:certified?'enclosed':'approximate',xlo,xhi,ylo,yhi,phase};
+            let ylo=certified?check(field(record,'low')):interpolate(field(record,'stateStart'),field(record,'stateEnd'));
+            let yhi=certified?check(field(record,'high')):ylo;
+            let xlo=phase?(certified?check(field(record,'xLow')):interpolate(field(record,'xStart'),field(record,'xEnd'))):t;
+            let xhi=phase&&certified?check(field(record,'xHigh')):xlo;
+            const taylor=certified&&mode==='taylor'&&list(field(record,'yCoefficients')).length>0;
+            if(taylor){
+                const delta=check(t.subtract(a));
+                const y=atTime(field(record,'yCoefficients'),field(record,'stateStart'),delta,ylo,yhi);
+                ylo=y.low;yhi=y.high;
+                if(phase){
+                    if(!list(field(record,'xCoefficients')).length)throw Error('Missing retained Taylor x coefficients');
+                    const x=atTime(field(record,'xCoefficients'),field(record,'xStart'),delta,xlo,xhi);
+                    xlo=x.low;xhi=x.high;
+                }
+            }
+            found={id:word(field(record,'id')),status:certified?'enclosed':'approximate',method:taylor?'retainedTaylorIntersection':certified?'wholeRetainedTube':'linearApproximation',xlo,xhi,ylo,yhi,phase};
             break;
         }
         panels.push(found??{status:'uncomputed'});
     }
-    return {time:t,panels,work,policy:'wholeRetainedTube',status:panels.some(p=>p.status==='uncomputed')?'uncomputed':'available'};
+    return {time:t,panels,work,policy:mode,status:panels.some(p=>p.status==='uncomputed')?'uncomputed':'available'};
 }
 
 export function trajectorySliderTime(graphic,step) {
@@ -62,7 +91,7 @@ export function installTrajectoryScrubber(root,svg,graphic,navigation) {
             if(Number.isFinite(fraction))slider.value=String(Math.round(Math.max(0,Math.min(1,fraction))*steps));
             const first=result.panels.find(p=>p.id);
             first?navigation?.selectById(first.id,'scrub',false):navigation?.clearSelection();
-            readout.textContent=`t=${result.time}: `+result.panels.map((p,i)=>`panel ${i+1}: ${p.status==='uncomputed'?'uncomputed / omitted':`${p.status} y=[${p.ylo}, ${p.yhi}]${p.phase?` x=[${p.xlo}, ${p.xhi}]`:''}`}`).join('; ');
+            readout.textContent=`t=${result.time}: `+result.panels.map((p,i)=>`panel ${i+1}: ${p.status==='uncomputed'?'uncomputed / omitted':`${p.status} y=[${p.ylo}, ${p.yhi}]${p.phase?` x=[${p.xlo}, ${p.xhi}]`:''} (${p.method})`}`).join('; ');
             result.panels.forEach((p,i)=>{
                 if(!p.id)return;
                 const config=list(field(graphic.metadata,'panelViews'))[i];
@@ -74,8 +103,9 @@ export function installTrajectoryScrubber(root,svg,graphic,navigation) {
                 };
                 const x=project(p.xlo,'x'),y=project(p.yhi,'y'),w=project(p.xhi,'x')-x,h=project(p.ylo,'y')-y;
                 if(![x,y,w,h].every(Number.isFinite))return;
-                const node=doc.createElementNS('http://www.w3.org/2000/svg',p.status==='approximate'?'circle':w===0?'line':'rect');
-                const attrs=p.status==='approximate'?{cx:x,cy:y,r:4}:w===0?{x1:x,x2:x,y1:y,y2:y+h}:{x,y,width:w,height:h};
+                const point=p.status==='approximate'||(p.xlo.equals(p.xhi)&&p.ylo.equals(p.yhi));
+                const node=doc.createElementNS('http://www.w3.org/2000/svg',point?'circle':w===0?'line':'rect');
+                const attrs=point?{cx:x,cy:y,r:4}:w===0?{x1:x,x2:x,y1:y,y2:y+h}:{x,y,width:w,height:h};
                 Object.entries({...attrs,stroke:'#be123c','stroke-width':3,fill:p.status==='approximate'?'#be123c':'none','pointer-events':'none'}).forEach(([k,v])=>node.setAttribute(k,String(v)));
                 const panel=svg.querySelector(`[data-rix-semantic-id="linked-panel-${i+1}"]`);
                 const container=panel?.querySelector?.('[data-rix-panel-viewport]')||panel;

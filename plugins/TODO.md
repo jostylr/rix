@@ -36,7 +36,7 @@ its first useful future increment rather than treating it as abandoned.
 |---:|---|---|---|
 | 1 | `.radix` | Versioned numeral-system constructors plus common parse/format operations | **Phase 4:** specialized numeral systems do not gate the current path |
 | 2 | `.draw` | Declarative themes, constraints, and interactive handles | **Decision:** shared portable interaction/event descriptor |
-| 3 | `.plot` | Solve boxes; tighter Taylor-at-time display policy | **Ready:** linked time scrubbing and independent panel zoom are implemented; tighter queries need a bounded portable coefficient-evaluation policy |
+| 3 | `.plot` | Solve boxes and Scene3D trajectory adapters | **Ready:** linked views, independent panel zoom, and bounded retained Taylor-at-time scrubbing are implemented |
 | 4 | `.float` | Typed-array tensors followed by optional SIMD/Wasm acceleration | **Phase 4:** scale/performance layer |
 | 5 | `.oracle` | Exchange exact sign and root evidence with algebraic solvers | **Waiting:** stable multivariate algebra evidence records |
 | 6 | `.numerics` | Validated interval-linear solves and bounded box subdivision | **Ready:** Krawczyk and interval-Newton foundations are present |
@@ -569,8 +569,15 @@ newline normalization.
    - [x] Add independent clipped panel zoom with configurable limits and step,
      pointer anchoring, reset, and unchanged shared scrub time/selection.
    - [ ] Add Scene3D trajectory adapters.
-   - [ ] Tightened Taylor-at-time scrubbing may follow a portable bounded
-     coefficient-evaluation policy; current certified scrub bounds stay conservative.
+   - [x] Tightened Taylor-at-time scrubbing uses retained interval coefficients
+     intersected with source tubes, configurable order/work/digit budgets,
+     explicit Picard fallback, and optional whole-tube comparison mode.
+   - [ ] Profile asynchronous higher-order vector solution/At/linked-view
+     construction: a two-segment state-dependent comparison fixture took about 109s
+     versus about 1s synchronously; a larger fixture exceeded its test timeout.
+     Retained scrub queries themselves are host-side bounded arithmetic and
+     do not repeat this construction. Keep routine async fixtures small while
+     retaining state-dependent comparisons in synchronous tests.
    - [ ] Add shooting/collocation-oriented boundary-value problem records and
      solvers after vector IVPs and nonlinear box services stabilize.
 4. **Phase 4 — Advanced differential equations**

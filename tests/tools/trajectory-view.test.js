@@ -9,7 +9,7 @@ test('scrub uses exact backward interpolation and physical-time slider order',()
  expect(String(trajectorySliderTime(g,0))).toBe('0');expect(String(trajectorySliderTime(g,1000))).toBe('1');
 });
 test('certified scrub retains tube bounds and discloses omitted coverage',()=>{
- const g=make('ValidatedTaylor({= steps=2,order=3,maxSubintervals=1 })',',maxSegments=1');
+ const g=make('ValidatedTaylor({= steps=2,order=3,maxSubintervals=1 })',',maxSegments=1,scrubMode=:tube');
  const r=queryTrajectoryTime(g,'3/4');
  const rec=g.metadata.get('panels').values[0].entries.get('records').values[0];
  expect(String(r.panels[0].ylo)).toBe(String(rec.entries.get('low')));

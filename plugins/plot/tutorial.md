@@ -206,15 +206,23 @@ and evidence but do not provide browser selection controls. This is segment
 selection plus a time scrubber. Move the **Trajectory time** slider, or enter
 an exact time such as `1/3` in **Exact trajectory time**. The red mark moves
 through each time plot and displays the corresponding phase bounds. For
-certified segments these are the whole retained tube bounds, not tightened
-Taylor bounds at that time; approximate segments use exact arithmetic on their
-stored linear interpolation. The readout labels this distinction explicitly.
+certified Taylor segments these are tightened Taylor-at-time bounds intersected
+with the retained tube. Compare by adding `scrubMode=:tube` and rerunning: that
+uses the whole segment tube instead. At `t=0` the oscillator's initial state is
+exactly `(1,0)`; at `t=1/3` the Taylor enclosure is narrower than the whole box.
+Picard-only records still use whole tubes. Approximate segments use exact
+arithmetic on their stored linear interpolation, not a certified solution.
+The readout names the method explicitly.
 
 Try `maxSegments=1` and scrub past the displayed prefix: the readout says
 uncomputed/omitted and clears old markers. `scrubSteps` controls slider
 resolution, while exact time entry is not restricted to its grid.
 `maxScrubWork` (default 10000) and `maxScrubDigits` (default 1000) bound each
-query. Budget failures are visible and do not call a solver or extrapolate.
+query. `maxScrubOrder` (default 16) limits Taylor coefficient count per
+coordinate; increase it for higher-order solutions. Each evaluated coefficient
+also consumes one work unit. Budget failures are visible, not silent fallbacks,
+and do not call a solver or extrapolate. The final interval coefficient includes
+the existing certified remainder, so tightening does not discard uncertainty.
 
 Choose **Panel to zoom**, then use **Zoom panel in**, **Zoom panel out**, or
 **Reset panel**. Scrolling over a panel zooms that panel around the pointer;
