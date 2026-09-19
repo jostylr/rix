@@ -1,8 +1,18 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
 import { Fraction, Integer, Rational } from "@ratmath/core";
 import { parseAndEvaluate } from "../../src/eval/evaluator.js";
 
 describe("pure RiX Stern-Brocot plugin", () => {
+    test("generated Stern-Brocot page exports its Graphics with supported styles", () => {
+        const source = readFileSync(new URL("../../examples/stern-brocot/stern-brocot-page.rix", import.meta.url), "utf8")
+            .replace(/\/\*\*[\s\S]*?\*\*\//, '.Plugin.Load("stern-brocot"); .Plugin.Load("html");')
+            .replace('.Out("index.html", $view)', '.Render($view, "html")');
+        const result = parseAndEvaluate(source);
+        expect(result.entries.get("content").value).toContain("<svg");
+        expect(result.entries.get("content").value).toContain("FORMULA RESULT");
+    });
+
     test("loads its Fraction dependency and describes an exact node", () => {
         const result = parseAndEvaluate(`
             .Plugin.Load("stern-brocot");

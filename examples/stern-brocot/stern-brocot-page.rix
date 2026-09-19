@@ -47,8 +47,7 @@ SternBrocotGlyph(text, x, y, fill, label) -> {;
         .Graphics.Rectangle([x - width / 2, y - 23], [width, 46], {=
             fill=fill,
             stroke="#4a4560",
-            width=2,
-            radius=11
+            width=2
         }),
         .Graphics.Text([x, y + 6], text, {=
             anchor="middle",
@@ -71,8 +70,7 @@ SternBrocotFormulaGlyph(text, x, y) -> {;
         .Graphics.Rectangle([x - width / 2, y - 24], [width, 48], {=
             fill="#f4efff",
             stroke="#6551c6",
-            width=2,
-            radius=11
+            width=2
         }),
         .Graphics.Text([x, y + 6], text, {=
             anchor="middle",
