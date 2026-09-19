@@ -641,8 +641,8 @@ describe("portable structured output", () => {
         expect(video.poster).toBe(image.asset);
         const html = renderOutputHtml(media, formatValue);
         expect(html).toContain('<img class="rix-output-image" src="assets/proof.png" alt="A proof diagram" width="600" loading="lazy">');
-        expect(html).toContain('<audio class="rix-output-audio" controls>');
-        expect(html).toContain('<video class="rix-output-video" controls poster="assets/proof.png">');
+        expect(html).toContain('<audio class="rix-output-audio" controls preload="none" aria-label="Explanation">');
+        expect(html).toContain('<video class="rix-output-video" controls preload="none" aria-label="Walkthrough" poster="assets/proof.png">');
         expect(html).toContain("Transcript");
         expect(formatValue(media)).toContain("[Image: A proof diagram — assets/proof.png]");
         expect(formatValue(media)).toContain("The presenter explains the proof.");
@@ -654,7 +654,7 @@ describe("portable structured output", () => {
         const unsafe = parseAndEvaluate('.Link({= href="javascript:alert(1)", children="bad" })');
         expect(renderOutputHtml(unsafe, formatValue)).not.toContain("javascript:");
         const remoteImage = parseAndEvaluate('.Image(.Asset("https://example.test/proof.png", "image/png"), "Remote proof")');
-        expect(renderOutputHtml(remoteImage, formatValue)).toContain("[Image unavailable: https://example.test/proof.png]");
+        expect(renderOutputHtml(remoteImage, formatValue)).toContain('href="https://example.test/proof.png">Image: Remote proof</a>');
         expect(renderOutputHtml(remoteImage, formatValue)).not.toContain('src="https://example.test/proof.png"');
     });
 

@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/output-bundle.schema.json",
+  "title": "Portable output document and content-addressed assets",
+  "description": "Envelope with default limits. output-assets.js also verifies byte hashes, MIME signatures, image dimensions, portable paths, manifest/document agreement, and configurable budgets before import.",
+  "type": "object",
+  "required": ["schema", "document", "manifest", "files"],
+  "properties": {
+    "schema": { "const": "rix.output.bundle@1" },
+    "document": { "$ref": "output-document.schema.json" },
+    "manifest": {
+      "type": "object",
+      "required": ["schema", "entries", "diagnostics", "totalBytes"],
+      "properties": {
+        "schema": { "const": "rix.output.asset-manifest@1" },
+        "totalBytes": { "type": "integer", "minimum": 0, "maximum": 64000000 },
+        "entries": {
+          "type": "array", "maxItems": 128,
+          "items": {
+            "type": "object", "required": ["id", "source", "mime", "status", "ref"],
+            "properties": {
+              "id": { "type": "string" }, "source": { "type": "string" }, "mime": { "type": "string" },
+              "status": { "enum": ["resolved", "reference", "unavailable"] }, "ref": { "type": "string" },
+              "digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+              "bytes": { "type": "integer", "minimum": 0, "maximum": 16000000 },
+              "width": { "type": "number", "exclusiveMinimum": 0, "maximum": 32768 },
+              "height": { "type": "number", "exclusiveMinimum": 0, "maximum": 32768 }
+            }
+          }
+        },
+        "diagnostics": {
+          "type": "array", "maxItems": 128,
+          "items": {
+            "type": "object", "required": ["code", "source", "assetId", "message"],
+            "properties": { "code": { "type": "string" }, "source": { "type": "string" }, "assetId": { "type": "string" }, "message": { "type": "string" } }
+          }
+        }
+      }
+    },
+    "files": {
+      "type": "array", "maxItems": 128,
+      "items": {
+        "type": "object", "required": ["path", "encoding", "content"],
+        "properties": {
+          "path": { "type": "string", "pattern": "^assets/[a-f0-9]{64}\\.[a-z]+$" },
+          "encoding": { "const": "base64" },
+          "content": { "type": "string", "contentEncoding": "base64", "maxLength": 21333336 }
+        }
+      }
+    }
+  }
+}

@@ -44,7 +44,9 @@
       "default": "./src/eval/index-node.js"
     },
     "./runtime": "./src/runtime/index.js",
-    "./runtime/node": "./src/runtime/host-adapter-node.js"
+    "./runtime/node": "./src/runtime/host-adapter-node.js",
+    "./output-assets": "./src/runtime/output-assets.js",
+    "./output-assets/node": "./src/runtime/output-assets-node.js"
   },
   "bin": {
     "rix": "./bin/rix.js",

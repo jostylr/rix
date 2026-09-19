@@ -49,6 +49,9 @@ describe("portable asset manifests and bundles", () => {
     });
     test("document.AssetManifest entries use the same resolver", async () => {
         const report = evaluate(`.Plugin.Load("document"); assets := .document.AssetManifest([{= id="image",path="image.png",mime="image/png",alt="Pixel" }]); .document.Report("Assets",[.Paragraph("Report")],{= assets=assets });`);
+        const hash = await hashAssetBytes(png);
+        const sri = `sha256-${btoa(String.fromCharCode(...hash.match(/../g).map(part=>parseInt(part,16))))}`;
+        report.documentAssets.entries.get("assets").values[0].entries.set("checksum",{type:"string",value:sri});
         const bundle = await bundleOutputDocument(report,{store:store()});
         expect(bundle.files.size).toBe(1);
         expect(bundle.document.documentAssets.entries.get("assets").values[0].entries.get("path").value).toMatch(/^assets\//);
@@ -76,6 +79,23 @@ describe("portable asset manifests and bundles", () => {
         }
         const result=await resolveAssetManifest([{ref:"x.svg",mime:"image/svg+xml"}],{store:createMemoryAssetStore({"x.svg":'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2 3"><rect width="2" height="3"/></svg>'})});expect(result.entries[0]).toMatchObject({width:2,height:3});
     });
+    test("dimension budgets, content hashes, SRI and encoded SVG resources are enforced", async () => {
+        const wide=png.slice(); new DataView(wide.buffer).setUint32(16,2);
+        const pixels=await resolveAssetManifest([{ref:"wide.png",mime:"image/png"}],{store:createMemoryAssetStore({"wide.png":wide}),maxPixels:1});
+        expect(pixels.diagnostics[0].code).toBe("asset-dimension-limit");
+        const dimensions=await resolveAssetManifest([{ref:"wide.png",mime:"image/png"}],{store:createMemoryAssetStore({"wide.png":wide}),maxDimension:1});
+        expect(dimensions.diagnostics[0].code).toBe("asset-dimension-limit");
+        const wrong=`sha256:${"0".repeat(64)}`;
+        const hashed=await resolveAssetManifest([{ref:wrong,mime:"image/png"}],{store:createMemoryAssetStore({[wrong]:png})});
+        expect(hashed.diagnostics[0].code).toBe("asset-hash-mismatch");
+        const hash=await hashAssetBytes(png), sri=`sha256-${btoa(String.fromCharCode(...hash.match(/../g).map(part=>parseInt(part,16))))}`;
+        const valid=await resolveAssetManifest([{ref:"image.png",mime:"image/png",integrity:sri}],{store:store()});
+        expect(valid.files.size).toBe(1);
+        for(const source of ['<svg width="1" height="1" xml:base="https://example.org/"><use href="#x"/></svg>', '<svg width="1" height="1"><rect style="fill:u&#114;l(https://example.org/a)"/></svg>']) {
+            const result=await resolveAssetManifest([{ref:"x.svg",mime:"image/svg+xml"}],{store:createMemoryAssetStore({"x.svg":source})});
+            expect(result.diagnostics[0].code).toBe("asset-svg-active");
+        }
+    });
     test("finite read/authorization timeout aborts unresolved host callbacks", async () => {
         let signal;
         const slow={readAsset(_ref,options){signal=options.signal;return new Promise(()=>{});}};
@@ -96,9 +116,12 @@ describe("portable asset manifests and bundles", () => {
         const change=async mutate=>{const data=JSON.parse(source);mutate(data);await expect(decodeOutputBundle(JSON.stringify(data))).rejects.toThrow();};
         await change(data=>data.files[0].content="AA==");
         await change(data=>data.files[0].path="../secret");
+        await change(data=>data.files[0].path=data.files[0].path.replace(/\.[a-z]+$/, ".exe"));
         await change(data=>data.manifest.entries[0].mime="image/jpeg");
         await change(data=>data.manifest.entries.splice(0,1));
         await change(data=>data.manifest.totalBytes++);
+        await change(data=>data.manifest.diagnostics=[{message:{unsafe:"record"}}]);
+        await change(data=>delete data.manifest.entries[0].bytes);
         await change(data=>{const image=data.document.nodes.find(node=>node.tag==="output:asset");image.data.find(([key])=>key==="mime")[1]="image/jpeg";});
         await change(data=>data.schema="rix.output.bundle@2");
         const previousFetch=globalThis.fetch;globalThis.fetch=()=>{throw new Error("No network allowed");};

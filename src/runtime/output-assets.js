@@ -32,7 +32,11 @@ export function normalizeAssetReference(value) {
     return ref;
 }
 export function isExternalAssetReference(ref) {
-    try { const url = new URL(ref); return ["https:", "http:"].includes(url.protocol) && !url.username && !url.password; } catch { return false; }
+    try {
+        if (typeof ref !== "string" || ref.length > 2048 || /[\u0000-\u0020\u007f\\]/.test(ref)) return false;
+        const url = new URL(ref);
+        return ["https:", "http:"].includes(url.protocol) && !url.username && !url.password;
+    } catch { return false; }
 }
 function bytes(value, budget) {
     const data = value instanceof Uint8Array ? value : value instanceof ArrayBuffer ? new Uint8Array(value) : typeof value === "string" ? textEncoder.encode(value) : null;
@@ -75,7 +79,7 @@ function dimensions(data, mime) {
     }
     if (mime === "image/svg+xml") {
         const source = textDecoder.decode(data);
-        if (!/<svg(?:\s|>)/i.test(source) || /<\s*(?:script|style|foreignObject|animate|set|!DOCTYPE|!ENTITY)\b|\bon[a-z]+\s*=|@import|<\?xml-stylesheet|\\/i.test(source) || /(?:href|src)\s*=\s*["'](?!#)[^"']+/i.test(source) || [...source.matchAll(/url\(([^)]*)\)/gi)].some(match => !match[1].trim().replace(/^["']|["']$/g, "").startsWith("#"))) throw error("SVG must be a self-contained static image", "asset-svg-active");
+        if (!/<svg(?:\s|>)/i.test(source) || /<\s*(?:script|style|foreignObject|animate|set|!DOCTYPE|!ENTITY)\b|\bon[a-z]+\s*=|@import|<\?xml-stylesheet|xml:base\s*=|&#|\\/i.test(source) || /(?:href|src)\s*=\s*["'](?!#)[^"']+/i.test(source) || [...source.matchAll(/url\(([^)]*)\)/gi)].some(match => !match[1].trim().replace(/^["']|["']$/g, "").startsWith("#"))) throw error("SVG must be a self-contained static image", "asset-svg-active");
         const tag = source.match(/<svg\b[^>]*>/i)[0];
         const width = Number(tag.match(/\bwidth=["']([\d.]+)(?:px)?["']/i)?.[1]);
         const height = Number(tag.match(/\bheight=["']([\d.]+)(?:px)?["']/i)?.[1]);
@@ -156,7 +160,7 @@ export async function resolveAssetManifest(assets, options = {}) {
             entries.push({ ...base, status: "resolved", ref: path, digest, bytes: data.length, ...size });
         } catch (failure) {
             entries.push({ ...base, status: "unavailable", ref: `unavailable:asset-${index + 1}` });
-            diagnostics.push({ code: failure.code || "asset-read-failed", source, assetId: id, message: failure.code?.startsWith("asset-") ? failure.message : "Asset could not be read or validated" });
+            diagnostics.push({ code: failure.code?.startsWith("asset-") ? failure.code : "asset-read-failed", source, assetId: id, message: failure.code?.startsWith("asset-") ? failure.message : "Asset could not be read or validated" });
         }
     }
     return { schema: OUTPUT_ASSET_MANIFEST_SCHEMA, entries, diagnostics, files, totalBytes };
@@ -191,7 +195,10 @@ function rewrite(value, replacements, seen = new Map()) {
     for (const [key,entry] of Object.entries(value)) result[key] = key === "_ext" ? entry : rewrite(entry,replacements,seen);
     const replacement=replacements.get(value);
     if (replacement) {
-        if (value.type === "map") result.entries.set("path",{type:"string",value:replacement.ref});
+        if (value.type === "map") {
+            result.entries.set("path",{type:"string",value:replacement.ref});
+            if (replacement.digest) result.entries.set("checksum",{type:"string",value:`sha256:${replacement.digest}`});
+        }
         else Object.assign(result,{ref:replacement.ref,bytes:replacement.bytes??value.bytes,width:replacement.width??value.width,height:replacement.height??value.height,integrity:replacement.digest?`sha256:${replacement.digest}`:value.integrity});
     }
     return result;
@@ -224,26 +231,32 @@ export async function decodeOutputBundle(source, options = {}) {
     if (typeof source!=="string" || source.length>policy.maxTotalBytes*2+8_000_000) throw error("Output bundle byte budget exceeded");
     const value=JSON.parse(source);
     if (value.schema!==OUTPUT_BUNDLE_SCHEMA || !Array.isArray(value.files) || value.files.length>policy.maxAssets || value.manifest?.schema!==OUTPUT_ASSET_MANIFEST_SCHEMA || !Array.isArray(value.manifest.entries) || !Array.isArray(value.manifest.diagnostics)) throw error("Invalid output bundle schema");
-    const files=new Map(); let total=0;
+    const files=new Map(), digests=new Set(); let total=0;
     for (const file of value.files) {
         normalizeAssetReference(file.path);
         if (!/^assets\/[a-f0-9]{64}\.[a-z]+$/.test(file.path) || files.has(file.path) || file.encoding!=="base64" || typeof file.content!=="string" || file.content.length>Math.ceil(policy.maxAssetBytes/3)*4 || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(file.content)) throw error("Invalid bundled file");
         const data=bytes(Uint8Array.from(atob(file.content),value=>value.charCodeAt(0)),policy.maxAssetBytes);
         if ((total+=data.length)>policy.maxTotalBytes) throw error("Total bundled asset byte budget exceeded");
         const digest=await hashAssetBytes(data);
-        if (!file.path.startsWith(`assets/${digest}.`)) throw error("Bundled asset digest mismatch");
-        files.set(file.path,data);
+        if (!file.path.startsWith(`assets/${digest}.`) || !Object.values(EXTENSIONS).includes(file.path.split(".").at(-1))) throw error("Bundled asset digest/path mismatch");
+        if (digests.has(digest)) throw error("Duplicate bundled content hash");
+        digests.add(digest); files.set(file.path,data);
     }
     if (value.manifest.totalBytes!==total || value.manifest.entries.length>policy.maxAssets || value.manifest.diagnostics.length>policy.maxAssets) throw error("Invalid manifest size/count");
+    for (const item of value.manifest.diagnostics) {
+        if (!item || ["code", "source", "assetId", "message"].some(key => typeof item[key] !== "string")) throw error("Invalid asset diagnostic");
+    }
     const declared=new Map(), referenced=new Set();
     for (const entry of value.manifest.entries) {
         if (typeof entry.id!=="string" || typeof entry.source!=="string" || typeof entry.mime!=="string" || typeof entry.ref!=="string") throw error("Invalid asset manifest entry");
         if (entry.status==="resolved") {
             const data=files.get(entry.ref);
-            if (!data || entry.digest!==entry.ref.split("/")[1].split(".")[0]) throw error("Dangling bundled asset");
+            if (!data || entry.digest!==entry.ref.split("/")[1].split(".")[0] || !Number.isSafeInteger(entry.bytes)) throw error("Dangling or malformed bundled asset");
             validate(data,entry,policy); referenced.add(entry.ref);
         } else if (entry.status==="reference") { if (!isExternalAssetReference(entry.ref)) throw error("Invalid external asset reference"); }
         else if (entry.status!=="unavailable" || !/^unavailable:[^\s]+$/.test(entry.ref)) throw error("Invalid asset resolution status");
+        const previous=declared.get(`${entry.ref}\0${entry.mime}`);
+        if (previous && previous.status!==entry.status) throw error("Conflicting asset manifest entries");
         declared.set(`${entry.ref}\0${entry.mime}`,entry);
     }
     if (referenced.size!==files.size) throw error("Undeclared bundled file");

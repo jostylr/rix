@@ -3052,8 +3052,9 @@ function mediaCaption(value, format) {
 }
 
 function mediaDimensions(value) {
-    const width = value.width || value.asset?.width;
-    const height = value.height || value.asset?.height;
+    const explicit = value.width || value.height;
+    const width = explicit ? value.width : value.asset?.width;
+    const height = explicit ? value.height : value.asset?.height;
     return `${width ? ` width="${width}"` : ""}${height ? ` height="${height}"` : ""}`;
 }
 

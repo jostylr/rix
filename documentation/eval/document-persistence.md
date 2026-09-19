@@ -84,3 +84,7 @@ remain ordinary inert data. Unknown-tag import does not change strict Core
 mathematical decoding. Existing `rix.control-panel` version-one JSON migrates
 on import and emits an informational diagnostic. No general legacy reader or
 implicit source execution is provided.
+
+To move images/audio/video together with a saved document, use the
+[portable asset bundle APIs](output-assets.md). Plain document JSON retains
+asset references and never resolves their bytes.

@@ -8,7 +8,7 @@ const requireFromRix = createRequire("/rix-runtime/host-adapter-node.js");
 /** Node/Bun filesystem and CommonJS module services for the RiX evaluator. */
 export function createNodeHostAdapter(options = {}) {
     const cwd = options.cwd || (() => process.cwd());
-    const assetStore = options.assetStore || createNodeAssetStore({ roots: options.assetRoots || [], packages: options.assetPackages || {} });
+    const assetStore = options.assetStore || createNodeAssetStore({ roots: options.assetRoots || [], packages: options.assetPackages || {}, contentPaths: options.assetContentPaths || {} });
     return Object.freeze({
         kind: "node",
         readAsset: (reference, limits) => assetStore.readAsset(reference, limits),
