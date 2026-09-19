@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/ode-shooting-result/v1.schema.json",
+  "title": "RiX bounded shooting result",
+  "description": "Documentation schema for the portable record projection. Use the corresponding RiX checker to validate mathematical evidence.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema",
+    "problem",
+    "options",
+    "status",
+    "certified",
+    "unique",
+    "excluded",
+    "unresolved",
+    "pending",
+    "trajectories",
+    "interpretation"
+  ],
+  "properties": {
+    "schema": {
+      "const": "rix.ode.shooting-result@1"
+    },
+    "problem": {
+      "$ref": "ode-boundary-problem.schema.json"
+    },
+    "status": {
+      "enum": [
+        "classified",
+        "partial",
+        "unresolved"
+      ]
+    },
+    "interpretation": {
+      "const": "parameterFamilyOnly"
+    },
+    "trajectories": {
+      "type": "array",
+      "maxItems": 16
+    },
+    "unresolved": {
+      "type": "array"
+    },
+    "pending": {
+      "type": "array"
+    }
+  }
+}

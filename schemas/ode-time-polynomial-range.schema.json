@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/ode-time-polynomial-range/v1.schema.json",
+  "title": "RiX interval-coefficient time polynomial enclosure",
+  "description": "Documentation schema for the portable record projection. Use the corresponding RiX checker to validate mathematical evidence.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema",
+    "status",
+    "range",
+    "certified",
+    "applied",
+    "mode",
+    "partitions",
+    "input",
+    "work"
+  ],
+  "properties": {
+    "schema": {
+      "const": "rix.ode.time-polynomial-range@1"
+    },
+    "status": {
+      "enum": [
+        "enclosed",
+        "budgetExceeded"
+      ]
+    },
+    "mode": {
+      "enum": [
+        "polynomial",
+        "affine"
+      ]
+    },
+    "partitions": {
+      "type": "array",
+      "maxItems": 16
+    }
+  }
+}

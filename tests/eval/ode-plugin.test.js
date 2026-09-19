@@ -101,6 +101,8 @@ describe("pure RiX ODE plugin", () => {
             "rix.numerics@2",
         ]);
         expect(entry(info, "schemas").values.map(text)).toEqual([
+            "rix.ode.higher-order@1", "rix.ode.exact-solution@1", "rix.ode.boundary-problem@1",
+            "rix.ode.shooting-result@1", "rix.ode.time-polynomial-range@1", "rix.ode.taylor-construction@1",
             "rix.ode.problem@1",
             "rix.ode.solution@1",
             "rix.ode.dense-segment@1",

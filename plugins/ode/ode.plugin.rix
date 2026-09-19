@@ -3,12 +3,12 @@ id: ode
 description: Portable initial-value problems, vector trajectories, adaptive demonstrations, checked Picard and configurable-order Taylor tubes, and certified event isolation.
 kind: rix
 mount: ode
-exports: [IVP, Euler, RK4, AdaptiveRK4, ValidatedPicard, ValidatedTaylor2, AdaptiveValidatedTaylor2, ValidatedTaylor, AdaptiveValidatedTaylor, Event, IsolateEvents, At, Points, Segments, Record, IsProblem, IsSolution]
+exports: [HigherOrder, ReduceHigherOrder, Exact, CheckExact, ExactAt, BVP, Shoot, CheckShooting, TimePolynomialRange, CheckTimePolynomialRange, DormandPrince, PrepareTaylor, IVP, Euler, RK4, AdaptiveRK4, ValidatedPicard, ValidatedTaylor2, AdaptiveValidatedTaylor2, ValidatedTaylor, AdaptiveValidatedTaylor, Event, IsolateEvents, At, Points, Segments, Record, IsProblem, IsSolution]
 groups: [Numerics, ODE, Calculus]
 permissions: []
 requires: [rix.calculus@1, rix.numerics@2]
 provides: [rix.ode@1, rix.ode.problem@1, rix.ode.solution@1, rix.ode.dense-segment@1, rix.ode.event@1, rix.ode.event-result@1]
-schemas: [rix.ode.problem@1, rix.ode.solution@1, rix.ode.dense-segment@1, rix.ode.event@1, rix.ode.event-result@1]
+schemas: [rix.ode.higher-order@1, rix.ode.exact-solution@1, rix.ode.boundary-problem@1, rix.ode.shooting-result@1, rix.ode.time-polynomial-range@1, rix.ode.taylor-construction@1, rix.ode.problem@1, rix.ode.solution@1, rix.ode.dense-segment@1, rix.ode.event@1, rix.ode.event-result@1]
 snapshot: false
 deterministic: true
 defaultEnabled: false
@@ -79,6 +79,7 @@ OdeNormalizeNames(value, count) -> {;
       ?: _
       ?_ .Error("ODE stateNames length must match the state dimension");
     names.Map((name)->name ? :String ?: name ?_ .Error("ODE state names must be strings"));
+    names.Map((name)->name.Lower()).Distinct().Len()==count ?_> .Error("ODE stateNames must be distinct");names;
 };
 
 OdeIVP(rhsValue, initialTimeValue, initialStateValue, intervalValue, options ?= {= }) -> {;
@@ -98,7 +99,7 @@ OdeIVP(rhsValue, initialTimeValue, initialStateValue, intervalValue, options ?= 
     independent ? :String
       ?: independent
       ?_ .Error("ODE independent variable must be a string");
-    stateNames.Includes(independent)
+    stateNames.Map((name)->name.Lower()).Includes(independent.Lower())
       ?: .Error("ODE independent variable must differ from every state name")
       ?_ _;
     initialTime = initialTimeValue ~!: :Rational;
@@ -129,7 +130,7 @@ OdeIVP(rhsValue, initialTimeValue, initialStateValue, intervalValue, options ?= 
         direction=interval.End()>initialTime ?: :forward ?_ :backward,
         portableExpression=1
     };
-    problem .= {= _proto=odeProblemProto };
+    problem .= {= _proto=@odeProblemProto };
     problem = .ImmutableValue(problem);
     problem;
 };
@@ -245,7 +246,7 @@ OdeApproximateSolution(problemValue, method, options ?= {= }) -> {;
         work={= steps=steps,rhsEvaluations=method == :euler ?: steps ?_ 4*steps,exhausted=_ },
         diagnostics=[:approximateNoCertifiedErrorBound]
     };
-    solution .= {= _proto=odeSolutionProto };
+    solution .= {= _proto=@odeSolutionProto };
     solution = .ImmutableValue(solution);
     solution;
 };
@@ -340,8 +341,87 @@ OdeAdaptiveRK4(problemValue, options ?= {= }) -> {;
           ?: [:approximateLocalEstimateNotGlobalCertificate]
           ?_ [:approximateLocalEstimateNotGlobalCertificate,:adaptiveBudgetExhausted]
     };
-    solution .= {= _proto=odeSolutionProto };
+    solution .= {= _proto=@odeSolutionProto };
     .ImmutableValue(solution);
+};
+
+odeDormandPrinceTableau=.ImmutableValue({=
+    c=[0,1/5,3/10,4/5,8/9,1,1],
+    a=[[],[1/5],[3/40,9/40],[44/45,-56/15,32/9],
+       [19372/6561,-25360/2187,64448/6561,-212/729],
+       [9017/3168,-355/33,46732/5247,49/176,-5103/18656],
+       [35/384,0,500/1113,125/192,-2187/6784,11/84]],
+    high=[35/384,0,500/1113,125/192,-2187/6784,11/84,0],
+    low=[5179/57600,0,7571/16695,393/640,-92097/339200,187/2100,1/40]
+});
+OdeWeightedStages(state,slopes,weights,h) -> weights.Reduce((value,weight,index)->
+    OdeVectorAdd(value,OdeVectorScale(@slopes[index],weight*@h)),state);
+OdeDormandPrinceStep(problem,time,state,h,first ?= _) -> {;
+    slopes:=[first==_ ?: OdePointValues(problem,time,state) ?_ first];next:=_;
+    {@ stage=2;stage<=7;{;
+        values=OdeWeightedStages(@state,@slopes,@odeDormandPrinceTableau[:a][stage],@h);
+        .ValidatedClaimEqual(values,values) ?_> .Error("ODE DormandPrince rational component budget exceeded");
+        stage==7 ?: {; @next~=@values; } ?_ _;
+        @slopes~=@slopes.Push(OdePointValues(@problem,@time+@odeDormandPrinceTableau[:c][stage]*@h,values));
+    };stage+=1};
+    embedded=OdeWeightedStages(state,slopes,@odeDormandPrinceTableau[:low],h);
+    estimate=OdeVectorMaxAbs(OdeVectorSubtract(next,embedded));
+    .ValidatedClaimEqual([next,embedded,estimate,slopes],[next,embedded,estimate,slopes]) ?_> .Error("ODE DormandPrince rational component budget exceeded");
+    {= next=next,embedded=embedded,slopes=slopes,estimate=estimate,rhsEvaluations=first==_ ?: 7 ?_ 6 };
+};
+OdeDormandPrinceAttempt={>
+    (problem,time,state,h,first) ?- [step=OdeDormandPrinceStep(problem,time,state,h,first)] -> {= ok=1,step=step },
+    (problem,time,state,h,first) -> {= ok=_,reason=:rhsOrArithmeticBudgetFailure }
+};
+OdeDormandPrince(problemValue,options ?= {= }) -> {;
+    problem=OdeRequireProblem(problemValue);options=OdeRequireOptions(options,"ODE DormandPrince options");
+    .ValidatedClaimEqual([problem,options],[problem,options]);
+    initialSteps=OdeRequirePositiveInteger(OdeOption(options,"initialsteps",4),"ODE initialSteps",4096);
+    maxAttempts=OdeRequirePositiveInteger(OdeOption(options,"maxattempts",128),"ODE maxAttempts",4096);
+    maxRejected=OdeRequirePositiveInteger(OdeOption(options,"maxrejected",64),"ODE maxRejected",4096);
+    tolerance=OdeRequirePositiveRational(OdeOption(options,"tolerance",1/1000000),"ODE tolerance");
+    minimumStep=OdeRequirePositiveRational(OdeOption(options,"minimumstep",1/1048576),"ODE minimumStep");
+    start=problem[:initialTime];end=problem[:interval].End();direction=OdeTimeDirection(problem);
+    time:=start;state:=OdeRequirePointState(problem,:dormandPrince54);h:=(end-start)/initialSteps;
+    maximumStep=OdeMagnitude(h);first:=_;points:=[[time,state]];segments:=[];attempts:=[];rejected:=0;evaluations:=0;stop:=_;
+    OdeFitsClaim([problem,problem,problem,problem]) ?_> .Error("ODE DormandPrince input evidence budget exceeded");
+    {@ attempt=1;attempt<=@maxAttempts&&@time!=@end&&@stop==_;{;
+        stepSize=@direction*.Min(OdeMagnitude(@h),OdeMagnitude(@end-@time));
+        proposal=OdeDormandPrinceAttempt(@problem,@time,@state,stepSize,@first);
+        proposal[:ok] ?: {;
+        step=@proposal[:step];@evaluations+=step[:rhsEvaluations];
+        accepted=step[:estimate]<=@tolerance;
+        nextAttempts=@attempts.Push({= tStart=@time,tEnd=@time+@stepSize,accepted=accepted,localErrorEstimate=step[:estimate],rhsEvaluations=step[:rhsEvaluations] });
+        nextTime=@time+@stepSize;
+        nextSegments=accepted ?: @segments.Push(OdeDenseSegment(:dormandPrince54,@segments.Len()+1,@time,nextTime,@state,step[:next],
+            {= order=5,embeddedOrder=4,slopes=step[:slopes],embeddedState=step[:embedded],localErrorEstimate=step[:estimate],estimator=:dormandPrince54 })) ?_ @segments;
+        nextPoints=accepted ?: @points.Push([nextTime,step[:next]]) ?_ @points;
+        candidate=[@problem,nextAttempts,nextSegments,nextPoints];
+        OdeFitsClaim([candidate,candidate]) ?: {;
+            @attempts~=@nextAttempts;
+            @accepted ?: {;
+                @segments~=@nextSegments;@time~=@nextTime;@state~=@step[:next];@points~=@nextPoints;@first~=@step[:slopes][7];
+                @step[:estimate]<=@tolerance/32 ?: {; @h~=@direction*.Min(2*OdeMagnitude(@stepSize),@maximumStep); } ?_ _;
+            } ?_ {;
+                @rejected+=1;@first~=@step[:slopes][1];@h~=@stepSize/2;
+                @rejected>=@maxRejected ?: {; @stop~=:rejectionBudgetExhausted; } ?_ (OdeMagnitude(@h)<@minimumStep ?: {; @stop~=:minimumStepReached; } ?_ _);
+            };
+        } ?_ {; @stop~=:evidenceBudgetExceeded; };
+        } ?_ {; @stop~=:rhsOrArithmeticBudgetFailure;
+            @attempts~=@attempts.Push({= tStart=@time,tEnd=@time+@stepSize,accepted=_,reason=:rhsOrArithmeticBudgetFailure,rhsEvaluations=_ }); };
+    };attempt+=1};
+    complete=time==end;
+    solution={= valueKind=:odeSolution,schema="rix.ode.solution@1",problem=problem,method=:dormandPrince54,
+        status=complete ?: :approximate ?_ :partial,classification=complete ?: :embeddedRKTrajectory ?_ :embeddedRKBudgetExhausted,
+        stateNames=problem[:stateNames],interval=problem[:interval],coveredInterval=start:time,points=points,segments=segments,
+        finalState=complete ?: state ?_ _,certified=_,evidenceLevel=:observed,
+        unresolved=complete ?: [] ?_ [{= interval=time:end,state=state,reason=stop==_ ?: :attemptBudgetExhausted ?_ stop }],
+        errorModel={= localEstimate=:embeddedDifference,formalOrder=5,embeddedOrder=4,globalEstimate=:notCertified,denseOutput=:linearInterpolation },
+        work={= acceptedSteps=segments.Len(),rejectedSteps=rejected,attemptedSteps=attempts.Len(),attempts=attempts,
+            rhsEvaluations=evaluations,firstSameAsLast=1,maxAttempts=maxAttempts,maxRejected=maxRejected,minimumStep=minimumStep,
+            stopReason=complete ?: _ ?_ stop==_ ?: :attemptBudgetExhausted ?_ stop,exhausted=!complete },
+        diagnostics=complete ?: [:approximateLocalEstimateNotGlobalCertificate] ?_ [:approximateLocalEstimateNotGlobalCertificate,:partialTrajectory] };
+    solution.={= _proto=@odeSolutionProto };.ImmutableValue(solution);
 };
 
 OdeRangeResult(expression, problem, timeRange, stateRanges, maxSubintervals) -> {;
@@ -546,7 +626,7 @@ OdeValidatedPicard(problemValue, options ?= {= }) -> {;
         },
         diagnostics=complete ?: [] ?_ [:validatedTrajectoryPartial]
     };
-    solution .= {= _proto=odeSolutionProto };
+    solution .= {= _proto=@odeSolutionProto };
     solution = .ImmutableValue(solution);
     solution;
 };
@@ -559,9 +639,9 @@ OdeCheckedPartial(expression, variable, label, options ?= {= }) -> {;
     derivative;
 };
 
-OdeTotalDerivative(expression, problem, label, options ?= {= }) -> {;
+OdeTotalDerivative(expression, problem, label, options ?= {= }, knownStatePartials ?= _) -> {;
     timeDerivative = OdeCheckedPartial(expression,problem[:independent],@"time @{label}",options);
-    stateDerivatives = problem[:stateNames].Map((name)->
+    stateDerivatives = knownStatePartials!=_ ?: knownStatePartials ?_ problem[:stateNames].Map((name)->
         OdeCheckedPartial(@expression,name,@"state @{label}",@options)
     );
     total = stateDerivatives.Reduce((sum,derivative,index)->
@@ -584,6 +664,33 @@ OdeTotalDerivative(expression, problem, label, options ?= {= }) -> {;
     };
 };
 
+OdePrepareTaylor(problemValue,options ?= {= }) -> {;
+    problem=OdeRequireProblem(problemValue);
+    .ValidatedClaimEqual(problem,problem);
+    maxOrder=OdeRequirePositiveInteger(OdeOption(options,"maxorder",8),"ODE maxOrder",9007199254740991);
+    order=OdeRequirePositiveInteger(OdeOption(options,"order",4),"ODE order",maxOrder);
+    order>=2 ?_> .Error("ODE Taylor order must be at least two");
+    maxWork=OdeRequirePositiveInteger(OdeOption(options,"maxconstructionwork",4096),"ODE maxConstructionWork",65536);
+    requested=problem[:dimension]^2+(order-1)*problem[:dimension]*(problem[:dimension]+1);
+    requested<=maxWork ?_> .Error("ODE derivative construction work budget exceeded");
+    derivativeOptions=OdeRequireOptions(OdeOption(options,"derivativeoptions",{= }),"ODE derivativeOptions");
+    reuse=OdeOption(options,"cachederivatives",1);
+    stateDerivatives=problem[:rhs].Map((expression)->problem[:stateNames].Map((name)->OdeCheckedPartial(expression,name,"Picard state",@derivativeOptions)));
+    secondDerivatives=problem[:rhs].Map((expression,index)->OdeTotalDerivative(expression,@problem,"right-hand side",@derivativeOptions,@reuse ?: @stateDerivatives[index] ?_ _));
+    derivativeRows:=[problem[:rhs],secondDerivatives.Map((derivative)->derivative[:expression])];
+    evidence:=[secondDerivatives];
+    {@ power=3;power<=@order;{;
+        row=@derivativeRows[@derivativeRows.Len()].Map((expression)->OdeTotalDerivative(expression,@problem,"higher order",@derivativeOptions));
+        @derivativeRows~=@derivativeRows.Push(row.Map((derivative)->derivative[:expression]));@evidence~=@evidence.Push(row);
+    };power+=1};
+    reused=reuse ?: problem[:dimension]^2 ?_ 0;
+    .ImmutableValue({= schema="rix.ode.taylor-construction@1",problem=problem,order=order,
+        stateJacobian=stateDerivatives,totalRhsDerivative=secondDerivatives,derivativeRows=derivativeRows,higherDerivatives=evidence,
+        work={= requestedPartials=requested,maxConstructionWork=maxWork,cacheEnabled=reuse,cacheKind=:reusePicardJacobian,
+            partialRequests=requested,partialComputed=requested-reused,partialCacheHits=reused,
+            totalComputed=(order-1)*problem[:dimension],simplificationChecks=(order-1)*problem[:dimension],exhausted=_ } });
+};
+
 OdeIntersectIntervals(left, right, label) -> {;
     left.Overlaps(right)
       ?: _
@@ -601,11 +708,74 @@ OdeTaylorStateRange(segment, timeRange) -> {;
     raw.Map((entry,axis)->OdeIntersectIntervals(entry,segment[:tube][axis],"Taylor state"));
 };
 
+OdeChoose(n,k) -> .Factorial(n)/(.Factorial(k)*.Factorial(n-k));
+OdePolynomialHorner(coefficients,argument) -> {;
+    value:=0:0;
+    {@ index=@coefficients.Len();index>=1;{; @value~=@coefficients[index]+@argument*@value; };index-=1};value;
+};
+OdeIntervalHull(values) -> values.Reduce((result,entry)->.Min(result.Low(),entry.Low()):.Max(result.High(),entry.High()),values[1]);
+OdeTimePolynomialRange(coefficientsValue,domainValue,options ?= {= }) -> {;
+    .ValidatedClaimEqual([coefficientsValue,domainValue,options],[coefficientsValue,domainValue,options]);
+    coefficients=coefficientsValue.Map((value)->OdeAsInterval(value,"ODE time-model coefficient"));
+    coefficients.Len()>0&&coefficients.Len()<=128 ?_> .Error("ODE time-model coefficient count must be between 1 and 128");
+    domain=OdeAsInterval(domainValue,"ODE time-model domain");
+    mode=OdeOption(options,"mode",:polynomial);
+    mode==:polynomial||mode==:affine ?_> .Error("ODE dependency mode must be :polynomial or :affine");
+    maximum=OdeRequirePositiveInteger(OdeOption(options,"maxterms",32),"ODE maxModelTerms",128);
+    subdivisions=OdeRequirePositiveInteger(OdeOption(options,"subintervals",1),"ODE modelSubintervals",16);
+    natural=OdePolynomialHorner(coefficients,domain);
+    .ValidatedClaimEqual(natural,natural);
+    input={= coefficients=coefficients,domain=domain,options=options };
+    coefficients.Len()<=maximum ?_> {= schema="rix.ode.time-polynomial-range@1",status=:budgetExceeded,range=natural,certified=1,
+        applied=_,mode=mode,partitions=[],input=input,work={= maxTerms=maximum,subintervals=0,exhausted=1 },reason=:modelTermBudgetExceeded };
+    degree=coefficients.Len()-1;partitions:=[];
+    {@ cell=1;cell<=@subdivisions;{;
+        low=@domain.Low()+(@domain.High()-@domain.Low())*(cell-1)/@subdivisions;
+        high=@domain.Low()+(@domain.High()-@domain.Low())*cell/@subdivisions;
+        range:=_;data:=_;
+        @mode==:affine ?: {;
+            center=(@low+@high)/2;centerValue=OdePolynomialHorner(@coefficients,center:center);
+            derivative=@coefficients.DropFirst().Map((value,index)->value*index);
+            slope=derivative.Len()==0 ?: (0:0) ?_ OdePolynomialHorner(derivative,@low:@high);
+            @range~=centerValue+((@low:@high)-(center:center))*slope;
+            @data~={= center=center,value=centerValue,slope=slope };
+        } ?_ {;
+            power:=[];
+            {@ j=0;j<=@degree;{;
+                sum:=0:0;
+                {@ k:=@j;k<=@degree;{;
+                    shift=k==@j ?: 1 ?_ @low^(k-@j);scale=@j==0 ?: 1 ?_ (@high-@low)^@j;
+                    @sum+=@coefficients[k+1]*OdeChoose(k,@j)*shift*scale;
+                };k+=1};
+                @power~=@power.Push(sum);
+            };j+=1};
+            bernstein:=[];
+            {@ i=0;i<=@degree;{;
+                sum:=0:0;
+                {@ j=0;j<=@i;{; @sum+=@power[j+1]*OdeChoose(@i,j)/OdeChoose(@degree,j); };j+=1};
+                @bernstein~=@bernstein.Push(sum);
+            };i+=1};
+            @range~=OdeIntervalHull(bernstein);@data~={= shiftedPowerCoefficients=power,bernsteinCoefficients=bernstein };
+        };
+        @partitions~=@partitions.Push({= interval=low:high,range=range,evidence=data });
+    };cell+=1};
+    range=OdeIntersectIntervals(OdeIntervalHull(partitions.Map((part)->part[:range])),natural,"dependency model");
+    result={= schema="rix.ode.time-polynomial-range@1",status=:enclosed,range=range,certified=1,applied=1,mode=mode,
+        partitions=partitions,input=input,work={= maxTerms=maximum,subintervals=subdivisions,exhausted=_ },
+        theorem=mode==:polynomial ?: :intervalCoefficientBernsteinHull ?_ :intervalCoefficientMeanValue };
+    .ValidatedClaimEqual(result,result);.ImmutableValue(result);
+};
+OdeCheckTimePolynomialRange(value) -> .ValidatedClaimEqual(value,OdeTimePolynomialRange(value[:input][:coefficients],value[:input][:domain],value[:input][:options]));
+
 OdeTaylorPolynomialRange(segment, delta) -> {;
     raw = segment[:stateStart].Map((entry,axis)->
         segment[:taylorCoefficients].Reduce((sum,row,power)->sum+(delta^power)*row[axis],entry)
     );
-    raw.Map((entry,axis)->OdeIntersectIntervals(entry,segment[:tube][axis],"Taylor state"));
+    mode=OdeOption(segment,"dependencymodel",:interval);
+    modelOptions={= mode=mode,maxTerms=OdeOption(segment,"maxmodelterms",32),subintervals=OdeOption(segment,"modelsubintervals",1) };
+    controlled=mode==:interval ?: raw ?_ raw.Map((entry,axis)->OdeIntersectIntervals(entry,
+        OdeTimePolynomialRange([@segment[:stateStart][axis]].Concat(@segment[:taylorCoefficients].Map((row)->row[@axis])),@delta,@modelOptions)[:range],"time dependency"));
+    controlled.Map((entry,axis)->OdeIntersectIntervals(entry,segment[:tube][axis],"Taylor state"));
 };
 
 OdeTaylorizeOrder(problem, segment, derivatives, identities, rangeOptions, order) -> {;
@@ -623,20 +793,26 @@ OdeTaylorizeOrder(problem, segment, derivatives, identities, rangeOptions, order
         @coefficients ~= @coefficients.Push(@ranges[power].Map((result)->result[:interval]/@factorial));
     }; power+=1 };
     h = segment[:tEnd]-segment[:tStart];
-    model = segment.Merge({= taylorCoefficients=coefficients });
+    mode=OdeOption(rangeOptions,"dependencymodel",:interval);
+    mode==:interval||mode==:affine||mode==:polynomial ?_> .Error("ODE dependencyModel must be :interval, :affine or :polynomial");
+    maxModelTerms=OdeRequirePositiveInteger(OdeOption(rangeOptions,"maxmodelterms",32),"ODE maxModelTerms",128);
+    modelSubintervals=OdeRequirePositiveInteger(OdeOption(rangeOptions,"modelsubintervals",1),"ODE modelSubintervals",16);
+    model = segment.Merge({= taylorCoefficients=coefficients,dependencyModel=mode,maxModelTerms=maxModelTerms,modelSubintervals=modelSubintervals });
+    models=mode==:interval ?: [] ?_ segment[:stateStart].Map((value,axis)->OdeTimePolynomialRange(
+        [value].Concat(@coefficients.Map((row)->row[@axis])),0:@h,{= mode=@mode,maxTerms=@maxModelTerms,subintervals=@modelSubintervals }));
     endpoint = OdeTaylorPolynomialRange(model,h:h).Map((entry,axis)->
         OdeIntersectIntervals(entry,segment[:stateEnd][axis],"Taylor endpoint")
     );
     tube = OdeTaylorPolynomialRange(model,0:h);
     .ImmutableValue(model.Merge({=
         segmentKind=:validatedTaylorTube,method=:validatedTaylor,
-        interpolation=:higherOrderTaylorInterval,order=order,
+        interpolation=:higherOrderTaylorInterval,order=order,dependencyModels=models,
         stateEnd=endpoint,tube=tube,picardTube=segment[:tube],
         remainderBound=coefficients[order].Reduce((largest,range)->.Max(largest,OdeIntervalMagnitude(range)*OdeMagnitude(h)^order),0),
         evidence={= theorem=:higherOrderTaylorRemainderInsidePicardTube,
             existenceAndUniqueness=segment[:evidence],
             derivativeRanges=ranges.Map((row)->row.Map((result)->result[:evidence])),
-            totalDerivativeIdentities=identities,
+            totalDerivativeIdentities=identities,dependencyModels=models,
             order=order,endpointIntersection=1,tubeIntersection=1 }
     }));
 };
@@ -731,20 +907,13 @@ OdeValidatedTaylor2(problemValue, options ?= {= }, adaptive ?= _, general ?= _) 
     );
     tubeRadiusValue = OdeOption(options,"tuberadius",_);
     tubeRadius = tubeRadiusValue == _ ?: _ ?_ OdeRequirePositiveRational(tubeRadiusValue,"ODE tubeRadius");
-    stateDerivatives = problem[:rhs].Map((expression)->problem[:stateNames].Map((name)->
-        OdeCheckedPartial(expression,name,"Picard state",@derivativeOptions)
-    ));
-    secondDerivatives = problem[:rhs].Map((expression,index)->
-        OdeTotalDerivative(expression,@problem,@"right-hand side @{index}",@derivativeOptions)
-    );
-    derivativeRows := [problem[:rhs],secondDerivatives.Map((derivative)->derivative[:expression])];
-    derivativeEvidence := [secondDerivatives];
-    {@ power=3; power<=@order; {;
-        row = @derivativeRows[@derivativeRows.Len()].Map((expression)->OdeTotalDerivative(expression,@problem,"higher order",@derivativeOptions));
-        @derivativeRows ~= @derivativeRows.Push(row.Map((derivative)->derivative[:expression]));
-        @derivativeEvidence ~= @derivativeEvidence.Push(row);
-    }; power+=1 };
-    rangeOptions = OdeRequireOptions(OdeOption(options,"rangeoptions",{= }),"ODE rangeOptions").Merge({= maxSubintervals=maxSubintervals });
+    construction=OdePrepareTaylor(problem,options.Merge({= order=order }));
+    stateDerivatives=construction[:stateJacobian];
+    secondDerivatives=construction[:totalRhsDerivative];
+    derivativeRows=construction[:derivativeRows];
+    derivativeEvidence=construction[:higherDerivatives];
+    rangeOptions = OdeRequireOptions(OdeOption(options,"rangeoptions",{= }),"ODE rangeOptions").Merge({= maxSubintervals=maxSubintervals,
+        dependencyModel=OdeOption(options,"dependencymodel",:interval),maxModelTerms=OdeOption(options,"maxmodelterms",32),modelSubintervals=OdeOption(options,"modelsubintervals",1) });
     normalized = {=
         maxTubeIterations=maxTubeIterations,
         maxSubintervals=rangeOptions,
@@ -823,7 +992,8 @@ OdeValidatedTaylor2(problemValue, options ?= {= }, adaptive ?= _, general ?= _) 
             kind=general ?: :higherOrderTaylorRecentering ?_ :secondOrderTaylorRecentering,
             order=order,
             baseExistenceTube=:validatedPicard,
-            affineArithmetic=_
+            dependencyModel=general ?: OdeOption(rangeOptions,"dependencymodel",:interval) ?_ :interval,
+            stateCorrelationPreserved=_,affineArithmetic=_
         },
         work={=
             requestedSteps=steps,
@@ -835,13 +1005,13 @@ OdeValidatedTaylor2(problemValue, options ?= {= }, adaptive ?= _, general ?= _) 
             maxAttempts=maxAttempts,
             minimumStep=minimumStep,
             remainderTolerance=remainderTolerance,
-            order=order,maxOrder=maxOrder,rangeOptions=rangeOptions,derivativeOptions=derivativeOptions,
+            construction=construction[:work],order=order,maxOrder=maxOrder,rangeOptions=rangeOptions,derivativeOptions=derivativeOptions,
             stopReason=complete ?: _ ?_ stopReason,
             exhausted=!complete
         },
         diagnostics=complete ?: [] ?_ [:validatedTaylorTrajectoryPartial]
     };
-    solution .= {= _proto=odeSolutionProto };
+    solution .= {= _proto=@odeSolutionProto };
     .ImmutableValue(solution);
 };
 
@@ -1166,9 +1336,9 @@ OdeEventCandidates(solution, event, options) -> {;
         certifiedCandidates=candidates.Filter((candidate)->candidate[:certified]==1).Len(),
         certified=(candidates.Len()>0 && candidates.Filter((candidate)->candidate[:certified]==1).Len()==candidates.Len())
           ?: 1 ?_ _,
-        evidenceLevel=candidates.Len()>0 && candidates.Filter((candidate)->candidate[:certified]==1).Len()==candidates.Len()
+        evidenceLevel=(candidates.Len()>0 && candidates.Filter((candidate)->candidate[:certified]==1).Len()==candidates.Len())
           ?: :proof
-          ?_ (candidates.Len()==0 && exclusions.Len()>0 ?: :partialProof ?_ :observed)
+          ?_ ((candidates.Len()==0 && exclusions.Len()>0) ?: :partialProof ?_ :observed)
     });
 };
 
@@ -1190,7 +1360,217 @@ OdeRecord(value) ->
            ?: value
            ?_ .Error("ODE Record expects a problem or solution"));
 
+## Bounded polynomial graph substitution is simultaneous and name-based.
+## Scoped symbols and transcendental/variable-denominator RHS stay unsupported.
+OdePolynomialGraph(expression,bindings ?= {= },depth ?= 0) -> {;
+    depth<=32 ?_> .Error("ODE polynomial graph depth budget exceeded");
+    kind=expression[:kind];
+    kind==:constant ?: {;
+        @expression[:value] ~!: :Rational;@expression;
+    } ?_ (kind==:variable ?: {;
+        {= }.Merge(@expression).Has("symbolid")==_ ?: _ ?_ .Error("ODE polynomial recognition requires name-based variables");
+        @bindings.Has(@expression[:name]) ?: @bindings[@expression[:name]] ?_ @expression;
+    } ?_ {;
+        @kind==:operator ?: _ ?_ .Error("ODE polynomial recognition does not support this graph kind");
+        operation=@expression[:operation]; operands=@expression[:operands];
+        allowed=[:add,:subtract,:multiply,:negate].Includes(operation);
+        operation==:divide ?: {;
+            denominator=@operands[2];
+            (denominator[:kind]==:constant && denominator[:value]!=0) ?: _ ?_ .Error("ODE polynomial division requires a nonzero constant denominator");
+            @allowed~=1;
+        } ?_ _;
+        operation==:power ?: {;
+            exponent=@operands[2];
+            (exponent[:kind]==:constant && exponent[:value]>=0 && exponent[:value]<=16 && exponent[:value]//1==exponent[:value])
+                ?: _ ?_ .Error("ODE polynomial exponent must be an Integer from zero through 16");
+            @allowed~=1;
+        } ?_ _;
+        allowed ?: _ ?_ .Error("ODE polynomial operation is unsupported");
+        .ExpressionOperation(operation,operands.Map((child)->OdePolynomialGraph(child,@bindings,@depth+1)));
+    });
+};
+OdeSimplifyChecked(expression) -> {;
+    proof=.numerics.SimplifyGraph(expression);
+    .numerics.CheckGraphSimplification(proof)[:accepted]==1 ?_> .Error("ODE simplification replay failed");proof;
+};
+OdeFoldPolynomial(expression) -> {;
+    expression[:kind]!=:constant ?_> expression[:value];
+    expression[:kind]!=:variable ?_> _;
+    operation=expression[:operation];values=expression[:operands].Map((child)->OdeFoldPolynomial(child));
+    operation!=:multiply || (values[1]!=0 && values[2]!=0) ?_> 0;
+    operation!=:power || values[2]!=0 ?_> 1;
+    values[1]!=_ ?_> _;
+    operation!=:negate ?_> -values[1];
+    values[2]!=_ ?_> _;
+    operation!=:add ?_> values[1]+values[2];
+    operation!=:subtract ?_> values[1]-values[2];
+    operation!=:multiply ?_> values[1]*values[2];
+    operation!=:divide ?_> values[1]/values[2];
+    values[1]^values[2];
+};
+OdeConstantGraph(expression) -> {;
+    polynomial=OdePolynomialGraph(expression);
+    value=OdeFoldPolynomial(polynomial);
+    value!=_ ?: _ ?_ .Error("ODE expected a constant polynomial derivative");
+    {= value=value ~!: :Rational,proof={= theorem=:totalPolynomialConstantFolding,expression=polynomial,value=value } };
+};
+OdeHigherOrder(rhs,initialTime,initialDerivatives,interval,options ?= {= }) -> {;
+    initialDerivatives ? :Array ?_> .Error("ODE higher-order initial derivatives must be an Array");
+    order=OdeRequirePositiveInteger(initialDerivatives.Len(),"ODE higher-order order",16);
+    names=OdeNormalizeNames(OdeOption(options,"statenames",order==1 ?: [:y] ?_ _),order);
+    .calculus.IsExpression(rhs) ?_> .Error("ODE higher-order RHS must be a Calculus expression");
+    .ValidatedClaimEqual([rhs,initialDerivatives,options],[rhs,initialDerivatives,options]);
+    vector=names.DropFirst().Map((name)->.calculus.Variable(name)).Push(rhs);
+    problem=OdeIVP(vector,initialTime,initialDerivatives,interval,options.Merge({= stateNames=names }));
+    .ImmutableValue({= schema="rix.ode.higher-order@1",order=order,rhs=rhs,problem=problem,
+        initialDerivatives=initialDerivatives,stateNames=names,
+        correspondence=names.Map((name,index)->{= state=name,derivativeOrder=index-1 }),
+        evidence={= rule=:successiveDerivativeCoordinates,firstOrderRhs=vector } });
+};
+OdeReduceHigherOrder(record) -> {;
+    record[:schema]=="rix.ode.higher-order@1" ?_> .Error("ODE ReduceHigherOrder expects a higher-order record");
+    original=record[:problem];
+    expected=OdeHigherOrder(record[:rhs],original[:initialTime],record[:initialDerivatives],original[:interval],
+        {= stateNames=original[:stateNames],independent=original[:independent],parameters=original[:parameters],units=original[:units],events=original[:events],assumptions=original[:assumptions] });
+    .ValidatedClaimEqual(record,expected) ?_> .Error("ODE higher-order reduction evidence changed");original;
+};
+OdeExactRecognized(problem) -> {;
+    problem[:dimension]==1 ?: _ ?_ .Error("Exact scalar recognition requires one state");
+    initial=OdeRequirePointState(problem,:exact)[1];
+    parameters=problem[:parameters].MapValues((value)->.calculus.Constant(value));
+    rhs=OdePolynomialGraph(problem[:rhs][1],parameters);
+    dy=OdeCheckedPartial(rhs,problem[:stateNames][1],"exact affine state");
+    dt=OdeCheckedPartial(rhs,problem[:independent],"exact affine time");
+    a=OdeConstantGraph(dy[:expression]); b=OdeConstantGraph(dt[:expression]);
+    zeroBindings=OdeBindings(problem,0,[0]);c=.calculus.Evaluate(rhs,zeroBindings) ~!: :Rational;
+    t=.calculus.Variable(problem[:independent]);t0=problem[:initialTime];
+    formula:=_;coefficients:=_;
+    a[:value]==0 ?: {;
+        @formula~=.calculus.Constant(@initial)+@b[:value]*(@t^2-@t0^2)/2+@c*(@t-@t0);
+        @coefficients~={= initial=@initial,timeLinear=@c,timeQuadratic=@b[:value]/2 };
+    } ?_ {;
+        rate=@a[:value];constant=@initial+(@b[:value]*@t0+@c)/rate+@b[:value]/rate^2;
+        linear=-@b[:value]/rate;offset=-@c/rate-@b[:value]/rate^2;
+        constant+linear*@t0+offset==@initial && rate*linear+@b[:value]==0 && rate*offset+@c==linear
+          ?_> .Error("ODE exact affine coefficient verification failed");
+        @formula~=.calculus.Exp()(rate*(@t-@t0))*constant+linear*@t+offset;
+        @coefficients~={= exponential=constant,timeLinear=linear,offset=offset,rate=rate };
+    };
+    .ImmutableValue({= schema="rix.ode.exact-solution@1",problem=problem,status=:exact,certified=1,
+        expression=formula,family=a[:value]==0 ?: :constantOrTimeAffine ?_ :scalarAffineLinear,
+        coefficients=coefficients,evidence={= theorem=:affineLinearClosedForm,polynomialRhs=rhs,
+            statePartial=dy,timePartial=dt,stateConstant=a,timeConstant=b,constant=c,initial=initial } });
+};
+OdeExactAttempt={>
+    (problem) ?- [result=OdeExactRecognized(problem)] -> result,
+    (problem) -> .ImmutableValue({= schema="rix.ode.exact-solution@1",problem=problem,status=:unsupported,certified=_,reason=:notRecognizedGlobalScalarAffinePolynomial })
+};
+OdeExact(problem) -> {; .ValidatedClaimEqual(problem,problem);OdeExactAttempt(OdeRequireProblem(problem)); };
+OdeCheckExact(record) -> .ValidatedClaimEqual(record,OdeExact(record[:problem]));
+OdeExactAt(record,time,options ?= {= }) -> {;
+    OdeCheckExact(record) && record[:certified]==1 ?_> .Error("ODE ExactAt requires a replayed exact solution");
+    domain=OdeAsInterval(time,"ODE exact query");
+    record[:problem][:interval].Contains(domain) ?_> .Error("ODE exact query is outside the problem interval");
+    .numerics.GraphRange(record[:expression],{= }.Set(record[:problem][:independent],domain),options);
+};
+
+OdeBVP(rhs,initialTime,initialExpressions,interval,residuals,shootingBox,options ?= {= }) -> {;
+    initials=OdeNormalizeExpressions(initialExpressions);equations=OdeNormalizeExpressions(residuals);
+    box=.numerics.Box(shootingBox); variables=box[:variables];
+    variables.Len()==equations.Len() ?_> .Error("ODE shooting requires one boundary residual per shooting parameter");
+    parameters=OdeOption(options,"parameters",{= });
+    .ValidatedClaimEqual([rhs,initials,equations,shootingBox,options],[rhs,initials,equations,shootingBox,options]);
+    bounds=initials.Map((expression)->.numerics.GraphRange(expression,shootingBox));
+    bounds.Map((bound)->bound[:certified]==1 ?_> .Error("ODE could not enclose the initial shooting family"));
+    problem=OdeIVP(rhs,initialTime,bounds.Map((bound)->bound[:interval]),interval,options);
+    variables.Map((name)->@problem[:stateNames].Includes(name)==_ && name!=@problem[:independent] && @parameters.Has(name)==_
+      ?_> .Error("ODE shooting parameters must differ from time, states and fixed parameters"));
+    .ValidatedClaimEqual([problem,initials,equations,shootingBox],[problem,initials,equations,shootingBox]);
+    .ImmutableValue({= schema="rix.ode.boundary-problem@1",problem=problem,initialExpressions=initials,
+        residuals=equations,shootingBox=shootingBox,variables=variables,initialBounds=bounds,
+        interpretation=:terminalResidualsOfParameterizedInitialStates });
+};
+OdeShootingMap(bvp,options) -> {;
+    problem=bvp[:problem];
+    problem[:rhs].Map((rhs)->OdePolynomialGraph(rhs));
+    bvp[:initialExpressions].Map((rhs)->OdePolynomialGraph(rhs));bvp[:residuals].Map((rhs)->OdePolynomialGraph(rhs));
+    order=OdeRequirePositiveInteger(OdeOption(options,"order",4),"ODE shooting Taylor order",8);
+    construction=OdePrepareTaylor(problem,{= order=order,maxConstructionWork=OdeOption(options,"maxconstructionwork",4096) });
+    last=construction[:derivativeRows][order].Map((expression)->OdeConstantGraph(expression));
+    last.Map((entry)->entry[:value]==0 ?: _ ?_ .Error("ODE terminal map has a nonzero Taylor remainder"));
+    replacements:=problem[:parameters].MapValues((value)->.calculus.Constant(value)).Set(problem[:independent],.calculus.Constant(problem[:initialTime]));
+    {@ axis=1;axis<=@problem[:dimension];{; @replacements~=@replacements.Set(@problem[:stateNames][axis],@bvp[:initialExpressions][axis]); };axis+=1};
+    h=problem[:interval].End()-problem[:initialTime];
+    terminal=bvp[:initialExpressions].Map((initial,axis)->construction[:derivativeRows].Reduce((sum,row,power)->
+        sum+OdePolynomialGraph(row[@axis],@replacements)*@h^power/.Factorial(power),initial));
+    terminal=terminal.Map((expression)->OdeSimplifyChecked(expression)[:expression]);
+    substitutions:=problem[:parameters].MapValues((value)->.calculus.Constant(value)).Set(problem[:independent],.calculus.Constant(problem[:interval].End()));
+    {@ axis=1;axis<=@problem[:dimension];{; @substitutions~=@substitutions.Set(@problem[:stateNames][axis],@terminal[axis]); };axis+=1};
+    residuals=bvp[:residuals].Map((expression)->OdeSimplifyChecked(OdePolynomialGraph(expression,@substitutions))[:expression]);
+    jacobian=.calculus.JacobianResult(residuals,bvp[:variables]);
+    {= terminal=terminal,residuals=residuals,jacobian=jacobian,construction=construction,
+        evidence={= theorem=:globallyTerminatingPolynomialLieSeries,zeroRemainder=last,order=order } };
+};
+OdeShootingMapAttempt={>
+    (bvp,options) ?- [result=OdeShootingMap(bvp,options)] -> {= ok=1,result=result },
+    (bvp,options) -> {= ok=_,reason=:unprovedTerminalMap }
+};
+OdeFitsClaim={>
+    (value) ?- [ok=.ValidatedClaimEqual(value,value)] -> 1,
+    (value) -> _
+};
+OdeShootingUnresolved(bvp,options,reason) -> .ImmutableValue({= schema="rix.ode.shooting-result@1",problem=bvp,options=options,status=:unresolved,certified=_,
+    unique=[],excluded=[],pending=[],unresolved=[{= box=bvp[:shootingBox],reason=reason }],trajectories=[],diagnostics=[reason],interpretation=:parameterFamilyOnly });
+OdeShoot(bvp,options ?= {= }) -> {;
+    bvp[:schema]=="rix.ode.boundary-problem@1" ?_> .Error("ODE Shoot expects a boundary-problem record");
+    .ValidatedClaimEqual([bvp,bvp,bvp,bvp],[bvp,bvp,bvp,bvp]);
+    base=bvp[:problem];
+    expected=OdeBVP(base[:rhs],base[:initialTime],bvp[:initialExpressions],base[:interval],bvp[:residuals],bvp[:shootingBox],
+        {= stateNames=base[:stateNames],independent=base[:independent],parameters=base[:parameters],units=base[:units],events=base[:events],assumptions=base[:assumptions] });
+    .ValidatedClaimEqual(bvp,expected) ?_> .Error("ODE boundary-problem evidence changed");
+    options=OdeRequireOptions(options,"ODE shooting options");
+    base[:dimension]<=8 ?_> .Error("ODE shooting supports at most eight state coordinates");
+    boxOptions=OdeRequireOptions(OdeOption(options,"boxoptions",{= maxBoxes=63 }),"ODE shooting boxOptions");
+    OdeRequirePositiveInteger(OdeOption(boxOptions,"maxboxes",63),"ODE shooting maxBoxes",256);
+    flowOptions=OdeRequireOptions(OdeOption(options,"flowoptions",{= order=3,steps=8,maxSubintervals=1 }),"ODE shooting flowOptions");
+    OdeRequirePositiveInteger(OdeOption(flowOptions,"order",4),"ODE shooting flow order",8);
+    OdeRequirePositiveInteger(OdeOption(flowOptions,"steps",4),"ODE shooting flow steps",256);
+    OdeRequirePositiveInteger(OdeOption(flowOptions,"maxtubeiterations",8),"ODE shooting tube iterations",32);
+    OdeRequirePositiveInteger(OdeOption(flowOptions,"maxsubintervals",4),"ODE shooting range subdivisions",32);
+    maxTrajectories=OdeRequirePositiveInteger(OdeOption(options,"maxtrajectories",8),"ODE maxTrajectories",16);
+    mapping=OdeShootingMapAttempt(bvp,options);
+    mapping[:ok] ?_> OdeShootingUnresolved(bvp,options,:unprovedTerminalMap);
+    exact=mapping[:result];
+    subdivision=.numerics.SubdivideBoxes(exact[:residuals],exact[:jacobian],bvp[:shootingBox],boxOptions);
+    .numerics.CheckBoxSubdivision(subdivision)[:accepted]==1 ?_> .Error("ODE shooting box replay failed");
+    retained={= schema="rix.ode.shooting-result@1",problem=bvp,options=options,
+        status=subdivision[:unresolved].Len()==0 ?: :classified ?_ :partial,certified=subdivision[:certified],
+        unique=subdivision[:unique],excluded=subdivision[:excluded],unresolved=subdivision[:unresolved],pending=subdivision[:pending],
+        terminalMap=exact,subdivision=subdivision,interpretation=:parameterFamilyOnly };
+    OdeFitsClaim([retained,retained]) ?_> OdeShootingUnresolved(bvp,options,:evidenceBudgetExceeded);
+    trajectories:=[];evidenceFull:=_;
+    {@ index=1;index<=.Min(@maxTrajectories,@subdivision[:unique].Len())&&@evidenceFull==_;{;
+        branch=@subdivision[:unique][index];
+        bindings=branch[:box][:axes];
+        initial=@bvp[:initialExpressions].Map((expression)->.numerics.GraphRange(expression,@bindings)[:interval]);
+        base=@bvp[:problem];
+        ivp=OdeIVP(base[:rhs],base[:initialTime],initial,base[:interval],{= stateNames=base[:stateNames],independent=base[:independent],parameters=base[:parameters] });
+        flow=OdeValidatedTaylor2(ivp,@flowOptions,_,1);
+        candidate=@trajectories.Push({= branchId=branch[:id],parameterBox=branch[:box],flow=flow });
+        OdeFitsClaim([@retained,@retained,candidate,candidate])
+          ?: {; @trajectories~=@candidate; } ?_ {; @evidenceFull~=1; };
+    };index+=1};
+    result=retained.Merge({= trajectories=trajectories,
+        diagnostics=evidenceFull ?: [:trajectoryEvidenceBudgetExceeded] ?_ (subdivision[:unique].Len()>maxTrajectories ?: [:trajectoryBudgetExceeded] ?_ []),
+        work={= maxTrajectories=maxTrajectories,omittedTrajectories=subdivision[:unique].Len()-trajectories.Len(),evidenceBudgetExceeded=evidenceFull } });
+    .ValidatedClaimEqual(result,result);.ImmutableValue(result);
+};
+OdeCheckShooting(record) -> .ValidatedClaimEqual(record,OdeShoot(record[:problem],record[:options]));
+
 odeProblemProto = {=
+    Exact=(self)->OdeExact(self),
+    DormandPrince=(self,options ?= {= })->OdeDormandPrince(self,options),
+    PrepareTaylor=(self,options ?= {= })->OdePrepareTaylor(self,options),
     Euler=(self, options ?= {= })->OdeApproximateSolution(self,:euler,options),
     RK4=(self, options ?= {= })->OdeApproximateSolution(self,:rk4,options),
     AdaptiveRK4=(self, options ?= {= })->OdeAdaptiveRK4(self,options),
@@ -1212,6 +1592,16 @@ odeSolutionProto = {=
 
 odeNamespace = (value)->value;
 odeNamespace._proto = {=
+    HigherOrder=(self,rhs,time,initials,interval,options ?= {= })->OdeHigherOrder(rhs,time,initials,interval,options),
+    ReduceHigherOrder=(self,record)->OdeReduceHigherOrder(record),
+    Exact=(self,problem)->OdeExact(problem),CheckExact=(self,record)->OdeCheckExact(record),
+    ExactAt=(self,record,time,options ?= {= })->OdeExactAt(record,time,options),
+    BVP=(self,rhs,time,initials,interval,residuals,box,options ?= {= })->OdeBVP(rhs,time,initials,interval,residuals,box,options),
+    Shoot=(self,bvp,options ?= {= })->OdeShoot(bvp,options),CheckShooting=(self,record)->OdeCheckShooting(record),
+    TimePolynomialRange=(self,coefficients,domain,options ?= {= })->OdeTimePolynomialRange(coefficients,domain,options),
+    CheckTimePolynomialRange=(self,value)->OdeCheckTimePolynomialRange(value),
+    DormandPrince=(self,problem,options ?= {= })->OdeDormandPrince(problem,options),
+    PrepareTaylor=(self,problem,options ?= {= })->OdePrepareTaylor(problem,options),
     IVP=(self,rhs,initialTime,initialState,interval,options ?= {= })->
         OdeIVP(rhs,initialTime,initialState,interval,options),
     Euler=(self,problem,options ?= {= })->OdeApproximateSolution(problem,:euler,options),

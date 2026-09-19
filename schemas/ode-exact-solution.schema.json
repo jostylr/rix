@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/ode-exact-solution/v1.schema.json",
+  "title": "RiX recognized exact scalar ODE",
+  "description": "Documentation schema for the portable record projection. Use the corresponding RiX checker to validate mathematical evidence.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema",
+    "problem",
+    "status",
+    "certified"
+  ],
+  "properties": {
+    "schema": {
+      "const": "rix.ode.exact-solution@1"
+    },
+    "problem": {
+      "$ref": "ode-problem.schema.json"
+    },
+    "status": {
+      "enum": [
+        "exact",
+        "unsupported"
+      ]
+    },
+    "family": {
+      "enum": [
+        "constantOrTimeAffine",
+        "scalarAffineLinear"
+      ]
+    },
+    "certified": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    }
+  }
+}

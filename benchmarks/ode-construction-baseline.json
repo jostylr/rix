@@ -1,0 +1,49 @@
+{
+  "schema": "rix.benchmark.ode-construction@1",
+  "fixture": "[y,-x], order 4",
+  "rows": [
+    {
+      "mode": "sync",
+      "cache": false,
+      "milliseconds": 88.34433400000006,
+      "evaluatorSteps": 51453,
+      "partialComputed": 22,
+      "partialCacheHits": 0,
+      "totalComputed": 6,
+      "derivativeParity": true
+    },
+    {
+      "mode": "sync",
+      "cache": true,
+      "milliseconds": 59.12950000000001,
+      "evaluatorSteps": 50508,
+      "partialComputed": 18,
+      "partialCacheHits": 4,
+      "totalComputed": 6,
+      "derivativeParity": true
+    },
+    {
+      "mode": "async",
+      "cache": false,
+      "milliseconds": 11125.832583000001,
+      "evaluatorSteps": 51778,
+      "partialComputed": 22,
+      "partialCacheHits": 0,
+      "totalComputed": 6,
+      "derivativeParity": true
+    },
+    {
+      "mode": "async",
+      "cache": true,
+      "milliseconds": 11047.441124999998,
+      "evaluatorSteps": 50815,
+      "partialComputed": 18,
+      "partialCacheHits": 4,
+      "totalComputed": 6,
+      "derivativeParity": true
+    }
+  ],
+  "recorded": "2026-09-19",
+  "runtime": "Bun 1.4.0; local development host",
+  "notes": "Single isolated construction sample per mode after plugin loading. Wall times are informational; regression tests compare deterministic evaluator work and exact derivative evidence."
+}

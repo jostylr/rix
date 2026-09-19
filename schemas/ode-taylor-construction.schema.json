@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/ode-taylor-construction/v1.schema.json",
+  "title": "RiX checked Taylor derivative preparation",
+  "description": "Documentation schema for the portable record projection. Use the corresponding RiX checker to validate mathematical evidence.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema",
+    "problem",
+    "order",
+    "stateJacobian",
+    "totalRhsDerivative",
+    "derivativeRows",
+    "higherDerivatives",
+    "work"
+  ],
+  "properties": {
+    "schema": {
+      "const": "rix.ode.taylor-construction@1"
+    },
+    "problem": {
+      "$ref": "ode-problem.schema.json"
+    },
+    "order": {
+      "type": "integer",
+      "minimum": 2
+    },
+    "work": {
+      "type": "object",
+      "required": [
+        "partialRequests",
+        "partialComputed",
+        "partialCacheHits",
+        "totalComputed",
+        "maxConstructionWork"
+      ]
+    }
+  }
+}

@@ -19,21 +19,70 @@
     "diagnostics"
   ],
   "properties": {
-    "schema": { "const": "rix.ode.solution@1" },
-    "valueKind": { "const": "odeSolution" },
-    "problem": { "$ref": "ode-problem.schema.json" },
-    "method": { "enum": ["euler", "rk4", "adaptiveRK4", "validatedPicard", "validatedTaylor2", "adaptiveValidatedTaylor2"] },
-    "status": { "enum": ["approximate", "validated", "partial"] },
-    "classification": {
-      "enum": ["fixedStepTrajectory", "adaptiveTrajectory", "adaptiveBudgetExhausted", "certifiedTube", "unresolvedTube", "certifiedTaylorTube", "unresolvedTaylorTube"]
+    "schema": {
+      "const": "rix.ode.solution@1"
     },
-    "stateNames": { "type": "array", "minItems": 1 },
-    "points": { "type": "array", "minItems": 1 },
+    "valueKind": {
+      "const": "odeSolution"
+    },
+    "problem": {
+      "$ref": "ode-problem.schema.json"
+    },
+    "method": {
+      "enum": [
+        "euler",
+        "rk4",
+        "adaptiveRK4",
+        "validatedPicard",
+        "validatedTaylor2",
+        "adaptiveValidatedTaylor2",
+        "dormandPrince54",
+        "validatedTaylor",
+        "adaptiveValidatedTaylor"
+      ]
+    },
+    "status": {
+      "enum": [
+        "approximate",
+        "validated",
+        "partial"
+      ]
+    },
+    "classification": {
+      "enum": [
+        "fixedStepTrajectory",
+        "adaptiveTrajectory",
+        "adaptiveBudgetExhausted",
+        "certifiedTube",
+        "unresolvedTube",
+        "certifiedTaylorTube",
+        "unresolvedTaylorTube",
+        "embeddedRKTrajectory",
+        "embeddedRKBudgetExhausted"
+      ]
+    },
+    "stateNames": {
+      "type": "array",
+      "minItems": 1
+    },
+    "points": {
+      "type": "array",
+      "minItems": 1
+    },
     "segments": {
       "type": "array",
-      "items": { "$ref": "ode-dense-segment.schema.json" }
+      "items": {
+        "$ref": "ode-dense-segment.schema.json"
+      }
     },
-    "certified": { "type": ["boolean", "null"] },
-    "diagnostics": { "type": "array" }
+    "certified": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "diagnostics": {
+      "type": "array"
+    }
   }
 }

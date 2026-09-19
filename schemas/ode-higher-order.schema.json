@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/ode-higher-order/v1.schema.json",
+  "title": "RiX higher-order scalar ODE reduction",
+  "description": "Documentation schema for the portable record projection. Use the corresponding RiX checker to validate mathematical evidence.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema",
+    "order",
+    "rhs",
+    "problem",
+    "initialDerivatives",
+    "stateNames",
+    "correspondence",
+    "evidence"
+  ],
+  "properties": {
+    "schema": {
+      "const": "rix.ode.higher-order@1"
+    },
+    "order": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 16
+    },
+    "problem": {
+      "$ref": "ode-problem.schema.json"
+    }
+  }
+}

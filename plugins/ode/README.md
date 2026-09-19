@@ -259,3 +259,128 @@ solver or adds a certificate. Phase portraits and Scene3D remain future work.
 
 See [tutorial.md](tutorial.md) for runnable approximate, validated, and
 bounded-failure examples.
+
+## Construction work, explicit reduction, and exact scalar solutions
+
+`problem.PrepareTaylor({= order=4 })` returns the checked state Jacobian, total
+Lie derivatives, and `rix.ode.taylor-construction@1` work counters. The first
+Lie derivative reuses the already checked Picard Jacobian. Setting
+`cacheDerivatives=_` disables that reuse for comparison; zero is truthy in RiX.
+`maxConstructionWork` bounds requested partial derivatives (default 4096,
+maximum 65536) before construction. The existing derivative checker and
+simplification evidence remain in the result. Preparation and stepping remain
+promise-aware in async evaluation; there is no synchronous execution shortcut.
+
+Run `bun benchmarks/ode-construction.js` for isolated construction timings,
+evaluator steps, derivative counts, and sync/async parity. Timings are
+informational; tests assert exact counts and reduced evaluator work. For the
+order-four vector system `[y,-x]`, reuse reduces 22 checked partial derivatives
+to 18, with six total derivatives unchanged.
+
+`HigherOrder(rhs,t0,initialDerivatives,interval,{= stateNames=[...] })` records a
+scalar order-1-through-16 equation. List coordinates in derivative order:
+`[y,y',y'',...]`. `ReduceHigherOrder(record)` replays the coordinate conversion
+and returns an ordinary vector IVP, retaining initial intervals, time direction,
+units, events, fixed parameters, and assumptions. Vector reductions require
+explicit distinct state names. It performs no variable elimination.
+
+`problem.Exact()` recognizes scalar point-initial equations
+`y'=a*y+b*t+c` with rational fixed coefficients, including constant and
+time-affine equations. It supports bounded name-based polynomial graphs with
+constant nonzero divisors and nonnegative integer powers through 16; other
+equations return `status=:unsupported`. Checked partial derivatives establish
+the affine coefficients. The exact expression and coefficient identities prove
+the differential equation and initial value. For `a!=0`, the expression retains
+a semantic exponential, rather than a decimal approximation.
+`CheckExact(record)` reconstructs the claim; `ExactAt(record,time,options?)`
+returns a checked GraphRange enclosure within the original interval. These are
+separate exact-solution records, not sampled `odeSolution` trajectories.
+
+## Embedded Dormand–Prince 5(4)
+
+`problem.DormandPrince(options?)` computes the published seven-stage
+[Dormand–Prince 5(4) pair](https://ketch.github.io/numipedia/methods/DP5.html).
+It retains the fifth-order endpoint and estimates local error with the maximum
+absolute difference from the embedded fourth-order endpoint. Acceptance halves
+or doubles rational step sizes; accepted endpoint slopes are reused for the
+next step. The result includes every completed attempt's local estimate and
+RHS evaluation count. Aggregate evidence admission uses the Numerics replay
+budget; a result that cannot retain another step stops with
+`evidenceBudgetExceeded` and leaves the remaining time interval unresolved.
+Dense queries use disclosed **linear interpolation**,
+not the method's fifth-order formula. Events on this trajectory are observed
+candidates, without a global error or root certificate.
+
+Options: `initialSteps` (4), `tolerance` (1/1000000), `maxAttempts` (128),
+`maxRejected` (64), and `minimumStep` (1/1048576). Integer work limits are capped
+at 4096. Both time orientations work. Interval initial states are rejected;
+choose validated Picard/Taylor propagation for them. Rejection, minimum-step,
+arithmetic, or attempt exhaustion retains the accepted prefix and an explicit
+unresolved time interval starting from the last accepted state. Exact rational
+arithmetic does not make the numerical discretization exact. `certified` stays
+unset even when the local estimator is zero.
+
+## Bounded time-polynomial dependency control
+
+`TimePolynomialRange(coefficients,domain,options?)` encloses an entire family
+of polynomials in one time variable with interval coefficients in ascending
+power order. `mode=:polynomial` converts each time partition to interval
+Bernstein coefficients and takes their convex hull. `mode=:affine` uses the
+center value plus an interval derivative times displacement. Both intersect a
+natural Horner enclosure; `CheckTimePolynomialRange` replays the entire record.
+They preserve time dependency, not cross-state correlations.
+
+`maxTerms` defaults to 32 and is capped at 128; at most 128 input coefficients
+are accepted. `subintervals` defaults to 1 and is capped at 16. If `maxTerms` is
+insufficient, the result retains its certified natural enclosure with
+`status=:budgetExceeded`, `applied=_`, and the original input. Exact components
+and replay data use the existing Numerics digit, depth, node, and text limits;
+invalid or oversized requests reject explicitly.
+
+General `ValidatedTaylor` and `AdaptiveValidatedTaylor` accept
+`dependencyModel=:polynomial` or `:affine`, `maxModelTerms`, and
+`modelSubintervals`. Their time-polynomial family includes the interval Taylor
+remainder coefficient. Each controlled range still intersects the existing
+Picard existence tube, retaining derivative and enclosure evidence. The default
+`:interval` behavior remains available. This is a bounded time-remainder model;
+it is not a general multivariate polynomial package or full affine arithmetic.
+
+## Boundary records and bounded shooting
+
+`BVP(rhs,t0,initialExpressions,interval,residuals,shootingBox,ivpOptions?)`
+defines a finite-dimensional shooting family. Initial expressions depend on
+shooting parameters; residual expressions use the final state and final time.
+There must be one residual per parameter. Parameter names must differ from
+state names, time, and fixed parameters. The constructor encloses the complete
+initial family without substituting midpoints.
+
+`Shoot(problem,options?)` first attempts an exact terminal map for globally
+defined polynomial RHS whose checked Lie-derivative chain terminates at zero.
+The resulting finite Taylor formula represents the complete vector IVP, in
+both time directions. A nonzero or unproved terminal remainder returns the
+**entire shooting box unresolved**. It never turns approximate endpoint values
+into boundary certificates. This bounded release does not implement collocation
+or general interval-flow parameter sensitivities.
+
+The terminal residual map goes through the M1 interval-Newton box service.
+Every excluded, unique, unresolved, and pending region is retained. A unique
+box proves one boundary parameter within this supplied family, not uniqueness
+among arbitrary solutions of a boundary-value problem. `certified` refers to
+the retained enclosure/cover evidence, and does not certify a root in an
+unresolved region. Boundary roots require the M1 exact boundary witness.
+
+`order` defaults to 4 (2 through 8), `boxOptions.maxBoxes` to 63 (at most 256),
+and `maxTrajectories` to 8 (at most 16). At most eight state coordinates are
+accepted. For unique parameter boxes, validated vector IVPs produce optional
+trajectory records using `flowOptions` (defaults: order 3, steps 8,
+maxSubintervals 1). Flow order is capped at 8, steps at 256, and tube iterations
+and range subdivisions at 32. A partial flow remains visibly partial even when
+the parameter root is proved. Omitted trajectories retain their parameter
+proofs and diagnostics. Aggregate evidence admission is bounded; if the
+terminal-map/cover record cannot fit, the whole input box stays unresolved.
+`CheckShooting(record)` reconstructs the boundary family, exact terminal map,
+box evidence, and retained trajectories, rejecting altered claims.
+
+All these methods stay in the existing `Numerics`, `ODE`, and `Calculus`
+capability groups, use portable expression records, and add no native or host
+permissions. See [the executable increment tutorial](increments-tutorial.md).
