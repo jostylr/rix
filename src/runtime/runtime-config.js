@@ -25,6 +25,7 @@ export const runtimeDefaults = Object.freeze({
     Output: Object.freeze(["OUT", "BIND", "LIVEVIEW", "TEXT", "PARAGRAPH", "HEADING", "FRAGMENT", "SNAPSHOTS", "TABLE", "GRID", "SHEET", "CONTROLPANEL", "FIGURE", "SLIDE", "SLIDES", "Algebra", "Timeline"]),
     Controls: Object.freeze(["CONTROLPANEL", "Controls"]),
     Graphics: Object.freeze(["Graphics"]),
+    Radix: Object.freeze(["NumeralSystem", "NumeralParse", "NumeralFormat", "NumeralPlaces", "NumeralLocale"]),
     Geometry: Object.freeze(["ImplicitTrace", "ImplicitTraceCheck", "ImplicitTraceRefine"]),
     Draw: Object.freeze(["draw"]),
     Plot: Object.freeze(["plot"]),

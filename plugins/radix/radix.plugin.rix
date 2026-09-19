@@ -3,11 +3,11 @@ id: radix
 description: Exact positional expansions, cloneable lazy digit streams, configurable formatting, and bounded period analysis.
 kind: rix
 mount: radix
-exports: [Expansion, Digits, DigitStream, PeriodLength, PeriodInfo, ToString]
+exports: [System, Define, Parse, Format, Places, Locale, View, Expansion, Digits, DigitStream, PeriodLength, PeriodInfo, ToString]
 groups: [Exact, Radix]
 permissions: []
 provides: [rix.radix@1, rix.radix.digit-stream@1]
-schemas: [rix.radix.expansion@1, rix.radix.digit-stream@1, rix.radix.period-info@1]
+schemas: [rix.numeral-system@1, ratmath.numeral-system@1, ratmath.numeral-expansion@1,rix.radix.expansion@1, rix.radix.digit-stream@1, rix.radix.period-info@1]
 snapshot: true
 deterministic: true
 defaultEnabled: false
@@ -414,8 +414,58 @@ RadixRenderText(value, baseValue ?= 10, options ?= _) -> {;
           ?_ @"@{negative}@{whole}.@{prefix}…");
 };
 
+RadixSystem(name,spec) -> {;
+    name ? :String ?_> .Error("Numeral label must be a String");
+    (name.Len()>=1 && name.Len()<=32 && "abcdefghijklmnopqrstuvwxyz".Includes(name.Slice(1,2)) && name.Split().Reduce((valid,character)->valid && "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789".Includes(character),1)) ?_> .Error("Numeral label must start lowercase and contain at most 32 letters/digits");
+    core=.NumeralSystem(spec);
+    .ImmutableValue({= schema="rix.numeral-system@1",name=name,system=core });
+};
+RadixRequireSystem(system) -> {;
+    ((system ? :Map) && system[:schema]=="rix.numeral-system@1") ?_> .Error("Unsupported numeral-system descriptor");
+    RadixSystem(system[:name],system[:system]);
+};
+RadixParse(system,body,modifiers ?= [],info ?= _) -> {;
+    checked=RadixRequireSystem(system);
+    modifiers.Len()==0 ?_> .Error("Numeral parsers do not accept modifiers");
+    .NumeralParse(checked[:system],body);
+};
+RadixFormat(system,value,options ?= {= }) -> {;
+    checked=RadixRequireSystem(system);
+    result=.NumeralFormat(checked[:system],value,options);
+    spelling=result[:spelling];name=system[:name];
+    literal=spelling==_ ?: _ ?_ "`."+name+":"+spelling+"`";
+    .ImmutableValue(result.Merge({= label=name,literal=literal }));
+};
+RadixDefine(system) -> {;
+    RadixRequireSystem(system);
+    (.Host.Find(system[:name])==_ && .Core.Find(system[:name])==_) ?_> .Error("Numeral parser label is already registered");
+    parser=.NotationParser((body,modifiers,info)->RadixParse(@system,body,modifiers,info));
+    .Host.RegisterValue(system[:name],parser,"Explicit exact numeral parser",["Exact","Radix"]);
+    system;
+};
+RadixView(system,source,options ?= {= }) -> {;
+    checked=RadixRequireSystem(system);
+    places=.NumeralPlaces(checked[:system],source);
+    expansion=RadixFormat(system,places[:value],options);
+    rows=places[:places].Map((place)->[place[:token],place[:digit],place[:exponent],place[:weight],place[:contribution]]);
+    carryRows=expansion[:integer]==_ ?: [] ?_ expansion[:integer][:carries].Map((step)->[step[:before],step[:digit],step[:radix],step[:after]]);
+    .Fragment([.Heading(1,"Numeral system: "+system[:name]),.Paragraph(@"Exact value: @{places[:value]}; status: @{expansion[:status]}"),
+      .Paragraph(expansion[:literal]==_ ?: "Digit budget exhausted; the retained prefix is not a complete numeral." ?_ expansion[:literal]),
+      .Paragraph(places[:diagnostic]==_ ?: "Place contributions add to the exact source value." ?_ places[:diagnostic]),
+      .Table(["Token","Digit","Place","Weight","Contribution"],rows),
+      .Heading(2,"Integer carry steps"),.Paragraph("Every row satisfies before = digit + signed base times after."),
+      .Table(["Before","Digit","Signed base","After"],carryRows)],{= schema="rix.numeral-view@1",system=system,source=source,expansion=expansion });
+};
+
 radixNamespace = {= };
 radixNamespace._proto = {=
+    System = (self,name,spec) -> RadixSystem(name,spec),
+    Define = (self,system) -> RadixDefine(system),
+    Parse = (self,system,source) -> RadixParse(system,source),
+    Format = (self,system,value,options ?= {= }) -> RadixFormat(system,value,options),
+    Places = (self,system,source) -> .NumeralPlaces(RadixRequireSystem(system)[:system],source),
+    Locale = (self,system,source,options,direction ?= "format") -> .NumeralLocale(RadixRequireSystem(system)[:system],source,options,direction),
+    View = (self,system,source,options ?= {= }) -> RadixView(system,source,options),
     Expansion = (self, value, base ?= 10, options ?= _) -> RadixExpansion(value, base, options),
     Digits = (self, value, base ?= 10, count ?= 1) -> RadixDigits(value, base, count),
     DigitStream = (self, value, base ?= 10, options ?= _) -> RadixDigitStream(value, base, options),

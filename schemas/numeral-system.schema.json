@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/numeral-system.schema.json",
+  "title": "Versioned exact positional numeral descriptor",
+  "description": "Semantic RiX wrapper. Import is inert; Define performs explicit host parser registration. The Core constructor enforces prefix-free tokens and family/radix agreement.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "name",
+    "system"
+  ],
+  "properties": {
+    "schema": {
+      "const": "rix.numeral-system@1"
+    },
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z][A-Za-z0-9]{0,31}$"
+    },
+    "system": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "kind",
+        "radix",
+        "tokens"
+      ],
+      "properties": {
+        "schema": {
+          "const": "ratmath.numeral-system@1"
+        },
+        "kind": {
+          "enum": [
+            "ordinary",
+            "multiToken",
+            "balanced",
+            "negative"
+          ]
+        },
+        "radix": {
+          "description": "Exact signed Integer, magnitude 2..256; balanced is odd positive, negative family is negative."
+        },
+        "tokens": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 256,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        }
+      }
+    }
+  }
+}

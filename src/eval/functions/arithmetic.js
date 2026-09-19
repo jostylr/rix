@@ -1,3 +1,4 @@
+import { numeralFunctions } from "./numerals.js";
 /**
  * Arithmetic system functions: ADD, SUB, MUL, DIV, INTDIV, MOD, POW, POWPROD, NEG
  *
@@ -137,6 +138,7 @@ function requireNonNegativeInteger(value, operation) {
 }
 
 export const arithmeticFunctions = {
+    ...numeralFunctions,
     RATIONAL_BOX: {
         impl(args) {
             if (args.length !== 1) throw new Error("RationalBox expects one bindings map");

@@ -1,0 +1,10 @@
+/**
+plugins: [radix, document, html]
+**/
+.Plugin.Load("radix"); .Plugin.Load("document");
+system=.radix.System("balancedTernary",{= kind="balanced",radix=3,tokens=["T","0","1"] });
+.radix.Define(system);
+value=`.balancedTernary:1T.1T`;
+view=.radix.View(system,"1T.1T");
+.Out("numeral.html",view); .Out("numeral-source.txt",.document.EncodeJSON(view));
+[ value,.radix.Format(system,value)[:literal] ];

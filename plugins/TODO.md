@@ -40,7 +40,7 @@ phase numbers in the detailed historical sections are not execution priorities.
 
 | # | Plugin | Next development increment | State / waiting for |
 |---:|---|---|---|
-| 1 | `.radix` | Versioned numeral-system constructors plus common parse/format operations | **Ready:** bounded exact systems and playground in plan N1 |
+| 1 | `.radix` | Versioned numeral-system constructors plus common parse/format operations | **Implemented:** N1 bounded exact systems, locale adapters and Web playground |
 | 2 | `.draw` | Declarative themes, constraints, and interactive handles | **Ready:** extend existing retained viewport/selection events; plan O4/O5/M2 |
 | 3 | `.plot` | Solve boxes and Scene3D trajectory adapters | **Ready:** linked views, independent panel zoom, and bounded retained Taylor-at-time scrubbing are implemented |
 | 4 | `.float` | Typed-array tensors and measured performance improvements | **Ready:** plan R4; new acceleration providers remain later |
@@ -250,42 +250,22 @@ newline normalization.
    - [x] Add a cloneable lazy digit stream once plugin-defined lazy values have a stable protocol.
    - [x] Add formatting policies for digit alphabets above base 36 and grouped radices.
    - [x] Share generic work-budget diagnostics with `.numerics`.
-4. **Phase 4 — Extensible numeral systems and playground**
-   - [ ] Define versioned numeral-system constructors and a common parse/format
-     protocol rather than assuming every system is a positive positional base
-     whose digits are the single characters numbered `0` through `base - 1`.
-   - [ ] Let a constructed system register a stable named backtick parser label.
-     The parser must accept the full exact-number string grammar under that
-     system—signed values, separators, radix points, fractions, mixed fractions
-     such as `1..3/4`, repeating expansions, continued fractions, interval and
-     uncertainty forms, and radix shifts where meaningful—and formatting must
-     emit the same labeled backtick language for an exact round trip. For
-     example, a registered `balancedTernary` label could parse and print
-     `` `.balancedTernary:...` `` rather than returning an unlabelled string.
-   - [ ] Support multi-token digit alphabets with an explicit tokenizer policy.
-     Multi-token systems use digit tokens rather than one Unicode code point per
-     digit, so registration must reject ambiguous token sets or define a visible
-     longest-match rule.
-   - [ ] Support balanced positional systems, whose digit values extend on both
-     sides of zero (for example `-1, 0, 1`) and therefore encode sign through
-     digits and carry rules rather than only a leading minus.
-   - [ ] Support negative bases, whose place weights alternate sign and can
-     represent positive and negative values without a separate sign digit.
-     Parsing, normalization, repeating expansions, and canonical output need
-     rules specific to the system instead of reusing positive-base division.
-   - [ ] Explore locale and symbol profiles as reversible lexical adapters over
-     a numeral system. Profiles may replace digit glyphs, signs, grouping,
-     radix, repeat, fraction, mixed-number, and continued-fraction symbols, but
-     must diagnose collisions and distinguish display-only substitutions from
-     lossless parsing. Decide which alphabet/value rules belong in
-     `@ratmath/core` and which syntax/registration rules belong in RiX.
-   - [ ] Implement an interactive RiX Web playground for constructing and
-     comparing ordinary, multi-token, balanced, and negative-base systems.
-   - [ ] Show exact parsing, canonical labeled-backtick output, digit/place
-     values, carries, terminating versus repeating behavior, and locale/symbol
-     substitutions without passing exact values through JavaScript `number`.
-   - [ ] Cross-link the playground from the `.radix` tutorial and keep its
-     serializable examples reusable outside the browser host.
+3. **N1 — Versioned numeral systems and playground (complete)**
+   - [x] Add bounded ordinary, prefix-free multi-token, balanced and negative-base
+     systems; Core owns digit/place/carry arithmetic, RiX owns host parser labels.
+   - [x] Parse exact signed scalar grammar: separators, points, fractions, mixed
+     fractions, repeating expansions, finite simple continued fractions and
+     radix shifts; emit canonical labeled backticks only for complete results.
+   - [x] Preserve exact sources and partial carry/remainder state on exhaustion.
+   - [x] Add reversible point/group locale adapters with collision and canonical
+     grouping validation. Broader symbol substitutions are a later extension.
+   - [x] Ship the Web playground with four editable presets, exact place/carry
+     views, bounded repeats and portable HTML/text/source snapshots.
+   - [x] Cross-link the executable numeral-system tutorial and portable Core/RiX
+     examples; all four families have exact round-trip/property checks.
+   - [ ] Later: optional interval/uncertainty numeral spellings and broader
+     lexical substitutions require the existing syntax/representation decision
+     boundary; use ordinary RiX composition for these today (plan D1/D9).
 
 ### `.draw`
 

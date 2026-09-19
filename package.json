@@ -21,6 +21,7 @@
     "examples/publication-workflow/",
     "examples/quadratic/*.rix",
     "examples/quadratic/README.md",
+    "examples/radix/",
     "examples/renderers/",
     "examples/rixcel/",
     "examples/stern-brocot/",

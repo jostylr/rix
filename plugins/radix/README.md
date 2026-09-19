@@ -37,8 +37,8 @@ materializes an arbitrarily large period.
 `alphabet` to format a larger base; each Unicode code point is one digit, the
 first `base` glyphs are used, and active glyphs must be unique. The formatter
 rejects glyphs that collide with the sign, radix point, repeat parentheses, or
-truncation marker. Multi-token digit alphabets remain a Phase 3 numeral-system
-feature.
+truncation marker. For multi-token, balanced and negative-base systems, use the separate
+[versioned numeral-system API](numeral-systems-tutorial.md).
 
 Grouping is disabled by default. `groupSize` groups the integer digits from the
 right and both fractional parts from the left. `integerGroupSize` and
@@ -99,3 +99,10 @@ limit name, and `exhausted`. An exhausted result has
 `status=:budgetExhausted`, leaves `goalMet` unknown, and includes
 `:workBudgetReached` in `diagnostics`. The exact partial digits or denominator
 state remain available for inspection.
+
+## Versioned numeral systems and playground
+
+[The executable numeral guide](numeral-systems-tutorial.md) covers `System`,
+`Define`, `Parse`, `Format`, `Places`, `Locale` and `View`. Four bounded families
+share Core arithmetic, explicit named parser registration, exact repeating
+expansions and portable snapshots. The Web playground is linked from Showcases.

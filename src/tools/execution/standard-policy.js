@@ -37,6 +37,7 @@ export const STANDARD_CAPABILITY_NAMES = Object.freeze([
     "STOP", "Stream", "STRONG", "Sub", "SUBSTR", "SymmetricDifference", "TABLE", "TaylorModelBoxRange",
     "TEMPLATE_TEXT", "TEST", "TESTERROR", "TESTSTOP", "TEXT", "Shaped", "Timeline", "TRACE",
     "TRANSFORM", "Tuple", "TypeExport", "TypeImport", "TypeKnown",
+    "NumeralSystem", "NumeralParse", "NumeralFormat", "NumeralPlaces", "NumeralLocale",
     "Undecided", "Union", "Units", "UPPER", "ValidatedBoxCheck", "ValidatedClaimEqual", "VALUES", "VIDEO", "WARN",
 ]);
 
