@@ -36,6 +36,7 @@ export function createBrowserHostAdapter(options = {}) {
 
     return Object.freeze({
         kind: "browser",
+        streams: options.streams || null,
         readAsset: (reference, limits) => assetStore.readAsset(reference, limits),
         cwd() {
             return directoryURL(baseURL).href;

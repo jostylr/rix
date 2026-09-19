@@ -76,6 +76,7 @@ export const documentationNavigation = [
     contents: [
       page("design/eval/cells-assignments.md", "Cells and assignment"),
       page("design/eval/async-concurrency.md", "Async, concurrency, and background tasks"),
+      page("design/eval/async-stream-operators.md", "Stream operators, clocks, and adapters"),
       page("design/eval/units-and-exact-generators.md", "Units and exact generators"),
       page("design/eval/cayley-polar.md", "Cayley polar complex values"),
       page("design/eval/symbolic-calculus.md", "Symbolic specs and calculus"),

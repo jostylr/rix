@@ -959,6 +959,12 @@ const asyncStreamMethods = {
     TAKE: method("TAKE", ([target, count]) => asyncStreamMethodHelpers.takeAsyncStream(target, count)),
     DROP: method("DROP", ([target, count]) => asyncStreamMethodHelpers.dropAsyncStream(target, count)),
     CHUNK: method("CHUNK", ([target, size]) => asyncStreamMethodHelpers.chunkAsyncStream(target, size)),
+    CHUNKBY: method("CHUNKBY", ([target, predicate]) => asyncStreamMethodHelpers.chunkByAsyncStream(target, predicate)),
+    MERGE: method("MERGE", ([target, other]) => asyncStreamMethodHelpers.mergeAsyncStream(target, other)),
+    TIMEOUT: method("TIMEOUT", ([target, milliseconds]) => asyncStreamMethodHelpers.timeoutAsyncStream(target, milliseconds)),
+    DEBOUNCE: method("DEBOUNCE", ([target, milliseconds]) => asyncStreamMethodHelpers.debounceAsyncStream(target, milliseconds)),
+    THROTTLE: method("THROTTLE", ([target, milliseconds]) => asyncStreamMethodHelpers.throttleAsyncStream(target, milliseconds)),
+    LATEST: method("LATEST", ([target]) => asyncStreamMethodHelpers.latestAsyncStream(target)),
     WINDOW: method("WINDOW", ([target, size, step]) => asyncStreamMethodHelpers.windowAsyncStream(target, size, step)),
     FOREACH: method("FOREACH", ([target, callable], _context, _evaluate, _invoke, execution) =>
         requireAsyncStreamExecution(execution, "ForEach").consume(target, {

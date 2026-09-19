@@ -34,7 +34,7 @@ export const STANDARD_CAPABILITY_NAMES = Object.freeze([
     "RIXCELIMPORT", "RIXCELIMPORTCSV", "RIXCELIMPORTTSV", "RNG", "SAME_CELL", "SameCell",
     "SameSymbol", "SArith", "SECTION", "Set", "SHEET", "SIMPLIFY", "Slice", "SliceClamp", "SLIDE", "SLIDES",
     "SNAPSHOTS", "Sort", "SPEC", "SPECCABILITY", "SPECFRACTIONPARTS", "SPECFROMEXPRESSION", "SPECROLES", "Split",
-    "STOP", "Stream", "STRONG", "Sub", "SUBSTR", "SymmetricDifference", "TABLE", "TaylorModelBoxRange",
+    "STOP", "Stream", "TimerStream", "ReactiveStream", "UIStream", "STRONG", "Sub", "SUBSTR", "SymmetricDifference", "TABLE", "TaylorModelBoxRange",
     "TEMPLATE_TEXT", "TEST", "TESTERROR", "TESTSTOP", "TEXT", "Shaped", "Timeline", "TRACE",
     "TRANSFORM", "Tuple", "TypeExport", "TypeImport", "TypeKnown",
     "NumeralSystem", "NumeralParse", "NumeralFormat", "NumeralPlaces", "NumeralLocale",
@@ -44,7 +44,7 @@ export const STANDARD_CAPABILITY_NAMES = Object.freeze([
 export const STANDARD_PLUGIN_SNAPSHOT = Object.freeze([]);
 
 export const STANDARD_DENIED_NAMES = Object.freeze([
-    "BACKGROUND", "CapabilityRegister", "Core", "FILES", "Host", "ImportJS", "JSCall",
+    "HttpStream", "FileStream", "WebSocketStream", "BACKGROUND", "CapabilityRegister", "Core", "FILES", "Host", "ImportJS", "JSCall",
     "NET", "Out", "Plugin", "Render", "Renderer", "TraitRegister", "TypeInstall", "TypeRegister",
 ]);
 

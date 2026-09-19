@@ -181,3 +181,7 @@ export { TaskWorkerPool, createTaskWorkerPool } from "./runtime/task-worker-pool
 export { TASK_WORKER_PROTOCOL, prepareTaskRequest } from "./runtime/task-worker-protocol.js";
 
 export { decodeRefinableReal, encodeRefinableReal, inspectRefinableReal, refineImportedReal, RealRecipeRegistry, createDefaultRealRecipeRegistry, REAL_RECIPE_SEMANTICS, REAL_JSON_LIMITS } from "./runtime/refinable-real-json.js";
+
+export { createTimerAsyncStream, createSubscriptionAsyncStream, createReactiveAsyncStream, createUIEventAsyncStream,
+    createStreamHostServices, createHttpAsyncStream, createFileAsyncStream, createWebSocketAsyncStream } from "./runtime/async-stream-adapters.js";
+export { ASYNC_STREAM_CLOCK_ENV, defaultStreamClock } from "./runtime/async-stream-clock.js";

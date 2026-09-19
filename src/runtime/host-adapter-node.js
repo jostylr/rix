@@ -11,6 +11,7 @@ export function createNodeHostAdapter(options = {}) {
     const assetStore = options.assetStore || createNodeAssetStore({ roots: options.assetRoots || [], packages: options.assetPackages || {}, contentPaths: options.assetContentPaths || {} });
     return Object.freeze({
         kind: "node",
+        streams: options.streams || null,
         readAsset: (reference, limits) => assetStore.readAsset(reference, limits),
         cwd,
         resolveScriptPath(requested, { baseDir } = {}) {
@@ -32,3 +33,5 @@ export function createNodeHostAdapter(options = {}) {
         },
     });
 }
+
+export { createNodeStreamHostServices } from "./async-stream-adapters-node.js";

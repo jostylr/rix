@@ -740,7 +740,8 @@ another value merely because a stream handle was created or formatted.
 
 ## Lazy stages and terminals
 
-Receiver-first methods `Map`, `Filter`, `Take`, `Drop`, `Chunk`, and `Window`
+Receiver-first methods `Map`, `Filter`, `Take`, `Drop`, `Chunk`, `ChunkBy`, `Window`,
+`Merge`, `Timeout`, `Debounce`, `Throttle`, and `Latest`
 return derived streams without pulling. Derived handles share one idempotent
 root lifecycle and cannot be consumed independently. `stream |>> F` and
 `stream |>? P` are polymorphic spellings of lazy `Map` and `Filter` stages.
@@ -756,10 +757,10 @@ Consumption begins only at an explicit terminal:
 - `Count()` requires a known-finite stream, while `Count(n)` is bounded.
 
 `Close(reason?)`, `Done()`, and `Status()` expose lifecycle control and
-inspection without exposing promises as RiX values. Stateful stages remain
-source ordered. The current implementation overlaps the safe `Map`/`Filter`
-region; stateful stage pipelines use ordered sequential pulls until segmented
-concurrent regions are implemented.
+inspection without exposing promises as RiX values. Ordered cursors separate
+stateful barriers from safe elementwise regions; each later region regains the
+containing scheduler's bounded concurrency. See the implemented
+[operator and adapter contract](async-stream-operators.md).
 
 Prefix method lifting makes receiver transformations concise:
 
@@ -775,10 +776,12 @@ form remains rejected, and an ordinary lambda is always equivalent.
 
 Outside `{$ ... }`, terminals pull and transform sequentially. Inside
 `{$:L$ ... }`, safe elementwise work uses the containing scheduler: at most `L`
-items execute at once, no more than `2L` items are admitted but unpublished,
-and values publish in source order. Pull requests are created only behind an
-available scheduler permit. Nested scopes inherit the earliest timeout and the
-stricter limit; early terminals cancel and drain their child group.
+callbacks execute at once. Each region has at most `2L` admitted but unpublished
+items, lowered further by shared host queue/outstanding budgets. Values publish
+in source order. Waiting for an upstream cursor releases a scheduler permit,
+while bounded cursors retain pull backpressure. Nested scopes inherit the
+earliest timeout and stricter limit; early terminals cancel and drain child
+regions and terminal work.
 
 Normal exhaustion, bounded completion, `First`/`Find`, transformation or source
 fault, fatal error, timeout, cancellation, background shutdown, and explicit
@@ -799,9 +802,10 @@ and close failure is suppressed.
 The host hot-stream infrastructure uses a bounded queue with explicit
 `:drop_oldest`, `:drop_latest`, `:error`, or producer-aware `:block` overflow.
 It defines FIFO delivery, completion, fault propagation, cancellation of a
-pending pull, exact-once unsubscribe, and blocked-producer release. The initial
-public `.Stream` adapter is cold; WebSocket, UI, timer, and reactive-event
-capabilities can expose the hot constructor as their host contracts mature.
+pending pull, exact-once unsubscribe, and blocked-producer release. `.Stream`
+and `.TimerStream` are cold. `.ReactiveStream` and host-targeted `.UIStream`
+provide bounded subscriptions. HTTP/file/WebSocket capabilities require explicit
+host services and the existing script grants; the default hosts install none.
 
 A stream is an ordered event sequence; a reactive binding is current state.
 The bridge is explicit supervised consumption rather than formula restart:
@@ -1136,11 +1140,12 @@ reactive batch later publishes `result` and `status` together.
   reject detached stream copying.
 - [x] Cancel long-lived detached stream pulls and close their sources during
   host/session disposal.
-- [ ] Add built-in HTTP, file, database, WebSocket, UI, timer, and reactive-event
-  capabilities on top of the implemented host stream adapters.
-- [ ] Segment stateful stream pipelines so later elementwise regions can regain
-  structured concurrency; add `ChunkBy`, `Merge`, `Timeout`, `Debounce`,
-  `Throttle`, and `Latest` only after those semantics are proven.
+- [x] Add HTTP, file, WebSocket, UI, timer and reactive-event capabilities through
+  explicit host services and existing grants, with byte budgets and local fixtures.
+- [ ] Later decision D8: choose database connectors and cursor contracts.
+- [x] Segment stateful stream pipelines so later elementwise regions regain
+  bounded concurrency; implement `ChunkBy`, `Merge`, `Timeout`, `Debounce`,
+  `Throttle`, and `Latest` with deterministic clock/overflow/close contracts.
 
 ## 9. Documentation, observability, and hardening
 
@@ -1151,8 +1156,11 @@ reactive batch later publishes `result` and `status` together.
   effects; collection results retain source ordering and hosts may group by path.
 - [x] Add deferred/microtask stress for nesting, suspension, low limits, simultaneous
   breaks, cancellation storms, hot/cold queues, cache races, and shutdown.
-- [ ] Add benchmarks for I/O overlap, pipeline latency, scheduler overhead, and
-  worker CPU scaling.
+- [x] Add reproducible `benchmarks/async-streams.js` for I/O overlap, first
+  publication latency, scheduler overhead and 1/2/4-worker CPU comparisons,
+  asserting exact checksums and reporting steps independently of wall time.
+- [x] Add source-ordered stream publication and queue/running/buffer/drop counts
+  to bounded traces, plus worker dispatch/result/failure snapshots and task paths.
 - [x] Run `bun test` from `rix/` after every implementation slice.
 
 # Recommended delivery slices

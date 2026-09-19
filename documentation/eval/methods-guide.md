@@ -126,7 +126,8 @@ Positive `Get` generates only through the requested one-based index. `Last`, neg
 ### AsyncStream
 
 Lazy derivation:
-`Map`, `Filter`, `Take`, `Drop`, `Chunk`, `Window`
+`Map`, `Filter`, `Take`, `Drop`, `Chunk`, `ChunkBy`, `Window`, `Merge`,
+`Timeout`, `Debounce`, `Throttle`, `Latest`
 
 Promise-aware terminals:
 `ForEach`, `Reduce`, `Collect`, `First`, `Find`, `Count`

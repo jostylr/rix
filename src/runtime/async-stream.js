@@ -1,4 +1,5 @@
 import { asyncLimits, asyncLimitFault, normalizeAsyncFailure, appendAsyncFailures } from "./async-policy.js";
+import { prepareAsyncStreamPipeline, needsAsyncStreamPipeline } from "./async-stream-pipeline.js";
 import { Integer } from "@ratmath/core";
 import { OperationalFault } from "./operational-fault.js";
 import { registerAsyncResource } from "./async-runtime.js";
@@ -48,6 +49,8 @@ function createRoot(options) {
         nextImpl: options.next,
         closeImpl: options.close || (() => undefined),
         inspect: options.inspect || null,
+        clock: options.clock || null,
+        pipelineStats: null,
         closePromise: null,
     };
     if (typeof root.nextImpl !== "function") throw new Error("Async stream requires a Next implementation");
@@ -124,6 +127,26 @@ export function windowAsyncStream(source, sizeValue, stepValue = new Integer(1n)
     return derive(source, { kind: "window", size, step, buffer: [], sinceEmit: 0 });
 }
 
+export function chunkByAsyncStream(source, callable) {
+    return derive(source, { kind: "chunk_by", callable, buffer: [] });
+}
+
+export function mergeAsyncStream(source, other) {
+    if (!isAsyncStream(other)) throw new Error("Stream Merge expects another async stream");
+    if (source._stream.root === other._stream.root) throw new Error("Cannot Merge two handles of the same linear stream");
+    return derive(source, { kind: "merge", other }, { finite: source._stream.finite && other._stream.finite });
+}
+
+function timedStream(source, kind, milliseconds) {
+    const duration = positiveInteger(milliseconds, `Stream ${kind} milliseconds`);
+    if (duration > 2147483647) throw new Error("Stream duration exceeds the host timer limit");
+    return derive(source, { kind, duration });
+}
+export const timeoutAsyncStream = (source, milliseconds) => timedStream(source, "timeout", milliseconds);
+export const debounceAsyncStream = (source, milliseconds) => timedStream(source, "debounce", milliseconds);
+export const throttleAsyncStream = (source, milliseconds) => timedStream(source, "throttle", milliseconds);
+export const latestAsyncStream = (source) => derive(source, { kind: "latest" });
+
 export function asyncStreamSupportsConcurrentItems(stream) {
     return isAsyncStream(stream) && stream._stream.stages.every((stage) =>
         stage.kind === "map" || stage.kind === "filter" || stage.kind === "expected_error");
@@ -169,8 +192,11 @@ export function asyncStreamStatus(stream) {
         ["label", { type: "string", value: stream._stream.label }],
         ["status", { type: "string", value: root.status }],
         ["pulled", new Integer(BigInt(root.pulled))],
+        ["pendingPulls", new Integer(BigInt(root.pendingPulls))],
+        ["closeCount", new Integer(BigInt(root.closeCount))],
         ["finite", root.finite || stream._stream.finite ? new Integer(1n) : null],
     ]);
+    if (root.pipelineStats) entries.set("pipeline", { type: "map", entries: new Map(Object.entries(root.pipelineStats).map(([key, value]) => [key, typeof value === "number" ? new Integer(BigInt(value)) : { type: "string", value: String(value) }])) });
     if (typeof root.inspect === "function") {
         const extra = root.inspect();
         for (const [key, value] of Object.entries(extra || {})) {
@@ -211,14 +237,14 @@ export async function pullRawAsyncStream(stream, signal = null) {
             return { done: true };
         }
         root.pulled++;
-        return { done: false, value: result.value, sourceIndex: root.pulled };
+        return { done: false, value: result.value, sourceIndex: root.pulled, ...(result.unresolved !== undefined ? { unresolved: result.unresolved } : {}) };
     });
     const settled = operation.finally(() => { root.pendingPulls--; });
     root.pullTail = settled.catch(() => {});
     return settled;
 }
 
-async function applyStage(stage, values, stream, execution) {
+export async function applyAsyncStreamStage(stage, values, stream, execution) {
     const callbackSource = stream._stream.callbackSource ?? stream;
     if (stage.kind === "map") {
         const mapped = [];
@@ -272,6 +298,17 @@ async function applyStage(stage, values, stream, execution) {
         }
         return { values: kept, stop };
     }
+    if (stage.kind === "chunk_by") {
+        const emitted = [];
+        for (const entry of values) {
+            if (stage.buffer.length >= stream._stream.root.limits.outputItems) throw asyncLimitFault("stream ChunkBy buffer", stream._stream.root.limits.outputItems);
+            stage.buffer.push(entry);
+            const boundary = decisionState(await execution.invoke(stage.callable, [entry, new Integer(BigInt(execution.sourceIndex)), callbackSource]));
+            if (boundary === "undecided") return { values: [], stop: true, unresolved: UNDECIDED };
+            if (boundary === "truth") { emitted.push(rixSequence(stage.buffer)); stage.buffer = []; }
+        }
+        return { values: emitted, stop: false };
+    }
     if (stage.kind === "chunk") {
         const emitted = [];
         for (const entry of values) {
@@ -300,11 +337,12 @@ async function applyStage(stage, values, stream, execution) {
 }
 
 export async function processAsyncStreamItem(stream, raw, execution) {
+    if (raw.unresolved !== undefined) return { values: [], stop: true, unresolved: raw.unresolved };
     let values = [raw.value];
     let stop = false;
     const stageExecution = { ...execution, sourceIndex: raw.sourceIndex };
     for (const stage of stream._stream.stages) {
-        const result = await applyStage(stage, values, stream, stageExecution);
+        const result = await applyAsyncStreamStage(stage, values, stream, stageExecution);
         if (result.unresolved !== undefined) {
             return { values: [], stop: true, unresolved: result.unresolved, sourceIndex: raw.sourceIndex };
         }
@@ -320,11 +358,11 @@ export async function flushAsyncStreamStages(stream, execution) {
     const values = [];
     for (let index = 0; index < stages.length; index++) {
         const stage = stages[index];
-        if (stage.kind !== "chunk" || stage.buffer.length === 0) continue;
+        if (!["chunk", "chunk_by"].includes(stage.kind) || stage.buffer.length === 0) continue;
         let pending = [rixSequence(stage.buffer)];
         stage.buffer = [];
         for (let tail = index + 1; tail < stages.length; tail++) {
-            const result = await applyStage(stages[tail], pending, stream, { ...execution, sourceIndex: execution.sourceIndex || 0 });
+            const result = await applyAsyncStreamStage(stages[tail], pending, stream, { ...execution, sourceIndex: execution.sourceIndex || 0 });
             pending = result.values;
         }
         values.push(...pending);
@@ -333,6 +371,7 @@ export async function flushAsyncStreamStages(stream, execution) {
 }
 
 export async function consumeAsyncStreamSequential(stream, terminal, execution) {
+    if (needsAsyncStreamPipeline(stream)) stream = await prepareAsyncStreamPipeline(stream, execution);
     let result = terminal.kind === "collect" ? [] : terminal.initial;
     let count = 0;
     let reason = { kind: "complete" };
@@ -496,6 +535,7 @@ export function createHotAsyncStream(options = {}) {
     const blocked = [];
     let ended = false;
     let failure = null;
+    let dropped = 0;
 
     const admitBlocked = () => {
         if (blocked.length === 0 || queue.length >= capacity || ended || failure) return;
@@ -507,7 +547,7 @@ export function createHotAsyncStream(options = {}) {
         label: options.label || "hot",
         limits,
         finite: false,
-        inspect: () => ({ queued: queue.length, blocked: blocked.length, capacity, policy: { type: "string", value: policy } }),
+        inspect: () => ({ queued: queue.length, blocked: blocked.length, capacity, dropped, policy: { type: "string", value: policy } }),
         next(signal) {
             if (failure) throw failure;
             if (queue.length > 0) {
@@ -538,12 +578,12 @@ export function createHotAsyncStream(options = {}) {
                 }
             });
         },
-        close() {
+        async close() {
             ended = true;
             queue.length = 0;
             for (const waiter of waiters.splice(0)) waiter.resolve({ done: true });
             for (const entry of blocked.splice(0)) entry.resolve(false);
-            options.unsubscribe?.();
+            await options.unsubscribe?.();
         },
     });
 
@@ -558,11 +598,12 @@ export function createHotAsyncStream(options = {}) {
             return true;
         }
         if (policy === "drop_oldest") {
+            dropped++;
             queue.shift();
             queue.push(value);
             return true;
         }
-        if (policy === "drop_latest") return false;
+        if (policy === "drop_latest") { dropped++; return false; }
         if (policy === "error") {
             failure = new OperationalFault("Hot async stream buffer overflow", {
                 code: "ASYNC_STREAM_OVERFLOW",
@@ -611,6 +652,12 @@ export const asyncStreamMethodHelpers = {
     takeAsyncStream,
     dropAsyncStream,
     chunkAsyncStream,
+    chunkByAsyncStream,
+    mergeAsyncStream,
+    timeoutAsyncStream,
+    debounceAsyncStream,
+    throttleAsyncStream,
+    latestAsyncStream,
     windowAsyncStream,
     closeAsyncStream,
     asyncStreamStatus,

@@ -48,6 +48,9 @@ import {
     processAsyncStreamItem,
     pullRawAsyncStream,
 } from "../runtime/async-stream.js";
+import { prepareAsyncStreamPipeline, needsAsyncStreamPipeline } from "../runtime/async-stream-pipeline.js";
+import { asyncStreamAdapterCapabilities } from "../runtime/async-stream-adapters.js";
+import { ASYNC_STREAM_CLOCK_ENV } from "../runtime/async-stream-clock.js";
 import { ensureMutableReceiver, resolveMethod } from "../runtime/methods.js";
 import { coreFunctions, destructureResolvedValue, PREP_TRIAL_NO_MATCH } from "./functions/core.js";
 import { arithmeticFunctions } from "./functions/arithmetic.js";
@@ -548,6 +551,7 @@ export function createDefaultSystemContext(options = {}) {
     ctx.registerAll(formulaSheetFunctions);
     ctx.registerAll(reactiveGraphFunctions);
     ctx.register("Stream", asyncStreamCapabilities.STREAM);
+    ctx.registerAll(asyncStreamAdapterCapabilities);
     ctx.register("Retry", retryCapabilities.Retry);
     const sArith = sArithCapability.create();
     ctx.registerCallableValue("SArith", sArith.value, sArith.definition, {
@@ -2149,6 +2153,8 @@ function recordAsyncTraceEvent(context, label, filePath, depth, trackedVars, tra
         if (entry.fn) values.set("fn", asyncDiagnosticString(entry.fn));
         if (entry.taskPath) values.set("taskPath", { type: "sequence", values: entry.taskPath.map(asyncDiagnosticString) });
         if (entry.scheduler) values.set("scheduler", { type: "map", entries: new Map(Object.entries(entry.scheduler).map(([key, value]) => [key, typeof value === "number" ? asyncDiagnosticInteger(value) : asyncDiagnosticString(value)])) });
+        if (entry.worker) values.set("worker", { type: "map", entries: new Map(Object.entries(entry.worker).map(([key, value]) => [key, typeof value === "number" ? asyncDiagnosticInteger(value) : asyncDiagnosticString(value)])) });
+        if (entry.stream) values.set("stream", { type: "map", entries: new Map(Object.entries(entry.stream).map(([key, value]) => [key, typeof value === "number" ? asyncDiagnosticInteger(value) : asyncDiagnosticString(value)])) });
         if (entry.scope) values.set("scope", asyncDiagnosticString(entry.scope));
         if (entry.depth !== undefined) values.set("depth", asyncDiagnosticInteger(entry.depth));
         if (entry.args) values.set("args", { type: "sequence", values: entry.args });
@@ -2458,7 +2464,7 @@ async function consumeAsyncStreamStructured(stream, terminal, context, registry,
         itemContext.setEnv("__async_task_path__", branchState.taskPath);
         const promise = scheduler.run((admission) => withAsyncItemFinalizers(itemContext, async () => {
             const itemState = { ...branchState, group, signal: group.signal, admission };
-            const raw = await pullRawAsyncStream(stream, group.signal);
+            const raw = await withReleasedAsyncAdmission(itemState, () => pullRawAsyncStream(stream, group.signal));
             if (raw.done) return { done: true, index };
             const processed = await processAsyncStreamItem(stream, raw, {
                 signal: group.signal,
@@ -2625,7 +2631,39 @@ function createAsyncMethodExecution(context, registry, systemContext, state) {
             state,
         ),
         consume: (stream, terminal) => withReleasedAsyncAdmission(state, async () => {
+            const resource = stream?._stream?.root;
             try {
+                if (needsAsyncStreamPipeline(stream)) {
+                    const limits = state?.limits || asyncOwner(context).limits;
+                    const scheduler = state?.parallelCollections !== false ? state?.scheduler : null;
+                    const group = scheduler?.createGroup(state.limit, state.group);
+                    const invoke = (callable, args) => invokeTraversalCallbackAsync(callable, args, context, registry, systemContext, state);
+                    stream = await prepareAsyncStreamPipeline(stream, {
+                        limits, signal: state?.signal, invoke,
+                        checkpoint: () => evaluationCheckpoint(context),
+                        release: (source) => unregisterAsyncResource(context, source._stream.root),
+                        clock: context.getEnv(ASYNC_STREAM_CLOCK_ENV, null),
+                        concurrency: scheduler ? state.limit : 1,
+                        trace: (data) => context.getEnv("__trace_context__", null)?.log.push({
+                            event: data.event, stream: data, scheduler: scheduler?.snapshot(),
+                            taskPath: data.segment === undefined ? state?.taskPath || [] : [...(state?.taskPath || []), `stream segment ${data.segment}`, `branch ${data.itemIndex}`],
+                            worker: context.getEnv("__async_task_worker_pool__", null)?.snapshot?.(),
+                        }),
+                        ...(scheduler ? {
+                            run: (work, task) => {
+                                const branchState = childBranchState({ ...state, taskPath: [...(state.taskPath || []), `stream segment ${task.segment}`], branchPath: [...(state.branchPath || []), task.segment] }, task.index - 1);
+                                const itemContext = context.concurrentChild();
+                                itemContext.setEnv("__async_task_path__", branchState.taskPath);
+                                return scheduler.run((admission) => withAsyncItemFinalizers(itemContext, () => {
+                                    const itemState = { ...branchState, group, signal: task.signal, admission };
+                                    return work((callable, args) => invokeTraversalCallbackAsync(callable, args, itemContext, registry, systemContext, itemState));
+                                }), group, { path: asyncTaskPath(branchState), taskPath: branchState.taskPath, branchPath: branchState.branchPath });
+                            },
+                            cancel: (reason) => scheduler.cancelGroup(group, reason),
+                            dispose: async () => { await scheduler.waitForIdle(group); scheduler.closeGroup(group); },
+                        } : {}),
+                    });
+                }
                 if (state?.scheduler && state.parallelCollections !== false && asyncStreamSupportsConcurrentItems(stream)) {
                     return await consumeAsyncStreamStructured(stream, terminal, context, registry, systemContext, state);
                 }
@@ -2642,7 +2680,7 @@ function createAsyncMethodExecution(context, registry, systemContext, state) {
                     ),
                 });
             } finally {
-                unregisterAsyncResource(context, stream?._stream?.root);
+                unregisterAsyncResource(context, resource);
             }
         }),
     };
@@ -2702,7 +2740,15 @@ function asyncCollectionEntry(node, context, registry, systemContext, state) {
         withAsyncItemFinalizers(itemContext, () => {
             const pool = itemContext.getEnv("__async_task_worker_pool__", null);
             const task = pool && prepareTaskRequest(node, itemContext, registry, systemContext);
-            if (task) return pool.runTask(task, { context: itemContext, signal: state.signal, taskPath: state.taskPath });
+            if (task) {
+                const trace = itemContext.getEnv("__trace_context__", null);
+                const record = (event, extra = {}) => trace?.log.push({ event, taskPath: state.taskPath, scheduler: state.scheduler.snapshot(), worker: pool.snapshot(), ...extra });
+                record("worker-dispatch");
+                return pool.runTask(task, { context: itemContext, signal: state.signal, taskPath: state.taskPath }).then(
+                    (value) => { record("worker-result"); return value; },
+                    (error) => { record("worker-failure", { scope: error?.code || error?.kind || error?.message || "failure" }); throw error; },
+                );
+            }
             return evaluateAsyncInternal(node, itemContext, registry, systemContext, { ...state, admission });
         }), state.group, {
             branchPath: state.branchPath,

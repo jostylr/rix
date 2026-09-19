@@ -336,3 +336,7 @@ export { createPublicationProfile, createPublicationBuild, parsePublicationProfi
 export { IMPLICIT_TRACE_SCHEMA, IMPLICIT_TRACE_CHECKER, evaluateImplicitTrace, checkImplicitTrace, refineImplicitTrace } from "./implicit-geometry.js";
 
 export { ASYNC_LIMITS, asyncLimits, capabilityAsyncPolicy } from "./async-policy.js";
+
+export { createTimerAsyncStream, createSubscriptionAsyncStream, createReactiveAsyncStream, createUIEventAsyncStream,
+    createStreamHostServices, createHttpAsyncStream, createFileAsyncStream, createWebSocketAsyncStream } from "./async-stream-adapters.js";
+export { ASYNC_STREAM_CLOCK_ENV, defaultStreamClock } from "./async-stream-clock.js";
