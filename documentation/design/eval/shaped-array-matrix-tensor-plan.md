@@ -6,23 +6,18 @@ toc-depth: 4
 
 # Status
 
-**Implementation in progress.** Stages 1–3 are implemented, along with the
-finite exact core of Stage 4 (`VectorSpace`, `Frame`, compact slot headers,
-per-slot coordinate changes, compatible vector arithmetic, and bounded
-lineage). Advanced tensor algebra, serialization, sparse/infinite coordinates,
-and cross-host cleanup remain on the checklist below.
+**Implementation in progress; reconciled 2026-09-19.** Shaped/Matrix storage,
+semantic-name folding, compact Frame headers, finite coordinate tensors,
+vector/covector pairing, linear maps, dual spaces, tensor products/contractions,
+bounded polynomial realizations, and identity-record serialization exist.
+See `plugins/linalg/README.md` and `tests/eval/linalg-optimize-solve-plugin.test.js`.
+Stable identity-record writing is not a complete persistence/import contract.
 
-Start implementation only when all of the following are true:
-
-- [ ] The current overlapping parser/evaluator/plugin work has landed or been
-  deliberately set aside.
-- [ ] The `rix/` worktree has a known baseline and the complete test suite is
-  green.
-- [ ] A dedicated migration branch is created.
-- [ ] The syntax and migration decisions marked **decision gate** below
-  have been approved.
-- [ ] Export/import versioning and the coordinated pre-release rename have
-  named owners.
+The original start/branch/approval gates are historical migration sequencing,
+not new permission requirements. Preserve the implemented syntax and settled
+choices below. The umbrella `ratmath/WORK_PLAN.md` owns the remaining execution
+queue and actual user decisions. Full cross-host verification must be rerun
+when implementing the remaining work; past checked tests are not today's run.
 
 # Decision summary
 
@@ -94,10 +89,10 @@ storage value while `a.Shape()` returns its dimensions.
 
 # Type-name case folding
 
-Semantic type lookup is not fully case-insensitive today. Built-ins such as
-`:Tensor` accept selected lowercase spellings because those spellings were
-registered as aliases, while arbitrary registered types retain case-sensitive
-registry keys. Method-extension lookup already folds type names to lowercase.
+Semantic type and trait lookup is case-insensitive in the current runtime.
+Registries retain canonical display names and reject collisions after folding.
+Method-extension lookup follows the same semantic-name policy; ordinary user
+identifiers and runtime representation tags do not become case-insensitive.
 
 The target rule is:
 
@@ -132,7 +127,7 @@ the canonical registered `Matrix` type.
   pre-release historical spellings need not remain importable.
 - [x] Add tests for mixed-case registration, lookup, conversion, membership,
   method dispatch, duplicate rejection, export/import, and diagnostics.
-- [ ] Update the types-and-traits guide to state the global rule; remove prose
+- [x] Update the types-and-traits guide to state the global rule; remove prose
   suggesting lowercase support is only a compatibility alias.
 
 # Proposed shaped-literal header syntax
@@ -250,14 +245,14 @@ binding.
   referenced by component annotations.
 - [x] Remove the experimental `Coordinates` name directly; do not retain a
   compatibility constructor or alias in this unreleased language.
-- [ ] Confirm the options-map fields `name`, `dimension`, and `over`.
+- [x] Confirm the options-map fields `name`, `dimension`, and `over`.
 - [ ] Define the versioned scalar-field protocol and verify that `:Rational`
   supplies it.
-- [ ] Confirm that separately constructed structurally identical spaces remain
+- [x] Confirm that separately constructed structurally identical spaces remain
   distinct.
-- [ ] Confirm `basis=:defining` for nominating the first frame without calling
+- [x] Confirm `basis=:defining` for nominating the first frame without calling
   it mathematically canonical.
-- [ ] Specify basis-matrix orientation as new-frame basis vectors in columns of
+- [x] Specify basis-matrix orientation as new-frame basis vectors in columns of
   `relativeTo` coordinates.
 - [ ] Decide whether `FramedSpace` convenience sugar is worth exposing.
 - [ ] Define stable export identities for spaces and frames and reject dangling
@@ -324,7 +319,7 @@ generic realization protocol.
 
 ### Linear-realization checklist
 
-- [ ] Define a versioned `rix.linear-realization@1` protocol with membership,
+- [x] Define a versioned `rix.linear-realization@1` protocol with membership,
   space, frame, encode, decode, scalar-domain, and provenance operations.
 - [ ] Distinguish `viewOf`/`SameSource` from abstract vector identity and
   coordinate-representation identity.
@@ -336,8 +331,10 @@ generic realization protocol.
   without mutating the source.
 - [ ] Make vector arithmetic return `Vector` unless an explicit domain adapter
   requests decoded results.
-- [ ] Add `.poly.PolynomialSpace(maxDegree=n)` for `P_<=n` with monomial and
-  selected alternative frames.
+- [x] Add `.linalg.PolynomialSpace(n, variable?)` for `P_<=n` with its
+  monomial Frame and exact Realize/Reconstruct operations.
+- [ ] Extend polynomial realization tests to alternative Frames and ambiguous
+  ambient spaces while preserving the domain source.
 - [ ] Test cancellation, zero, degree bounds, variable mismatch, scalar-field
   mismatch, encode/decode round trips, and the same polynomial viewed in two
   ambient spaces.
@@ -495,19 +492,19 @@ vd := .linalg.DualFrame(v, "chosen dual", basisData);
 t := {:2x2: /Tensor: V@vd/ components};
 ```
 
-## Syntax decision gate
+## Syntax contract (implemented forms and remaining extensions)
 
-- [ ] Confirm `/Matrix/`, `/Vector: .../`, and `/Tensor: .../` as
+- [x] Confirm `/Matrix/`, `/Vector: .../`, and `/Tensor: .../` as
   shaped-literal-only sugar.
-- [ ] Confirm that existing `/::Matrix/` remains supported and canonical in
+- [x] Confirm that existing `/::Matrix/` remains supported and canonical in
   general semantic headers.
 - [x] Use compact shaped headers as the canonical documentation, formatter, and
   export spelling when they can express the complete value.
-- [ ] Confirm `@` and postfix `*` as annotation tokens with no ordinary
+- [x] Confirm `@` and postfix `*` as annotation tokens with no ordinary
   operator evaluation inside the clause.
-- [ ] Confirm display-case resolution (`V` -> user binding `v`) is limited to
+- [x] Confirm display-case resolution (`V` -> user binding `v`) is limited to
   tensor slot clauses.
-- [ ] Confirm that the interpretation clause must be the last header item.
+- [x] Confirm that the interpretation clause must be the last header item.
 - [ ] Reserve a future syntax for tensor powers without overloading repeated
   source text prematurely.
 - [ ] Specify source spans and recovery diagnostics for missing factors,
@@ -740,7 +737,7 @@ requirement.
 
 ## Stage 0 — Freeze, inventory, and fixtures
 
-- [ ] Satisfy the start gates at the top of this document.
+- [x] Begin the Shaped/Matrix migration; the original start gates are historical.
 - [ ] Inventory every runtime tag, helper, IR function, formatter, parser AST
   node, method table, plugin API, renderer, sheet adapter, worker boundary,
   export schema, and documentation reference containing matrix/tensor naming.
@@ -759,8 +756,8 @@ requirement.
 - [x] Keep runtime tags and ordinary identifiers unchanged.
 - [ ] Run type-system, operator-dispatch, plugin, import/export, parser, and
   complete regression suites.
-- [ ] Land this stage independently before `Shaped` semantics so failures
-  have one clear cause.
+- [x] Deliver semantic-name folding and Shaped semantics; the original
+  separate-landing instruction is historical.
 
 ## Stage 2 — Rename the shaped-storage implementation without semantic changes
 
@@ -775,8 +772,7 @@ requirement.
 - [x] Add the shared `shaped` trait and migrate the current generic `tensor`
   trait without implying that every Vector or Tensor representation is dense
   and finite.
-- [ ] Keep this work isolated on the migration branch until Stage 3 supplies
-  the new public semantics.
+- [x] Deliver the Stage 3 public semantics; no pending branch-isolation gate.
 - [ ] Prove Node, worker, browser, sheet, output, and plugin consumers use the
   renamed implementation with no old-name adapters.
 
@@ -826,38 +822,42 @@ requirement.
 - [ ] Accept component storage through a versioned coordinate-storage protocol;
   use `Shaped` for finite dense coordinates and `SparseCoordinates` for
   finite-support infinite-dimensional coordinates.
-- [ ] Implement vector/covector pairing without inventing a metric.
+- [x] Implement vector/covector pairing without inventing a metric.
 - [ ] Require an explicit metric for dot products, norms, angles, and
   raising/lowering between a space and its dual.
 - [x] Replace the one-space `CoordinateTensor` assumption with ordered slot
   descriptors supporting distinct vector spaces and dimensions.
 - [x] Name the public ordered-basis/coordinatized-space value `Frame`; remove
   the experimental `Coordinates` name during the migration.
-- [ ] Implement canonical dual spaces and dual coordinate bases.
+- [x] Implement explicit `DualSpace` and primal/dual slot contraction.
+- [ ] Complete canonical/noncanonical dual-Frame behavior and tests.
 - [ ] Implement explicit noncanonical dual-coordinate construction.
 - [x] Parse, lower, resolve, and validate `/Tensor: V@V*@Wa/`.
 - [x] Validate literal rank and each axis dimension against the resolved slot.
 - [x] Make `:Tensor` construction fail unless complete slot and coordinate
   metadata is present.
-- [ ] Preserve abstract identity and create representation identity during
+- [x] Preserve abstract identity and create representation identity during
   every coordinate change.
 - [x] Generalize basis changes so each slot can select an independent target
   frame.
-- [ ] Implement tensor product, valid contraction, compatible addition, scalar
-  arithmetic, and slot permutation.
+- [x] Implement tensor product, valid contraction, compatible addition, and
+  scalar arithmetic for finite coordinate tensors.
+- [ ] Complete slot permutation and its coordinate/provenance tests.
 - [ ] Return the declared coordinate-storage value from `Components()` and
   apply the slice/transform commutation rule to every proposed Tensor view.
 - [ ] Define tensor equality, `SameTensor`, structural equality of independent
   tensors, and equality across coordinate representations.
-- [ ] Add stable serialization for spaces, frames, slots, abstract IDs,
-  representation IDs, and bounded provenance.
+- [x] Write versioned `rix.linalg.identity-record@1` records for spaces,
+  Frames, tensors, linear maps, and realizations, including representation IDs.
+- [ ] Add validated import/round-trip identity graphs with bounded provenance
+  and dangling-reference rejection.
 - [x] Implement configurable lineage retention with a permanent origin and a
   default ring of the 30 most recent transformation records.
 
 ## Stage 5 — Complete the coordinated rename across hosts and documentation
 
-- [ ] Replace the old IR names directly and regenerate all repository-owned IR
-  fixtures; do not retain the experimental IR reader.
+- [x] Replace old IR names and repository-owned serialized/IR fixtures;
+  unsupported experimental names are not compatibility readers.
 - [ ] Rename parser AST nodes wherever they still call shaped storage a tensor;
   no legacy syntax-level artifacts should remain in the unreleased API.
 - [ ] Migrate runtime methods, standard functions, destructuring diagnostics,
@@ -877,7 +877,7 @@ requirement.
   space with its dual without a metric or explicit isomorphism.
 - [ ] Add symmetrization, antisymmetrization, traces, tensor powers, and named
   contraction notation.
-- [ ] Add linear maps between distinct spaces, composition, pullbacks, and
+- [x] Add linear maps between distinct spaces, composition, pullbacks, and
   pushforwards using the same slot model.
 - [ ] Add sparse or accelerated component storage without changing semantic
   tensor identity.

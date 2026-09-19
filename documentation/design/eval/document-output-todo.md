@@ -1,10 +1,12 @@
 # Document blocks, inline content, and assets
 
-::: {.callout-note title="Status — record layer implemented; template layer proposed"}
-The executable output API now includes the block, inline, and asset records
-specified below, with deterministic text and safe HTML rendering. The document
-template directive and inline-markup grammar remains proposed; it must lower to
-these records rather than create a second document representation.
+::: {.callout-note title="Status — records, templates, and baseline exporters implemented"}
+Reconciled 2026-09-19. Block/inline/media records, strict template directives
+and holes, semantic text/HTML rendering, and Markdown/Quarto/LaTeX/PDF
+exporters exist. The remaining work concerns complete document persistence,
+shared presentation policy, host asset resolution, accessibility, and richer
+publication layout. The umbrella `ratmath/WORK_PLAN.md` orders that work.
+New interval/fraction spellings below remain proposals, not approved syntax.
 :::
 
 ## Exact numeric interchange and notation policies
@@ -416,9 +418,11 @@ the important relationship between the panel and its reactive values.
   existing `.Text` compatibility while rejecting block children in `Paragraph`.
 - [ ] Define stable JSON serialization tags and exact-value rules for every
   record before persistence APIs ship.
-- [ ] Define the orientation-preserving interval and unreduced-fraction tags,
-  including migration and round-trip tests for the proposed `.:`, `:.`, and
-  ``F`...` `` presentation forms.
+- [x] Preserve descending interval endpoints in mathematical JSON; the
+  executable guide is `eval/mathematical-serialization.md`.
+- [ ] Complete document-level unreduced-fraction round trips using existing
+  public value contracts. New `.:`, `:.`, and labeled-fraction surface syntax
+  is deferred to the decision register; do not couple persistence to it.
 - [ ] Add configurable unknown-tag handling with `warn-and-skip` as the normal
   document-import default plus `strict-error` and `preserve-opaque` modes.
 - [x] Add required-field validation for nonempty image alt text, asset MIME
@@ -433,10 +437,9 @@ the important relationship between the panel and its reactive values.
   indentation, source/alt fallbacks, and links.
 - [x] Extend the HTML renderer with escaped semantic markup and no implicit
   remote asset fetching.
-- [ ] Add Markdown/Quarto rendering adapters with explicit unsupported-media
-  fallbacks; add PDF through that shared document path rather than a separate
-  incompatible tree.
-- [ ] Add renderer tests proving a paragraph preserves inline semantics rather
+- [x] Add Markdown/Quarto adapters and PDF through the shared LaTeX/TikZ
+  document path, with visible static/unsupported-media fallbacks.
+- [x] Add renderer tests proving a paragraph preserves inline semantics rather
   than text-formatting `Emphasis`, `Link`, `Math`, or `Code` children.
 - [ ] Implement the shared numeric presentation policy and cross-renderer
   fixtures proving that exact source values survive mixed/improper, interval,
@@ -455,8 +458,8 @@ the important relationship between the panel and its reactive values.
 
 - [ ] Add host asset stores for RiX Web, Notebook, and RiXCel with package-
   relative/content-addressed references and explicit external-URL approval.
-- [ ] Add image dimensions, lazy-loading, caption/figure integration, and
-  missing-asset diagnostics.
+- [ ] Finish cross-host image sizing/lazy-loading and missing-asset
+  diagnostics over the implemented asset metadata and Figure captions.
 - [ ] Add audio/video controls only in capable hosts; render transcript and
   reference everywhere else.
 - [ ] Add end-to-end examples covering a generated plot raster, image asset,
@@ -464,7 +467,8 @@ the important relationship between the panel and its reactive values.
 
 ### 5. Documentation and accessibility
 
-- [ ] Add a runnable tutorial once the first constructors are implemented.
+- [x] Add runnable document and renderer tutorials under `plugins/`, plus
+  report and synthetic-division publication examples.
 - [ ] Test keyboard navigation and screen-reader names for links and media;
   test MathBlock plain-language fallbacks.
 - [ ] Document export lossiness explicitly whenever a target cannot embed a

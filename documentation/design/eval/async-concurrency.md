@@ -6,6 +6,12 @@ toc-depth: 4
 
 # Status
 
+Reconciled 2026-09-19. The umbrella `ratmath/WORK_PLAN.md` tasks R1–R4 and
+H2 order the remaining work. Existing host/editor execution workers are not a
+scheduler-owned CPU worker pool; Section 8 still tracks that separate feature.
+Notebook async integration is also still outstanding. Historical delivery slices
+below do not re-open completed foundations.
+
 This is the normative design and implementation tracker. The current runtime
 slice includes syntax and IR, code-block import headers, async host APIs,
 grouped FIFO bounded scheduling, nested scope-limit composition, concurrent

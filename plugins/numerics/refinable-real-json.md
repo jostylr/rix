@@ -510,9 +510,17 @@ blank-line policy is explicit, and a reader must apply a maximum-record work
 limit. Cross-line references are forbidden unless a preceding manifest assigns
 stable IDs and bounds the reference table.
 
-## 14. Decisions before implementation
+## 14. Historical design questions and execution defaults
 
-The following choices need confirmation or an implementation design record:
+The questions below are retained as design history. The 2026-09-19 umbrella
+`ratmath/WORK_PLAN.md` task M7 settles the bounded implementation defaults:
+reuse the existing general mathematical graph container; deterministic writer
+ordering without a signing claim; opaque unverified snapshots; exact compatible
+provider/checker versions; existing stable arithmetic/root/exp/log/trig IDs with
+explicit branches; embedded bounded evidence. These are planned engineering
+choices, not claims that recipe restoration is already implemented. Canonical
+hashing/signatures and external evidence stores remain later scope. The
+original recommendations were:
 
 1. **Filename/media-type names:** accept the recommended `.rixreal.json` and
    media type, or use a general `.rix.json` container that can hold other RiX

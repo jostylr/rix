@@ -1,5 +1,9 @@
 # RiXCel implementation checklist
 
+> Reconciled 2026-09-19. Remaining milestones are ordered in the umbrella
+> `ratmath/WORK_PLAN.md` (C1–C4). Existing checked milestones remain completion
+> records; no new workbook/tensor-spill semantics are implied by them.
+
 This checklist is ordered so every milestone leaves a usable, testable layer.
 Checked items are implemented in the current RiX repository.
 

@@ -5,6 +5,9 @@ description: "The current supported surface and the boundary between working RiX
 
 RiX is an active alpha. Its parser, AST-to-IR lowering, and broad evaluator are working; the language remains free to change before a stable release. This page is the current status boundary. Older reports and design notes are valuable history but are not authoritative status pages.
 
+The umbrella `ratmath/WORK_PLAN.md` consolidates the current execution queue
+and later decisions (reconciled 2026-09-19).
+
 The repository test suite has broad automated coverage across parser, evaluator,
 runtime, CLI, tooling, documentation, and examples. Run `bun test` in `rix/`
 for the exact count and result at your revision.
@@ -16,7 +19,7 @@ for the exact count and result at your revision.
 | Exact arithmetic | integers, rationals, mixed/repeating/continued-fraction forms, rational intervals, and exact rational enclosures for certified approximations |
 | Language pipeline | tokenizer, Pratt parser, AST, lowering, call-shaped IR, evaluator dispatch |
 | Functions | lambdas, named functions, rest/spread, partials, arity caps, prepared functions, multifunctions, tail-self call path |
-| Collections | arrays, lazy sequences, iterators, maps, sets, tuples, tensors, indexing/slicing, traversal pipes, methods |
+| Collections | arrays, lazy sequences, iterators, maps, sets, tuples, Shaped storage, Matrix semantics, coordinate-aware Vector/Covector/Tensor values, indexing/slicing, traversal pipes, methods |
 | Control and scope | blocks, cases, ternaries, loops, break blocks, cells, five assignment modes, destructuring, imports |
 | Async runtime | promise-aware host API; `{$ ... }` code blocks with import headers, FIFO bounded finite-collection fan-out, nested structural collections, fused map/filter/find/all stages, and named completion breaks; supervised `{$$ ... }` blocks with host draining |
 | Semantics | metadata classes, semantic inquiry/conversion, type and trait registries, constructor capture |
@@ -33,13 +36,13 @@ for the exact count and result at your revision.
 
 | Area | Boundary |
 |---|---|
-| Symbolic work | `{# ... }` represents multi-symbol systems, but arithmetic/calculus remain a tested single-expression exact subset. Transcendental rules, general solving, and numerical calculus belong outside that subset. |
+| Symbolic work | `{# ... }` represents multi-symbol systems. The core exact subset is complemented by opt-in Calculus/CAS rules, Numerics quadrature/refinement and Solve adapters. General solving, unrestricted simplification, global assumption/branch semantics and multivariate elimination remain separate follow-ups. |
 | FractionFunction migration | `.fracfun` remains the sole host-backed computational exact-algebra plugin because it clones and rewrites private symbolic IR, closure scopes, and source-domain restrictions. Its canonical projections already use pure-RiX `.poly` and `.ratfun`; migration waits for a versioned public symbolic-expression builder. |
-| Mathematical systems and async follow-up | `{# ... }` preserves definitions, constraints, symbols, and advisory input/output roles; `.solve` Phase 1 handles exact affine equalities and delegates matrix work to `.linalg`, while general polynomial, inequality, and nonlinear solving remain later plugin phases. Async finite collections, matrices/tensors, nested scope caps, finite pipe barriers, worker execution, cooperative top-level cancellation, and evaluator step/time budgets are implemented. Lazy bounded pull, snapshot/COW task writes, stable task paths, capability-specific abort propagation, and in-process memory accounting remain follow-up work. |
+| Mathematical systems and async follow-up | `{# ... }` retains inert symbolic systems. Solve supports affine systems, inequalities through Optimize, polynomial root dispatch, and scalar Numerics adapters; multidimensional subdivision consumers and multivariate elimination remain separate follow-ups. Async finite collections, bounded lazy pull, streams, captured-value snapshots/write rejection, cancellation, and cleanup are implemented. Host/editor execution workers and budgets exist; a scheduler-owned CPU worker pool, complete structural task paths, capability-safety metadata, and Notebook async integration remain follow-up work. |
 | Real approximation | certified radix/continued-fraction prefixes and three-state comparisons are in Core/RiX; optional Float, Oracle, Ball, Cauchy, continued-fraction, algebraic-real, and Numerics plugins provide backend-specific computation and bounded refinement. |
 | Browser use | the parser and evaluator are browser-safe. Browser hosts can preload RiX sources and explicitly trusted JavaScript modules with `createBrowserHostAdapter`; Node filesystem and module loading live behind the separate Node host adapter. |
 | Packaging | the standalone manifest is `@ratmath/rix` 0.1.0 and targets `@ratmath/core` 0.5. Its opt-in release gate covers the complete suite with coverage, native RiX tests, documentation, editor policy, package contents, and an isolated tarball install. The 0.1 line is explicitly alpha and makes no compatibility commitment. |
-| 3D rendering | The first retained scene, wireframe snapshot, and glTF JSON slice is implemented. Hidden-surface removal, lighting, adaptive parametric/implicit surfaces, textures, animation/orbit controls, GLB, OBJ, STL, PLY, and USD/USDZ remain design work. Static camera projection belongs to `Scene3D`, not to the 2D SVG/Canvas/TikZ renderers. |
+| 3D rendering | Retained scenes, pure-RiX realization/projection, wireframe and flat-lit snapshots, adaptive parametric surfaces, Canvas/PNG lowering, interactive WebGL orbit/selection, and glTF JSON export exist. Certified implicit surfaces, volume/slice policies, textures, GLB/import, and broader 3D interchange remain follow-up work. Static camera projection belongs to Scene3D rather than the 2D SVG/Canvas/TikZ renderers. |
 
 ## Documentation authority
 

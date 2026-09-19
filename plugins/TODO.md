@@ -1,5 +1,11 @@
 # RiX Plugin Implementation TODO
 
+> **Reconciled 2026-09-19.** The umbrella `ratmath/WORK_PLAN.md` is the execution
+> queue and decision register. This file retains the plugin-by-plugin scope and
+> history. “Decision” below means a technical contract unless that plan explicitly
+> assigns it to the user; it is not an automatic approval gate. Phase 4 ideas are
+> mapped to concrete increments or later scope decisions in the consolidated plan.
+
 > **Status:** working roadmap. Checkboxes describe repository state, not merely
 > design agreement. Every implemented plugin remains opt-in and loads through
 > its lowercase plugin ID.
@@ -28,33 +34,33 @@ later unless a section explicitly says otherwise.
 This is the ordered, at-a-glance queue for every plugin section in this
 roadmap. **Ready** means the next bounded implementation can begin now;
 **decision** names a contract that should be settled first; **waiting** names a
-real implementation dependency; and **Phase 4** marks work deliberately kept
-off the current numerical/educational critical path. A Phase 4 row still names
-its first useful future increment rather than treating it as abandoned.
+real implementation dependency; and **Phase 4** marks broader research/production scope. Several formerly
+Phase 4 bounded increments are now explicitly active in `ratmath/WORK_PLAN.md`;
+phase numbers in the detailed historical sections are not execution priorities.
 
 | # | Plugin | Next development increment | State / waiting for |
 |---:|---|---|---|
-| 1 | `.radix` | Versioned numeral-system constructors plus common parse/format operations | **Phase 4:** specialized numeral systems do not gate the current path |
-| 2 | `.draw` | Declarative themes, constraints, and interactive handles | **Decision:** shared portable interaction/event descriptor |
+| 1 | `.radix` | Versioned numeral-system constructors plus common parse/format operations | **Ready:** bounded exact systems and playground in plan N1 |
+| 2 | `.draw` | Declarative themes, constraints, and interactive handles | **Ready:** extend existing retained viewport/selection events; plan O4/O5/M2 |
 | 3 | `.plot` | Solve boxes and Scene3D trajectory adapters | **Ready:** linked views, independent panel zoom, and bounded retained Taylor-at-time scrubbing are implemented |
-| 4 | `.float` | Typed-array tensors followed by optional SIMD/Wasm acceleration | **Phase 4:** scale/performance layer |
+| 4 | `.float` | Typed-array tensors and measured performance improvements | **Ready:** plan R4; new acceleration providers remain later |
 | 5 | `.oracle` | Exchange exact sign and root evidence with algebraic solvers | **Waiting:** stable multivariate algebra evidence records |
 | 6 | `.numerics` | Validated interval-linear solves and bounded box subdivision | **Ready:** Krawczyk and interval-Newton foundations are present |
 | 7 | `.ode` | Boundary-value records and bounded shooting; richer trajectory views | **Ready:** forward/backward certified IVPs and time-component trajectory plots exist; general affine/Taylor-model algebra remains future work |
 | 8 | `.algebra` | Multivariate Polynomial plus Groebner/elimination MVP | **Decision:** start with `Q` coefficients and explicit lex/graded orders |
-| 9 | `.linalg` | Characteristic/minimal polynomials, eigenspaces, and exact canonical forms | **Waiting:** algebraic extension/coefficient-domain contract |
+| 9 | `.linalg` | Rational characteristic/minimal polynomials and eigenspaces; finite tensor follow-up | **Ready:** Q-only work uses existing univariate polynomials; extension-field forms are later |
 | 10 | `.optimize` | Bounded branch-and-bound integer and mixed-integer linear optimization | **Ready:** preserve partial bounds and unexplored nodes |
-| 11 | `.solve` | Multivariate elimination plus certified subdivision consumers | **Waiting:** `.algebra` Groebner MVP and `.numerics` box subdivision |
-| 12 | `.fraction` | Portable classroom-derivation and fraction-path evidence | **Phase 4:** current exact representations are complete |
+| 11 | `.solve` | Certified subdivision consumers; multivariate elimination separately | **Waiting:** numerical consumers need `.numerics` box subdivision; algebraic elimination is explicitly later |
+| 12 | `.fraction` | Portable classroom-derivation and fraction-path evidence | **Ready:** bounded exact records in plan N2 |
 | 13 | `.fracfun` | Multivariate forms and declared coefficient domains | **Waiting:** multivariate Polynomial/coefficient-domain support |
 | 14 | `.cas` | Mixed trigonometric powers, selected radicals, and definite-integral symmetries | **Ready:** bounded trig power recurrences and product-to-sum join the existing course rules |
 | 15 | `.symbolic` | Shared assumptions and restricted-domain wrappers | **Decision:** one portable assumption/branch-obligation contract |
-| 16 | `.logic` | Bounded finite first-order models, then a separate sequent-calculus presentation | **Decision:** choose the initial quantifier/equality/relation vocabulary; replayable propositional tableaux now exist |
+| 16 | `.logic` | Separate bounded propositional sequent presentation | **Ready:** plan M8; first-order vocabulary is a later user decision |
 | 17 | `.calculus` | Absolute-value/domain graphs and portable differential, boundary, and integral equation specifications | **Ready:** coordinate with `.cas`; solver execution stays elsewhere |
 | 18 | `.analysis` | Metric, normed, Banach, Hilbert, and selected `L^p` records | **Phase 4:** abstract function-space program |
 | 19 | `.ball` | Polynomial evaluation, interval Newton, and validated linear algebra over balls | **Waiting:** shared validated linear-algebra API from `.numerics` |
 | 20 | `.cauchy` | Constructive-completeness and portable proof/evidence exchange | **Phase 4:** proof-connected foundations |
-| 21 | `.continuedFraction` | Deeper symbolic interoperability and correlation experiments | **Phase 4:** specialized exploration |
+| 21 | `.continuedFraction` | Public symbolic/convergent adapters and exact error evidence | **Ready:** plan N2; general correlation proofs remain later |
 | 22 | `.algebraicReal` | Exact conic coordinates and multivariate algebraic isolation | **Waiting:** `.algebra` elimination plus Geometry conic records |
 | 23 | `.complex` | Explicit branch and continuation-path semantics | **Decision:** portable path/branch contract |
 | 24 | `.cayley` | Power-series analysis for one-generated associative subalgebras | **Phase 4:** specialist hypercomplex analysis |
@@ -64,23 +70,23 @@ its first useful future increment rather than treating it as abandoned.
 | 28 | `.data` | Single-document tagged-JSON relation interchange | **Ready:** reuse the certified-real value envelope |
 | 29 | `.stats` | Generalized models, resampling, and Bayesian records | **Phase 4:** broad statistical program |
 | 30 | `.probability` | Convolutions, mixtures, and stochastic-process foundations | **Phase 4:** broad probabilistic program |
-| 31 | `.document` | Themes, floats, multicolumn layout, and index records | **Decision:** portable page/deck layout policy |
+| 31 | `.document` | Themes, floats, multicolumn layout, and index records | **Ready:** define technical publication contract using existing themes; plan O5 |
 | 32 | `.scene3d` | Certified implicit surfaces and ODE trajectory scenes | **Ready:** preserve subdivision and uncertainty metadata |
 | 33 | `.nd` | Implicit regions, slicing, dimensional reduction, and linked views | **Waiting:** Scene3D plus shared linked-interaction contract |
 | 34 | `.complexViz` | Projection and slice views for complex-valued data | **Waiting:** `.nd` projection/slice records |
-| 35 | `.svg` | Metadata, hit targets, and portable animation descriptors | **Waiting:** shared interaction descriptor; static work can proceed |
-| 36 | `.canvas` | Offscreen/worker rendering, path caches, and large heatmaps | **Phase 4:** scale/performance layer |
+| 35 | `.svg` | Optimization, broader accessibility, animation and incremental updates | **Ready:** shared viewport/selection records already exist; plan O4/O6/O7 |
+| 36 | `.canvas` | Offscreen/worker rendering, path caches, and bounded heatmaps | **Ready:** plan R4; GPU backend selection remains later |
 | 37 | `.png` | Tiled output and 16-bit/linear-color pipelines | **Phase 4:** large-output production layer |
 | 38 | `.terminalAscii` | Keyboard interaction, live repaint, and accessibility metadata | **Decision:** host-neutral input/repaint protocol |
-| 39 | `.tikz` | Scene3D snapshots, animation frames, and exact-coordinate export | **Waiting:** normalized Scene3D snapshot records |
+| 39 | `.tikz` | Scene3D snapshots, animation frames, and exact-coordinate export | **Ready:** versioned Scene3D snapshots already exist |
 | 40 | `.latex` | Beamer, multicolumn/index/long-table, and accessibility support | **Waiting:** `.document` page/deck layout contract |
-| 41 | `.markdown` and `.html` | Progressive enhancement for portable interactions | **Waiting:** shared interaction descriptor |
-| 42 | `.quarto` | RevealJS, books/sites, and cross-document production | **Phase 4:** external publication toolchain |
-| 43 | `.pdf` | Asset negotiation, tagged accessibility, and color profiles | **Phase 4:** production publishing/toolchain integration |
+| 41 | `.markdown` and `.html` | Progressive enhancement for portable interactions | **Ready:** reuse existing retained events and Notebook live export; plan O7 |
+| 42 | `.quarto` | Shared deck/book/site source and cross-document production | **Ready:** compose existing Notebook deck/project output; production integrations remain later |
+| 43 | `.pdf` | Shared publication/asset negotiation | **Ready:** bounded local workflow; tagged/archival/print guarantees need a selected target later |
 | 44 | `.gif` | Caption and accessibility sidecars | **Ready:** bounded metadata-only increment |
 | 45 | `.csv` | Tagged-value round trips aligned with single-document JSON relations | **Waiting:** `.data` relation interchange contract |
 
-## Basic order of implementation
+## Historical implementation sequence (Phases 1–2 delivered)
 
 The order is organized as waves rather than one rigid serial queue. Items
 inside a wave may proceed together when they do not share unfinished
@@ -118,7 +124,7 @@ contracts.
     external CAS or proof-assistant reliance, specialized quaternion/octonion
     analysis, distributed computation, and production publishing toolchains.
 
-The first concrete vertical slice should be:
+The initial vertical slice is implemented:
 
 ```text
 oracle P1 -> numerics P1 -> plot P1 refinement adapter
@@ -133,7 +139,10 @@ educational exploration deep into mathematics. It should still support
 reasonable scientific workloads, but it is not attempting to become a
 warehouse-scale dataframe engine or a shell around mandatory external systems.
 
-The dependency order for remaining Phase 3 work is:
+The original dependency sequence was the following. Certified-real snapshots,
+scalar IntervalNewton, multidimensional Krawczyk, vector ODEs, adaptive certified
+stepping, events, and backward integration now have implementations. Use the
+individual checklists and `ratmath/WORK_PLAN.md` for the remaining increments:
 
 1. Specify and implement tagged-JSON snapshots for certified and refinable
    reals. A file must remain useful as an inert certified interval even when
@@ -330,8 +339,11 @@ newline normalization.
    - [x] Use adaptive subdivision and certified sign/range requests.
    - [x] Share color-scale values with `.complexViz` and `.stats`.
    - [x] Add interactive Canvas hit testing without changing the plot value.
-   - [ ] Support linked views and declarative interaction descriptions over
-     renderer-neutral viewport and selection records.
+   - [x] Support linked ODE component/phase/event views over renderer-neutral
+     viewport and selection records, including independent panel zoom and
+     retained bounded time scrubbing.
+   - [ ] Generalize linked selection beyond the ODE panels and add Solve-box
+     and Scene3D trajectory consumers without rerunning solvers during interaction.
 4. **Phase 4 — Statistical and large-data plotting**
    - [ ] Add streaming/downsampled plots and GPU-oriented scene lowering.
    - [ ] Add extensible grammar-of-graphics-style composition only if the
@@ -485,21 +497,21 @@ newline normalization.
      segment records for forward IVPs. Preserve the independent variable,
      ordered state, parameters, units, inert events, and regularity assumptions;
      accept vector records while keeping the first executable solver scalar.
-   - [ ] Extend those records with higher-order reductions, checked event
-     specifications, backward intervals, and a distinct boundary-value problem
-     kind.
+   - [x] Extend IVP records with checked events and backward integration.
+   - [ ] Add higher-order equation reduction and a distinct boundary-value
+     problem kind; reuse the implemented vector IVP records.
    - [x] Start the educational solver ladder with deterministic exact-rational
      fixed-step Euler/RK4 demonstrations and a separately labeled validated
      Picard self-map/Lipschitz tube. Preserve partial certified segments when a
      tube search exhausts its budget.
-   - [ ] Add exact recognized solutions, adaptive embedded Runge-Kutta with
-     disclosed local-error estimates, then validated Taylor-model or interval
-     Runge-Kutta segments with sharper truncation evidence.
-   - [ ] Generalize wrapping and dependency control beyond the implemented
-     order-two, segmentwise-recentered Taylor remainder to adaptive
-     subdivision, polynomial/affine models, and explicit resolution floors.
-     Preserve partial trajectories and unresolved event-time intervals when
-     the budget ends.
+   - [x] Add adaptive RK4 step-doubling and configurable-order interval
+     Taylor/Picard segments with explicit local-error and remainder evidence.
+   - [ ] Add exact recognized solutions and an embedded Runge-Kutta provider;
+     general polynomial/affine Taylor models remain separate follow-up work.
+   - [x] Add adaptive validated subdivision, minimum-step floors,
+     configurable-order Taylor remainders, and retained partial trajectories.
+   - [ ] Generalize dependency control to polynomial/affine Taylor models,
+     retaining partial trajectories and unresolved event intervals at exhaustion.
    - [ ] Add multidimensional optimization and implicit-function refinement on
      the same box/work/result vocabulary.
    - [ ] Feed nonlinear and ODE results to Solve, adaptive Geometry, Plot, and
@@ -1315,10 +1327,11 @@ the certified numerical singleton layer; it does not replace the core exact
    - [x] Reuse bounded `RowSource` pulls for JSONL, include physical line
      numbers in diagnostics, and make blank-line, missing-value, final-newline,
      and maximum-row policies explicit.
-   - [ ] Add single-document tagged-JSON relation interchange and implement the
-     shared certified/refinable-real envelope specified in
-     `numerics/refinable-real-json.md`; loading is inert, and unavailable
-     refinement recipes degrade to independently useful snapshots.
+   - [x] Core mathematical JSON supports exact graph identity and frozen
+     opaque-real snapshots; `.MathEncodeJSON`/`.MathDecodeJSON` expose it in RiX.
+   - [ ] Add single-document tagged-JSON relation interchange over the shared
+     exact-value contracts. Full standalone refinable-real recipes from
+     `numerics/refinable-real-json.md` remain separate work; imports stay inert.
 4. **Phase 4 — Columnar, external, and large data**
    - [ ] Add Arrow/Parquet adapters, chunked column batches, and typed-tensor
      bridges only after a real interoperability or scale requirement justifies
@@ -1522,10 +1535,10 @@ The RiX/host extraction sequence is specified in
 3. **Phase 3 — Optimization and interactivity**
    - [ ] Add deterministic optimization, metadata/hit targets, animation
      lowering, and incremental scene updates.
-   - [ ] Define renderer-neutral viewport and semantic-selection records for
-     pan, zoom, focus, and selected mathematical objects. SVG hosts must expose
-     keyboard navigation, stable accessible names/descriptions, and an
-     equivalent screen-reader representation rather than pointer-only targets.
+   - [x] Define and emit shared `rix.viewport@1` and `rix.selection@1`
+     records for pan, zoom, focus, and selected mathematical objects.
+   - [ ] Complete cross-host keyboard/accessibility conformance for every
+     interactive graphic, including equivalent text/table representations.
 4. **Phase 4 — Production vector workflows**
    - [ ] Add font embedding/subsetting and rigorous cross-renderer conformance
      fixtures.

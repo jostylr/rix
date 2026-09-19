@@ -1,3 +1,20 @@
+# Historical RiX parser roadmap — superseded
+
+Reconciled 2026-09-19. This document described a parser-only repository that no
+longer exists in that form. It is not an executable backlog or release schedule.
+The parser, evaluator, plugin system, custom infix operators, secondary-language
+parsers, CodeMirror/Lezer tooling, language server, diagnostics, and runtime
+reference generation now live together in RiX.
+
+Current work is consolidated in the umbrella ratmath/WORK_PLAN.md. Current
+behavior is documented in documentation/status.qmd and the parser/evaluator
+reference guides. Parser recovery, diagnostics, fuzzing, and performance work
+belong to that plan; macros, new syntax, and new operator fixities require an
+explicit language proposal. Old v0.2/v0.3/v1.0 dates and unchecked features below
+are historical intentions, not claims that the features are missing.
+
+---
+
 # RiX Parser & Tokenizer Development TODO
 
 This document outlines the development roadmap for the RiX Language Parser & Tokenizer library. As a focused parsing library, this repository handles tokenization and AST generation, with evaluation and REPL functionality provided by separate repositories.
