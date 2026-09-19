@@ -3009,7 +3009,10 @@ function safeHtmlUrl(value, { media = false } = {}) {
     const url = String(value || "").trim();
     if (!url || /[\u0000-\u001f\u007f]/.test(url) || url.startsWith("//")) return null;
     const scheme = url.match(/^([a-z][a-z0-9+.-]*):/i)?.[1]?.toLowerCase() ?? null;
-    if (!scheme) return url;
+    if (!scheme) {
+        if (media && (url.startsWith("/") || /[\\%?#]/.test(url) || url.split("/").some((part) => !part || part === "." || part === ".."))) return null;
+        return url;
+    }
     if (media) return null;
     const allowed = new Set(["http", "https", "mailto"]);
     return allowed.has(scheme) ? url : null;
@@ -3034,7 +3037,7 @@ function renderInlineHtml(value, format) {
         const src = safeHtmlUrl(value.asset.ref, { media: true });
         return src
             ? `<img class="rix-output-image" src="${escapeHtml(src)}" alt="${escapeHtml(value.alt)}"${value.title ? ` title="${escapeHtml(value.title)}"` : ""}${mediaDimensions(value)} loading="lazy">`
-            : `<span class="rix-output-image-unavailable" role="img" aria-label="${escapeHtml(value.alt)}">[Image unavailable: ${escapeHtml(value.asset.ref)}]</span>`;
+            : `<span class="rix-output-image-unavailable" role="img" aria-label="${escapeHtml(value.alt)}">${mediaReference(value.asset.ref, `Image: ${value.alt}`)}</span>`;
     }
     if (value.kind === "line_break") return "<br>";
     return escapeHtml(formatOutputText(value, format));
@@ -3049,7 +3052,14 @@ function mediaCaption(value, format) {
 }
 
 function mediaDimensions(value) {
-    return `${value.width ? ` width="${value.width}"` : ""}${value.height ? ` height="${value.height}"` : ""}`;
+    const width = value.width || value.asset?.width;
+    const height = value.height || value.asset?.height;
+    return `${width ? ` width="${width}"` : ""}${height ? ` height="${height}"` : ""}`;
+}
+
+function mediaReference(ref, label) {
+    const href = /^https?:\/\//i.test(ref) ? safeHtmlUrl(ref) : safeHtmlUrl(ref, { media: true });
+    return href ? `<a href="${escapeHtml(href)}">${escapeHtml(label)}</a>` : escapeHtml(label);
 }
 
 export function renderOutputHtml(value, format = (item) => String(item ?? "")) {
@@ -3080,14 +3090,14 @@ export function renderOutputHtml(value, format = (item) => String(item ?? "")) {
     }
     if (value.kind === "math_block") return `<div class="rix-output-math-block"${value.id ? ` id="${escapeHtml(value.id)}"` : ""} data-rix-math-notation="${escapeHtml(value.notation)}"${value.alt ? ` aria-label="${escapeHtml(value.alt)}"` : ""}>${escapeHtml(value.source)}${value.label ? `<span class="rix-output-math-label">${escapeHtml(value.label)}</span>` : ""}</div>`;
     if (value.kind === "asset") {
-        const href = safeHtmlUrl(value.ref, { media: true });
+        const href = /^https?:\/\//i.test(value.ref) ? safeHtmlUrl(value.ref) : safeHtmlUrl(value.ref, { media: true });
         return href ? `<a class="rix-output-asset" href="${escapeHtml(href)}" data-rix-mime="${escapeHtml(value.mime)}">${escapeHtml(value.filename || value.ref)}</a>` : `<span class="rix-output-asset" data-rix-mime="${escapeHtml(value.mime)}">${escapeHtml(value.filename || value.ref)}</span>`;
     }
     if (value.kind === "image") {
         const src = safeHtmlUrl(value.asset.ref, { media: true });
         const image = src
             ? `<img class="rix-output-image" src="${escapeHtml(src)}" alt="${escapeHtml(value.alt)}"${value.title ? ` title="${escapeHtml(value.title)}"` : ""}${mediaDimensions(value)} loading="lazy">`
-            : `<span class="rix-output-image-unavailable" role="img" aria-label="${escapeHtml(value.alt)}">[Image unavailable: ${escapeHtml(value.asset.ref)}]</span>`;
+            : `<span class="rix-output-image-unavailable" role="img" aria-label="${escapeHtml(value.alt)}">${mediaReference(value.asset.ref, `Image: ${value.alt}`)}</span>`;
         return value.caption ? `<figure class="rix-output-image-figure"${value.id ? ` id="${escapeHtml(value.id)}"` : ""}>${image}${mediaCaption(value, format)}</figure>` : image;
     }
     if (value.kind === "audio" || value.kind === "video") {
@@ -3095,8 +3105,8 @@ export function renderOutputHtml(value, format = (item) => String(item ?? "")) {
         const tag = value.kind;
         const poster = value.kind === "video" && value.poster ? safeHtmlUrl(value.poster.ref, { media: true }) : null;
         const media = src
-            ? `<${tag} class="rix-output-${tag}" controls${mediaDimensions(value)}${poster ? ` poster="${escapeHtml(poster)}"` : ""}><source src="${escapeHtml(src)}" type="${escapeHtml(value.asset.mime)}"><a href="${escapeHtml(src)}">${escapeHtml(value.title || value.asset.ref)}</a></${tag}>`
-            : `<span class="rix-output-${tag}-unavailable">[${tag}: ${escapeHtml(value.asset.ref)}]</span>`;
+            ? `<${tag} class="rix-output-${tag}" controls preload="none" aria-label="${escapeHtml(value.title || `${tag} recording`)}"${mediaDimensions(value)}${poster ? ` poster="${escapeHtml(poster)}"` : ""}><source src="${escapeHtml(src)}" type="${escapeHtml(value.asset.mime)}"><a href="${escapeHtml(src)}">${escapeHtml(value.title || value.asset.ref)}</a></${tag}>`
+            : `<span class="rix-output-${tag}-unavailable">${mediaReference(value.asset.ref, value.title || `${tag}: ${value.asset.ref}`)}</span>`;
         const transcript = value.transcript ? `<details class="rix-output-${tag}-transcript"><summary>Transcript</summary><p>${renderInlineSequence(value.transcript, format)}</p></details>` : "";
         const content = `${value.title ? `<h3>${escapeHtml(value.title)}</h3>` : ""}${media}${transcript}${mediaCaption(value, format)}`;
         return value.caption ? `<figure class="rix-output-${tag}-figure"${value.id ? ` id="${escapeHtml(value.id)}"` : ""}>${content}</figure>` : `<section class="rix-output-${tag}-asset"${value.id ? ` id="${escapeHtml(value.id)}"` : ""}>${content}</section>`;

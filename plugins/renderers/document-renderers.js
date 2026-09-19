@@ -1,3 +1,4 @@
+import { normalizeAssetReference, isExternalAssetReference } from "../../src/runtime/output-assets.js";
 import { numericFormatter, numericFormatterPolicy } from "../../src/runtime/numeric-presentation.js";
 /** Structured document lowering shared by Markdown, Quarto, and LaTeX. */
 
@@ -8,6 +9,20 @@ import { diagnostic, field, numberValue, outputKind, rixString, textValue } from
 
 function markdownEscape(value) {
     return String(value).replace(/([\\`*{}[\]()#+.!_>-])/g, "\\$1");
+}
+
+function localMediaReference(ref) {
+    try { return !ref.includes(":") && normalizeAssetReference(ref) === ref; } catch { return false; }
+}
+function markdownMediaLink(ref, label) {
+    return localMediaReference(ref) || isExternalAssetReference(ref)
+        ? `[${markdownEscape(label)}](<${ref.replaceAll(">", "%3E").replaceAll("<", "%3C")}>)`
+        : markdownEscape(`${label} (asset unavailable)`);
+}
+function latexMediaLink(ref, label) {
+    return localMediaReference(ref) || isExternalAssetReference(ref)
+        ? `\\href{${texEscape(ref)}}{${texEscape(label)}}`
+        : texEscape(`${label} (asset unavailable)`);
 }
 
 function inlineMarkdown(value, state) {
@@ -34,7 +49,13 @@ function inlineMarkdown(value, state) {
     }
     if (value.kind === "math") return `$${value.source}$`;
     if (value.kind === "link") return `[${value.children.map((child) => inlineMarkdown(child, state)).join("")}](${value.href}${value.title ? ` \"${value.title.replaceAll('"', '\\"')}\"` : ""})`;
-    if (value.kind === "image") return `![${value.alt}](${value.asset.ref}${value.title ? ` \"${value.title.replaceAll('"', '\\"')}\"` : ""})`;
+    if (value.kind === "image") {
+        if (!localMediaReference(value.asset.ref)) {
+            state.diagnostics.push(diagnostic("markdown-image-reference", "Image remains an inert reference or unavailable placeholder", "info"));
+            return markdownMediaLink(value.asset.ref, value.alt);
+        }
+        return `![${markdownEscape(value.alt)}](<${value.asset.ref.replaceAll(">", "%3E").replaceAll("<", "%3C")}>)`;
+    }
     if (value.kind === "line_break") return "  \n";
     return markdownEscape(formatOutputText(value, state.format));
 }
@@ -105,11 +126,11 @@ function blockMarkdown(value, state, depth = 0) {
         return `${value.caption ? `${value.caption.map((child) => inlineMarkdown(child, state)).join("")}\n\n` : ""}${fence}${value.language}${attributes}\n${value.code}\n${fence}`;
     }
     if (value.kind === "math_block") return `$$\n${value.source}\n$$${value.label ? ` {#eq-${value.label.replace(/^eq-/, "")}}` : ""}`;
-    if (value.kind === "asset") return `[${value.mime} asset](${value.ref})`;
+    if (value.kind === "asset") return markdownMediaLink(value.ref, `${value.mime} asset`);
     if (value.kind === "image") return inlineMarkdown(value, state) + (value.caption ? `\n\n*${value.caption.map((child) => inlineMarkdown(child, state)).join("")}*` : "");
     if (value.kind === "audio" || value.kind === "video") {
         state.diagnostics.push(diagnostic("markdown-media-link", `${value.kind} is represented as a portable asset link`, "info"));
-        return `[${value.title || value.kind}](${value.asset.ref})`;
+        return [markdownMediaLink(value.asset.ref, value.title || value.kind), value.transcript ? `Transcript: ${value.transcript.map((child) => inlineMarkdown(child, state)).join("")}` : null, value.caption ? `*${value.caption.map((child) => inlineMarkdown(child, state)).join("")}*` : null].filter(Boolean).join("\n\n");
     }
     if (value.kind === "fragment") return value.children.map((child) => blockMarkdown(child, state, depth)).join("\n\n");
     if (value.kind === "snapshots") return [value.title ? `## ${markdownEscape(value.title)}` : null, ...value.snapshots.map((snapshot) => blockMarkdown(snapshot.content, state, depth)), value.caption ? `*${markdownEscape(value.caption)}*` : null].filter(Boolean).join("\n\n");
@@ -183,7 +204,13 @@ function inlineLatex(value, state) {
     if (value.kind === "code") return `\\texttt{${texEscape(value.code)}}`;
     if (value.kind === "math") return `$${value.source}$`;
     if (value.kind === "link") return `\\href{${value.href}}{${value.children.map((child) => inlineLatex(child, state)).join("")}}`;
-    if (value.kind === "image") return `\\includegraphics${value.width ? `[width=${value.width}pt]` : ""}{${texEscape(value.asset.ref)}}`;
+    if (value.kind === "image") {
+        if (!localMediaReference(value.asset.ref) || !["image/png", "image/jpeg", "application/pdf"].includes(value.asset.mime)) {
+            state.diagnostics.push(diagnostic("latex-image-reference", "Image format/reference is unsupported by portable LaTeX; retained accessible link", "warning"));
+            return latexMediaLink(value.asset.ref, value.alt);
+        }
+        return `\\includegraphics${value.width ? `[width=${value.width}pt]` : ""}{${texEscape(value.asset.ref)}}`;
+    }
     if (value.kind === "line_break") return "\\\\\n";
     return texEscape(formatOutputText(value, state.format));
 }
@@ -239,11 +266,11 @@ function blockLatex(value, state) {
     if (value.kind === "callout") return `\\begin{quote}\n\\textbf{${value.title ? value.title.map((child) => inlineLatex(child, state)).join("") : texEscape(value.variant)}}\\par\n${value.children.map((child) => blockLatex(child, state)).join("\n\n")}\n\\end{quote}`;
     if (value.kind === "code_block") return `${value.caption ? `\\textbf{${value.caption.map((child) => inlineLatex(child, state)).join("")}}\n` : ""}\\begin{verbatim}\n${value.code}\n\\end{verbatim}`;
     if (value.kind === "math_block") return `\\begin{equation}${value.label ? `\\label{${texEscape(value.label)}}` : ""}\n${value.source}\n\\end{equation}`;
-    if (value.kind === "asset") return `\\url{${texEscape(value.ref)}}`;
-    if (value.kind === "image") return inlineLatex(value, state);
+    if (value.kind === "asset") return latexMediaLink(value.ref, value.filename || value.mime);
+    if (value.kind === "image") return inlineLatex(value, state) + (value.caption ? `\n\n\\emph{${value.caption.map((child) => inlineLatex(child, state)).join("")}}` : "");
     if (value.kind === "audio" || value.kind === "video") {
         state.diagnostics.push(diagnostic("latex-media-link", `${value.kind} cannot be embedded in static LaTeX; emitted a URL`, "warning"));
-        return `\\href{${value.asset.ref}}{${texEscape(value.title || value.kind)}}`;
+        return [latexMediaLink(value.asset.ref, value.title || value.kind), value.transcript ? `Transcript: ${value.transcript.map((child) => inlineLatex(child, state)).join("")}` : null, value.caption ? `\\emph{${value.caption.map((child) => inlineLatex(child, state)).join("")}}` : null].filter(Boolean).join("\n\n");
     }
     if (value.kind === "fragment") return value.children.map((child) => blockLatex(child, state)).join("\n\n");
     if (value.kind === "snapshots") return [value.title ? `\\section*{${texEscape(value.title)}}` : null, ...value.snapshots.map((snapshot) => blockLatex(snapshot.content, state)), value.caption ? `\\emph{${texEscape(value.caption)}}` : null].filter(Boolean).join("\n\n");

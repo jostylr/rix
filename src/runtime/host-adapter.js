@@ -1,3 +1,4 @@
+import { createMemoryAssetStore } from "./output-assets.js";
 /**
  * Host services used by the portable evaluator.
  *
@@ -26,6 +27,7 @@ export function createBrowserHostAdapter(options = {}) {
     const baseURL = options.baseURL || globalThis.location?.href || "rix:///";
     const sources = options.sources || new Map();
     const modules = options.modules || new Map();
+    const assetStore = options.assetStore || createMemoryAssetStore(options.assets || new Map());
 
     const resolve = (requested, baseDir, extension = "") => {
         const target = extension && !requested.endsWith(extension) ? `${requested}${extension}` : requested;
@@ -34,6 +36,7 @@ export function createBrowserHostAdapter(options = {}) {
 
     return Object.freeze({
         kind: "browser",
+        readAsset: (reference, limits) => assetStore.readAsset(reference, limits),
         cwd() {
             return directoryURL(baseURL).href;
         },

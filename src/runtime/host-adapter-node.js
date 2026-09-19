@@ -1,3 +1,4 @@
+import { createNodeAssetStore } from "./output-assets-node.js";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
@@ -7,8 +8,10 @@ const requireFromRix = createRequire("/rix-runtime/host-adapter-node.js");
 /** Node/Bun filesystem and CommonJS module services for the RiX evaluator. */
 export function createNodeHostAdapter(options = {}) {
     const cwd = options.cwd || (() => process.cwd());
+    const assetStore = options.assetStore || createNodeAssetStore({ roots: options.assetRoots || [], packages: options.assetPackages || {} });
     return Object.freeze({
         kind: "node",
+        readAsset: (reference, limits) => assetStore.readAsset(reference, limits),
         cwd,
         resolveScriptPath(requested, { baseDir } = {}) {
             const target = String(requested).endsWith(".rix") ? String(requested) : `${requested}.rix`;

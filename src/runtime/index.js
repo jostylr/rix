@@ -315,3 +315,6 @@ export {
 export { OUTPUT_DOCUMENT_SCHEMA, encodeOutputJSON, decodeOutputJSON, snapshotOutputDocument } from "./output-json.js";
 
 export { NUMERIC_PRESENTATION_SCHEMA, createNumericPolicy, presentNumericValue, numericFormatter, withNumericPresentation } from "./numeric-presentation.js";
+
+export { OUTPUT_BUNDLE_SCHEMA, OUTPUT_ASSET_MANIFEST_SCHEMA, OUTPUT_ASSET_LIMITS, normalizeAssetReference, isExternalAssetReference, createMemoryAssetStore, hashAssetBytes, resolveAssetManifest, bundleOutputDocument, encodeOutputBundle, decodeOutputBundle } from "./output-assets.js";
+export { createOutputBundleHost } from "./output-bundle-host.js";
