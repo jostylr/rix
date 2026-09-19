@@ -184,6 +184,7 @@ PolyFromAscending(coefficients, variable ?= :x, degreeBound ?= _, source ?= _, p
 PolyBuild(coefficientFunction, variable, degreeBound, source, provenance, reactive ?= 1) -> {;
     PolynomialValue = (argument) -> PolyEvaluateAscending(0 |> coefficientFunction, argument);
     PolynomialValue.schema = "rix.polynomial@1";
+    PolynomialValue.sourceIdentity = (unused)->_;
     PolynomialValue.variable = variable;
     PolynomialValue.degreeBound = degreeBound;
     PolynomialValue.canonical = 1;
@@ -322,7 +323,11 @@ PolyFromRecord(source, second) -> {;
     source.Has("coefficients") ?: _ ?_ .Error("Polynomial record requires coefficients");
     order = PolyOption(source, "order", :descending);
     variable = PolyOption(source, "variable", second == _ ?: :x ?_ second);
-    PolyFromAscending(PolyExactAscending(source[:coefficients], order), variable, _, _, [:record]);
+    coefficients=PolyExactAscending(source[:coefficients],order);
+    bound=PolyOption(source,"degreebound",coefficients.Len()-1);
+    (bound ? :Integer) && bound>=coefficients.Len()-1
+      ?_> .Error("Polynomial record degreeBound must be an Integer at least its coefficient degree");
+    PolyFromAscending(coefficients,variable,bound,_,[:record]);
 };
 
 PolyConstruct(source, second ?= _) -> {;

@@ -145,7 +145,7 @@ Frame alignment is exact and an all-axis contraction returns a scalar.
 
 ## Domain-preserving linear realizations
 
-`rix.linear-realization@1` lets a domain value retain its semantic identity
+`rix.linalg.linear-realization@1` lets a domain value retain its semantic identity
 while exposing a linked Vector view. `PolynomialSpace(n,variable?)` is the
 first adapter: it models polynomials of degree at most `n` in the monomial
 Frame. `Realize` pads ascending coefficients with exact zeros, and
@@ -160,10 +160,78 @@ view := P3.Realize(p);
 {: view[:domain].__type,view[:vector].components,view.Reconstruct()==p };
 ```
 
-`Serialize` emits `rix.linalg.identity-record@1` data for spaces, Frames,
-tensors, maps, and realizations. Tensor records use stable numeric tensor and
-representation IDs and refer to prior representations by ID, avoiding live
-object cycles while preserving bounded in-memory lineage separately.
+`P3.Realize(p, frame?)` explicitly selects its ambient space and optionally a
+Frame in that space. A realization has `Domain`, `Vector(frame?)`, `Transform`,
+`Reconstruct`, and `SameSource` methods. The Vector also supports `SameSource`.
+Two views of the same Polynomial in different ambient spaces share a source,
+but have distinct tensor identities. Equal independently constructed
+Polynomials have distinct sources. Addition and scaling produce new Vectors;
+call the selected adapter's `Reconstruct` to return to the Polynomial domain.
+Variable identity, Rational coefficients, and the maximum degree are checked.
+
+### Portable identity graphs
+
+`Serialize` remains a single-record inspection writer. `ExportGraph(value)`
+(or an Array of roots) follows the complete supported dependency graph and
+returns `rix.linalg.identity-graph@1`. `ImportGraph(graph)` returns an Array of
+roots in the original order, including repeated roots. Use mathematical JSON
+for transport; it retains exact scalars and shared scoped variable identities:
+
+```{.rix exec=true id=identity-graph-readme}
+.Plugin.Load("linalg");
+a := .linalg.PolynomialSpace(2,:x);
+p := .p`x^2+2*x+3`;
+view := a.Realize(p);
+saved := .MathEncodeJSON(.linalg.ExportGraph([p,a,view]));
+loaded := .linalg.ImportGraph(.MathDecodeJSON(saved));
+loaded[3].SameSource(loaded[1]) ##@ == 1
+loaded[3].Reconstruct()==loaded[1] ##@ == 1
+loaded[1].__type ##@ == "Polynomial"
+```
+
+Supported graph records are VectorSpace, Frame (including explicit dual
+Frames), Vector/Covector/Tensor representations and identities, LinearMap,
+Metric, PolynomialSpace, Polynomial, and linear realizations. Graph IDs are
+local references. Sharing inside one import is preserved; every import
+allocates fresh runtime tokens, including for equal names, dimensions and
+numeric labels. Saved records cannot supply those tokens. Numeric IDs shown
+by `Serialize` are diagnostic labels, not portable identity authorities.
+
+The importer checks referenced kinds, scalar fields, dimensions, invertible
+Frame bases and their relative change laws, primal/dual relationships, metric
+evidence, equivalent tensor coordinates, source reconstruction, and bounded
+acyclic lineage. Tagged product, permutation, metric, contraction and symmetry
+derivations are replayed and compared exactly; forged derived origins fail.
+Untagged `derivedFrom` links record ancestry rather than an asserted operation. Unknown fields and callable metadata are rejected. Nothing
+in a graph is executed, fetched, or used to reattach external capabilities.
+Polynomial providers are captured as coefficients and imported as frozen
+Polynomials with their variable and degree bound. Re-realize a changed source
+before exporting an older realization; stale source/coordinate pairs fail.
+
+The options `maxNodes`, `maxComponents`, and `maxDepth` default to 512, 65536,
+and 64, with hard maxima of 1024, 262144, and 128. `maxReplayWork` defaults
+to 1048576 with a hard maximum of 16777216; it bounds aggregate conservative
+component-work estimates before any tagged derivation is replayed. Components are counted across
+stored bases, transforms, tensor coordinates and Polynomial coefficients.
+Finite spaces have dimensions 1–256; tensor rank is 1–32; Polynomial degree
+bounds are at most 255. Mathematical JSON adds its own byte, digit, depth and
+node limits. Budget exhaustion is an error rather than a partial import.
+
+### Scalar-field and coordinate-storage protocols
+
+`.linalg.ScalarField()` and `space.ScalarField()` expose
+`rix.scalar-field@1` with ID `rix.scalar-field.rational@1`. Its operations are
+`Contains`, `Coerce`, `Add`, `Subtract`, `Multiply`, `Divide`, `Negate`, `Equal`,
+`Zero` and `One`. Only exact Integer/Rational operands are accepted; intervals
+and Float values do not silently change the field.
+
+`.linalg.CoordinateStorage(shapedOrTensor)` and `tensor.CoordinateStorage()`
+expose finite `rix.coordinate-storage@1`, kind `denseShaped`. `Shape`, `Size`,
+`Get`, `Entries`, `Materialize(maxCells?)`, and `ScalarField` read logical
+coordinates, including permuted Shaped views. Materialization checks its
+explicit cell budget (default 65536). Graph coordinate payloads contain only
+shape and exact logical entries; closures and storage capabilities are never
+serialized. Sparse/lazy protocols and custom scalar fields remain later work.
 
 ### Shaped input boundary
 
@@ -269,5 +337,5 @@ collinear nonzero vectors. Other angles report
 an inverse-cosine requirement. Neither operation silently approximates or
 changes scalar domains. `NormSquared` is exact for every accepted metric;
 for an indefinite form this is the bilinear self-pairing, not a positive norm.
-Metrics and explicit dual Frames have identity-record writers via `Serialize`;
-validated graph import is tracked separately from these finite operations.
+Metrics and explicit dual Frames participate in `ExportGraph`/`ImportGraph`;
+`Serialize` remains available for inspecting an individual identity record.

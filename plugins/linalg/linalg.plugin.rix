@@ -3,12 +3,12 @@ id: linalg
 description: Pure-RiX exact dense linear algebra and coordinate-aware tensor transformations.
 kind: rix
 mount: linalg
-exports: [Rref, Rank, Determinant, Inverse, Solve, Bareiss, LU, LDU, QR, DeterminantCertificate, RowSpace, ColumnSpace, NullSpace, VectorSpace, DualSpace, DualFrame, Metric, Frame, Tensor, Vector, Covector, LinearMap, Compose, Pushforward, Pullback, TensorProduct, Contract, PolynomialSpace, Realize, Reconstruct, Serialize, ChangeMatrix, Transform, Transform!, Components, Pair, SameTensor]
+exports: [Rref, Rank, Determinant, Inverse, Solve, Bareiss, LU, LDU, QR, DeterminantCertificate, RowSpace, ColumnSpace, NullSpace, VectorSpace, DualSpace, DualFrame, Metric, Frame, Tensor, Vector, Covector, LinearMap, Compose, Pushforward, Pullback, TensorProduct, Contract, PolynomialSpace, Realize, Reconstruct, SameSource, ScalarField, CoordinateStorage, ExportGraph, ImportGraph, Serialize, ChangeMatrix, Transform, Transform!, Components, Pair, SameTensor]
 groups: [LinearAlgebra, Exact]
 permissions: []
 requires: [rix.polynomial@1]
 provides: [rix.linear-algebra@2, rix.linear-algebra@1, rix.tensor@1, rix.linear-realization@1]
-schemas: [rix.linalg.result@1, rix.linalg.bareiss@1, rix.linalg.factorization@1, rix.linalg.qr@1, rix.linalg.determinant-certificate@1, rix.linalg.subspace@1, rix.linalg.vector-space@1, rix.linalg.frame@1, rix.linalg.metric@1, rix.linalg.tensor@1, rix.linalg.linear-map@1, rix.linalg.linear-realization@1, rix.linalg.polynomial-space@1, rix.linalg.identity-record@1]
+schemas: [rix.linalg.result@1, rix.linalg.bareiss@1, rix.linalg.factorization@1, rix.linalg.qr@1, rix.linalg.determinant-certificate@1, rix.linalg.subspace@1, rix.linalg.vector-space@1, rix.linalg.frame@1, rix.linalg.metric@1, rix.linalg.tensor@1, rix.linalg.linear-map@1, rix.linalg.linear-realization@1, rix.linalg.polynomial-space@1, rix.linalg.identity-record@1, rix.linalg.identity-graph@1, rix.scalar-field@1, rix.coordinate-storage@1]
 snapshot: false
 deterministic: true
 defaultEnabled: false
@@ -832,6 +832,14 @@ LinalgRequireFrame(value) -> LinalgFrameIs(value)
   ?_ (LinalgSpaceIs(value) ?: .Error("Tensor components require a Frame, not a bare VectorSpace") ?_ .Error("Expected a linalg Frame"));
 LinalgRequireTensor(value) -> LinalgTensorIs(value) ?: value ?_ .Error("Expected a coordinate-aware Vector, Covector, or Tensor");
 
+### Numeric IDs are labels; opaque, never-invoked tokens define runtime identity.
+LinalgNewIdentity() -> (unused)->_;
+LinalgSpaceToken(value) -> LinalgSpaceIs(value) ?: value[:identitytoken] ?_ value[:spacetoken];
+LinalgFrameToken(value) -> LinalgFrameIs(value) ?: value[:identitytoken] ?_ value[:frametoken];
+LinalgSameSpace(left,right) -> LinalgSpaceToken(left)!=_ && LinalgSpaceToken(left)==LinalgSpaceToken(right);
+LinalgSameFrame(left,right) -> LinalgFrameToken(left)!=_ && LinalgFrameToken(left)==LinalgFrameToken(right);
+
+
 LinalgVectorSpace(first, second ?= _, options ?= {= }) -> {;
     settings = first ? :Map ?: first ?_ options.Merge({= name=first, dimension=second });
     name = LinalgOption(settings,"name","V");
@@ -843,13 +851,14 @@ LinalgVectorSpace(first, second ?= _, options ?= {= }) -> {;
     lineageLimit<=1024 ?_> .Error("Tensor lineage limit must be at most 1024");
     value = {=
         valueKind=:vectorSpace, schema="rix.linalg.vector-space@1",
-        identity={= valueKind=:vectorSpaceIdentity }, spaceIdentity=LinalgNextIdentity(:space), name=name, dimension=dimension,
+        identity={= valueKind=:vectorSpaceIdentity }, identityToken=LinalgNewIdentity(), spaceIdentity=LinalgNextIdentity(:space), name=name, dimension=dimension,
         over=:Rational, metadata=LinalgOption(settings,"metadata",_), definingFrame=_, lineageLimit=lineageLimit
     };
     value.__type="VectorSpace";
     value._mutable=1;
     value._proto={=
         Dual=(self)->LinalgDualSpace(self),
+        ScalarField=(self)->LinalgRationalField(),
         TensorProduct=(self,other)->LinalgTensorProduct(self,other),
         Serialize=(self)->LinalgSerialize(self)
     };
@@ -871,7 +880,7 @@ LinalgFrame(spaceValue, specification ?= _, basisArgument ?= _, options ?= {= })
     name = LinalgOption(settings,"name",space[:definingframe]==_ ?: "defining" ?_ "frame");
     requestedRelative = LinalgOption(settings,"relativeto",_);
     relativeTo = defining ?: _ ?_ LinalgRequireFrame(requestedRelative==_ ?: space[:definingframe] ?_ requestedRelative);
-    defining || relativeTo[:spaceidentity] == space[:spaceidentity] ?: _ ?_ .Error("relativeTo Frame must belong to the same VectorSpace");
+    defining || LinalgSameSpace(relativeTo,space) ?: _ ?_ .Error("relativeTo Frame must belong to the same VectorSpace");
     localBasis = defining ?: LinalgIdentityRows(space[:dimension]) ?_ LinalgMatrixRows(basisValue,"Frame basis");
     localBasis.Len()==space[:dimension] && localBasis[1].Len()==space[:dimension]
       ?_> .Error(@"Frame basis must be @{space[:dimension]}x@{space[:dimension]}");
@@ -880,7 +889,7 @@ LinalgFrame(spaceValue, specification ?= _, basisArgument ?= _, options ?= {= })
     inverse = LinalgInverseRows(absoluteBasis);
     value = {=
         valueKind=:frame, schema="rix.linalg.frame@1", name=name, space=space,
-        spaceIdentity=space[:spaceidentity], frameIdentity=LinalgNextIdentity(:frame),
+        spaceIdentity=space[:spaceidentity], spaceToken=space[:identitytoken], identityToken=LinalgNewIdentity(), frameIdentity=LinalgNextIdentity(:frame),
         relativeTo=relativeTo, localBasis=LinalgMatrixValue(localBasis),
         basis=LinalgMatrixValue(absoluteBasis), inverseBasis=LinalgMatrixValue(inverse),
         defining=defining ?: 1 ?_ _, metadata=LinalgOption(settings,"metadata",_)
@@ -897,7 +906,7 @@ LinalgFrame(spaceValue, specification ?= _, basisArgument ?= _, options ?= {= })
 
 LinalgChangeRows(sourceValue,targetValue) -> {;
     source=LinalgRequireFrame(sourceValue); target=LinalgRequireFrame(targetValue);
-    source[:spaceidentity]==target[:spaceidentity] ?: _ ?_ .Error("Frames must belong to the same VectorSpace");
+    LinalgSameSpace(source,target) ?: _ ?_ .Error("Frames must belong to the same VectorSpace");
     LinalgMultiplyRows(LinalgMatrixRows(target[:inversebasis]),LinalgMatrixRows(source[:basis]));
 };
 LinalgChangeMatrix(source,target) -> {;
@@ -914,7 +923,7 @@ LinalgVariance(value) -> (value==:down || value==:covariant || value=="down" || 
 
 LinalgSlot(frameValue,dualValue) -> {;
     frame=LinalgRequireFrame(frameValue);
-    slot={= frame=frame, spaceIdentity=frame[:spaceidentity], frameIdentity=frame[:frameidentity], dual=dualValue ?: 1 ?_ _ };
+    slot={= frame=frame, spaceIdentity=frame[:spaceidentity], spaceToken=frame[:spacetoken], frameIdentity=frame[:frameidentity], frameToken=frame[:identitytoken], dual=dualValue ?: 1 ?_ _ };
     slot.frame=frame; slot.spaceIdentity=slot[:spaceidentity]; slot.frameIdentity=slot[:frameidentity]; slot.dual=slot[:dual];
     slot;
 };
@@ -961,7 +970,7 @@ LinalgRecordRepresentation(identity,value) -> {;
           evicted[:equivalentto]=_; evicted.equivalentTo=_;
           {@ retained=1; retained<=@reps.Len(); {;
               representation=@reps[retained]; link=representation[:equivalentto];
-              (link!=_ && link[:representationkey]==@evicted[:representationkey]) ?: {;
+              (link!=_ && link[:representationtoken]==@evicted[:representationtoken]) ?: {;
                   @representation[:equivalentto]=_; @representation.equivalentTo=_;
               } ?_ _;
           }; retained+=1 };
@@ -980,12 +989,13 @@ LinalgTensorValue(components,slots,lineage ?= {= }) -> {;
     identityKey=lineage.Has("identitykey") ?: lineage[:identitykey] ?_ LinalgNextIdentity(:tensor);
     identity=lineage.Has("identity")
       ?: lineage.identity
-      ?_ {= valueKind=:tensorIdentity, origin=_, representations=[],
+      ?_ {= valueKind=:tensorIdentity, token=LinalgNewIdentity(), origin=_, representations=[],
             lineageLimit=slots.Map((slot)->slot[:frame][:space][:lineagelimit]).Sort()[1] };
+    identity._mutable=1;
     value={=
         valueKind=:coordinateTensor, schema="rix.linalg.tensor@1", components=components, slots=slots,
-        identity=identity, identityKey=identityKey,
-        representationIdentity={= valueKind=:tensorRepresentationIdentity },
+        identity=identity, identityKey=identityKey, identityToken=identity[:token],
+        representationIdentity={= valueKind=:tensorRepresentationIdentity }, representationToken=LinalgNewIdentity(),
         representationKey=LinalgNextIdentity(:representation),
         equivalentTo=LinalgOption(lineage,"equivalentto",_), origin=LinalgOption(lineage,"origin",identity[:origin]),
         transform=LinalgOption(lineage,"transform",_), viewOf=LinalgOption(lineage,"viewof",_),
@@ -999,6 +1009,8 @@ LinalgTensorValue(components,slots,lineage ?= {= }) -> {;
         Transform=(self,target)->LinalgTransform(self,target),
         Pair=(self,other)->LinalgPair(self,other),
         SameTensor=(self,other)->LinalgSameTensor(self,other),
+        SameSource=(self,other)->LinalgSameSource(self,other),
+        CoordinateStorage=(self)->LinalgCoordinateStorage(self),
         TensorProduct=(self,other)->LinalgTensorProduct(self,other),
         Contract=(self,first,second)->LinalgContract(self,first,second),
         Equal=(self,other)->LinalgTensorEqual(self,other),
@@ -1021,7 +1033,8 @@ LinalgTensorValue(components,slots,lineage ?= {= }) -> {;
     identity[:origin]==_ ?: {; @identity[:origin]=@value; @value[:origin]=@value; } ?_ _;
     LinalgSyncTensor(value);
     value.components=components; value.slots=slots; value.identity=identity; value.identityKey=identityKey;
-    LinalgRecordRepresentation(identity,value);
+    LinalgOption(lineage,"deferhistory",_) ?_> LinalgRecordRepresentation(identity,value);
+    value;
 };
 
 LinalgTensor(components,frames,variance ?= _,options ?= {= }) -> {;
@@ -1091,7 +1104,7 @@ LinalgTransformed(value,targets) -> {;
     components := value[:components]; changes := [];
     {@ axis=1; axis<=@value[:slots].Len(); {;
         slot=@value[:slots][axis]; target=LinalgRequireFrame(@targets[axis]);
-        slot[:spaceidentity]==target[:spaceidentity]
+        LinalgSameSpace(slot,target)
           ?: _ ?_ .Error(@"Target Frame @{target[:name]} does not belong to tensor slot @{axis}'s VectorSpace");
         change=LinalgChangeRows(slot[:frame],target);
         applied=slot[:dual] ?: LinalgInverseRows(LinalgTransposeRows(change)) ?_ change;
@@ -1106,7 +1119,7 @@ LinalgTransform(value,targetValue) -> {;
     transformed=LinalgTransformed(exact,targets);
     slots=exact[:slots].Map((slot,axis)->LinalgSlot(targets[axis],slot[:dual]));
     lineage={=
-        identity=exact[:identity], identityKey=exact[:identitykey], equivalentTo=exact, origin=exact[:identity][:origin], viewOf=exact[:viewof],
+        identity=exact.identity, identityKey=exact[:identitykey], equivalentTo=exact, origin=exact.identity[:origin], viewOf=exact[:viewof],
         transform={= kind=:coordinateChange, sources=exact[:slots].Map((slot)->slot[:frame]), targets=targets, matrices=transformed[:changes] }
     };
     lineage.identity=exact.identity;
@@ -1116,7 +1129,7 @@ LinalgTransform(value,targetValue) -> {;
 LinalgSnapshot(value) -> {;
     snapshot={=
         valueKind=value[:valuekind], schema=value[:schema], components=value[:components], slots=value[:slots],
-        identity=value[:identity], identityKey=value[:identitykey], representationIdentity=value[:representationidentity],
+        identity=value[:identity], identityKey=value[:identitykey], identityToken=value[:identitytoken], representationIdentity=value[:representationidentity], representationToken=value[:representationtoken],
         representationKey=value[:representationkey],
         equivalentTo=value[:equivalentto], origin=value[:origin], transform=value[:transform],
         viewOf=value[:viewof], derivedFrom=value[:derivedfrom]
@@ -1131,12 +1144,12 @@ LinalgTransformBang(value,targetValue) -> {;
     exact=LinalgRequireTensor(value); identity=exact.identity; sourceSlots=exact[:slots];
     targets=LinalgTargetFrames(exact,targetValue); previous=LinalgSnapshot(exact);
     transformed=LinalgTransformed(exact,targets);
-    identity[:origin][:representationkey]==exact[:representationkey]
+    identity[:origin][:representationtoken]==exact[:representationtoken]
       ?: {; @identity[:origin]=@previous; } ?_ _;
     previous[:origin]=identity[:origin]; previous.origin=identity[:origin];
-    identity[:representations]=identity[:representations].Map((representation)->representation[:representationkey]==exact[:representationkey] ?: previous ?_ representation);
+    identity[:representations]=identity[:representations].Map((representation)->representation[:representationtoken]==exact[:representationtoken] ?: previous ?_ representation);
     exact[:components]=transformed[:components];
-    exact[:representationidentity]={= valueKind=:tensorRepresentationIdentity };
+    exact[:representationidentity]={= valueKind=:tensorRepresentationIdentity }; exact[:representationtoken]=LinalgNewIdentity();
     exact[:representationkey]=LinalgNextIdentity(:representation);
     exact[:slots]=exact[:slots].Map((slot,axis)->LinalgSlot(targets[axis],slot[:dual]));
     exact[:equivalentto]=previous; exact[:origin]=identity[:origin];
@@ -1147,7 +1160,7 @@ LinalgTransformBang(value,targetValue) -> {;
 };
 
 LinalgComponents(value)->LinalgRequireTensor(value)[:components];
-LinalgSameTensor(left,right)->LinalgRequireTensor(left)[:identitykey]==LinalgRequireTensor(right)[:identitykey] ?: 1 ?_ _;
+LinalgSameTensor(left,right)->LinalgRequireTensor(left)[:identitytoken]==LinalgRequireTensor(right)[:identitytoken] ?: 1 ?_ _;
 
 LinalgPair(firstValue,secondValue) -> {;
     first=LinalgRequireTensor(firstValue); second=LinalgRequireTensor(secondValue);
@@ -1155,19 +1168,19 @@ LinalgPair(firstValue,secondValue) -> {;
     vector=first.__type=="Vector" ?: first ?_ second.__type=="Vector" ?: second ?_ _;
     covector!=_ && vector!=_ && first[:slots].Len()==1 && second[:slots].Len()==1
       ?_> .Error("Pair requires one Vector and one Covector");
-    covector[:slots][1][:spaceidentity]==vector[:slots][1][:spaceidentity]
+    LinalgSameSpace(covector[:slots][1],vector[:slots][1])
       ?: _ ?_ .Error("Vector and Covector must belong to the same VectorSpace");
-    aligned=vector[:slots][1][:frameidentity]==covector[:slots][1][:frameidentity] ?: vector ?_ LinalgTransform(vector,covector[:slots][1][:frame]);
+    aligned=LinalgSameFrame(vector[:slots][1],covector[:slots][1]) ?: vector ?_ LinalgTransform(vector,covector[:slots][1][:frame]);
     LinalgDot(LinalgVectorValues(covector[:components]),LinalgVectorValues(aligned[:components]));
 };
 
 LinalgCompatible(left,right) -> left[:slots].Len()==right[:slots].Len() &&
-  left[:slots].All((slot,axis)->slot[:spaceidentity]==right[:slots][axis][:spaceidentity] && slot[:dual]==right[:slots][axis][:dual]);
+  left[:slots].All((slot,axis)->LinalgSameSpace(slot,right[:slots][axis]) && slot[:dual]==right[:slots][axis][:dual]);
 
 LinalgCombine(operation,leftValue,rightValue) -> {;
     left=LinalgRequireTensor(leftValue); right=LinalgRequireTensor(rightValue);
     LinalgCompatible(left,right) ?: _ ?_ .Error(@"@{operation} requires tensors with the same ordered VectorSpace slots and variance");
-    aligned=left[:slots].All((slot,axis)->slot[:frameidentity]==right[:slots][axis][:frameidentity])
+    aligned=left[:slots].All((slot,axis)->LinalgSameFrame(slot,right[:slots][axis]))
       ?: right ?_ LinalgTransform(right,left[:slots].Map((slot)->slot[:frame]));
     a=left[:components].Flatten(); b=aligned[:components].Flatten();
     values=[];
@@ -1190,7 +1203,7 @@ LinalgDefaultFrame(spaceValue) -> {;
 
 LinalgDualSpace(spaceValue) -> {;
     space=LinalgRequireSpace(spaceValue);
-    cached=linalgState[:dualspaces].Filter((entry)->entry[:spaceid]==space[:spaceidentity]);
+    cached=@linalgState[:dualspaces].Filter((entry)->entry[:token]==space[:identitytoken]);
     cached.Len()==0 ?_> cached[1][:value];
     dual=LinalgVectorSpace({=
         name=@"@{space[:name]}*",dimension=space[:dimension],over=:Rational,
@@ -1198,9 +1211,9 @@ LinalgDualSpace(spaceValue) -> {;
     });
     dual[:dualof]=space[:spaceidentity]; dual.dualOf=space;
     dual[:primalspace]=space; dual.primalSpace=space;
-    linalgState[:dualspaces]=linalgState[:dualspaces].Push({= spaceId=space[:spaceidentity],value=dual });
-    space[:dualspace]=dual; space.dualSpace=dual;
     LinalgDefaultFrame(dual);
+    @linalgState[:dualspaces]=@linalgState[:dualspaces].Push({= spaceId=space[:spaceidentity],token=space[:identitytoken],value=dual });
+    space[:dualspace]=dual; space.dualSpace=dual;
     dual;
 };
 
@@ -1214,11 +1227,11 @@ LinalgLinearMap(domainValue,codomainValue,matrixValue,options ?= {= }) -> {;
       ?_> .Error("LinearMap matrix shape must be codomain dimension by domain dimension");
     sourceFrame=LinalgRequireFrame(LinalgOption(options,"sourceframe",LinalgDefaultFrame(domain)));
     targetFrame=LinalgRequireFrame(LinalgOption(options,"targetframe",LinalgDefaultFrame(codomain)));
-    sourceFrame[:spaceidentity]==domain[:spaceidentity] ?: _ ?_ .Error(@"LinearMap sourceFrame must belong to its domain (Frame space @{sourceFrame[:spaceidentity]}, domain @{domain[:spaceidentity]})");
-    targetFrame[:spaceidentity]==codomain[:spaceidentity] ?: _ ?_ .Error("LinearMap targetFrame must belong to its codomain");
+    LinalgSameSpace(sourceFrame,domain) ?: _ ?_ .Error(@"LinearMap sourceFrame must belong to its domain (Frame space @{sourceFrame[:spaceidentity]}, domain @{domain[:spaceidentity]})");
+    LinalgSameSpace(targetFrame,codomain) ?: _ ?_ .Error("LinearMap targetFrame must belong to its codomain");
     sourceFrame[:dualframe]==_ && targetFrame[:dualframe]==_ ?_> .Error("LinearMap coordinate Frames must be primal Frames of the declared domain and codomain; use DualSpace for a dual map");
     value={=
-        valueKind=:linearMap,schema="rix.linalg.linear-map@1",
+        valueKind=:linearMap,schema="rix.linalg.linear-map@1",identityToken=LinalgNewIdentity(),
         name=LinalgOption(options,"name","linearMap"),domain=domain,codomain=codomain,
         matrix=LinalgMatrixValue(rows),sourceFrame=sourceFrame,targetFrame=targetFrame,
         exact=1,provenance=LinalgOption(options,"provenance",{= plugin=:linalg,version=2,construction=:coordinateMatrix })
@@ -1240,15 +1253,15 @@ LinalgLinearMap(domainValue,codomainValue,matrixValue,options ?= {= }) -> {;
 LinalgLinearMapVerify(value) -> {;
     map=LinalgRequireLinearMap(value); rows=LinalgMatrixRows(map[:matrix]);
     rows.Len()==map[:codomain][:dimension] && rows[1].Len()==map[:domain][:dimension]
-      && map[:sourceframe][:spaceidentity]==map[:domain][:spaceidentity]
-      && map[:targetframe][:spaceidentity]==map[:codomain][:spaceidentity];
+      && LinalgSameSpace(map[:sourceframe],map[:domain])
+      && LinalgSameSpace(map[:targetframe],map[:codomain]);
 };
 
 LinalgPushforward(mapValue,vectorValue) -> {;
     map=LinalgRequireLinearMap(mapValue); vector=LinalgRequireTensor(vectorValue);
-    vector.__type=="Vector" && vector[:slots][1][:spaceidentity]==map[:domain][:spaceidentity]
+    vector.__type=="Vector" && LinalgSameSpace(vector[:slots][1],map[:domain])
       ?_> .Error("Pushforward requires a Vector in the map domain");
-    aligned=vector[:slots][1][:frameidentity]==map[:sourceframe][:frameidentity]
+    aligned=LinalgSameFrame(vector[:slots][1],map[:sourceframe])
       ?: vector ?_ LinalgTransform(vector,map[:sourceframe]);
     values=LinalgMultiplyMatrixVector(LinalgMatrixRows(map[:matrix]),LinalgVectorValues(aligned[:components]));
     result=LinalgVector(values,map[:targetframe]);
@@ -1258,9 +1271,9 @@ LinalgPushforward(mapValue,vectorValue) -> {;
 
 LinalgPullback(mapValue,covectorValue) -> {;
     map=LinalgRequireLinearMap(mapValue); covector=LinalgRequireTensor(covectorValue);
-    covector.__type=="Covector" && covector[:slots][1][:spaceidentity]==map[:codomain][:spaceidentity]
+    covector.__type=="Covector" && LinalgSameSpace(covector[:slots][1],map[:codomain])
       ?_> .Error("Pullback requires a Covector in the map codomain");
-    aligned=covector[:slots][1][:frameidentity]==map[:targetframe][:frameidentity]
+    aligned=LinalgSameFrame(covector[:slots][1],map[:targetframe])
       ?: covector ?_ LinalgTransform(covector,map[:targetframe]);
     transpose=LinalgTransposeRows(LinalgMatrixRows(map[:matrix]));
     LinalgCovector(LinalgMultiplyMatrixVector(transpose,LinalgVectorValues(aligned[:components])),map[:sourceframe]);
@@ -1268,7 +1281,7 @@ LinalgPullback(mapValue,covectorValue) -> {;
 
 LinalgCompose(leftValue,rightValue) -> {;
     left=LinalgRequireLinearMap(leftValue); right=LinalgRequireLinearMap(rightValue);
-    right[:codomain][:spaceidentity]==left[:domain][:spaceidentity]
+    LinalgSameSpace(right[:codomain],left[:domain])
       ?: _ ?_ .Error("LinearMap composition requires the right codomain to equal the left domain");
     bridge=LinalgChangeRows(right[:targetframe],left[:sourceframe]);
     matrix=LinalgMultiplyRows(
@@ -1293,13 +1306,13 @@ LinalgLinearMapInverse(value) -> {;
 
 LinalgMapDualFrame(frameValue) -> {;
     frame=LinalgRequireFrame(frameValue);
-    cached=linalgState[:mapdualframes].Filter((entry)->entry[:frameid]==frame[:frameidentity]);
+    cached=@linalgState[:mapdualframes].Filter((entry)->entry[:token]==frame[:identitytoken]);
     cached.Len()==0 ?_> cached[1][:value];
     space=LinalgDualSpace(frame[:space]); defining=LinalgDefaultFrame(space);
     dualBasis=LinalgInverseRows(LinalgTransposeRows(LinalgMatrixRows(frame[:basis])));
     result=frame[:defining] ?: defining ?_ LinalgFrame(space,{= name=@"@{frame[:name]}*",relativeTo=defining,basis=LinalgMatrixValue(dualBasis) });
     frame[:mapdualframe]=result;
-    linalgState[:mapdualframes]=linalgState[:mapdualframes].Push({= frameId=frame[:frameidentity],value=result });
+    @linalgState[:mapdualframes]=@linalgState[:mapdualframes].Push({= frameId=frame[:frameidentity],token=frame[:identitytoken],value=result });
     result;
 };
 LinalgDualMap(value) -> {;
@@ -1347,11 +1360,11 @@ LinalgContract(value,firstAxisValue,secondAxisValue) -> {;
     second=LinalgPositiveInteger(secondAxisValue,"Second contraction axis"); rank=tensor[:slots].Len();
     first<=rank && second<=rank && first!=second ?_> .Error("Contraction axes must be distinct tensor axes");
     a=tensor[:slots][first]; b=tensor[:slots][second];
-    a[:spaceidentity]==b[:spaceidentity] && a[:dual]!=b[:dual]
+    LinalgSameSpace(a,b) && a[:dual]!=b[:dual]
       ?_> .Error(@"Contraction slots @{first} (@{a[:frame][:space][:name]}) and @{second} (@{b[:frame][:space][:name]}) require opposite variance in the same VectorSpace");
     targets=tensor[:slots].Map((slot)->slot[:frame]);
     targets=targets.Set(second,a[:frame]);
-    aligned=a[:frameidentity]==b[:frameidentity] ?: tensor ?_ LinalgTransform(tensor,targets);
+    aligned=LinalgSameFrame(a,b) ?: tensor ?_ LinalgTransform(tensor,targets);
     shape=aligned[:components].Shape(); sourceStrides=LinalgStrides(shape);
     remainingShape:=[]; remainingSlots:=[];
     {@ axis=1; axis<=@rank; {;
@@ -1385,6 +1398,8 @@ LinalgContract(value,firstAxisValue,secondAxisValue) -> {;
 };
 
 LinalgPolynomialSpace(maxDegreeValue,variable ?= :x,options ?= {= }) -> {;
+    over=LinalgOption(options,"over",:Rational);
+    over==:Rational ?_> .Error("PolynomialSpace requires the Rational scalar field");
     maxDegree=LinalgPositiveInteger(maxDegreeValue+1,"Polynomial-space dimension")-1;
     space=LinalgVectorSpace({=
         name=LinalgOption(options,"name",@"Q[@{variable}] degree <= @{maxDegree}"),
@@ -1392,46 +1407,75 @@ LinalgPolynomialSpace(maxDegreeValue,variable ?= :x,options ?= {= }) -> {;
         metadata={= construction=:boundedPolynomialSpace,maxDegree=maxDegree,variable=variable }
     });
     frame=LinalgFrame(space,{= name="monomial",basis=:defining });
+    LinalgPolynomialSpaceValue(space,frame,maxDegree,variable);
+};
+LinalgPolynomialSpaceValue(space,frame,maxDegree,variable) -> {;
     adapter={=
-        valueKind=:polynomialSpace,schema="rix.linalg.polynomial-space@1",
+        valueKind=:polynomialSpace,schema="rix.linalg.polynomial-space@1",identityToken=LinalgNewIdentity(),
         adapter="rix.linalg.polynomial-space@1",space=space,frame=frame,
         maxDegree=maxDegree,variable=variable,exact=1
     };
     adapter.__type="PolynomialSpace";
     adapter._proto={=
-        Realize=(self,value)->LinalgPolynomialRealize(self,value),
+        Realize=(self,value,frame ?= _)->LinalgPolynomialRealize(self,value,frame),
         Reconstruct=(self,vector)->LinalgPolynomialReconstruct(self,vector),
+        Frame=(self)->self[:frame],ScalarField=(self)->LinalgRationalField(),
         Serialize=(self)->LinalgSerialize(self)
     };
     .ImmutableValue(adapter);
 };
 
-LinalgPolynomialRealize(adapter,polynomial) -> {;
-    polynomial ? :Polynomial ?: _ ?_ .Error("PolynomialSpace.Realize requires a Polynomial");
-    polynomial.Degree()<=adapter[:maxdegree] ?: _ ?_ .Error("Polynomial degree exceeds this finite realization space");
-    coefficients:=polynomial.AscendingCoefficients();
-    {@ index=@coefficients.Len()+1; index<=@adapter[:maxdegree]+1; {; @coefficients ~= @coefficients.Push(0); }; index+=1 };
-    vector=LinalgVector(coefficients,adapter[:frame]);
-    vector[:viewof]=polynomial; vector.viewOf=polynomial;
+LinalgPolynomialVariableEqual(left,right) -> .IsExpression(left)
+  ?: .ExpressionVariableMatches(left,right)
+  ?_ .IsExpression(right) ?: .ExpressionVariableMatches(right,left) ?_ left==right;
+LinalgRealizationValue(adapter,polynomial,vector) -> {;
     realization={=
-        valueKind=:linearRealization,schema="rix.linalg.linear-realization@1",
-        adapter=adapter[:adapter],domain=polynomial,vector=vector,space=adapter[:space],frame=adapter[:frame],
+        valueKind=:linearRealization,schema="rix.linalg.linear-realization@1",identityToken=LinalgNewIdentity(),
+        adapter=adapter[:adapter],realization=adapter,domain=polynomial,vector=vector,space=adapter[:space],frame=vector[:slots][1][:frame],
         exact=1,provenance={= plugin=:linalg,version=2,construction=:polynomialCoefficientView }
     };
     realization.__type="LinearRealization";
     realization._proto={=
-        Vector=(self)->self[:vector],Domain=(self)->self[:domain],
-        Reconstruct=(self)->LinalgPolynomialReconstruct(adapter,self[:vector]),
+        Vector=(self,frame ?= _)->frame==_ ?: self[:vector] ?_ LinalgTransform(self[:vector],frame),
+        Domain=(self)->self[:domain],SameSource=(self,other)->LinalgSameSource(self,other),
+        Transform=(self,frame)->LinalgRealizationValue(self[:realization],self[:domain],LinalgTransform(self[:vector],frame)),
+        Reconstruct=(self)->LinalgPolynomialReconstruct(self[:realization],self[:vector]),
         Serialize=(self)->LinalgSerialize(self)
     };
     .ImmutableValue(realization);
 };
+LinalgPolynomialRealize(adapter,polynomial,frameValue ?= _) -> {;
+    polynomial ? :Polynomial ?_> .Error("PolynomialSpace.Realize requires a Polynomial");
+    LinalgPolynomialVariableEqual(polynomial.Variable(),adapter[:variable]) ?_> .Error("Polynomial variable does not match this PolynomialSpace");
+    polynomial.Degree()<=adapter[:maxdegree] ?_> .Error("Polynomial degree exceeds this finite realization space");
+    coefficients:=polynomial.AscendingCoefficients();
+    coefficients.All((value)->(value ? :Integer)||(value ? :Rational)) ?_> .Error("PolynomialSpace requires exact Rational coefficients");
+    {@ index=@coefficients.Len()+1; index<=@adapter[:maxdegree]+1; {; @coefficients ~= @coefficients.Push(0); }; index+=1 };
+    vector=LinalgVector(coefficients,adapter[:frame]);
+    vector[:viewof]=polynomial; vector.viewOf=polynomial;
+    frame=frameValue==_ ?: adapter[:frame] ?_ LinalgRequireFrame(frameValue);
+    LinalgSameSpace(frame,adapter[:space]) ?_> .Error("Polynomial realization Frame belongs to a different ambient space");
+    selected=LinalgSameFrame(frame,adapter[:frame]) ?: vector ?_ LinalgTransform(vector,frame);
+    LinalgRealizationValue(adapter,polynomial,selected);
+};
+LinalgSourceToken(value,depth ?= 0) -> {;
+    depth<=128 ?_> .Error("Source-link depth budget exceeded");
+    value!=_ ?_> _;
+    (value ? :Polynomial) ?: value.sourceIdentity
+      ?_ LinalgTensorIs(value) ?: LinalgSourceToken(value[:viewof],depth+1)
+      ?_ ((value ? :Map) && value[:schema]=="rix.linalg.linear-realization@1") ?: LinalgSourceToken(value[:domain],depth+1)
+      ?_ _;
+};
+LinalgSameSource(left,right) -> {;
+    token=LinalgSourceToken(left);
+    token!=_ && token==LinalgSourceToken(right);
+};
 
 LinalgPolynomialReconstruct(adapter,vectorValue) -> {;
     vector=LinalgRequireTensor(vectorValue);
-    vector.__type=="Vector" && vector[:slots][1][:spaceidentity]==adapter[:space][:spaceidentity]
-      ?: _ ?_ .Error("Polynomial reconstruction requires a Vector from this PolynomialSpace");
-    aligned=vector[:slots][1][:frameidentity]==adapter[:frame][:frameidentity]
+    vector.__type=="Vector" && LinalgSameSpace(vector[:slots][1],adapter[:space])
+      ?_> .Error("Polynomial reconstruction requires a Vector from this PolynomialSpace");
+    aligned=LinalgSameFrame(vector[:slots][1],adapter[:frame])
       ?: vector ?_ LinalgTransform(vector,adapter[:frame]);
     .poly.Polynomial({=
         coefficients=LinalgVectorValues(aligned[:components]),order=:ascending,variable=adapter[:variable]
@@ -1448,7 +1492,7 @@ LinalgSerialize(value) -> {;
     {? isSpace ? .ImmutableValue({=
            valueKind=:linalgIdentityRecord,schema="rix.linalg.identity-record@1",kind=:vectorSpace,
            id=value[:spaceidentity],name=value[:name],dimension=value[:dimension],over=value[:over],
-           dualOf=LinalgOption(value,"dualof",_),metadata=value[:metadata]
+           dualOf=value[:dualof],metadata=value[:metadata]
        });
        isFrame ? .ImmutableValue({=
            valueKind=:linalgIdentityRecord,schema="rix.linalg.identity-record@1",kind=:frame,
@@ -1498,7 +1542,7 @@ LinalgDualFrame(frameValue,name ?= _,basisValue ?= _) -> {;
     (frame[:dualframe]==_ || name!=_ || basisValue!=_) ?_> frame[:primalframe];
     frame[:dualframe]==_ ?_> .Error("DualFrame basis must be specified relative to a primal Frame");
     canonical=name==_ && basisValue==_;
-    cached=linalgState[:canonicaldualframes].Filter((entry)->entry[:frameid]==frame[:frameidentity]);
+    cached=@linalgState[:canonicaldualframes].Filter((entry)->entry[:token]==frame[:identitytoken]);
     (!canonical || cached.Len()==0) ?_> cached[1][:value];
     chosen=basisValue==_ ?: LinalgIdentityRows(frame[:space][:dimension]) ?_ LinalgMatrixRows(basisValue,"DualFrame basis");
     chosen.Len()==frame[:space][:dimension] && chosen[1].Len()==frame[:space][:dimension]
@@ -1506,12 +1550,12 @@ LinalgDualFrame(frameValue,name ?= _,basisValue ?= _) -> {;
     companionRows=LinalgInverseRows(LinalgTransposeRows(chosen));
     companion=canonical ?: frame ?_ LinalgFrame(frame[:space],{= name="dual companion",relativeTo=frame,basis=LinalgMatrixValue(companionRows) });
     result=LinalgFrame(frame[:space],{= name=name==_ ?: @"@{frame[:name]}*" ?_ name,relativeTo=companion,basis=LinalgMatrixValue(LinalgIdentityRows(frame[:space][:dimension])) });
-    result[:dualframe]=1; result[:primalframe]=companion;
+    result[:dualframe]=1; result[:primalframe]=companion; result[:canonicaldual]=canonical;
     result[:dualbasis]=LinalgMatrixValue(LinalgInverseRows(LinalgTransposeRows(LinalgMatrixRows(companion[:basis]))));
     result.dualFrame=1; result.primalFrame=companion; result.dualBasis=result[:dualbasis];
     canonical ?: {;
         @frame[:canonicaldualframe]=@result;
-        @linalgState[:canonicaldualframes]=@linalgState[:canonicaldualframes].Push({= frameId=@frame[:frameidentity],value=@result });
+        @linalgState[:canonicaldualframes]=@linalgState[:canonicaldualframes].Push({= frameId=@frame[:frameidentity],token=@frame[:identitytoken],value=@result });
     } ?_ _;
     result;
 };
@@ -1520,7 +1564,7 @@ LinalgActualVariance(frame,dual) -> frame[:dualframe]!=_ ?: !dual ?_ dual;
 LinalgTensorEqual(leftValue,rightValue) -> {;
     LinalgTensorIs(leftValue) && LinalgTensorIs(rightValue) ?_> _;
     LinalgCompatible(leftValue,rightValue) ?_> _;
-    sameFrames=leftValue[:slots].All((slot,axis)->slot[:frameidentity]==rightValue[:slots][axis][:frameidentity]);
+    sameFrames=leftValue[:slots].All((slot,axis)->LinalgSameFrame(slot,rightValue[:slots][axis]));
     aligned=(sameFrames ?: rightValue[:components] ?_ LinalgTransformed(rightValue,leftValue[:slots].Map((slot)->slot[:frame]))[:components]).Flatten();
     LinalgVectorValues(leftValue[:components].Flatten()).All((entry,index)->entry==aligned[index]);
 };
@@ -1557,8 +1601,8 @@ LinalgPermute(value,orderValue) -> {;
 };
 LinalgView(value) -> {;
     tensor=LinalgRequireTensor(value);
-    lineage={= identity=tensor[:identity],identityKey=tensor[:identitykey],equivalentTo=tensor,
-        origin=tensor[:identity][:origin],viewOf=tensor,transform={= kind=:fullExtentView } };
+    lineage={= identity=tensor.identity,identityKey=tensor[:identitykey],equivalentTo=tensor,
+        origin=tensor.identity[:origin],viewOf=tensor,transform={= kind=:fullExtentView } };
     lineage.identity=tensor.identity;
     LinalgTensorValue(tensor[:components],tensor[:slots],lineage);
 };
@@ -1578,7 +1622,7 @@ LinalgMetric(frameValue,matrixValue,options ?= {= }) -> {;
     rows.All((row,i)->row.All((entry,j)->entry==rows[j][i])) ?_> .Error("A Rational metric must be symmetric");
     inverse=LinalgInverseRows(rows);
     positive=rows.All((row,size)->LinalgDeterminantRows(rows.Slice(1,size+1).Map((entry)->entry.Slice(1,size+1)))>0);
-    value={= schema="rix.linalg.metric@1",valueKind=:metric,space=frame[:space],frame=frame,
+    value={= schema="rix.linalg.metric@1",valueKind=:metric,identityToken=LinalgNewIdentity(),space=frame[:space],frame=frame,
         components=LinalgMatrixValue(rows),inverse=LinalgMatrixValue(inverse),over=:Rational,positiveDefinite=positive,
         metadata=LinalgOption(options,"metadata",_) };
     value.__type="Metric";
@@ -1593,7 +1637,7 @@ LinalgMetric(frameValue,matrixValue,options ?= {= }) -> {;
 };
 LinalgMetricTransform(metricValue,targetValue) -> {;
     metric=LinalgRequireMetric(metricValue); target=LinalgRequireFrame(targetValue);
-    target[:spaceidentity]==metric[:space][:spaceidentity] ?_> .Error("Metric target Frame belongs to an incompatible VectorSpace");
+    LinalgSameSpace(target,metric[:space]) ?_> .Error("Metric target Frame belongs to an incompatible VectorSpace");
     target[:dualframe]==_ ?_> .Error("Metric target must be a primal Frame");
     inverseChange=LinalgChangeRows(target,metric[:frame]);
     rows=LinalgMultiplyRows(LinalgTransposeRows(inverseChange),LinalgMultiplyRows(LinalgMatrixRows(metric[:components]),inverseChange));
@@ -1602,7 +1646,7 @@ LinalgMetricTransform(metricValue,targetValue) -> {;
 LinalgMetricIndex(value,metricValue,axisValue,operation) -> {;
     tensor=LinalgRequireTensor(value); metric=LinalgRequireMetric(metricValue); axis=LinalgAxis(tensor,axisValue);
     slot=tensor[:slots][axis];
-    slot[:spaceidentity]==metric[:space][:spaceidentity] ?_> .Error(@"Metric does not belong to tensor slot @{axis}'s VectorSpace");
+    LinalgSameSpace(slot,metric[:space]) ?_> .Error(@"Metric does not belong to tensor slot @{axis}'s VectorSpace");
     (operation==:lower ?: slot[:dual]==_ ?_ slot[:dual]!=_) ?_> .Error(@"Cannot @{operation} tensor slot @{axis} with its existing variance");
     alignedFrame=slot[:frame][:dualframe]!=_ ?: slot[:frame][:primalframe] ?_ slot[:frame];
     alignedMetric=LinalgMetricTransform(metric,alignedFrame);
@@ -1641,7 +1685,7 @@ LinalgAngle(left,right,metricValue ?= _) -> {;
 LinalgTrace(value,first ?= 1,second ?= 2,metric ?= _) -> {;
     tensor=LinalgRequireTensor(value); a=LinalgAxis(tensor,first); b=LinalgAxis(tensor,second);
     a!=b ?_> .Error("Trace axes must be distinct");
-    tensor[:slots][a][:spaceidentity]==tensor[:slots][b][:spaceidentity]
+    LinalgSameSpace(tensor[:slots][a],tensor[:slots][b])
       ?_> .Error("Trace slots must belong to the same VectorSpace");
     aligned=tensor[:slots][a][:dual]!=tensor[:slots][b][:dual]
       ?: tensor ?_ LinalgMetricIndex(tensor,metric,b,tensor[:slots][b][:dual] ?: :raise ?_ :lower);
@@ -1665,7 +1709,7 @@ LinalgSymmetry(value,axesValue ?= _,antisymmetric ?= _) -> {;
     axes=axes.Map((axis)->LinalgAxis(tensor,axis));
     axes.All((axis)->axes.Filter((other)->other==axis).Len()==1) ?_> .Error("Symmetry axes must be distinct");
     first=tensor[:slots][axes[1]];
-    axes.All((axis)->tensor[:slots][axis][:spaceidentity]==first[:spaceidentity] && tensor[:slots][axis][:dual]==first[:dual])
+    axes.All((axis)->LinalgSameSpace(tensor[:slots][axis],first) && tensor[:slots][axis][:dual]==first[:dual])
       ?_> .Error("Symmetry requires selected slots from the same VectorSpace with identical variance");
     choices=LinalgPermutationChoices(axes);
     choices.Len()*tensor[:components].Size()<=131072 ?_> .Error("Symmetry work budget exceeded");
@@ -1695,6 +1739,620 @@ LinalgTensorPower(value,exponentValue) -> {;
         {@ power=2; power<=@exponent; {; @result ~= [LinalgTensorProductValues(@result[1],@tensor)]; }; power+=1 };
         result[1];
     };
+};
+
+LinalgRationalField() -> {;
+    value={= schema="rix.scalar-field@1",id="rix.scalar-field.rational@1",name=:Rational,exact=1,characteristic=0,zero=0,one=1 };
+    value._proto={=
+        Contains=(self,x)->(x ? :Integer)||(x ? :Rational),Coerce=(self,x)->LinalgExact(x),
+        Add=(self,a,b)->LinalgExact(a)+LinalgExact(b),Subtract=(self,a,b)->LinalgExact(a)-LinalgExact(b),
+        Multiply=(self,a,b)->LinalgExact(a)*LinalgExact(b),Divide=(self,a,b)->LinalgExact(a)/LinalgExact(b),
+        Negate=(self,a)->-LinalgExact(a),Equal=(self,a,b)->LinalgExact(a)==LinalgExact(b),
+        Zero=(self)->0,One=(self)->1
+    };
+    .ImmutableValue(value);
+};
+LinalgCoordinateStorage(input) -> {;
+    storage=LinalgTensorIs(input) ?: input[:components] ?_ input;
+    storage ? :Shaped ?_> .Error("The finite coordinate-storage adapter requires Shaped components");
+    LinalgVectorValues(storage.Flatten());
+    value={= schema="rix.coordinate-storage@1",kind=:denseShaped,finite=1,scalarField="rix.scalar-field.rational@1",storage=storage };
+    value._proto={=
+        Shape=(self)->self[:storage].Shape(),Size=(self)->self[:storage].Size(),
+        Get=(self,indices)->self[:storage].Get(indices),Entries=(self)->LinalgVectorValues(self[:storage].Flatten()),
+        Materialize=(self,maxCells ?= 65536)->LinalgCoordinateMaterialize(self,maxCells),
+        ScalarField=(self)->LinalgRationalField()
+    };
+    .ImmutableValue(value);
+};
+LinalgCoordinateMaterialize(value,maxCellsValue) -> {;
+    maxCells=LinalgPositiveInteger(maxCellsValue,"Coordinate materialization budget");
+    value[:storage].Size()<=maxCells ?_> .Error("Coordinate materialization component budget exceeded");
+    value[:storage] ~!: :Shaped;
+};
+
+### Closed, bounded, data-only identity graph. IDs below are document-local.
+LinalgGraphLimits(options) -> {;
+    maxNodes=LinalgPositiveInteger(LinalgOption(options,"maxnodes",512),"Graph node budget");
+    maxComponents=LinalgPositiveInteger(LinalgOption(options,"maxcomponents",65536),"Graph component budget");
+    maxDepth=LinalgPositiveInteger(LinalgOption(options,"maxdepth",64),"Graph depth budget");
+    maxReplayWork=LinalgPositiveInteger(LinalgOption(options,"maxreplaywork",1048576),"Graph replay work budget");
+    maxNodes<=1024 && maxComponents<=262144 && maxDepth<=128 && maxReplayWork<=16777216 ?_> .Error("Linear graph budget exceeds the supported hard bounds");
+    {= maxNodes=maxNodes,maxComponents=maxComponents,maxDepth=maxDepth,maxReplayWork=maxReplayWork };
+};
+LinalgGraphKind(value) ->
+    LinalgSpaceIs(value) ?: :vectorSpace
+    ?_ LinalgFrameIs(value) ?: :frame
+    ?_ LinalgTensorIs(value) ?: :tensorRepresentation
+    ?_ LinalgLinearMapIs(value) ?: :linearMap
+    ?_ LinalgMetricIs(value) ?: :metric
+    ?_ (value ? :Polynomial) ?: :polynomial
+    ?_ ((value ? :Map) && value[:schema]=="rix.linalg.polynomial-space@1") ?: :polynomialSpace
+    ?_ ((value ? :Map) && value[:schema]=="rix.linalg.linear-realization@1") ?: :linearRealization
+    ?_ ((value ? :Map) && value[:valuekind]==:tensorIdentity) ?: :tensorIdentity
+    ?_ .Error("Linear graph roots must be spaces, Frames, tensors, maps, metrics, Polynomials or finite realizations");
+LinalgGraphToken(value,kind) -> kind==:polynomial ?: value.sourceIdentity
+    ?_ kind==:tensorRepresentation ?: value[:representationtoken]
+    ?_ kind==:tensorIdentity ?: value[:token] ?_ value[:identitytoken];
+LinalgGraphRef(state,value) -> {;
+    value!=_ ?_> _;
+    kind=LinalgGraphKind(value); token=LinalgGraphToken(value,kind);
+    token!=_ ?_> .Error("Linear graph value is missing its runtime identity token");
+    found=state[:nodes].Filter((node)->node[:kind]==kind && node[:token]==token);
+    found.Len()==0 ?_> found[1][:id];
+    state[:nodes].Len()<state[:limits][:maxnodes] ?_> .Error("Linear graph node budget exceeded");
+    id=state[:nodes].Len()+1;
+    node={= id=id,kind=kind,token=token }; node.value=value;
+    state[:nodes]=state[:nodes].Push(node);
+    id;
+};
+LinalgGraphStorage(state,value) -> {;
+    storage=LinalgCoordinateStorage(value); entries=storage.Entries();
+    state[:components]+=entries.Len();
+    state[:components]<=state[:limits][:maxcomponents] ?_> .Error("Linear graph component budget exceeded");
+    {= schema="rix.coordinate-storage@1",kind=:denseShaped,scalarField="rix.scalar-field.rational@1",shape=storage.Shape().ToArray(),data=entries };
+};
+LinalgGraphTransform(state,value) -> {;
+    value!=_ ?_> _;
+    {= kind=value[:kind],
+       sources=value[:sources]==_ ?: [] ?_ value[:sources].Map((frame)->LinalgGraphRef(state,frame)),
+       targets=value[:targets]==_ ?: [] ?_ value[:targets].Map((frame)->LinalgGraphRef(state,frame)),
+       matrices=value[:matrices]==_ ?: [] ?_ value[:matrices].Map((matrix)->LinalgGraphStorage(state,matrix)),
+       order=value[:order],axis=value[:axis],axes=value[:axes],terms=value[:terms],metricId=LinalgGraphRef(state,value[:metric]) };
+};
+LinalgGraphRecord(state,node) -> {;
+    value=node.value; kind=node[:kind]; id=node[:id];
+    {? kind==:tensorIdentity ? {=
+           schema="rix.linalg.identity-record@1",valueKind=:linalgIdentityRecord,kind=kind,id=id,
+           lineageLimit=value[:lineagelimit],origin=LinalgGraphRef(state,value[:origin]),
+           representations=value[:representations].Map((item)->LinalgGraphRef(state,item))
+       };
+       kind==:polynomial ? {=
+           schema="rix.linalg.identity-record@1",valueKind=:linalgIdentityRecord,kind=kind,id=id,
+           variable=value.Variable(),coefficients=value.AscendingCoefficients(),degreeBound=value.degreeBound,
+           capturedReactive=value.reactive==1 ?: 1 ?_ _
+       };
+       kind==:vectorSpace ? LinalgSerialize(value).Merge({=
+           id=id,dualOf=LinalgGraphRef(state,value.primalSpace),
+           definingFrameId=LinalgGraphRef(state,value.definingFrame),lineageLimit=value[:lineagelimit]
+       });
+       kind==:frame ? LinalgSerialize(value).Merge({=
+           id=id,spaceId=LinalgGraphRef(state,value.space),
+           basis=LinalgGraphStorage(state,value[:basis]),localBasis=LinalgGraphStorage(state,value[:localbasis]),
+           relativeToId=LinalgGraphRef(state,value[:relativeto]),primalFrameId=LinalgGraphRef(state,value[:primalframe]),
+           dualBasis=value[:dualbasis]==_ ?: _ ?_ LinalgGraphStorage(state,value[:dualbasis]),
+           canonicalDual=value[:canonicaldual],metadata=value[:metadata]
+       });
+       kind==:tensorRepresentation ? LinalgSerialize(value).Merge({=
+           id=id,representationId=id,tensorId=LinalgGraphRef(state,value.identity),
+           components=LinalgGraphStorage(state,value[:components]),
+           slots=value[:slots].Map((slot)->{= spaceId=LinalgGraphRef(state,slot.frame.space),frameId=LinalgGraphRef(state,slot.frame),dual=slot[:dual] }),
+           equivalentTo=LinalgGraphRef(state,value[:equivalentto]),viewOf=LinalgGraphRef(state,value[:viewof]),
+           derivedFrom=value[:derivedfrom].Map((item)->LinalgGraphRef(state,item)),
+           transform=LinalgGraphTransform(state,value[:transform])
+       });
+       kind==:linearMap ? LinalgSerialize(value).Merge({=
+           id=id,domainId=LinalgGraphRef(state,value[:sourceframe].space),codomainId=LinalgGraphRef(state,value[:targetframe].space),
+           sourceFrameId=LinalgGraphRef(state,value[:sourceframe]),targetFrameId=LinalgGraphRef(state,value[:targetframe]),
+           matrix=LinalgGraphStorage(state,value[:matrix]),provenance=value[:provenance]
+       });
+       kind==:metric ? LinalgSerialize(value).Merge({=
+           id=id,spaceId=LinalgGraphRef(state,value[:frame].space),frameId=LinalgGraphRef(state,value[:frame]),
+           components=LinalgGraphStorage(state,value[:components])
+       });
+       kind==:polynomialSpace ? LinalgSerialize(value).Merge({=
+           id=id,spaceId=LinalgGraphRef(state,value[:frame].space),frameId=LinalgGraphRef(state,value[:frame])
+       });
+       kind==:linearRealization ? LinalgGraphRealizationRecord(state,value,id);
+    };
+};
+LinalgGraphRealizationRecord(state,value,id) -> {;
+    (LinalgPolynomialReconstruct(value[:realization],value[:vector])==value[:domain])==1
+      ?_> .Error("Linear realization snapshot is stale; realize its current Polynomial source before exporting");
+    LinalgSerialize(value).Omit(["vector"]).Merge({=
+           id=id,adapterId=LinalgGraphRef(state,value[:realization]),sourceId=LinalgGraphRef(state,value[:domain]),
+           vectorId=LinalgGraphRef(state,value[:vector])
+    });
+};
+LinalgExportGraph(values,options ?= {= }) -> {;
+    roots=values ? :Array ?: values ?_ [values];
+    limits=LinalgGraphLimits(options);
+    state={= nodes=[],limits=limits,components=0 };state._mutable=1;
+    references=roots.Map((value)->LinalgGraphRef(state,value)); records:=[];
+    {@ index=1; index<=@state[:nodes].Len(); {;
+        @records ~= @records.Push(LinalgGraphRecord(@state,@state[:nodes][index]));
+    }; index+=1 };
+    graph={= schema="rix.linalg.identity-graph@1",scalarField="rix.scalar-field.rational@1",roots=references,records=records.Map((record)->LinalgGraphCompleteSpace(record,records)) };
+    ### Materializing tagged data strips live extension methods and rejects callable payloads.
+    inert=.MathDecodeJSON(.MathEncodeJSON(graph));
+    LinalgGraphValidate(inert,limits);
+    .ImmutableValue(inert);
+};
+
+LinalgGraphCompleteSpace(record,records) -> {;
+    record[:kind]==:vectorSpace ?_> record;
+    frames=records.Filter((other)->other[:kind]==:frame && other[:spaceid]==record[:id] && other[:defining]!=_);
+    frames.Len()<=1 ?_> .Error("Linear graph contains conflicting defining Frames");
+    record.Merge({= definingFrameId=frames.Len()==0 ?: record[:definingframeid] ?_ frames[1][:id] });
+};
+
+LinalgGraphKeys(value,keys) -> {;
+    value ? :Map ?_> .Error("Linear graph records must be Maps");
+    value.Keys().Len()==keys.Len() && keys.All((key)->value.Has(key))
+      ?_> .Error(@"Linear graph record has missing or unexpected fields: expected @{keys}, received @{value.Keys()}");
+    value;
+};
+LinalgGraphArray(value,label) -> {;
+    value ? :Array ?_> .Error(@"Linear graph @{label} must be an Array"); value;
+};
+LinalgGraphInteger(value,low,high,label) -> {;
+    (value ? :Integer) && value>=low && value<=high ?_> .Error(@"Invalid linear graph @{label}"); value;
+};
+LinalgGraphBool(value,label) -> {;
+    (value==_ || ((value ? :Integer) && value==1)) ?_> .Error(@"Invalid linear graph @{label} flag"); value;
+};
+LinalgGraphAt(state,id,kinds ?= _) -> {;
+    LinalgGraphInteger(id,1,state[:records].Len(),"reference"); record=state[:records][id];
+    (kinds==_ || kinds.Includes(record[:kind])) ?_> .Error("Linear graph reference has an incompatible record kind");
+    record;
+};
+LinalgGraphOptional(state,id,kinds) -> id==_ ?: _ ?_ LinalgGraphAt(state,id,kinds);
+LinalgGraphCoordinateKey(id,field) -> @"@{id}:@{field}";
+LinalgGraphCoordinates(state,id,field) -> state[:storage][LinalgGraphCoordinateKey(id,field)];
+LinalgGraphValidateStorage(state,id,field,value) -> {;
+    LinalgGraphKeys(value,["schema","kind","scalarfield","shape","data"]);
+    value[:schema]=="rix.coordinate-storage@1" && value[:kind]==:denseShaped && value[:scalarfield]=="rix.scalar-field.rational@1"
+      ?_> .Error("Linear graph requires the finite Rational coordinate-storage protocol");
+    shape=LinalgGraphArray(value[:shape],"shape"); data=LinalgGraphArray(value[:data],"coordinate data");
+    shape.Len()>=1 && shape.Len()<=32 ?_> .Error("Linear graph coordinate rank must be one through 32");
+    shape=shape.Map((dimension)->LinalgGraphInteger(dimension,1,256,"axis dimension"));
+    size:=1; {@ axis=1;axis<=@shape.Len();{; @size *= @shape[axis]; };axis+=1 };
+    size==data.Len() ?_> .Error("Linear graph coordinate shape and component count conflict");
+    state[:components]+=size;
+    state[:components]<=state[:limits][:maxcomponents] ?_> .Error("Linear graph component budget exceeded");
+    exact=data.Map((entry)->LinalgExact(entry,"Linear graph component"));
+    storage=LinalgShapedFromFlat(exact,shape);
+    state[:storage][LinalgGraphCoordinateKey(id,field)]=storage;
+    storage;
+};
+LinalgGraphMatrix(state,id,field,value,rows,columns) -> {;
+    storage=LinalgGraphValidateStorage(state,id,field,value); shape=storage.Shape();
+    shape.Len()==2 && shape[1]==rows && shape[2]==columns ?_> .Error("Linear graph matrix dimensions conflict with its spaces");
+    storage;
+};
+LinalgGraphVariable(value) -> {;
+    variable=.ExpressionVariableSelector(_,value);
+    (!(variable ? :String) || (variable.Len()>=1 && variable.Len()<=256)) ?_> .Error("Linear graph variable name is empty or excessive");
+    variable;
+};
+LinalgGraphValidateSpace(state,record) -> {;
+    LinalgGraphKeys(record,["schema","valuekind","kind","id","name","dimension","over","dualof","metadata","definingframeid","lineagelimit"]);
+    LinalgGraphInteger(record[:dimension],1,256,"space dimension");
+    LinalgGraphInteger(record[:lineagelimit],1,1024,"lineage limit");
+    record[:over]==:Rational ?_> .Error("Linear graph space must use the Rational scalar field");
+    (record[:name] ? :String) && record[:name].Len()<=1024 ?_> .Error("Invalid linear graph space name");
+    defining=LinalgGraphOptional(state,record[:definingframeid],[:frame]);
+    (defining==_ || (defining[:spaceid]==record[:id] && defining[:defining]==1)) ?_> .Error("Linear graph defining Frame conflicts with its space");
+    primal=LinalgGraphOptional(state,record[:dualof],[:vectorSpace]);
+    (primal==_ || (primal[:dimension]==record[:dimension] && primal[:over]==record[:over])) ?_> .Error("Linear graph dual space has a conflicting dimension or domain");
+    (primal==_ || state[:records].Filter((other)->other[:kind]==:vectorSpace && other[:dualof]==record[:dualof]).Len()==1)
+      ?_> .Error("Linear graph declares conflicting canonical dual spaces");
+    record;
+};
+LinalgGraphValidateFrame(state,record) -> {;
+    LinalgGraphKeys(record,["schema","valuekind","kind","id","spaceid","name","basis","defining","dualframe","primalframeid","dualbasis","localbasis","relativetoid","canonicaldual","metadata"]);
+    space=LinalgGraphAt(state,record[:spaceid],[:vectorSpace]); dimension=space[:dimension];
+    LinalgGraphBool(record[:defining],"defining Frame"); LinalgGraphBool(record[:dualframe],"dual Frame"); LinalgGraphBool(record[:canonicaldual],"canonical dual Frame");
+    (record[:name] ? :String) && record[:name].Len()<=1024 ?_> .Error("Invalid linear graph Frame name");
+    basis=LinalgGraphMatrix(state,record[:id],"basis",record[:basis],dimension,dimension);
+    local=LinalgGraphMatrix(state,record[:id],"localbasis",record[:localbasis],dimension,dimension);
+    LinalgInverseRows(LinalgMatrixRows(basis));
+    relative=LinalgGraphOptional(state,record[:relativetoid],[:frame]);
+    (record[:defining]!=_ ?: (relative==_ && space[:definingframeid]==record[:id] && LinalgRowsEqual(LinalgMatrixRows(basis),LinalgIdentityRows(dimension)) && local==basis)
+      ?_ (relative!=_ && relative[:spaceid]==record[:spaceid])) ?_> .Error("Linear graph Frame basis declaration is inconsistent");
+    primal=LinalgGraphOptional(state,record[:primalframeid],[:frame]);
+    (record[:dualframe]!=_ ?: (primal!=_ && primal[:spaceid]==record[:spaceid] && primal[:dualframe]==_ && record[:defining]==_)
+      ?_ (primal==_ && record[:dualbasis]==_ && record[:canonicaldual]==_)) ?_> .Error("Linear graph dual Frame has an invalid primal companion");
+    record[:dualframe]!=_ ?: LinalgGraphMatrix(state,record[:id],"dualbasis",record[:dualbasis],dimension,dimension) ?_ _;
+    (record[:canonicaldual]==_ || state[:records].Filter((other)->other[:kind]==:frame && other[:canonicaldual]!=_ && other[:primalframeid]==record[:primalframeid]).Len()==1)
+      ?_> .Error("Linear graph declares conflicting canonical dual Frames");
+    record;
+};
+LinalgGraphValidateIdentity(state,record) -> {;
+    LinalgGraphKeys(record,["schema","valuekind","kind","id","lineagelimit","origin","representations"]);
+    limit=LinalgGraphInteger(record[:lineagelimit],1,1024,"lineage limit");
+    reps=LinalgGraphArray(record[:representations],"representation history");
+    reps.Len()>=1 && reps.Len()<=limit+1 && reps[1]==record[:origin] ?_> .Error("Linear graph lineage must retain its origin within the configured bound");
+    origin=LinalgGraphAt(state,record[:origin],[:tensorRepresentation]);
+    origin[:tensorid]==record[:id] ?_> .Error("Linear graph origin belongs to a different tensor identity");
+    origin[:equivalentto]==_ ?_> .Error("Linear graph origin cannot have a preceding equivalent representation");
+    reps.All((id)->LinalgGraphAt(state,id,[:tensorRepresentation])[:tensorid]==record[:id] && reps.Filter((other)->other==id).Len()==1)
+      ?_> .Error("Linear graph lineage contains duplicate or foreign representations");
+    record;
+};
+LinalgGraphValidateTransform(state,id,value) -> {;
+    value!=_ ?_> _;
+    LinalgGraphKeys(value,["kind","sources","targets","matrices","order","axis","axes","terms","metricid"]);
+    [:coordinateChange,:fullExtentView,:slotPermutation,:lower,:raise,:symmetrize,:antisymmetrize,:tensorProduct,:contraction].Includes(value[:kind])
+      ?_> .Error("Linear graph has an unsupported transformation provenance kind");
+    LinalgGraphArray(value[:sources],"source Frames").Map((ref)->LinalgGraphAt(state,ref,[:frame]));
+    LinalgGraphArray(value[:targets],"target Frames").Map((ref)->LinalgGraphAt(state,ref,[:frame]));
+    LinalgGraphArray(value[:matrices],"transformation matrices").Map((matrix,index)->LinalgGraphValidateStorage(state,id,@"transform-@{index}",matrix));
+    LinalgGraphOptional(state,value[:metricid],[:metric]); value;
+};
+LinalgGraphValidateTensor(state,record) -> {;
+    LinalgGraphKeys(record,["schema","valuekind","kind","id","tensorid","representationid","type","components","slots","equivalentto","viewof","derivedfrom","transform"]);
+    record[:representationid]==record[:id] ?_> .Error("Linear graph representation ID is inconsistent");
+    identity=LinalgGraphAt(state,record[:tensorid],[:tensorIdentity]);
+    components=LinalgGraphValidateStorage(state,record[:id],"components",record[:components]);
+    slots=LinalgGraphArray(record[:slots],"slots"); slots.Len()==components.Shape().Len() ?_> .Error("Linear graph tensor rank and slots conflict");
+    slots.Map((slot,axis)->LinalgGraphValidateSlot(state,slot,components.Shape()[axis]));
+    expected=slots.Len()==1 ?: (slots[1][:dual]!=_ ?: "Covector" ?_ "Vector") ?_ "Tensor";
+    record[:type]==expected ?_> .Error("Linear graph tensor semantic type conflicts with its variance");
+    equivalent=LinalgGraphOptional(state,record[:equivalentto],[:tensorRepresentation]);
+    (equivalent==_ || equivalent[:tensorid]==record[:tensorid]) ?_> .Error("Linear graph equivalence links cross tensor identities");
+    LinalgGraphOptional(state,record[:viewof],[:tensorRepresentation,:polynomial]);
+    LinalgGraphArray(record[:derivedfrom],"derivation references").Map((ref)->LinalgGraphAt(state,ref,[:tensorRepresentation]));
+    identity[:lineagelimit]<=slots.Map((slot)->LinalgGraphAt(state,slot[:spaceid],[:vectorSpace])[:lineagelimit]).Sort()[1]
+      ?_> .Error("Linear graph lineage exceeds the slot-space retention limit");
+    LinalgGraphValidateTransform(state,record[:id],record[:transform]); record;
+};
+LinalgGraphValidateSlot(state,slot,dimension) -> {;
+    LinalgGraphKeys(slot,["spaceid","frameid","dual"]); LinalgGraphBool(slot[:dual],"slot variance");
+    space=LinalgGraphAt(state,slot[:spaceid],[:vectorSpace]); frame=LinalgGraphAt(state,slot[:frameid],[:frame]);
+    frame[:spaceid]==space[:id] && space[:dimension]==dimension ?_> .Error("Linear graph tensor slot has conflicting space, Frame or dimension"); slot;
+};
+LinalgGraphValidateMap(state,record) -> {;
+    LinalgGraphKeys(record,["schema","valuekind","kind","id","name","domainid","codomainid","sourceframeid","targetframeid","matrix","provenance"]);
+    (record[:name] ? :String) && record[:name].Len()<=1024 ?_> .Error("Invalid linear graph map name");
+    domain=LinalgGraphAt(state,record[:domainid],[:vectorSpace]); codomain=LinalgGraphAt(state,record[:codomainid],[:vectorSpace]);
+    source=LinalgGraphAt(state,record[:sourceframeid],[:frame]); target=LinalgGraphAt(state,record[:targetframeid],[:frame]);
+    source[:spaceid]==domain[:id] && target[:spaceid]==codomain[:id] && source[:dualframe]==_ && target[:dualframe]==_
+      ?_> .Error("Linear graph map Frames conflict with its domain or codomain");
+    LinalgGraphMatrix(state,record[:id],"matrix",record[:matrix],codomain[:dimension],domain[:dimension]); record;
+};
+LinalgGraphValidateMetric(state,record) -> {;
+    LinalgGraphKeys(record,["schema","valuekind","kind","id","spaceid","frameid","components","positivedefinite","metadata"]);
+    space=LinalgGraphAt(state,record[:spaceid],[:vectorSpace]); frame=LinalgGraphAt(state,record[:frameid],[:frame]);
+    frame[:spaceid]==space[:id] && frame[:dualframe]==_ ?_> .Error("Linear graph metric Frame conflicts with its space");
+    LinalgGraphBool(record[:positivedefinite],"metric definiteness");
+    LinalgGraphMatrix(state,record[:id],"components",record[:components],space[:dimension],space[:dimension]); record;
+};
+LinalgGraphValidatePolynomial(state,record) -> {;
+    LinalgGraphKeys(record,["schema","valuekind","kind","id","variable","coefficients","degreebound","capturedreactive"]);
+    LinalgGraphVariable(record[:variable]); LinalgGraphBool(record[:capturedreactive],"captured reactivity");
+    coefficients=LinalgGraphArray(record[:coefficients],"Polynomial coefficients");
+    coefficients.Len()>=1 && coefficients.Len()<=256 ?_> .Error("Linear graph Polynomial coefficient budget exceeded");
+    state[:components]+=coefficients.Len();
+    state[:components]<=state[:limits][:maxcomponents] ?_> .Error("Linear graph component budget exceeded");
+    coefficients.Map((entry)->LinalgExact(entry,"Polynomial coefficient"));
+    (coefficients.Len()==1 || coefficients.Last()!=0) ?_> .Error("Linear graph Polynomial coefficients must be canonical ascending coefficients");
+    LinalgGraphInteger(record[:degreebound],0,255,"Polynomial degree bound");
+    record[:degreebound]>=coefficients.Len()-1 ?_> .Error("Linear graph Polynomial degree bound conflicts with its coefficients"); record;
+};
+LinalgGraphValidatePolynomialSpace(state,record) -> {;
+    LinalgGraphKeys(record,["schema","valuekind","kind","id","adapter","spaceid","frameid","maxdegree","variable"]);
+    record[:adapter]=="rix.linalg.polynomial-space@1" ?_> .Error("Unsupported linear graph realization adapter");
+    LinalgGraphVariable(record[:variable]); LinalgGraphInteger(record[:maxdegree],0,255,"PolynomialSpace degree bound");
+    space=LinalgGraphAt(state,record[:spaceid],[:vectorSpace]); frame=LinalgGraphAt(state,record[:frameid],[:frame]);
+    space[:dimension]==record[:maxdegree]+1 && frame[:spaceid]==space[:id] && frame[:defining]==1 && frame[:dualframe]==_
+      ?_> .Error("Linear graph PolynomialSpace requires its matching finite monomial Frame"); record;
+};
+LinalgGraphValidateRealization(state,record) -> {;
+    LinalgGraphKeys(record,["schema","valuekind","kind","id","adapter","domaintype","exact","adapterid","sourceid","vectorid"]);
+    record[:adapter]=="rix.linalg.polynomial-space@1" && record[:domaintype]=="Polynomial" && record[:exact]==1
+      ?_> .Error("Linear graph realization has an unsupported source domain");
+    adapter=LinalgGraphAt(state,record[:adapterid],[:polynomialSpace]); source=LinalgGraphAt(state,record[:sourceid],[:polynomial]);
+    vector=LinalgGraphAt(state,record[:vectorid],[:tensorRepresentation]);
+    vector[:type]=="Vector" && vector[:slots][1][:spaceid]==adapter[:spaceid] && LinalgPolynomialVariableEqual(source[:variable],adapter[:variable])
+      ?_> .Error("Linear graph realization source, variable or ambient space conflicts"); record;
+};
+LinalgGraphEdges(record) -> {;
+    kind=record[:kind];
+    edges=kind==:vectorSpace ?: [record[:dualof]]
+      ?_ kind==:frame ?: [record[:relativetoid],record[:primalframeid]]
+      ?_ kind==:tensorRepresentation ?: [record[:equivalentto],record[:viewof]].Concat(record[:derivedfrom])
+      ?_ kind==:linearRealization ?: [record[:adapterid],record[:sourceid],record[:vectorid]] ?_ [];
+    edges.Filter((id)->id!=_);
+};
+LinalgGraphVisit(state,id,depth) -> {;
+    depth<=state[:limits][:maxdepth] ?_> .Error("Linear graph depth budget exceeded");
+    key=@"@{id}"; status=state[:visited][key];
+    status!=1 ?_> .Error("Linear graph contains cyclic lineage or primal/dual Frame dependencies");
+    status!=2 ?_> LinalgGraphKnownDepth(state,key,depth);
+    state[:visited][key]=1;
+    heights=LinalgGraphEdges(state[:records][id]).Map((reference)->LinalgGraphVisit(state,reference,depth+1));
+    height=heights.Len()==0 ?: 1 ?_ heights.Sort().Last()+1;
+    state[:heights][key]=height; state[:visited][key]=2;
+    LinalgGraphKnownDepth(state,key,depth);
+};
+LinalgGraphKnownDepth(state,key,depth) -> {;
+    height=state[:heights][key];
+    depth+height-1<=state[:limits][:maxdepth] ?_> .Error("Linear graph depth budget exceeded"); height;
+};
+LinalgGraphTransformLaw(state,record) -> {;
+    (record[:kind]==:tensorRepresentation && record[:transform]!=_) ?_> _;
+    transform=record[:transform]; kind=transform[:kind]; rank=record[:slots].Len();
+    coordinate=kind==:coordinateChange;
+    count=coordinate ?: rank ?_ 0;
+    transform[:sources].Len()==count && transform[:targets].Len()==count && transform[:matrices].Len()==count
+      ?_> .Error("Linear graph transform Frame and matrix counts are inconsistent");
+    (kind==:slotPermutation ?: LinalgGraphAxisOrder(transform[:order],rank) ?_ transform[:order]==_)
+      ?_> .Error("Linear graph permutation provenance is invalid");
+    (kind==:lower || kind==:raise) ?: LinalgGraphInteger(transform[:axis],1,rank,"metric axis") ?_ _;
+    (kind==:lower || kind==:raise || transform[:axis]==_) ?_> .Error("Unexpected linear graph metric axis");
+    ((kind==:lower || kind==:raise) ?: transform[:metricid]!=_ ?_ transform[:metricid]==_)
+      ?_> .Error("Linear graph metric provenance is invalid");
+    LinalgGraphTransformAxes(state,record);
+    LinalgGraphTransformLineage(state,record);
+    coordinate ?_> 1;
+    record[:slots].Map((slot,axis)->LinalgGraphTransformMatrix(state,record,slot,axis));
+    1;
+};
+LinalgGraphTransformLineage(state,record) -> {;
+    kind=record[:transform][:kind];
+    derived=record[:derivedfrom];
+    (kind==:coordinateChange || kind==:fullExtentView) ?_> LinalgGraphDerivedCount(kind,derived);
+    kind==:fullExtentView ?_> 1;
+    source=LinalgGraphAt(state,record[:viewof],[:tensorRepresentation]);
+    source[:tensorid]==record[:tensorid] && source[:slots].Len()==record[:slots].Len()
+      && source[:slots].All((slot,axis)->slot[:frameid]==record[:slots][axis][:frameid] && slot[:dual]==record[:slots][axis][:dual])
+      ?_> .Error("Linear graph full view must retain its source identity and Frames"); 1;
+};
+LinalgGraphDerivedCount(kind,derived) -> {;
+    count=kind==:tensorProduct ?: 2 ?_ 1;
+    derived.Len()==count ?_> .Error("Linear graph transformation has an invalid derivation lineage"); 1;
+};
+LinalgGraphAxisOrder(order,rank) -> {;
+    LinalgGraphArray(order,"axis permutation");
+    order.Len()==rank && order.All((axis)->(axis ? :Integer) && axis>=1 && axis<=rank && order.Filter((other)->other==axis).Len()==1);
+};
+LinalgGraphTransformAxes(state,record) -> {;
+    transform=record[:transform]; kind=transform[:kind];
+    symmetry=kind==:symmetrize || kind==:antisymmetrize; contraction=kind==:contraction;
+    (symmetry || contraction) ?_> (transform[:axes]==_ && transform[:terms]==_ ?_> .Error("Unexpected linear graph transform axes or term count"));
+    axes=LinalgGraphArray(transform[:axes],"transformation axes");
+    rank=contraction ?: record[:slots].Len()+2 ?_ record[:slots].Len();
+    (contraction ?: axes.Len()==2 ?_ axes.Len()>=1 && axes.Len()<=6)
+      ?_> .Error("Invalid linear graph transformation axes");
+    axes.All((axis)->(axis ? :Integer) && axis>=1 && axis<=rank && axes.Filter((other)->other==axis).Len()==1)
+      ?_> .Error("Invalid linear graph transformation axes");
+    terms:=1; {@ index=1;index<=@axes.Len();{; @terms *= index; };index+=1 };
+    (symmetry ?: transform[:terms]==terms ?_ transform[:terms]==_) ?_> .Error("Invalid linear graph symmetry term count");
+    1;
+};
+LinalgGraphTransformMatrix(state,record,slot,axis) -> {;
+    transform=record[:transform];
+    source=LinalgGraphAt(state,transform[:sources][axis],[:frame]); target=LinalgGraphAt(state,transform[:targets][axis],[:frame]);
+    source[:spaceid]==slot[:spaceid] && target[:id]==slot[:frameid]
+      ?_> .Error("Linear graph transformation Frames conflict with its slots");
+    change=LinalgMultiplyRows(LinalgInverseRows(LinalgMatrixRows(LinalgGraphCoordinates(state,target[:id],"basis"))),
+      LinalgMatrixRows(LinalgGraphCoordinates(state,source[:id],"basis")));
+    applied=slot[:dual] ?: LinalgInverseRows(LinalgTransposeRows(change)) ?_ change;
+    actual=LinalgMatrixRows(LinalgGraphCoordinates(state,record[:id],@"transform-@{axis}"));
+    LinalgRowsEqual(actual,applied) ?_> .Error("Linear graph transformation matrix violates its Frame change law");
+    equivalent=LinalgGraphOptional(state,record[:equivalentto],[:tensorRepresentation]);
+    (equivalent==_ || equivalent[:slots][axis][:frameid]==source[:id])
+      ?_> .Error("Linear graph transformation source conflicts with its preceding representation"); 1;
+};
+LinalgGraphValidate(graph,limits) -> {;
+    LinalgGraphKeys(graph,["schema","scalarfield","roots","records"]);
+    graph[:schema]=="rix.linalg.identity-graph@1" && graph[:scalarfield]=="rix.scalar-field.rational@1"
+      ?_> .Error("Unsupported linear identity graph or scalar-field version");
+    records=LinalgGraphArray(graph[:records],"records"); roots=LinalgGraphArray(graph[:roots],"roots");
+    records.Len()>=1 && records.Len()<=limits[:maxnodes] && roots.Len()>=1 && roots.Len()<=limits[:maxnodes]
+      ?_> .Error("Linear graph node/root budget exceeded or empty document");
+    records.Map((record,index)->LinalgGraphRecordHeader(record,index));
+    state={= records=records,limits=limits,components=0,storage={= },visited={= },heights={= } }; state._mutable=1;
+    records.Map((record)->LinalgGraphValidateRecord(state,record));
+    records.Map((record)->LinalgGraphTransformLaw(state,record));
+    roots.Map((id)->LinalgGraphAt(state,id,[:vectorSpace,:frame,:tensorRepresentation,:linearMap,:metric,:polynomialSpace,:polynomial,:linearRealization]));
+    records.Map((record)->LinalgGraphVisit(state,record[:id],1));
+    state;
+};
+LinalgGraphRecordHeader(record,index) -> {;
+    record ? :Map ?_> .Error("Linear graph record must be a Map");
+    record[:schema]=="rix.linalg.identity-record@1" && record[:valuekind]==:linalgIdentityRecord && (record[:id] ? :Integer) && record[:id]==index
+      ?_> .Error("Linear graph has invalid, duplicate or noncanonical record IDs");
+    [:vectorSpace,:frame,:tensorIdentity,:tensorRepresentation,:linearMap,:metric,:polynomialSpace,:polynomial,:linearRealization].Includes(record[:kind])
+      ?_> .Error("Unknown linear graph record kind"); record;
+};
+LinalgGraphValidateRecord(state,record) -> {;
+    kind=record[:kind];
+    kind==:vectorSpace ?: LinalgGraphValidateSpace(state,record)
+      ?_ kind==:frame ?: LinalgGraphValidateFrame(state,record)
+      ?_ kind==:tensorIdentity ?: LinalgGraphValidateIdentity(state,record)
+      ?_ kind==:tensorRepresentation ?: LinalgGraphValidateTensor(state,record)
+      ?_ kind==:linearMap ?: LinalgGraphValidateMap(state,record)
+      ?_ kind==:metric ?: LinalgGraphValidateMetric(state,record)
+      ?_ kind==:polynomialSpace ?: LinalgGraphValidatePolynomialSpace(state,record)
+      ?_ kind==:polynomial ?: LinalgGraphValidatePolynomial(state,record)
+      ?_ LinalgGraphValidateRealization(state,record);
+};
+
+LinalgGraphBuilt(state,id) -> id==_ ?: _ ?_ state[:values][id].value;
+LinalgGraphStore(state,record,value) -> {;
+    holder={= };holder.value=value;
+    state[:values]=state[:values].Set(record[:id],holder); value;
+};
+LinalgGraphBuildInitial(state,record) -> {;
+    kind=record[:kind];
+    value=kind==:vectorSpace ?: LinalgVectorSpace({= name=record[:name],dimension=record[:dimension],over=:Rational,lineageLimit=record[:lineagelimit],metadata=record[:metadata] })
+      ?_ kind==:polynomial ?: .poly.Polynomial({= coefficients=record[:coefficients],order=:ascending,variable=record[:variable],degreeBound=record[:degreebound] })
+      ?_ kind==:tensorIdentity ?: {= valueKind=:tensorIdentity,token=LinalgNewIdentity(),key=LinalgNextIdentity(:tensor),origin=_,representations=[],lineageLimit=record[:lineagelimit] }
+      ?_ _;
+    value==_ ?: _ ?_ LinalgGraphStore(state,record,value);
+};
+LinalgGraphBuildFrame(state,record) -> {;
+    LinalgGraphBuilt(state,record[:id])==_ ?_> 1;
+    relative=LinalgGraphBuilt(state,record[:relativetoid]); primal=LinalgGraphBuilt(state,record[:primalframeid]);
+    (record[:relativetoid]==_ || relative!=_) && (record[:primalframeid]==_ || primal!=_) ?_> _;
+    space=LinalgGraphBuilt(state,record[:spaceid]);
+    value=LinalgFrame(space,{= name=record[:name],relativeTo=relative,
+        basis=record[:defining]!=_ ?: :defining ?_ LinalgGraphCoordinates(state,record[:id],"localbasis"),metadata=record[:metadata] });
+    LinalgRowsEqual(LinalgMatrixRows(value[:basis]),LinalgMatrixRows(LinalgGraphCoordinates(state,record[:id],"basis")))
+      ?_> .Error("Linear graph absolute and relative Frame bases conflict");
+    LinalgGraphRestoreDualFrame(state,record,value,primal);
+    LinalgGraphStore(state,record,value);
+};
+LinalgGraphRestoreDualFrame(state,record,value,primal) -> {;
+    record[:dualframe]!=_ ?_> value;
+    LinalgRowsEqual(LinalgMatrixRows(value[:basis]),LinalgMatrixRows(primal[:basis])) ?_> .Error("Linear graph dual Frame does not match its primal companion");
+    dualBasis=LinalgGraphCoordinates(state,record[:id],"dualbasis");
+    LinalgRowsEqual(LinalgMatrixRows(dualBasis),LinalgInverseRows(LinalgTransposeRows(LinalgMatrixRows(primal[:basis]))))
+      ?_> .Error("Linear graph dual basis violates the inverse-transpose law");
+    value[:dualframe]=1; value[:primalframe]=primal; value[:dualbasis]=dualBasis ~!: :Matrix; value[:canonicaldual]=record[:canonicaldual];
+    value.dualFrame=1; value.primalFrame=primal; value.dualBasis=value[:dualbasis]; value;
+};
+LinalgGraphBuildFrames(state) -> {;
+    frames=state[:records].Filter((record)->record[:kind]==:frame); remaining:=frames.Len();
+    {@ pass=1; @remaining>0 && pass<=@frames.Len(); {;
+        before:=@remaining; active=@state;
+        @frames.Map((record)->LinalgGraphBuildFrame(active,record));
+        @remaining ~= @frames.Filter((record)->LinalgGraphBuilt(active,record[:id])==_).Len();
+        @remaining<before ?_> .Error("Linear graph contains cyclic or unresolved Frame dependencies");
+    }; pass+=1 };
+    remaining==0 ?_> .Error("Linear graph Frame reconstruction did not complete"); state;
+};
+LinalgGraphBuildAlgebra(state,record) -> {;
+    kind=record[:kind];
+    value=kind==:linearMap ?: LinalgLinearMap(LinalgGraphBuilt(state,record[:domainid]),LinalgGraphBuilt(state,record[:codomainid]),LinalgGraphCoordinates(state,record[:id],"matrix"),{=
+        name=record[:name],sourceFrame=LinalgGraphBuilt(state,record[:sourceframeid]),targetFrame=LinalgGraphBuilt(state,record[:targetframeid]),provenance=record[:provenance] })
+      ?_ kind==:metric ?: LinalgMetric(LinalgGraphBuilt(state,record[:frameid]),LinalgGraphCoordinates(state,record[:id],"components"),{= metadata=record[:metadata] })
+      ?_ kind==:polynomialSpace ?: LinalgPolynomialSpaceValue(LinalgGraphBuilt(state,record[:spaceid]),LinalgGraphBuilt(state,record[:frameid]),record[:maxdegree],record[:variable])
+      ?_ _;
+    (kind!=:metric || value[:positivedefinite]==record[:positivedefinite]) ?_> .Error("Linear graph metric definiteness evidence is incorrect");
+    value==_ ?: _ ?_ LinalgGraphStore(state,record,value);
+};
+LinalgGraphBuildTensor(state,record) -> {;
+    record[:kind]==:tensorRepresentation ?_> _;
+    identity=LinalgGraphBuilt(state,record[:tensorid]);
+    slots=record[:slots].Map((slot)->LinalgSlot(LinalgGraphBuilt(state,slot[:frameid]),slot[:dual]));
+    lineage={= identity=identity,identityKey=identity[:key],deferHistory=1 };lineage.identity=identity;
+    value=LinalgTensorValue(LinalgGraphCoordinates(state,record[:id],"components"),slots,lineage);
+    LinalgGraphStore(state,record,value);
+};
+### Replay typed derivations once per record; untagged links are ancestry only.
+LinalgGraphReplaySource(state,id) -> {;
+    source=LinalgGraphBuilt(state,id);
+    LinalgTensorValue(source[:components],source[:slots]);
+};
+LinalgGraphReplay(state,record) -> {;
+    (record[:kind]==:tensorRepresentation && record[:transform]!=_) ?_> _;
+    transform=record[:transform]; kind=transform[:kind];
+    (kind!=:coordinateChange && kind!=:fullExtentView) ?_> 1;
+    sources=record[:derivedfrom].Map((id)->LinalgGraphBuilt(state,id));
+    target=LinalgGraphBuilt(state,record[:id]);
+    LinalgGraphReplayBudget(state,record,sources,target);
+    left=LinalgGraphReplaySource(state,record[:derivedfrom][1]);
+    result=kind==:tensorProduct ?: LinalgTensorProductValues(left,LinalgGraphReplaySource(state,record[:derivedfrom][2]))
+      ?_ kind==:slotPermutation ?: LinalgPermute(left,transform[:order])
+      ?_ (kind==:lower || kind==:raise) ?: LinalgMetricIndex(left,LinalgGraphBuilt(state,transform[:metricid]),transform[:axis],kind)
+      ?_ kind==:contraction ?: LinalgContract(left,transform[:axes][1],transform[:axes][2])
+      ?_ LinalgSymmetry(left,transform[:axes],kind==:antisymmetrize);
+    LinalgTensorEqual(result,target) ?_> .Error(@"Linear graph @{kind} derivation does not reproduce its declared tensor");
+    1;
+};
+LinalgGraphReplayBudget(state,record,sources,target) -> {;
+    kind=record[:transform][:kind]; first=sources[1]; sourceSize=first[:components].Size(); sourceRank=first[:slots].Len();
+    resultRank=kind==:tensorProduct ?: sourceRank+sources[2][:slots].Len()
+      ?_ kind==:contraction ?: sourceRank-2 ?_ sourceRank;
+    resultRank==target[:slots].Len() ?_> .Error("Linear graph derivation source rank conflicts with its result");
+    expected=kind==:tensorProduct ?: sourceSize*sources[2][:components].Size()
+      ?_ kind==:contraction ?: sourceSize/(first[:components].Shape()[record[:transform][:axes][1]]*first[:components].Shape()[record[:transform][:axes][2]])
+      ?_ sourceSize;
+    expected==target[:components].Size() && expected<=state[:limits][:maxcomponents]
+      ?_> .Error("Linear graph derivation result exceeds its component budget or conflicts with its shape");
+    terms=record[:transform][:terms]==_ ?: 1 ?_ record[:transform][:terms];
+    dimension=first[:components].Shape().ToArray().Concat(target[:components].Shape().ToArray()).Sort().Last();
+    work=terms*(sourceSize*sourceRank*dimension+expected*resultRank*dimension+2*resultRank*dimension^3);
+    state[:replaywork]+=work;
+    state[:replaywork]<=state[:limits][:maxreplaywork] ?_> .Error("Linear graph derivation replay work budget exceeded");
+    1;
+};
+LinalgGraphRestoreTransform(state,id,value) -> {;
+    value!=_ ?_> _;
+    {= kind=value[:kind],sources=value[:sources].Map((ref)->LinalgGraphBuilt(state,ref)),targets=value[:targets].Map((ref)->LinalgGraphBuilt(state,ref)),
+       matrices=value[:matrices].Map((matrix,index)->LinalgGraphCoordinates(state,id,@"transform-@{index}")),
+       order=value[:order],axis=value[:axis],axes=value[:axes],terms=value[:terms],metric=LinalgGraphBuilt(state,value[:metricid]) };
+};
+LinalgGraphRestoreTensorLinks(state,record) -> {;
+    record[:kind]==:tensorRepresentation ?_> _;
+    value=LinalgGraphBuilt(state,record[:id]); identity=LinalgGraphBuilt(state,record[:tensorid]);
+    originRecord=LinalgGraphAt(state,record[:tensorid],[:tensorIdentity]); origin=LinalgGraphBuilt(state,originRecord[:origin]);
+    LinalgTensorEqual(value,origin) ?_> .Error("Linear graph gives inconsistent coordinates to one tensor identity");
+    value[:equivalentto]=LinalgGraphBuilt(state,record[:equivalentto]); value[:viewof]=LinalgGraphBuilt(state,record[:viewof]);
+    value[:derivedfrom]=record[:derivedfrom].Map((ref)->LinalgGraphBuilt(state,ref));
+    value[:transform]=LinalgGraphRestoreTransform(state,record[:id],record[:transform]); value[:origin]=origin;
+    value[:identity]=identity; LinalgSyncTensor(value);value.identity=identity;value.viewOf=value[:viewof];value;
+};
+LinalgGraphRestoreHistory(state,record) -> {;
+    record[:kind]==:tensorIdentity ?_> _;
+    identity=LinalgGraphBuilt(state,record[:id]);
+    identity[:origin]=LinalgGraphBuilt(state,record[:origin]); identity[:representations]=record[:representations].Map((ref)->LinalgGraphBuilt(state,ref));
+    state[:records].Filter((other)->other[:kind]==:tensorRepresentation && other[:tensorid]==record[:id])
+      .Map((other)->LinalgGraphAttachIdentity(LinalgGraphBuilt(state,other[:id]),identity)); identity;
+};
+LinalgGraphAttachIdentity(value,identity) -> {;
+    value[:identity]=identity;value.identity=identity;value;
+};
+LinalgGraphBuildRealization(state,record) -> {;
+    record[:kind]==:linearRealization ?_> _;
+    adapter=LinalgGraphBuilt(state,record[:adapterid]); source=LinalgGraphBuilt(state,record[:sourceid]); vector=LinalgGraphBuilt(state,record[:vectorid]);
+    (LinalgPolynomialReconstruct(adapter,vector)==source)==1 ?_> .Error("Linear graph realization coordinates do not reconstruct its Polynomial source");
+    LinalgSameSource(vector,source) ?_> .Error("Linear graph realization has lost its source link");
+    LinalgGraphStore(state,record,LinalgRealizationValue(adapter,source,vector));
+};
+LinalgGraphRestoreSpaceDual(state,record) -> {;
+    (record[:kind]==:vectorSpace && record[:dualof]!=_) ?_> _;
+    value=LinalgGraphBuilt(state,record[:id]); primal=LinalgGraphBuilt(state,record[:dualof]);
+    value[:dualof]=primal[:spaceidentity];value[:primalspace]=primal;value.dualOf=primal;value.primalSpace=primal;
+    primal[:dualspace]=value;primal.dualSpace=value;
+    @linalgState[:dualspaces]=@linalgState[:dualspaces].Push({= spaceId=primal[:spaceidentity],token=primal[:identitytoken],value=value }); value;
+};
+LinalgGraphRestoreFrameDual(state,record) -> {;
+    (record[:kind]==:frame && record[:canonicaldual]!=_) ?_> _;
+    value=LinalgGraphBuilt(state,record[:id]); primal=LinalgGraphBuilt(state,record[:primalframeid]);
+    primal[:canonicaldualframe]=value;
+    @linalgState[:canonicaldualframes]=@linalgState[:canonicaldualframes].Push({= frameId=primal[:frameidentity],token=primal[:identitytoken],value=value });value;
+};
+LinalgImportGraph(graph,options ?= {= }) -> {;
+    limits=LinalgGraphLimits(options);
+    inert=.MathDecodeJSON(.MathEncodeJSON(graph)); state=LinalgGraphValidate(inert,limits);
+    state[:values]=LinalgZeros(state[:records].Len()).Map((unused)->{= });
+    records=state[:records];
+    records.Map((record)->LinalgGraphBuildInitial(state,record));
+    LinalgGraphBuildFrames(state);
+    records.Map((record)->LinalgGraphBuildAlgebra(state,record));
+    records.Map((record)->LinalgGraphBuildTensor(state,record));
+    state[:replaywork]=0;
+    records.Map((record)->LinalgGraphReplay(state,record));
+    records.Map((record)->LinalgGraphRestoreTensorLinks(state,record));
+    records.Map((record)->LinalgGraphRestoreHistory(state,record));
+    records.Map((record)->LinalgGraphBuildRealization(state,record));
+    records.Map((record)->LinalgGraphRestoreSpaceDual(state,record));
+    records.Map((record)->LinalgGraphRestoreFrameDual(state,record));
+    inert[:roots].Map((id)->LinalgGraphBuilt(state,id));
 };
 
 .TypeKnown(:LinalgTensor) ?: _ ?_ .TypeRegister({=
@@ -1742,6 +2400,10 @@ linalgNamespace._proto={=
     Realize=(self,adapter,value)->LinalgRealize(adapter,value),
     Reconstruct=(self,adapter,value)->LinalgReconstruct(adapter,value),
     Serialize=(self,value)->LinalgSerialize(value),
+    SameSource=(self,left,right)->LinalgSameSource(left,right),
+    ScalarField=(self)->LinalgRationalField(),CoordinateStorage=(self,value)->LinalgCoordinateStorage(value),
+    ExportGraph=(self,values,options ?= {= })->LinalgExportGraph(values,options),
+    ImportGraph=(self,graph,options ?= {= })->LinalgImportGraph(graph,options),
     ChangeMatrix=(self,source,target)->LinalgChangeMatrix(source,target),
     Transform=(self,value,target)->LinalgTransform(value,target),
     Components=(self,value)->LinalgComponents(value), Pair=(self,left,right)->LinalgPair(left,right),

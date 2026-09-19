@@ -250,3 +250,32 @@ x.TensorProduct(alpha).Trace() ##@ == 23
 
 The trace is `23`. Same-variance traces require an explicit metric. Symmetry
 and tensor powers enforce finite work budgets before expanding coordinates.
+
+
+## Save and reconstruct a domain-linked graph
+
+A graph carries the Polynomial source, its explicitly chosen ambient space,
+and every Frame needed by its coordinate view. Repeated references remain
+shared within an import, and a second import receives independent identities.
+
+```{.rix exec=true id=identity-graph-realizations}
+.Plugin.Load("linalg");
+small := .linalg.PolynomialSpace(2,:x);
+large := .linalg.PolynomialSpace(4,:x);
+source := .p`x^2+2*x+3`;
+a := small.Realize(source);
+b := large.Realize(source);
+saved := .MathEncodeJSON(.linalg.ExportGraph([source,a,b]));
+loaded := .linalg.ImportGraph(.MathDecodeJSON(saved));
+loaded[2].SameSource(loaded[3]) ##@ == 1
+loaded[2].Vector().SameTensor(loaded[3].Vector()) ##@ == _
+loaded[2].Reconstruct()==loaded[1] ##@ == 1
+loaded[1].__type ##@ == "Polynomial"
+```
+
+The first and third results are true, the second is `_`, and the final type is
+`Polynomial`. Use `SameSource` for domain provenance and `SameTensor` for the
+abstract tensor identity. Imported sources are frozen coefficient snapshots;
+they retain no provider closure or reactive subscription. Invalid references,
+contradictory coordinates and budget overruns are rejected before results are
+returned. See the README for graph limits and finite storage protocols.

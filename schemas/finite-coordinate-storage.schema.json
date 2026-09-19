@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/finite-coordinate-storage/v1.schema.json",
+  "title": "Finite Rational coordinate payload v1",
+  "description": "Normalized semantic record before mathematical JSON tagging. Entries are logical row-major cells, including materialized Shaped views. Runtime checks exact scalar types, shape product and aggregate budgets.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "kind",
+    "scalarfield",
+    "shape",
+    "data"
+  ],
+  "properties": {
+    "schema": {
+      "const": "rix.coordinate-storage@1"
+    },
+    "kind": {
+      "const": "denseShaped"
+    },
+    "scalarfield": {
+      "const": "rix.scalar-field.rational@1"
+    },
+    "shape": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "items": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 256
+      }
+    },
+    "data": {
+      "type": "array",
+      "maxItems": 262144,
+      "items": {
+        "description": "Exact native Integer or Rational; transported by the mathematical JSON tagged codec."
+      }
+    }
+  }
+}

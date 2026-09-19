@@ -11,7 +11,9 @@ semantic-name folding, compact Frame headers, finite coordinate tensors,
 vector/covector pairing, linear maps, dual spaces, tensor products/contractions,
 bounded polynomial realizations, and identity-record serialization exist.
 See `plugins/linalg/README.md` and `tests/eval/linalg-optimize-solve-plugin.test.js`.
-Stable identity-record writing is not a complete persistence/import contract.
+Validated finite identity graphs now supplement the single-record writers.
+`ExportGraph`/`ImportGraph` preserve document-local sharing with fresh runtime
+identities, bounded lineage and exact Rational coordinate storage.
 
 The original start/branch/approval gates are historical migration sequencing,
 not new permission requirements. Preserve the implemented syntax and settled
@@ -262,8 +264,8 @@ binding.
 - [x] Remove the experimental `Coordinates` name directly; do not retain a
   compatibility constructor or alias in this unreleased language.
 - [x] Confirm the options-map fields `name`, `dimension`, and `over`.
-- [ ] Define the versioned scalar-field protocol and verify that `:Rational`
-  supplies it.
+- [x] Define `rix.scalar-field@1` with the exact Rational adapter; custom fields
+  remain a later extension.
 - [x] Confirm that separately constructed structurally identical spaces remain
   distinct.
 - [x] Confirm `basis=:defining` for nominating the first frame without calling
@@ -271,8 +273,8 @@ binding.
 - [x] Specify basis-matrix orientation as new-frame basis vectors in columns of
   `relativeTo` coordinates.
 - [ ] Decide whether `FramedSpace` convenience sugar is worth exposing.
-- [ ] Define stable export identities for spaces and frames and reject dangling
-  frame references during import.
+- [x] Define document-local graph references for spaces and Frames; import
+  creates fresh opaque identities and rejects dangling or conflicting references.
 - [ ] Reserve separate future constructors for modules, affine spaces,
   subspaces, quotient spaces, direct sums, and infinite-dimensional spaces.
 
@@ -298,15 +300,11 @@ and cancellation can lower the degree. The finite vector space is polynomials
 of degree **at most** `n`, conventionally `P_<=n`, with dimension `n + 1`.
 
 ```rix
-p4 := .poly.PolynomialSpace({=
-  variable = :x,
-  maxDegree = 4,
-  over = :Rational
-});
-
-monomial := p4.Frame(:monomial);
-p := .poly([1, 2, 0, 3]);
-pv := p4.AsVector(p, monomial);
+p4 := .linalg.PolynomialSpace(4,:x,{= over=:Rational });
+monomial := p4.Frame();
+p := .poly.Polynomial([1,2,0,3]);
+realization := p4.Realize(p,monomial);
+pv := realization.Vector();
 ```
 
 `p` remains a `Polynomial`; `pv` is a vector representation linked by
@@ -319,39 +317,40 @@ One polynomial can belong to several ambient spaces, for example both
 identities even though they refer to the same polynomial source. Consequently:
 
 - source identity and vector-space element identity are recorded separately;
-- `SameSource` may hold when `SameVector` does not;
+- `SameSource` may hold when `SameTensor` does not;
 - decoding a computed vector returns a new polynomial value unless an explicit
   identity-preserving view operation applies;
 - vector arithmetic returns a vector by default, while the realization can
-  provide an explicit `AsPolynomial`/`Decode` operation;
+  provide the explicit `Reconstruct` operation;
 - domain plugins may offer convenience operations that calculate linearly and
   return their domain type, but generic vector dispatch does not assume this.
 
 Other natural realizations include fixed-size homogeneous polynomials,
 truncated power series, functions on a finite set, finite-dimensional function
 subspaces, matrices viewed as vectors under a selected entry frame, and finite
-algebra extensions. Each domain owns its adapters; `.linalg` owns only the
-generic realization protocol.
+algebra extensions. The first bounded `PolynomialSpace` adapter remains in `.linalg` with its
+established public spelling. Additional domain adapters may follow the same
+explicit realization contract.
 
 ### Linear-realization checklist
 
-- [x] Define a versioned `rix.linear-realization@1` protocol with membership,
+- [x] Define a versioned `rix.linalg.linear-realization@1` protocol with membership,
   space, frame, encode, decode, scalar-domain, and provenance operations.
-- [ ] Distinguish `viewOf`/`SameSource` from abstract vector identity and
+- [x] Distinguish `viewOf`/`SameSource` from abstract vector identity and
   coordinate-representation identity.
-- [ ] Decide whether `AsVector` is a generic method, realization method, or
-  both with one canonical dispatch path.
-- [ ] Require an explicit ambient realization when a source belongs to several
+- [x] Use `adapter.Realize(source,frame?)` and `realization.Vector(frame?)` as
+  the explicit realization path; do not add generic `AsVector` dispatch.
+- [x] Require an explicit ambient realization when a source belongs to several
   vector spaces.
-- [ ] Ensure coordinate transformation of a view preserves its source link
+- [x] Ensure coordinate transformation of a view preserves its source link
   without mutating the source.
-- [ ] Make vector arithmetic return `Vector` unless an explicit domain adapter
+- [x] Make vector arithmetic return `Vector` unless an explicit domain adapter
   requests decoded results.
 - [x] Add `.linalg.PolynomialSpace(n, variable?)` for `P_<=n` with its
   monomial Frame and exact Realize/Reconstruct operations.
-- [ ] Extend polynomial realization tests to alternative Frames and ambiguous
+- [x] Extend polynomial realization tests to alternative Frames and ambiguous
   ambient spaces while preserving the domain source.
-- [ ] Test cancellation, zero, degree bounds, variable mismatch, scalar-field
+- [x] Test cancellation, zero, degree bounds, variable mismatch, scalar-field
   mismatch, encode/decode round trips, and the same polynomial viewed in two
   ambient spaces.
 
@@ -371,7 +370,7 @@ monomial frame is indexed by nonnegative integers, and each polynomial has
 finite support even though no global degree bound exists:
 
 ```rix
-px := .poly.PolynomialSpace({=
+px := .linalg.PolynomialSpace({=
   variable = :x,
   maxDegree = :unbounded,
   over = :Rational
@@ -835,8 +834,9 @@ is retained.
 - [x] Implement canonical `/Covector: V/` syntax and `/Vector: V*/` sugar.
 - [x] Share identity, representation, coordinate transformation, and
   serialization machinery between Vector, Covector, and Tensor.
-- [ ] Accept component storage through a versioned coordinate-storage protocol;
-  use `Shaped` for finite dense coordinates and `SparseCoordinates` for
+- [x] Specify `rix.coordinate-storage@1` with bounded finite `denseShaped`
+  adapters and logical entry order.
+- [ ] Extend the coordinate-storage protocol with `SparseCoordinates` for
   finite-support infinite-dimensional coordinates.
 - [x] Implement vector/covector pairing without inventing a metric.
 - [x] Require an explicit metric for dot products, norms, angles, and
@@ -866,8 +866,9 @@ is retained.
   tensors, and equality across coordinate representations.
 - [x] Write versioned `rix.linalg.identity-record@1` records for spaces,
   Frames, tensors, linear maps, and realizations, including representation IDs.
-- [ ] Add validated import/round-trip identity graphs with bounded provenance
-  and dangling-reference rejection.
+- [x] Add `rix.linalg.identity-graph@1` export/import with bounded provenance,
+  strict reference/domain validation, fresh identities, and frozen Polynomial
+  source views. Tests: `tests/eval/linear-identity-graph.test.js`.
 - [x] Implement configurable lineage retention with a permanent origin and a
   default ring of the 30 most recent transformation records.
 

@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/rational-scalar-field/v1.schema.json",
+  "title": "Rational scalar-field descriptor v1",
+  "description": "Data portion of the finite exact scalar-field adapter. Methods are runtime capabilities, never persisted closures. Coerce and arithmetic accept only exact Integer/Rational values.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "id",
+    "name",
+    "exact",
+    "characteristic",
+    "zero",
+    "one"
+  ],
+  "properties": {
+    "schema": {
+      "const": "rix.scalar-field@1"
+    },
+    "id": {
+      "const": "rix.scalar-field.rational@1"
+    },
+    "name": {
+      "const": "Rational"
+    },
+    "exact": {
+      "const": 1
+    },
+    "characteristic": {
+      "const": 0
+    },
+    "zero": {
+      "const": 0
+    },
+    "one": {
+      "const": 1
+    }
+  }
+}

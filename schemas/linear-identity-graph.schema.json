@@ -1,0 +1,790 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/linear-identity-graph/v1.schema.json",
+  "title": "RiX finite linear identity graph v1",
+  "description": "Normalized semantic Map record; canonical runtime keys are lower-case. For actual transport, encode the complete value with MathEncodeJSON. IDs are one-based graph-local references and never confer runtime identity. Runtime validation additionally enforces reachability of references, exact dimensions/domains, basis laws, source reconstruction, bounded derivation replay, bounded acyclic lineage and fresh tokens on each import.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "scalarfield",
+    "roots",
+    "records"
+  ],
+  "properties": {
+    "schema": {
+      "const": "rix.linalg.identity-graph@1"
+    },
+    "scalarfield": {
+      "const": "rix.scalar-field.rational@1"
+    },
+    "roots": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1024,
+      "items": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 1024
+      }
+    },
+    "records": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1024,
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "schema",
+              "valuekind",
+              "kind",
+              "id",
+              "name",
+              "dimension",
+              "over",
+              "dualof",
+              "metadata",
+              "definingframeid",
+              "lineagelimit"
+            ],
+            "properties": {
+              "schema": {
+                "const": "rix.linalg.identity-record@1"
+              },
+              "valuekind": {
+                "const": "linalgIdentityRecord"
+              },
+              "kind": {
+                "const": "vectorSpace"
+              },
+              "id": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1024
+              },
+              "name": {
+                "type": "string",
+                "maxLength": 1024
+              },
+              "dimension": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 256
+              },
+              "over": {
+                "const": "Rational"
+              },
+              "dualof": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 1024
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "metadata": {},
+              "definingframeid": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 1024
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "lineagelimit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1024
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "schema",
+              "valuekind",
+              "kind",
+              "id",
+              "spaceid",
+              "name",
+              "basis",
+              "defining",
+              "dualframe",
+              "primalframeid",
+              "dualbasis",
+              "localbasis",
+              "relativetoid",
+              "canonicaldual",
+              "metadata"
+            ],
+            "properties": {
+              "schema": {
+                "const": "rix.linalg.identity-record@1"
+              },
+              "valuekind": {
+                "const": "linalgIdentityRecord"
+              },
+              "kind": {
+                "const": "frame"
+              },
+              "id": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1024
+              },
+              "spaceid": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1024
+              },
+              "name": {
+                "type": "string",
+                "maxLength": 1024
+              },
+              "basis": {
+                "$ref": "https://rix.ratmath.com/schema/finite-coordinate-storage/v1.schema.json"
+              },
+              "defining": {
+                "enum": [
+                  1,
+                  null
+                ]
+              },
+              "dualframe": {
+                "enum": [
+                  1,
+                  null
+                ]
+              },
+              "primalframeid": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 1024
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "dualbasis": {
+                "anyOf": [
+                  {
+                    "$ref": "https://rix.ratmath.com/schema/finite-coordinate-storage/v1.schema.json"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "localbasis": {
+                "$ref": "https://rix.ratmath.com/schema/finite-coordinate-storage/v1.schema.json"
+              },
+              "relativetoid": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 1024
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "canonicaldual": {
+                "enum": [
+                  1,
+                  null
+                ]
+              },
+              "metadata": {}
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "schema",
+              "valuekind",
+              "kind",
+              "id",
+              "lineagelimit",
+              "origin",
+              "representations"
+            ],
+            "properties": {
+              "schema": {
+                "const": "rix.linalg.identity-record@1"
+              },
+              "valuekind": {
+                "const": "linalgIdentityRecord"
+              },
+              "kind": {
+                "const": "tensorIdentity"
+              },
+              "id": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1024
+              },
+              "lineagelimit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1024
+              },
+              "origin": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1024
+              },
+              "representations": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 1024,
+                "items": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 1024
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "schema",
+              "valuekind",
+              "kind",
+              "id",
+              "tensorid",
+              "representationid",
+              "type",
+              "components",
+              "slots",
+              "equivalentto",
+              "viewof",
+              "derivedfrom",
+              "transform"
+            ],
+            "properties": {
+              "schema": {
+                "const": "rix.linalg.identity-record@1"
+              },
+              "valuekind": {
+                "const": "linalgIdentityRecord"
+              },
+              "kind": {
+                "const": "tensorRepresentation"
+              },
+              "id": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1024
+              },
+              "tensorid": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1024
+              },
+              "representationid": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1024
+              },
+              "type": {
+                "enum": [
+                  "Vector",
+                  "Covector",
+                  "Tensor"
+                ]
+              },
+              "components": {
+                "$ref": "https://rix.ratmath.com/schema/finite-coordinate-storage/v1.schema.json"
+              },
+              "slots": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 32,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "spaceid",
+                    "frameid",
+                    "dual"
+                  ],
+                  "properties": {
+                    "spaceid": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 1024
+                    },
+                    "frameid": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 1024
+                    },
+                    "dual": {
+                      "enum": [
+                        1,
+                        null
+                      ]
+                    }
+                  }
+                }
+              },
+              "equivalentto": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 1024
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "viewof": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 1024
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "derivedfrom": {
+                "type": "array",
+                "minItems": 0,
+                "maxItems": 1024,
+                "items": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 1024
+                }
+              },
+              "transform": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "additionalProperties": false,
+                "required": [
+                  "kind",
+                  "sources",
+                  "targets",
+                  "matrices",
+                  "order",
+                  "axis",
+                  "axes",
+                  "terms",
+                  "metricid"
+                ],
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "coordinateChange",
+                      "fullExtentView",
+                      "slotPermutation",
+                      "lower",
+                      "raise",
+                      "symmetrize",
+                      "antisymmetrize",
+                      "tensorProduct",
+                      "contraction"
+                    ]
+                  },
+                  "sources": {
+                    "type": "array",
+                    "minItems": 0,
+                    "maxItems": 32,
+                    "items": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 1024
+                    }
+                  },
+                  "targets": {
+                    "type": "array",
+                    "minItems": 0,
+                    "maxItems": 32,
+                    "items": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 1024
+                    }
+                  },
+                  "matrices": {
+                    "type": "array",
+                    "minItems": 0,
+                    "maxItems": 32,
+                    "items": {
+                      "$ref": "https://rix.ratmath.com/schema/finite-coordinate-storage/v1.schema.json"
+                    }
+                  },
+                  "order": {
+                    "anyOf": [
+                      {
+                        "type": "array",
+                        "minItems": 0,
+                        "maxItems": 32,
+                        "items": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 1024
+                        }
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "axis": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 1024
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "axes": {
+                    "anyOf": [
+                      {
+                        "type": "array",
+                        "minItems": 0,
+                        "maxItems": 6,
+                        "items": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 1024
+                        }
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "terms": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 1,
+                    "maximum": 720
+                  },
+                  "metricid": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 1024
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "schema",
+              "valuekind",
+              "kind",
+              "id",
+              "name",
+              "domainid",
+              "codomainid",
+              "sourceframeid",
+              "targetframeid",
+              "matrix",
+              "provenance"
+            ],
+            "properties": {
+              "schema": {
+                "const": "rix.linalg.identity-record@1"
+              },
+              "valuekind": {
+                "const": "linalgIdentityRecord"
+              },
+              "kind": {
+                "const": "linearMap"
+              },
+              "id": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1024
+              },
+              "name": {
+                "type": "string",
+                "maxLength": 1024
+              },
+              "domainid": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1024
+              },
+              "codomainid": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1024
+              },
+              "sourceframeid": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1024
+              },
+              "targetframeid": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1024
+              },
+              "matrix": {
+                "$ref": "https://rix.ratmath.com/schema/finite-coordinate-storage/v1.schema.json"
+              },
+              "provenance": {}
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "schema",
+              "valuekind",
+              "kind",
+              "id",
+              "spaceid",
+              "frameid",
+              "components",
+              "positivedefinite",
+              "metadata"
+            ],
+            "properties": {
+              "schema": {
+                "const": "rix.linalg.identity-record@1"
+              },
+              "valuekind": {
+                "const": "linalgIdentityRecord"
+              },
+              "kind": {
+                "const": "metric"
+              },
+              "id": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1024
+              },
+              "spaceid": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1024
+              },
+              "frameid": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1024
+              },
+              "components": {
+                "$ref": "https://rix.ratmath.com/schema/finite-coordinate-storage/v1.schema.json"
+              },
+              "positivedefinite": {
+                "enum": [
+                  1,
+                  null
+                ]
+              },
+              "metadata": {}
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "schema",
+              "valuekind",
+              "kind",
+              "id",
+              "adapter",
+              "spaceid",
+              "frameid",
+              "maxdegree",
+              "variable"
+            ],
+            "properties": {
+              "schema": {
+                "const": "rix.linalg.identity-record@1"
+              },
+              "valuekind": {
+                "const": "linalgIdentityRecord"
+              },
+              "kind": {
+                "const": "polynomialSpace"
+              },
+              "id": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1024
+              },
+              "adapter": {
+                "const": "rix.linalg.polynomial-space@1"
+              },
+              "spaceid": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1024
+              },
+              "frameid": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1024
+              },
+              "maxdegree": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 255
+              },
+              "variable": {
+                "description": "Nonempty variable String or independent scoped symbolic variable; symbolic sharing is retained within this graph."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "schema",
+              "valuekind",
+              "kind",
+              "id",
+              "variable",
+              "coefficients",
+              "degreebound",
+              "capturedreactive"
+            ],
+            "properties": {
+              "schema": {
+                "const": "rix.linalg.identity-record@1"
+              },
+              "valuekind": {
+                "const": "linalgIdentityRecord"
+              },
+              "kind": {
+                "const": "polynomial"
+              },
+              "id": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1024
+              },
+              "variable": {
+                "description": "Nonempty variable String or independent scoped symbolic variable; symbolic sharing is retained within this graph."
+              },
+              "coefficients": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 256,
+                "items": {
+                  "description": "Exact native Integer or Rational; transported by the mathematical JSON tagged codec."
+                }
+              },
+              "degreebound": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 255
+              },
+              "capturedreactive": {
+                "enum": [
+                  1,
+                  null
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "schema",
+              "valuekind",
+              "kind",
+              "id",
+              "adapter",
+              "domaintype",
+              "exact",
+              "adapterid",
+              "sourceid",
+              "vectorid"
+            ],
+            "properties": {
+              "schema": {
+                "const": "rix.linalg.identity-record@1"
+              },
+              "valuekind": {
+                "const": "linalgIdentityRecord"
+              },
+              "kind": {
+                "const": "linearRealization"
+              },
+              "id": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1024
+              },
+              "adapter": {
+                "const": "rix.linalg.polynomial-space@1"
+              },
+              "domaintype": {
+                "const": "Polynomial"
+              },
+              "exact": {
+                "const": 1
+              },
+              "adapterid": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1024
+              },
+              "sourceid": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1024
+              },
+              "vectorid": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1024
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}
