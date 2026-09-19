@@ -1,0 +1,257 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/box-subdivision/v1.schema.json",
+  "title": "RiX complete bounded box subdivision v1",
+  "description": "Normalized native result record. Exact rational/interval/graph values retain their existing mathematical representations; runtime RiX keys are case-insensitive.",
+  "type": "object",
+  "required": [
+    "schema",
+    "valueKind",
+    "status",
+    "coverage",
+    "boundaryPolicy",
+    "certified",
+    "inputBox",
+    "variables",
+    "excluded",
+    "unique",
+    "unresolved",
+    "pending",
+    "nodes",
+    "work",
+    "evidence"
+  ],
+  "properties": {
+    "schema": {
+      "const": "rix.numerics.box-subdivision@1"
+    },
+    "valueKind": {
+      "const": "boxSubdivisionResult"
+    },
+    "status": {
+      "enum": [
+        "complete",
+        "unresolved",
+        "budgetExhausted"
+      ]
+    },
+    "coverage": {
+      "const": "completeInputCover"
+    },
+    "boundaryPolicy": {
+      "const": "closedOverlap"
+    },
+    "certified": {
+      "type": "boolean"
+    },
+    "inputBox": {
+      "$ref": "rational-box.schema.json"
+    },
+    "variables": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "items": {
+        "type": "string"
+      }
+    },
+    "excluded": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "box",
+          "depth",
+          "classification"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^r(?:\\.[01])*$"
+          },
+          "box": {
+            "$ref": "rational-box.schema.json"
+          },
+          "depth": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 128
+          },
+          "classification": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "unique": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "box",
+          "depth",
+          "classification"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^r(?:\\.[01])*$"
+          },
+          "box": {
+            "$ref": "rational-box.schema.json"
+          },
+          "depth": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 128
+          },
+          "classification": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "unresolved": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "box",
+          "depth",
+          "classification"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^r(?:\\.[01])*$"
+          },
+          "box": {
+            "$ref": "rational-box.schema.json"
+          },
+          "depth": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 128
+          },
+          "classification": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "pending": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "box",
+          "depth",
+          "classification"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^r(?:\\.[01])*$"
+          },
+          "box": {
+            "$ref": "rational-box.schema.json"
+          },
+          "depth": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 128
+          },
+          "classification": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "box",
+          "depth",
+          "classification"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^r(?:\\.[01])*$"
+          },
+          "box": {
+            "$ref": "rational-box.schema.json"
+          },
+          "depth": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 128
+          },
+          "classification": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "work": {
+      "type": "object",
+      "required": [
+        "processed",
+        "graphEvaluations",
+        "maxBoxes",
+        "pending",
+        "exhausted"
+      ],
+      "properties": {
+        "maxBoxes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4096
+        },
+        "processed": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4096
+        },
+        "exhausted": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": true
+    },
+    "evidence": {
+      "type": "object",
+      "required": [
+        "kind",
+        "checker",
+        "expressions",
+        "jacobian",
+        "source",
+        "options",
+        "conventions"
+      ],
+      "properties": {
+        "kind": {
+          "const": "boxSubdivision"
+        },
+        "checker": {
+          "const": "rix.runtime.validated-box-checker@1"
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

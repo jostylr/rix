@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/ball-polynomial-bound/v1.schema.json",
+  "title": "RiX exact Ball polynomial derivative bound v1",
+  "description": "Normalized native result record. Exact rational/interval/graph values retain their existing mathematical representations; runtime RiX keys are case-insensitive.",
+  "type": "object",
+  "required": [
+    "schema",
+    "certified",
+    "coefficients",
+    "derivativeCoefficients",
+    "order",
+    "ball",
+    "interval",
+    "absoluteBound",
+    "evidence"
+  ],
+  "properties": {
+    "schema": {
+      "const": "rix.ball.polynomial-bound@1"
+    },
+    "certified": {},
+    "coefficients": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 257
+    },
+    "derivativeCoefficients": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 257
+    },
+    "order": {},
+    "ball": {
+      "type": "object"
+    },
+    "interval": {
+      "type": "object"
+    },
+    "absoluteBound": {},
+    "evidence": {
+      "type": "object",
+      "required": [
+        "method",
+        "coefficientOrder"
+      ],
+      "properties": {
+        "method": {
+          "const": "exactIntervalHorner"
+        },
+        "coefficientOrder": {
+          "const": "descending"
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

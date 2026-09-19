@@ -8,8 +8,10 @@ export const INTERVAL_LINEAR_SCHEMA = "rix.numerics.interval-linear-solve@1";
 export const INTERVAL_NEWTON_BOX_SCHEMA = "rix.numerics.interval-newton-box@1";
 export const BOX_SUBDIVISION_SCHEMA = "rix.numerics.box-subdivision@1";
 export const VALIDATED_BOX_CHECKER = "rix.runtime.validated-box-checker@1";
-const ZERO = Rational.zero, ONE = Rational.one;
-const point = (value) => new RationalInterval(value, value);
+const MAX_RATIONAL_DIGITS = 4096;
+const MAX_REPLAY_TEXT = 16 * 1024 * 1024;
+const ZERO = Rational.zero;
+const point = (value) => new RationalInterval(rational(value,"intervalPoint"), value);
 const seq = (value) => Array.isArray(value) ? value : Array.isArray(value?.values) ? value.values : null;
 const text = (value) => typeof value === "string" ? value : value?.type === "string" ? value.value : null;
 function field(value, name, fallback = null) {
@@ -22,13 +24,17 @@ function rational(value, label) {
     const result = value instanceof Rational ? value : value instanceof Integer ? new Rational(value.value)
         : typeof value === "bigint" || (typeof value === "number" && Number.isSafeInteger(value)) ? new Rational(value) : null;
     if (!result || result.denominator === 0n) throw new Error(`${label}MustBeExactRational`);
+    if (result.numerator.toString().replace("-", "").length > MAX_RATIONAL_DIGITS || result.denominator.toString().length > MAX_RATIONAL_DIGITS)
+        throw new Error("validatedRationalDigitBudgetExceeded");
     return result;
 }
 function interval(value, label) {
-    if (value instanceof RationalInterval) return value;
+    if (value instanceof RationalInterval) {
+        rational(value.low,label);rational(value.high,label);return value;
+    }
     if (value instanceof RationalIntervalSet) {
         if (!value.isBounded || value.isEmpty || value.componentCount !== 1 || !value.components[0].lowClosed || !value.components[0].highClosed) throw new Error(`${label}RequiresClosedBoundedInterval`);
-        return value.toRationalInterval();
+        return interval(value.toRationalInterval(),label);
     }
     if (text(field(value,"schema")) === "rix.ball@1") return interval(field(value,"interval"),label);
     return point(rational(value,label));
@@ -59,8 +65,8 @@ function matrix(value, label) {
 }
 const midpoint = (value) => value.low.add(value.high).divide(new Rational(2));
 const containsZero = (value) => !value.low.greaterThan(ZERO) && !value.high.lessThan(ZERO);
-const magnitude = (value) => value.low.abs().greaterThan(value.high.abs()) ? value.low.abs() : value.high.abs();
-const add = (a,b) => a.add(b), sub = (a,b) => a.subtract(b), mul = (a,b) => a.multiply(b);
+const add = (a,b) => interval(a.add(b),"sum"), sub = (a,b) => interval(a.subtract(b),"difference"),
+    mul = (a,b) => interval(a.multiply(b),"product"), div = (a,b) => interval(a.divide(b),"quotient");
 const sum = (values) => values.reduce(add,point(ZERO));
 const norm = (rows) => rows.reduce((largest,row) => {
     const total=row.reduce((a,b)=>a.add(b.abs()),ZERO); return total.greaterThan(largest) ? total : largest;
@@ -87,12 +93,13 @@ export function evaluateIntervalLinearSolve(matrixSource, rhsSource, options = {
         }));
         if (!invertRationalMatrix(preconditioner)) throw new Error("preconditionerMustBeNonsingular");
     } else preconditioner=invertRationalMatrix(midpointMatrix);
+    if(preconditioner) preconditioner.forEach((row)=>row.forEach((entry)=>rational(entry,"preconditioner")));
     const evidence={kind:"intervalLinear",checker:VALIDATED_BOX_CHECKER,matrix:A,rhs:b,options:optionsObject(options)};
     const base={schema:INTERVAL_LINEAR_SCHEMA,valueKind:"intervalLinearResult",matrix:A,rhs:b,midpointMatrix,preconditioner,evidence,
         denotation:"allPointSystems",regular:false,certified:false,solution:null,pivots:[],stages:[],diagnostics:[],work:{dimension:n,eliminations:0}};
     if (!preconditioner) return freeze({...base,status:"unknown",classification:"singularPreconditioner",diagnostics:["singularMidpointMatrix"]});
     const inverseMidpoint=invertRationalMatrix(midpointMatrix);
-    const condition=inverseMidpoint ? norm(midpointMatrix).multiply(norm(inverseMidpoint)) : null;
+    const condition=inverseMidpoint ? rational(norm(midpointMatrix).multiply(norm(inverseMidpoint)),"conditionEstimate") : null;
     const threshold=rational(field(options,"illConditionThreshold",new Rational(100000000)),"illConditionThreshold");
     if (!threshold.greaterThan(ZERO)) throw new Error("illConditionThresholdMustBePositive");
     const diagnostics=condition?.greaterThan(threshold) ? ["illConditionedMidpointMatrix"] : [];
@@ -106,7 +113,7 @@ export function evaluateIntervalLinearSolve(matrixSource, rhsSource, options = {
         if(pivot!==column) { [rows[pivot],rows[column]]=[rows[column],rows[pivot]]; [right[pivot],right[column]]=[right[column],right[pivot]]; }
         const divisor=rows[column][column]; pivots.push({column:column+1,row:pivot+1,interval:divisor});
         for(let row=column+1;row<n;row+=1) {
-            const factor=rows[row][column].divide(divisor);
+            const factor=div(rows[row][column],divisor);
             const before=[...rows[row]], beforeRhs=right[row];
             for(let j=column+1;j<n;j+=1) rows[row][j]=sub(rows[row][j],mul(factor,rows[column][j]));
             right[row]=sub(right[row],mul(factor,right[column])); rows[row][column]=point(ZERO); eliminations+=1;
@@ -116,7 +123,7 @@ export function evaluateIntervalLinearSolve(matrixSource, rhsSource, options = {
     const solution=Array(n);
     for(let row=n-1;row>=0;row-=1) {
         const remainder=sum(rows[row].slice(row+1).map((entry,index)=>mul(entry,solution[row+1+index])));
-        solution[row]=sub(right[row],remainder).divide(rows[row][row]);
+        solution[row]=div(sub(right[row],remainder),rows[row][row]);
     }
     const residual=A.map((row,index)=>sub(sum(row.map((entry,j)=>mul(entry,solution[j]))),b[index]));
     return freeze({...base,status:"enclosed",classification:"regular",certified:true,regular:true,solution,
@@ -124,7 +131,7 @@ export function evaluateIntervalLinearSolve(matrixSource, rhsSource, options = {
         proof:"nonzeroIntervalEliminationPivots",work:{dimension:n,eliminations}});
 }
 
-const axes = (box) => box.variables.map((name)=>box.axes.get(name).toRationalInterval());
+const axes = (box) => box.variables.map((name)=>interval(box.axes.get(name),"boxAxis"));
 const boxOf = (names, ranges) => createRationalBox(new Map(names.map((name,index)=>[name,ranges[index]])));
 const width = (value) => value.high.subtract(value.low);
 function intersect(a,b) {
@@ -135,6 +142,7 @@ function boundedIterations(options) { return count(field(options,"maxIterations"
 
 export function evaluateIntervalNewtonBox(expressions,jacobian,source,options={},conventions={}) {
     const inputBox=createRationalBox(source), maxIterations=boundedIterations(options);
+    axes(inputBox);
     const graphOptions=validatedPortable(field(options,"graphOptions",{}));
     let current=inputBox, classification="contracted", rootExistence="unproved", graphEvaluations=0;
     const trace=[], diagnostics=[];
@@ -147,12 +155,22 @@ export function evaluateIntervalNewtonBox(expressions,jacobian,source,options={}
             classification="excluded";rootExistence="none";
             trace.push({inputBox:current,classification,functionRange:data.functionRange,reason:"functionRangeExcludesZero"}); current=null; break;
         }
-        const linear=evaluateIntervalLinearSolve(data.jacobianRange,data.functionAtCenter,options);
+        let linear;
+        try { linear=evaluateIntervalLinearSolve(data.jacobianRange,data.functionAtCenter,options); }
+        catch(error) {
+            if(error.message!=="validatedRationalDigitBudgetExceeded") throw error;
+            classification="arithmeticBudgetExceeded";diagnostics.push(error.message);break;
+        }
         if(!linear.certified) {
             classification=linear.classification;diagnostics.push(...linear.diagnostics);
             trace.push({inputBox:current,classification,linear,center:data.center,functionAtCenter:data.functionAtCenter,jacobianRange:data.jacobianRange}); break;
         }
-        const image=linear.solution.map((entry,index)=>sub(point(data.center[index]),entry));
+        let image;
+        try { image=linear.solution.map((entry,index)=>sub(point(data.center[index]),entry)); }
+        catch(error) {
+            if(error.message!=="validatedRationalDigitBudgetExceeded") throw error;
+            classification="arithmeticBudgetExceeded";diagnostics.push(error.message);break;
+        }
         const ranges=axes(current), intersections=ranges.map((range,index)=>intersect(range,image[index]));
         const input=current, operatorBox=boxOf(current.variables,image);
         const strict=image.every((entry,index)=>ranges[index].low.lessThan(entry.low) && entry.high.lessThan(ranges[index].high));
@@ -173,7 +191,7 @@ export function evaluateIntervalNewtonBox(expressions,jacobian,source,options={}
             center:data.center,functionAtCenter:data.functionAtCenter,jacobianRange:data.jacobianRange,obligationChecks:data.obligationChecks,linear});
         if(classification!=="contracted") break;
     }
-    const exhausted=classification==="contracted" && trace.length===maxIterations;
+    const exhausted=(classification==="contracted" && trace.length===maxIterations) || classification==="arithmeticBudgetExceeded";
     return freeze({schema:INTERVAL_NEWTON_BOX_SCHEMA,valueKind:"intervalNewtonBoxResult",strategy:"intervalNewton",
         status:rootExistence!=="unproved" ? "classified" : exhausted ? "budgetExhausted" : "unknown",classification,rootExistence,
         certified:classification!=="invalidEvidence",inputBox,box:current,operatorBox:trace.at(-1)?.operatorBox??null,trace,diagnostics,
@@ -188,12 +206,14 @@ function subdivisionOptions(options) {
     if(minWidth.lessThan(ZERO)) throw new Error("minWidthMustBeNonnegative");
     const method=text(field(options,"method","intervalNewton"));
     if(!["intervalNewton","krawczyk"].includes(method)) throw new Error("boxSubdivisionMethodUnsupported");
-    const maxIterations=boundedIterations(options);
+    // At this level maxWork means processed boxes, not Newton iterations.
+    const maxIterations=count(field(options,"maxIterations"),2,32,"maxIterations",1);
     return {maxBoxes,maxDepth,minWidth,method,maxIterations};
 }
 
 export function evaluateBoxSubdivision(expressions,jacobian,source,options={},conventions={}) {
     const inputBox=createRationalBox(source), limits=subdivisionOptions(options);
+    axes(inputBox);
     if(inputBox.dimension<1||inputBox.dimension>16) throw new Error("boxSubdivisionDimensionOutOfRange");
     const queue=[{id:"r",box:inputBox,depth:0}],excluded=[],unique=[],unresolved=[],nodes=[];
     let processed=0,graphEvaluations=0;
@@ -212,8 +232,8 @@ export function evaluateBoxSubdivision(expressions,jacobian,source,options={},co
         let axis=0;
         for(let index=1;index<ranges.length;index+=1) if(width(ranges[index]).greaterThan(width(ranges[axis]))) axis=index;
         const tooSmall=width(ranges[axis]).lessThanOrEqual(limits.minWidth);
-        if(pending.depth>=limits.maxDepth || tooSmall || !result.certified) {
-            const reason=!result.certified ? "invalidEvidence" : tooSmall ? "resolutionFloor" : "depthLimit";
+        if(pending.depth>=limits.maxDepth || tooSmall || !result.certified || result.classification==="arithmeticBudgetExceeded") {
+            const reason=!result.certified ? "invalidEvidence" : result.classification==="arithmeticBudgetExceeded" ? "arithmeticBudgetExceeded" : tooSmall ? "resolutionFloor" : "depthLimit";
             const leaf={...node,reason};unresolved.push(leaf);nodes.push({...leaf,action:"unresolved"});continue;
         }
         const splitAt=midpoint(ranges[axis]);
@@ -232,28 +252,50 @@ export function evaluateBoxSubdivision(expressions,jacobian,source,options={},co
         evidence:{kind:"boxSubdivision",checker:VALIDATED_BOX_CHECKER,expressions,jacobian,source:inputBox,options:optionsObject(options),conventions}});
 }
 
+function textBudget(state,value) {
+    state.text=(state.text||0)+value.length;
+    if(state.text>MAX_REPLAY_TEXT) throw new Error("validatedReplayTextBudgetExceeded");
+    // Count JSON escaping too, after the raw length passed the allocation bound.
+    state.text+=JSON.stringify(value).length-value.length;
+    if(state.text>MAX_REPLAY_TEXT) throw new Error("validatedReplayTextBudgetExceeded");
+    return value;
+}
 function canonical(value, state={nodes:0,seen:new Set()}, depth=0) {
     if(depth>256 || ++state.nodes>2000000) throw new Error("validatedReplayClaimBudgetExceeded");
-    if(value===undefined||value===null||value===false) return null;
-    if(value===true) return "1";
-    if(value instanceof Integer) return String(value.value);
-    if(value instanceof Rational) return value.denominator===1n ? String(value.numerator) : `${value.numerator}/${value.denominator}`;
-    if(value instanceof RationalInterval||value instanceof RationalIntervalSet) return String(value);
-    if(typeof value==="number"||typeof value==="bigint") return String(value);
-    if(typeof value==="string") return value;
-    if(value?.type==="string") return value.value;
+    // A conservative allowance for the typed tags and structural JSON bytes.
+    state.text=(state.text||0)+32;
+    if(state.text>MAX_REPLAY_TEXT) throw new Error("validatedReplayTextBudgetExceeded");
+    // Native booleans and RiX truth values intentionally agree. Text never
+    // stands in for an exact number, interval, sequence, or evidence record.
+    if(value===undefined||value===null||value===false) return ["null"];
+    if(value===true) return ["number","1"];
+    if(value instanceof Integer || value instanceof Rational || typeof value==="number" || typeof value==="bigint")
+        return ["number",textBudget(state,rational(value,"replayNumber").toString())];
+    if(value instanceof RationalInterval) return ["interval",textBudget(state,String(interval(value,"replayInterval")))];
+    if(value instanceof RationalIntervalSet) {
+        for(const component of value.components) {
+            if(component.low)rational(component.low,"replayEndpoint");
+            if(component.high)rational(component.high,"replayEndpoint");
+        }
+        return ["intervalSet",textBudget(state,String(value))];
+    }
+    if(typeof value==="string") return ["string",textBudget(state,value)];
+    if(value?.type==="string") return ["string",textBudget(state,value.value)];
+    if(typeof value!=="object") throw new Error("unsupportedValidatedReplayValue");
     if(state.seen.has(value)) throw new Error("cyclicValidatedReplayClaim");
     state.seen.add(value);
     try {
-        const values=seq(value);if(values)return values.map((entry)=>canonical(entry,state,depth+1));
+        const values=seq(value);if(values)return ["sequence",values.map((entry)=>canonical(entry,state,depth+1))];
         const entries=value instanceof Map?value:value?.entries instanceof Map?value.entries:new Map(Object.entries(value));
-        return Object.fromEntries([...entries].filter(([key])=>!["_ext","checker","evidence"].includes(String(key).toLowerCase()))
-            .map(([key,entry])=>[String(key).toLowerCase(),canonical(entry,state,depth+1)]).sort(([a],[b])=>a<b?-1:a>b?1:0));
+        return ["map",[...entries].filter(([key])=>String(key).toLowerCase()!=="_ext" && !(depth===0 && String(key).toLowerCase()==="checker"))
+            .map(([key,entry])=>[textBudget(state,String(key).toLowerCase()),canonical(entry,state,depth+1)]).sort(([a],[b])=>a<b?-1:a>b?1:0)];
     } finally{state.seen.delete(value);}
 }
 
 export function checkValidatedBoxResult(candidate) {
     try {
+        // Bound and validate the whole claim before following retained inputs.
+        const original=JSON.stringify(canonical(candidate));
         const evidence=field(candidate,"evidence"),kind=text(field(evidence,"kind"));
         if(text(field(evidence,"checker"))!==VALIDATED_BOX_CHECKER) throw new Error("unsupportedValidatedEvidence");
         let recomputed;
@@ -262,7 +304,7 @@ export function checkValidatedBoxResult(candidate) {
             const evaluate=kind==="intervalNewtonBox"?evaluateIntervalNewtonBox:evaluateBoxSubdivision;
             recomputed=evaluate(field(evidence,"expressions"),field(evidence,"jacobian"),field(evidence,"source"),field(evidence,"options",{}),field(evidence,"conventions",{}));
         } else throw new Error("unsupportedValidatedEvidence");
-        const accepted=JSON.stringify(canonical(candidate))===JSON.stringify(canonical(recomputed));
+        const accepted=original===JSON.stringify(canonical(recomputed));
         return freeze({accepted,certified:accepted&&recomputed.certified,reason:accepted?null:"validatedClaimMismatch",checkedBy:VALIDATED_BOX_CHECKER});
     }catch(error){return freeze({accepted:false,certified:false,reason:error.message});}
 }
@@ -279,16 +321,23 @@ export function resumeBoxSubdivision(candidate, options={}) {
     return evaluateBoxSubdivision(field(evidence,"expressions"),field(evidence,"jacobian"),field(evidence,"source"),next,field(evidence,"conventions",{}));
 }
 
-export function validatedPortable(value) {
+function portable(value) {
     if(value===null||value===undefined||value===false)return null;
     if(value===true)return new Integer(1n);
     if(value instanceof Integer||value instanceof Rational||value instanceof RationalInterval||value instanceof RationalIntervalSet)return value;
     if(typeof value==="number"||typeof value==="bigint")return new Integer(BigInt(value));
     if(typeof value==="string")return {type:"string",value};
-    if(Array.isArray(value))return {type:"sequence",values:value.map(validatedPortable)};
+    if(Array.isArray(value))return {type:"sequence",values:value.map(portable)};
     if(value?.type==="map"||value?.type==="sequence"||value?.type==="string")return value;
     const entries=value instanceof Map?value:new Map(Object.entries(value));
-    return {type:"map",entries:new Map([...entries].map(([key,entry])=>[String(key).toLowerCase(),validatedPortable(entry)]))};
+    return {type:"map",entries:new Map([...entries].filter(([key])=>String(key).toLowerCase()!=="_ext")
+        .map(([key,entry])=>[String(key).toLowerCase(),portable(entry)]))};
+}
+export function validatedPortable(value) {
+    // Unlike a top-level result comparison, conversion must inspect checker
+    // annotations too: they will be traversed by portable().
+    canonical(value,{nodes:0,seen:new Set()},1);
+    return portable(value);
 }
 export function validatedBoxValue(operation,args,context) {
     const conventions={zeroPowerZero:rangeMathPolicy(context).zeroPowerZero};

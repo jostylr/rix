@@ -1,12 +1,16 @@
 import { describe, expect, test } from "bun:test";
+import { mkdirSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import path from "node:path";
 import { Integer, Rational, RationalInterval } from "@ratmath/core";
 import { Context, createDefaultRegistry, createDefaultSystemContext, parseAndEvaluate, formatValue,
     evaluateIntervalLinearSolve, evaluateIntervalNewtonBox, evaluateBoxSubdivision, resumeBoxSubdivision,
-    checkValidatedBoxResult } from "../../src/index.js";
+    checkValidatedBoxResult, createRationalBox } from "../../src/index.js";
+import { validatedPortable } from "../../src/runtime/validated-boxes.js";
+import { createNodeHostAdapter } from "../../src/runtime/host-adapter-node.js";
+import { HOST_ADAPTER_ENV } from "../../src/runtime/host-adapter.js";
 
 const q=(n,d=1)=>new Rational(BigInt(n),BigInt(d));
 const I=(low,high=low)=>new RationalInterval(low instanceof Rational?low:q(low),high instanceof Rational?high:q(high));
-const get=(value,key)=>value.entries.get(key.toLowerCase());
 function evaluate(source) { return parseAndEvaluate(source,{context:new Context(),registry:createDefaultRegistry(),systemContext:createDefaultSystemContext()}); }
 function system(expressions,box="{= x=(-3/2):(3/2), y=(-3/2):(3/2) }") {
     const result=evaluate(`.Plugin.Load("calculus"); .Plugin.Load("numerics"); x := .calculus.Variable(:x); y := .calculus.Variable(:y);
@@ -34,6 +38,41 @@ function leafCover(result) {
     }
 }
 
+// A separate certificate interpreter: this never calls the production linear
+// solve, inverse, Newton operator, or result checker. Every retained row
+// operation and the final back substitution must follow exact interval rules.
+function replayLinear(result) {
+    const dot=(left,right)=>left.reduce((acc,value,i)=>acc.add(value.multiply(right[i])),I(0));
+    const C=result.preconditioner.map((row)=>row.map((value)=>I(value)));
+    const rows=C.map((row)=>result.matrix.map((_,i)=>dot(row,result.matrix.map((source)=>source[i]))));
+    const rhs=C.map((row)=>dot(row,result.rhs));
+    let step=0;
+    result.pivots.forEach((pivot,column)=>{
+        const swapped=pivot.row-1;
+        [rows[column],rows[swapped]]=[rows[swapped],rows[column]];
+        [rhs[column],rhs[swapped]]=[rhs[swapped],rhs[column]];
+        const divisor=rows[column][column];
+        expect(divisor.containsZero()).toBe(false);expect(String(divisor)).toBe(String(pivot.interval));
+        for(let row=column+1;row<rows.length;row++) {
+            const claim=result.stages[step++],factor=rows[row][column].divide(divisor);
+            expect(claim.before.map(String)).toEqual(rows[row].map(String));
+            expect(String(claim.beforeRhs)).toBe(String(rhs[row]));expect(String(claim.factor)).toBe(String(factor));
+            rows[row]=rows[row].map((value,j)=>j===column?I(0):j>column?value.subtract(factor.multiply(rows[column][j])):value);
+            rhs[row]=rhs[row].subtract(factor.multiply(rhs[column]));
+            expect(claim.after.map(String)).toEqual(rows[row].map(String));expect(String(claim.afterRhs)).toBe(String(rhs[row]));
+        }
+    });
+    expect(result.pivots).toHaveLength(rows.length);expect(result.stages).toHaveLength(step);
+    expect(result.triangularMatrix.map((row)=>row.map(String))).toEqual(rows.map((row)=>row.map(String)));
+    const solution=[];
+    for(let row=rows.length-1;row>=0;row--) {
+        let remaining=rhs[row];
+        for(let column=row+1;column<rows.length;column++) remaining=remaining.subtract(rows[row][column].multiply(solution[column]));
+        solution[row]=remaining.divide(rows[row][row]);
+    }
+    expect(result.solution.map(String)).toEqual(solution.map(String));
+}
+
 describe("validated interval linear systems",()=>{
     test("encloses every exact endpoint system without certifying a midpoint guess",()=>{
         const A=[[I(2,3),I(1)],[I(1),I(3,4)]],b=[I(1),I(2)];
@@ -41,6 +80,7 @@ describe("validated interval linear systems",()=>{
         expect(result.certified).toBe(true);expect(result.regular).toBe(true);
         expect(result.proof).toBe("nonzeroIntervalEliminationPivots");
         expect(result.pivots.every(({interval})=>!interval.containsZero())).toBe(true);
+        replayLinear(result);
         // Independent 2x2 inverse formula, all coefficient endpoint choices.
         for(const a of [q(2),q(3)])for(const d of [q(3),q(4)]){
             const determinant=a.multiply(d).subtract(q(1));
@@ -52,6 +92,29 @@ describe("validated interval linear systems",()=>{
         expect(checkValidatedBoxResult({...result,solution:[I(99),I(99)]}).accepted).toBe(false);
         expect(checkValidatedBoxResult({...result,preconditioner:[[q(0),q(0)],[q(0),q(0)]]}).accepted).toBe(false);
     });
+    test("replay rejects string-shaped claims, altered nested evidence, cycles and excessive depth",()=>{
+        const result=evaluateIntervalLinearSolve([[2]],[1]);
+        expect(checkValidatedBoxResult({...result,certified:"1"}).accepted).toBe(false);
+        expect(checkValidatedBoxResult({...result,solution:["1/2:1/2"]}).accepted).toBe(false);
+        expect(checkValidatedBoxResult({...result,work:{...result.work,dimension:"1"}}).accepted).toBe(false);
+        const cycle={};cycle.self=cycle;
+        expect(checkValidatedBoxResult({...result,evidence:cycle}).reason).toBe("cyclicValidatedReplayClaim");
+        expect(()=>validatedPortable(cycle)).toThrow("cyclicValidatedReplayClaim");
+        expect(()=>validatedPortable({checker:cycle})).toThrow("cyclicValidatedReplayClaim");
+        let deep=null;for(let i=0;i<260;i++)deep={nested:deep};
+        expect(checkValidatedBoxResult({...result,extra:deep}).reason).toBe("validatedReplayClaimBudgetExceeded");
+        expect(()=>validatedPortable(deep)).toThrow("validatedReplayClaimBudgetExceeded");
+    });
+    test("rational components and aggregate replay text have explicit bounds",()=>{
+        const huge=10n**4096n;
+        for(const coefficient of [new Rational(huge),new Rational(1n,huge),I(new Rational(huge)),I(q(0),new Rational(huge))])
+            expect(()=>evaluateIntervalLinearSolve([[coefficient]],[1])).toThrow("validatedRationalDigitBudgetExceeded");
+        const result=evaluateIntervalLinearSolve([[2]],[1]);
+        expect(checkValidatedBoxResult({...result,rhs:[I(new Rational(huge))]}).reason).toBe("validatedRationalDigitBudgetExceeded");
+        const text="x".repeat(1024*1024);
+        expect(checkValidatedBoxResult({...result,extra:Array(17).fill(text)}).reason).toBe("validatedReplayTextBudgetExceeded");
+        expect(()=>validatedPortable(Array(17).fill(text))).toThrow("validatedReplayTextBudgetExceeded");
+    });
     test("singular and zero-crossing pivots remain unresolved, while ill-conditioned exact systems retain proof",()=>{
         expect(evaluateIntervalLinearSolve([[I(-1,1)]],[1])).toMatchObject({certified:false,regular:false,solution:null,classification:"singularPreconditioner"});
         expect(evaluateIntervalLinearSolve([[I(0,2)]],[1])).toMatchObject({certified:false,regular:false,classification:"pivotContainsZero"});
@@ -60,6 +123,10 @@ describe("validated interval linear systems",()=>{
         expect(ill.certified).toBe(true);expect(ill.diagnostics).toContain("illConditionedMidpointMatrix");
         expect(ill.solution.map(String)).toEqual(["1:1","1:1"]);
         expect(()=>evaluateIntervalLinearSolve([[1]],[1],{preconditioner:[[0]]})).toThrow("Nonsingular");
+        const nonfinite=Object.create(Rational.prototype,{numerator:{value:1n},denominator:{value:0n}});
+        expect(()=>evaluateIntervalLinearSolve([[nonfinite]],[1])).toThrow("ExactRational");
+        const swapped=evaluateIntervalLinearSolve([[0,1],[2,3]],[2,8],{preconditioner:[[1,0],[0,1]]});
+        expect(swapped.pivots[0].row).toBe(2);expect(swapped.solution.map(String)).toEqual(["1:1","2:2"]);replayLinear(swapped);
     });
     test("RiX Matrix inputs, Ball inputs and plugin checkers reuse the same service",()=>{
         const result=evaluate(`.Plugin.Load("ball");
@@ -89,6 +156,24 @@ describe("checked multidimensional interval Newton",()=>{
         const [f,j,b]=system("[x^2+y^2-1,x-y]","{= x=(1/2):1, y=(1/2):1 }");
         const root=evaluateIntervalNewtonBox(f,j,b,{maxIterations:4});
         expect(root.classification).toBe("unique");expect(checkValidatedBoxResult(root).accepted).toBe(true);
+        for(const step of root.trace) {
+            // Derivatives and center values are recomputed directly for this
+            // concrete polynomial, independently of Calculus graph evaluation.
+            const x=step.inputBox.axes.get("x").toRationalInterval(),y=step.inputBox.axes.get("y").toRationalInterval();
+            expect(step.jacobianRange.map((row)=>row.map(String))).toEqual([[x.multiply(I(2)),y.multiply(I(2))],[I(1),I(-1)]].map((row)=>row.map(String)));
+            const [cx,cy]=step.center;
+            expect(step.functionAtCenter.map(String)).toEqual([I(cx.multiply(cx).add(cy.multiply(cy)).subtract(q(1))),I(cx.subtract(cy))].map(String));
+            replayLinear(step.linear);
+            for(let i=0;i<2;i++) {
+                const image=I(step.center[i]).subtract(step.linear.solution[i]);
+                expect(String(step.operatorBox.axes.get(["x","y"][i]).toRationalInterval())).toBe(String(image));
+                if(step.strictInclusion) {
+                    const input=[x,y][i];expect(input.low.lessThan(image.low)&&image.high.lessThan(input.high)).toBe(true);
+                }
+            }
+        }
+        const changed={...root,trace:root.trace.map((step,i)=>i?step:{...step,linear:{...step.linear,evidence:{...step.linear.evidence,rhs:[I(99),I(99)]}}})};
+        expect(checkValidatedBoxResult(changed).accepted).toBe(false);
         const [g,k,c]=system("[x^2+1,y]");
         const absent=evaluateIntervalNewtonBox(g,k,c);
         expect(absent).toMatchObject({classification:"excluded",box:null,rootExistence:"none"});
@@ -98,19 +183,60 @@ describe("checked multidimensional interval Newton",()=>{
         expect(singular).toMatchObject({classification:"singularPreconditioner",rootExistence:"unproved"});
         expect(singular.box.axes.get("x").equals(singular.inputBox.axes.get("x"))).toBe(true);
     });
+    test("a derivative from another expression cannot certify a root",()=>{
+        const [f,j,b]=system("[x^2-1,y]");
+        const [,wrong]=system("[x,y]");
+        const forged=evaluateIntervalNewtonBox(f,wrong,b);
+        expect(forged).toMatchObject({certified:false,classification:"invalidEvidence",rootExistence:"unproved"});
+        expect(forged.diagnostics).toContain("jacobianSourceMismatch");
+        expect(checkValidatedBoxResult(forged)).toMatchObject({accepted:true,certified:false});
+        expect(()=>evaluateIntervalNewtonBox(f,j,b,{maxIterations:33})).toThrow("Within1And32");
+    });
+    test("arithmetic exhaustion keeps the complete box unresolved",()=>{
+        const coefficient=(10n**3000n).toString();
+        const [f,j,b]=system(`[${coefficient}*x,y/${coefficient}]`,"{= x=(-1):1,y=(-1):1 }");
+        const result=evaluateIntervalNewtonBox(f,j,b);
+        expect(result).toMatchObject({status:"budgetExhausted",classification:"arithmeticBudgetExceeded",rootExistence:"unproved",certified:true});
+        expect(result.box.axes.get("x").equals(result.inputBox.axes.get("x"))).toBe(true);
+        expect(checkValidatedBoxResult(result)).toMatchObject({accepted:true,certified:true});
+        const divided=evaluateBoxSubdivision(f,j,b,{maxBoxes:4});
+        expect(divided.nodes).toHaveLength(1);expect(divided.unique).toHaveLength(0);
+        expect(divided.unresolved[0].reason).toBe("arithmeticBudgetExceeded");
+        expect(divided.unresolved[0].box.axes.get("x").equals(divided.inputBox.axes.get("x"))).toBe(true);
+    });
 });
 
 describe("complete deterministic box subdivision",()=>{
+    test("native and RiX boxes share dimension, duplicate-name, and locale-independent order rules",()=>{
+        expect(()=>createRationalBox(new Map([["x",I(0,1)],["X",I(2,3)]]))).toThrow("duplicateRationalBoxAxis");
+        expect(()=>createRationalBox(new Map())).toThrow("DimensionOutOfRange");
+        expect(()=>createRationalBox(new Map(Array.from({length:17},(_,i)=>[`x${i}`,I(0,1)])))).toThrow("DimensionOutOfRange");
+        expect(createRationalBox(new Map([["ä",I(0,1)],["z",I(0,1)]])).variables).toEqual(["z","ä"]);
+    });
     test("zero and exhausted budgets retain every pending region and stable split ordering",()=>{
         const [f,j,b]=system("[x^2-1,y^2-1]");
         const zero=evaluateBoxSubdivision(f,j,b,{maxBoxes:0});
         expect(zero.pending).toHaveLength(1);expect(zero.unresolved).toHaveLength(1);expect(zero.work.processed).toBe(0);
+        expect(evaluateBoxSubdivision(f,j,b,{maxWork:0}).work.processed).toBe(0);
         const first=evaluateBoxSubdivision(f,j,b,{maxBoxes:1});
         expect(first.nodes[0]).toMatchObject({axis:"x",action:"split",children:["r.0","r.1"]});
         expect(first.pending.map(({id})=>id)).toEqual(["r.0","r.1"]);
         leafCover(first);expect(checkValidatedBoxResult(first).accepted).toBe(true);
         expect(checkValidatedBoxResult({...first,pending:first.pending.slice(1)}).accepted).toBe(false);
         expect(()=>resumeBoxSubdivision({...first,pending:[]},{maxBoxes:2})).toThrow("Unchecked");
+    });
+    test("both solver choices retain complete covers and reject invalid work limits",()=>{
+        const [f,j,b]=system("[x^2-1,y^2-1]");
+        const result=evaluateBoxSubdivision(f,j,b,{maxBoxes:7,method:"krawczyk",maxDepth:3});
+        leafCover(result);expect(checkValidatedBoxResult(result).accepted).toBe(true);
+        const floor=evaluateBoxSubdivision(f,j,b,{maxBoxes:1,minWidth:3});
+        expect(floor.unresolved[0].reason).toBe("resolutionFloor");leafCover(floor);
+        for(const options of [{maxBoxes:-1},{maxBoxes:4097},{maxDepth:129},{minWidth:-1},{method:"midpoint"}])
+            expect(()=>evaluateBoxSubdivision(f,j,b,options)).toThrow();
+        expect(()=>resumeBoxSubdivision(result,{maxBoxes:1,method:"intervalNewton"})).toThrow("OnlyExtend");
+        const [g,k,c]=system("[x^2+1,y]");
+        const absent=evaluateBoxSubdivision(g,k,c,{maxBoxes:1});
+        expect(absent.status).toBe("complete");expect(absent.excluded).toHaveLength(1);expect(absent.unresolved).toHaveLength(0);leafCover(absent);
     });
     test("resuming equals a single longer run and replay checks all classifications and coverage",()=>{
         const [f,j,b]=system("[x^2-1,y^2-1]");
@@ -143,4 +269,18 @@ describe("Ball polynomial adapters",()=>{
         expect(formatValue(result)).toBe("[-1:2, 2:4, 4, 0:0, 1]");
         expect(()=>evaluate('.Plugin.Load("ball");.ball.DerivativeBound([1],.ball(0,1),257);')).toThrow("must not exceed 256");
     });
+});
+
+test("Numerics script permission grants the validated solver and checker only when requested",()=>{
+    const root=path.resolve(import.meta.dir,"../../../tmp");mkdirSync(root,{recursive:true});
+    const directory=mkdtempSync(path.join(root,"m1-permission-"));
+    try {
+        writeFileSync(path.join(directory,"solve.rix"),'result := .IntervalLinearSolve([[2]],[1]); .ValidatedBoxCheck(result)[:accepted];');
+        function run(policy) {
+            const context=new Context();context.setEnv(HOST_ADAPTER_ENV,createNodeHostAdapter());context.setEnv("scriptBaseDir",directory);
+            return parseAndEvaluate(`<"solve" /${policy}/>`,{context,registry:createDefaultRegistry(),systemContext:createDefaultSystemContext()});
+        }
+        expect(run("-All,+Core,+Numerics").value).toBe(1n);
+        expect(()=>run("-All,+Core")).toThrow("Unknown system capability: INTERVALLINEARSOLVE");
+    }finally{rmSync(directory,{recursive:true,force:true});}
 });

@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/interval-linear-solve/v1.schema.json",
+  "title": "RiX validated interval linear solve v1",
+  "description": "Normalized native result record. Exact rational/interval/graph values retain their existing mathematical representations; runtime RiX keys are case-insensitive.",
+  "type": "object",
+  "required": [
+    "schema",
+    "valueKind",
+    "status",
+    "classification",
+    "denotation",
+    "certified",
+    "regular",
+    "matrix",
+    "rhs",
+    "midpointMatrix",
+    "preconditioner",
+    "solution",
+    "pivots",
+    "stages",
+    "diagnostics",
+    "work",
+    "evidence"
+  ],
+  "properties": {
+    "schema": {
+      "const": "rix.numerics.interval-linear-solve@1"
+    },
+    "valueKind": {
+      "const": "intervalLinearResult"
+    },
+    "status": {
+      "enum": [
+        "enclosed",
+        "unknown"
+      ]
+    },
+    "classification": {
+      "enum": [
+        "regular",
+        "singularPreconditioner",
+        "pivotContainsZero"
+      ]
+    },
+    "denotation": {
+      "const": "allPointSystems"
+    },
+    "certified": {
+      "type": "boolean"
+    },
+    "regular": {
+      "type": "boolean"
+    },
+    "matrix": {
+      "type": "array"
+    },
+    "rhs": {
+      "type": "array"
+    },
+    "midpointMatrix": {
+      "type": "array"
+    },
+    "preconditioner": {
+      "type": [
+        "array",
+        "null"
+      ]
+    },
+    "solution": {
+      "type": [
+        "array",
+        "null"
+      ]
+    },
+    "pivots": {
+      "type": "array"
+    },
+    "stages": {
+      "type": "array"
+    },
+    "diagnostics": {
+      "type": "array"
+    },
+    "work": {
+      "type": "object",
+      "required": [
+        "dimension",
+        "eliminations"
+      ],
+      "properties": {
+        "dimension": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16
+        },
+        "eliminations": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": true
+    },
+    "evidence": {
+      "type": "object",
+      "required": [
+        "kind",
+        "checker",
+        "matrix",
+        "rhs",
+        "options"
+      ],
+      "properties": {
+        "kind": {
+          "const": "intervalLinear"
+        },
+        "checker": {
+          "const": "rix.runtime.validated-box-checker@1"
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

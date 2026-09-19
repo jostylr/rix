@@ -221,6 +221,16 @@ or budget-exhausted box. `.CheckKrawczyk(result)` recomputes the claim. The
 first release intentionally requires exact rational midpoint function and
 Jacobian values; it never substitutes an unreported floating preconditioner.
 
+`.numerics.IntervalLinearSolve(A,b,options?)` adds exact interval Gaussian
+elimination with replayable pivots, preconditioners, and containment evidence.
+`.IntervalNewtonBox(expressions,jacobian,box,options?)` uses that solver with
+checked Calculus derivatives for multidimensional root classification.
+`.SubdivideBoxes` and `.ResumeBoxes` provide a deterministic bounded search,
+retaining every excluded, unique, unresolved, and unprocessed region. Their
+`certified` coverage claim is separate from proving a root's existence. See
+[the full contract](validated-boxes.md) and
+[executable tutorial](validated-boxes-tutorial.md).
+
 For an exact interval expression, generic subdivision can reduce dependency
 overestimation while retaining the same input occurrence in each piece:
 
@@ -437,9 +447,10 @@ The callback form records `evidenceLevel=:assumed` because it can check all
 interval arithmetic but cannot prove that an arbitrary supplied derivative
 callable is the derivative of the arbitrary supplied function. It therefore
 sets `conditional=1`, leaves `certified` unset, and retains the explicit
-differentiability and derivative-identity assumptions in the result. A future
-portable Calculus-expression overload will discharge that identity through
-`CheckDerivativeGraph` and may then return an unconditional certificate.
+differentiability and derivative-identity assumptions in the result. The
+separate `IntervalNewtonBox` surface accepts checked Calculus expression
+vectors, including a one-variable system, and discharges that identity before
+returning an unconditional certificate.
 
 Kantorovich and direct interval Newton may be alternatives or complements.
 Kantorovich uses a derivative lower bound and a derivative-Lipschitz/

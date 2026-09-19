@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/ball-validated-linear/v1.schema.json",
+  "title": "RiX Ball adapter for validated interval linear solve v1",
+  "description": "Normalized native result record. Exact rational/interval/graph values retain their existing mathematical representations; runtime RiX keys are case-insensitive.",
+  "type": "object",
+  "required": [
+    "schema",
+    "status",
+    "certified",
+    "solution",
+    "denotation",
+    "linear",
+    "diagnostics"
+  ],
+  "properties": {
+    "schema": {
+      "const": "rix.ball.validated-linear@1"
+    },
+    "status": {
+      "enum": [
+        "enclosed",
+        "unknown"
+      ]
+    },
+    "certified": {},
+    "solution": {
+      "type": [
+        "array",
+        "null"
+      ]
+    },
+    "denotation": {
+      "const": "allPointSystems"
+    },
+    "linear": {
+      "$ref": "interval-linear-solve.schema.json"
+    },
+    "diagnostics": {
+      "type": "array"
+    }
+  },
+  "additionalProperties": true
+}

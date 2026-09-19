@@ -1,0 +1,14 @@
+## Exact, checked root search with an explicitly retained unfinished queue.
+.Plugin.Load("calculus");
+.Plugin.Load("numerics");
+x := .calculus.Variable(:x);
+y := .calculus.Variable(:y);
+equations := [x^2-1,y^2-1];
+jacobian := .calculus.JacobianResult(equations,[:x,:y]);
+first := .numerics.SubdivideBoxes(equations,jacobian,
+    {= x=(-3/2):(3/2),y=(-3/2):(3/2) },{= maxBoxes=5,maxDepth=12 });
+continued := .numerics.ResumeBoxes(first,{= maxBoxes=26 });
+{= status=continued[:status],processed=continued[:work][:processed],
+    uniqueBoxes=continued[:unique].Len(),excludedBoxes=continued[:excluded].Len(),
+    unresolvedBoxes=continued[:unresolved].Len(),pendingBoxes=continued[:pending].Len(),
+    replayAccepted=.numerics.CheckBoxSubdivision(continued)[:accepted] };

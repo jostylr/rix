@@ -108,6 +108,28 @@ Rectangular enclosures are intentionally retained rather than silently
 converting to a circular radius through an approximate square root. A
 high-performance Arb/MPFR-style backend remains Phase 4 work.
 
+## Polynomial and validated linear adapters
+
+`Polynomial(coefficients,value)` uses exact interval Horner evaluation of
+descending coefficients: `[1,0,-2]` means `x^2-2`. The argument may be a finite
+Ball, closed RationalInterval, or exact scalar. The result is a Ball enclosing
+the entire image; repeated input occurrences may widen the enclosure.
+`DerivativeBound(coefficients,value,order?)` differentiates the coefficients
+exactly (default order 1), then returns the derivative Ball, interval, and
+`absoluteBound` on its magnitude. Coefficient arrays contain 1–257 entries and
+orders are integers 0–256; derivatives beyond the degree are exactly zero.
+
+`LinearSolve(A,b,options?)` accepts finite Ball or exact interval/scalar entries
+and delegates to Numerics' validated interval elimination. A proved regular
+family returns a vector of solution Balls; an unresolved family keeps
+`certified=_` and `solution=_`. The `linear` field retains the complete
+Numerics result for `.numerics.CheckIntervalLinearSolve(result[:linear])`.
+Midpoint solutions alone never become certified Balls.
+
+See the [runnable validated-box tutorial](../numerics/validated-boxes-tutorial.md)
+and [solver contract](../numerics/validated-boxes.md) for evidence, limits,
+singular diagnostics, and the meaning of `certified`.
+
 See [tutorial.md](tutorial.md).
 
 ## JavaScript comparison implementation

@@ -157,17 +157,11 @@ function normalizeAxes(source) {
     const raw = textValue(mapValue(source, "schema")) === RATIONAL_BOX_SCHEMA
         ? mapValue(source, "axes")
         : source;
-    if (raw?.type !== "map" || !(raw.entries instanceof Map)) {
-        if (raw instanceof Map) {
-            return new Map([...raw].map(([name, value]) => [
-                String(name).toLowerCase(), normalizeAxis(name, value),
-            ]).sort(([left], [right]) => left.localeCompare(right)));
-        }
-        throw new Error("rationalBoxRequiresMapBindings");
-    }
-    const axes = [...raw.entries].map(([name, value]) => [
+    const entries = raw instanceof Map ? raw : raw?.type === "map" && raw.entries instanceof Map ? raw.entries : null;
+    if (!entries) throw new Error("rationalBoxRequiresMapBindings");
+    const axes = [...entries].map(([name, value]) => [
         String(name).toLowerCase(), normalizeAxis(name, value),
-    ]).sort(([left], [right]) => left.localeCompare(right));
+    ]).sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0);
     if (axes.length < 1 || axes.length > 16) throw new Error("rationalBoxDimensionOutOfRange");
     if (new Set(axes.map(([name]) => name)).size !== axes.length) {
         throw new Error("duplicateRationalBoxAxis");

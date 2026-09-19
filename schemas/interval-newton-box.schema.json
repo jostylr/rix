@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/interval-newton-box/v1.schema.json",
+  "title": "RiX checked multidimensional interval Newton v1",
+  "description": "Normalized native result record. Exact rational/interval/graph values retain their existing mathematical representations; runtime RiX keys are case-insensitive.",
+  "type": "object",
+  "required": [
+    "schema",
+    "valueKind",
+    "strategy",
+    "status",
+    "classification",
+    "rootExistence",
+    "certified",
+    "inputBox",
+    "box",
+    "operatorBox",
+    "trace",
+    "diagnostics",
+    "work",
+    "evidence"
+  ],
+  "properties": {
+    "schema": {
+      "const": "rix.numerics.interval-newton-box@1"
+    },
+    "valueKind": {
+      "const": "intervalNewtonBoxResult"
+    },
+    "strategy": {
+      "const": "intervalNewton"
+    },
+    "status": {
+      "enum": [
+        "classified",
+        "budgetExhausted",
+        "unknown"
+      ]
+    },
+    "classification": {
+      "enum": [
+        "unique",
+        "excluded",
+        "contracted",
+        "stalled",
+        "singularPreconditioner",
+        "pivotContainsZero",
+        "arithmeticBudgetExceeded",
+        "invalidEvidence"
+      ]
+    },
+    "rootExistence": {
+      "enum": [
+        "unique",
+        "none",
+        "unproved"
+      ]
+    },
+    "certified": {
+      "type": "boolean"
+    },
+    "inputBox": {
+      "$ref": "rational-box.schema.json"
+    },
+    "box": {
+      "oneOf": [
+        {
+          "$ref": "rational-box.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "operatorBox": {
+      "oneOf": [
+        {
+          "$ref": "rational-box.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "trace": {
+      "type": "array"
+    },
+    "diagnostics": {
+      "type": "array"
+    },
+    "work": {
+      "type": "object",
+      "required": [
+        "iterations",
+        "graphEvaluations",
+        "maxIterations",
+        "exhausted"
+      ],
+      "properties": {
+        "maxIterations": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32
+        },
+        "exhausted": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": true
+    },
+    "evidence": {
+      "type": "object",
+      "required": [
+        "kind",
+        "checker",
+        "expressions",
+        "jacobian",
+        "source",
+        "options",
+        "conventions"
+      ],
+      "properties": {
+        "kind": {
+          "const": "intervalNewtonBox"
+        },
+        "checker": {
+          "const": "rix.runtime.validated-box-checker@1"
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}
