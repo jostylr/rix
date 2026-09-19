@@ -839,15 +839,15 @@ is retained.
   use `Shaped` for finite dense coordinates and `SparseCoordinates` for
   finite-support infinite-dimensional coordinates.
 - [x] Implement vector/covector pairing without inventing a metric.
-- [ ] Require an explicit metric for dot products, norms, angles, and
+- [x] Require an explicit metric for dot products, norms, angles, and
   raising/lowering between a space and its dual.
 - [x] Replace the one-space `CoordinateTensor` assumption with ordered slot
   descriptors supporting distinct vector spaces and dimensions.
 - [x] Name the public ordered-basis/coordinatized-space value `Frame`; remove
   the experimental `Coordinates` name during the migration.
 - [x] Implement explicit `DualSpace` and primal/dual slot contraction.
-- [ ] Complete canonical/noncanonical dual-Frame behavior and tests.
-- [ ] Implement explicit noncanonical dual-coordinate construction.
+- [x] Complete canonical/noncanonical dual-Frame behavior and tests.
+- [x] Implement explicit noncanonical dual-coordinate construction.
 - [x] Parse, lower, resolve, and validate `/Tensor: V@V*@Wa/`.
 - [x] Validate literal rank and each axis dimension against the resolved slot.
 - [x] Make `:Tensor` construction fail unless complete slot and coordinate
@@ -858,10 +858,11 @@ is retained.
   frame.
 - [x] Implement tensor product, valid contraction, compatible addition, and
   scalar arithmetic for finite coordinate tensors.
-- [ ] Complete slot permutation and its coordinate/provenance tests.
-- [ ] Return the declared coordinate-storage value from `Components()` and
-  apply the slice/transform commutation rule to every proposed Tensor view.
-- [ ] Define tensor equality, `SameTensor`, structural equality of independent
+- [x] Complete slot permutation and its coordinate/provenance tests.
+- [x] Return finite dense `Shaped` storage from `Components()` and verify full
+  views and slot permutations commute with Frame changes. Strict component
+  slices return storage; additional storage protocols remain below.
+- [x] Define tensor equality, `SameTensor`, structural equality of independent
   tensors, and equality across coordinate representations.
 - [x] Write versioned `rix.linalg.identity-record@1` records for spaces,
   Frames, tensors, linear maps, and realizations, including representation IDs.
@@ -869,6 +870,17 @@ is retained.
   and dangling-reference rejection.
 - [x] Implement configurable lineage retention with a permanent origin and a
   default ring of the 30 most recent transformation records.
+
+Finite dense semantics are exercised in `tests/eval/finite-tensor-semantics.test.js`.
+The method surface is `Permute`, `View`, `ComponentSlice`, `Equal`, `Lower`,
+`Raise`, `Dot`, `NormSquared`, `Norm`, `Angle`, `Trace`, `Symmetrize`,
+`Antisymmetrize`, and `TensorPower`. Metrics are symmetric nonsingular Rational
+forms. Norm/angle require positive definiteness; non-Rational roots/angles
+return explicit coefficient-extension diagnostics. Dual linear maps retain
+the duals of their actual source/target Frames. `Transform!` retains distinct
+snapshots, cuts evicted backlinks, and validates the complete target before
+mutating the active representation. See the Linalg README for finite budgets
+and the chosen-dual basis convention.
 
 ## Stage 5 — Complete the coordinated rename across hosts and documentation
 
@@ -889,10 +901,11 @@ is retained.
 
 ## Stage 6 — Advanced tensor algebra
 
-- [ ] Add metrics and validated raising/lowering of indices; never identify a
+- [x] Add metrics and validated raising/lowering of indices; never identify a
   space with its dual without a metric or explicit isomorphism.
-- [ ] Add symmetrization, antisymmetrization, traces, tensor powers, and named
-  contraction notation.
+- [x] Add bounded symmetrization, antisymmetrization, traces, and tensor powers.
+- [ ] Named contraction notation remains a later syntax decision (method-based
+  `Contract` and `Trace` are implemented).
 - [x] Add linear maps between distinct spaces, composition, pullbacks, and
   pushforwards using the same slot model.
 - [ ] Add sparse or accelerated component storage without changing semantic
@@ -918,30 +931,31 @@ Implementation is not complete until tests cover at least these cases:
   abstract vector-space and coordinate identities.
 - [x] A rank-1 bare literal remains `Shaped` rather than silently becoming a
   Vector.
-- [ ] Matrix components are shaped; Vector and Tensor values report their
-  component-storage capability without falsely satisfying `? :shaped` when
-  their coordinates are sparse or lazy.
+- [x] Matrix components are shaped; finite Vector and Tensor `Components()`
+  return Shaped storage without making the tensor itself Shaped.
+- [ ] Report coordinate-storage capabilities for sparse or lazy coordinates
+  without falsely satisfying `? :shaped` (the storage-protocol extension).
 - [x] Vector coordinate changes preserve abstract identity and create new
   representation identity.
-- [ ] Vector/covector pairing works without a metric, while dot product, norm,
+- [x] Vector/covector pairing works without a metric, while dot product, norm,
   and angle diagnose a missing metric.
 - [x] `:Tensor` without slot metadata is rejected.
 - [x] `/Tensor: V@V*@Wa/` resolves `V`/`Wa` to the intended local coordinate
   values and validates every dimension.
-- [ ] `V*` uses the canonically dual basis, while an explicit dual coordinate
+- [x] `V*` uses the canonically dual basis, while an explicit dual coordinate
   value can represent a noncanonical choice.
 - [x] A tensor with slots from differently sized spaces transforms correctly.
 - [x] Non-bang coordinate transformation returns a new representation of the
   same abstract tensor.
-- [ ] Bang transformation retains bounded history without changing abstract
+- [x] Bang transformation retains bounded history without changing abstract
   identity.
 - [x] Lineage always retains the origin plus the configured number of recent
   transformations (default 30), evicting the oldest intermediate record first.
-- [ ] Tensor-preserving views satisfy the slice/transform commutation law;
+- [x] Tensor-preserving views satisfy the slice/transform commutation law;
   coordinate component slices that fail it return component storage.
 - [x] Tensor arithmetic creates a new abstract identity with derivation
   provenance rather than an equivalence link.
-- [ ] Invalid contractions report the incompatible slots and spaces.
+- [x] Invalid contractions report the incompatible slots and spaces.
 - [x] Mixed-case type and trait spellings resolve identically and export with
   canonical spelling.
 - [x] Repository-owned serialized fixtures and IR use only the new names; old

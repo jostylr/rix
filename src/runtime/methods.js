@@ -1514,11 +1514,15 @@ const shapedMethods = {
         if (!nextShape) throw new Error("Reshape expects a shape tuple or Array");
         const expected = nextShape.reduce((product, dim) => product * dim, 1);
         if (expected !== shapedSize(target)) throw new Error("Reshape size mismatch");
-        return createShaped(nextShape, target.data);
+        const values = [];
+        forEachShapedCell(target, value => values.push(value));
+        return createShaped(nextShape, values);
     }),
     FLATTEN: method("FLATTEN", ([target]) => {
         ensureShaped(target, "Flatten");
-        return createShaped([shapedSize(target)], [...target.data]);
+        const values = [];
+        forEachShapedCell(target, value => values.push(value));
+        return createShaped([shapedSize(target)], values);
     }),
     TRANSPOSE: method("TRANSPOSE", ([target]) => {
         ensureShaped(target, "Transpose");

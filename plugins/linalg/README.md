@@ -174,3 +174,100 @@ Matrix-valued outputs use `Matrix`; rank-1 coordinate storage uses `Shaped`.
 Calling a registered Matrix-only method such as `Determinant` on Shaped storage
 suggests `value ~!: :Matrix`. Mathematical Tensor values retain their frame and
 slot semantics and are not generic storage containers.
+
+## Finite tensor operations
+
+A Tensor's ordered slots determine its spaces and variance. Constructor
+variance defaults to `:up`; `/Covector: E/`, `/Vector: E*/`, or explicit
+`:down` selects the algebraic dual. Every finite component is an exact Integer
+or Rational; a rank-2 Tensor still returns `Shaped` from `Components()`, not
+`Matrix`.
+
+`e.Dual()` returns the cached canonical dual Frame. An independently chosen
+basis is explicit: `e.Dual("chosen", [1,1;0,1])`, also spelled
+`.linalg.DualFrame(e,"chosen",basis)`. Its basis columns are expressed in
+`e`'s canonical dual basis. Using that Frame directly in `/Vector: Chosen/`
+constructs a Covector, and `/Tensor: E@Chosen/` uses a covariant second slot.
+A second `Dual()` returns the associated primal Frame. These are algebraic
+constructions and do not assume a Euclidean metric.
+
+A dual Frame retains the original space identity and an explicit variance
+flag. `dualBasis` exposes its basis in the defining dual coordinates;
+`primalFrame` exposes its primal companion. The internal `basis` and
+`inverseBasis` fields describe that companion, allowing the same slot
+transformation algorithm to handle primal and covariant coordinates.
+`ChangeMatrix` between two dual Frames applies the inverse-transpose law and
+rejects a primal/dual Frame mix. `DualSpace(V)` remains the separate abstract
+space used by dual linear maps; those maps retain the duals of their chosen
+source and target Frames instead of assuming defining Frames.
+
+| Method | Finite contract |
+| --- | --- |
+| `a == b`, `a.Equal(b)` | Compare exact components after aligning compatible ordered spaces and variance; independently created tensors may be equal. |
+| `a.SameTensor(b)` | Compare abstract identity; coordinate transformations and full views preserve it. |
+| `t.Permute([2,1])` | Permute complete slots and their coordinates, creating a derived tensor. The order must contain each axis once. |
+| `t.View()` | Full-extent representation with the same identity and component storage. |
+| `t.ComponentSlice({: 1,1:2})` | Select component storage or a scalar; never infer tensor semantics for a strict coordinate slice. |
+| `t.Contract(i,j)` | Contract opposite-variance slots of the same space, aligning Frames exactly. |
+| `t.Symmetrize(axes?)`, `t.Antisymmetrize(axes?)` | Average over selected slots of the same space and variance, accounting for their different Frames. |
+| `t.TensorPower(n)` | Exact tensor product, with power zero equal to scalar `1` and power one a full view. |
+
+Symmetry accepts one through six distinct axes, at most 720 permutations and
+131,072 component-permutation contributions. Tensor powers accept integer
+exponents zero through eight and at most 65,536 output components. These
+bounds reject the operation before expansion.
+
+A full view and a whole-slot permutation commute with independent coordinate
+changes. Ordinary component slices generally do not, so their result has
+storage semantics. Shaped `Flatten` and `Reshape` enumerate logical view
+cells, including permuted or offset storage, rather than reading the backing
+array in its original order.
+
+`Transform!` is available both on a tensor and through `.linalg`. It keeps the
+original representation permanently plus the configured number of recent
+representations (default 30; range 1–1024). Retained records are snapshots,
+not repeated references to the currently mutating object. Eviction cuts stale
+backlinks. Invalid target Frames leave the representation and history intact.
+
+## Explicit Rational metrics
+
+`Metric(frame,matrix)` requires a symmetric, nonsingular exact Rational matrix
+of the Frame's dimension. Nondegenerate indefinite forms are accepted for
+index changes and bilinear pairings. Positive definiteness is checked exactly
+and is required by `Norm` and `Angle`.
+
+```{.rix exec=true id=finite-metric-readme}
+.Plugin.Load("linalg");
+space := .linalg.VectorSpace("metric example",2);
+e := .linalg.Frame(space,"e",:defining);
+f := .linalg.Frame(space,{= name="f",relativeTo=e,basis=[1,1;0,1] });
+metric := .linalg.Metric(e,[2,1;1,3]);
+x := .linalg.Vector([2,3],e);
+alpha := x.Lower(metric);
+{: alpha.components,alpha.Raise(metric)==x,x.NormSquared(metric),
+   x.Transform(f).Lower(metric.Transform(f))==alpha.Transform(f) };
+```
+
+The covector has components `[7,11]`, the squared norm is `47`, and both
+comparisons are true. `Lower(metric,axis?)` and `Raise(metric,axis?)` default
+to axis one; each checks the existing variance and metric's space. The result
+has a new derived identity. `metric.Transform(f)` changes its components by
+the exact congruence law. `Dot(other,metric)` uses the explicit metric;
+`Pair` remains the metric-free vector/covector operation.
+
+`Trace(i?,j?,metric?)` defaults to axes one and two. Opposite variance uses
+canonical contraction. Equal variance requires the supplied metric, lowering
+or raising the second selected slot first. A missing metric always produces
+an explicit diagnostic for index changes, dot products, norms, angles and
+same-variance traces.
+
+`Norm(metric)` returns an exact Rational when its square root is Rational.
+Otherwise it returns `:unsupportedCoefficientExtension`, the squared norm,
+and the required root. `Angle(other,metric)` returns zero for positive
+collinear nonzero vectors. Other angles report
+`:unsupportedCoefficientExtension`, their exact normalized-pairing data and
+an inverse-cosine requirement. Neither operation silently approximates or
+changes scalar domains. `NormSquared` is exact for every accepted metric;
+for an indefinite form this is the bilinear self-pairing, not a positive norm.
+Metrics and explicit dual Frames have identity-record writers via `Serialize`;
+validated graph import is tracked separately from these finite operations.
