@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "description": "Semantic RiX record with lowercase normalized keys. Exact mathematical leaves use the inert Output JSON graph encoding, not JavaScript floating-point JSON. The public checker enforces component bounds and complete deterministic replay.",
+  "$id": "https://rix.ratmath.com/schema/continued-fraction-derivation.schema.json",
+  "title": "Finite or conditional continued-fraction evidence",
+  "required": [
+    "schema",
+    "checker",
+    "kind",
+    "status",
+    "prefix",
+    "source",
+    "value",
+    "enclosure",
+    "errors",
+    "evidencelevel",
+    "premise",
+    "certified"
+  ],
+  "properties": {
+    "schema": {
+      "const": "rix.continued-fraction.derivation@1"
+    },
+    "checker": {
+      "const": "fraction-replay@1"
+    },
+    "kind": {
+      "enum": [
+        "finite",
+        "positiveTailAssumed"
+      ]
+    },
+    "status": {
+      "enum": [
+        "exact",
+        "conditional",
+        "unresolved"
+      ]
+    },
+    "prefix": {
+      "$ref": "fraction-derivation.schema.json"
+    },
+    "source": {
+      "description": "Full finite coefficient derivation or null"
+    },
+    "value": {
+      "description": "Retained prefix Fraction or null"
+    },
+    "enclosure": {
+      "description": "Exact oriented interval, conditional positive-tail interval, or null"
+    },
+    "errors": {
+      "type": "array",
+      "maxItems": 256
+    },
+    "evidencelevel": {
+      "enum": [
+        "exactFinite",
+        "assumedPositiveTail"
+      ]
+    },
+    "premise": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "certified": {
+      "description": "RiX truth: 1 only for complete finite exact source evidence; null otherwise"
+    }
+  }
+}

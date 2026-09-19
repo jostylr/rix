@@ -13,6 +13,7 @@
     "examples/complex/",
     "examples/documents/",
     "examples/eval/",
+    "examples/fraction/",
     "examples/geometry/",
     "examples/newton/",
     "examples/plugins/",

@@ -59,3 +59,10 @@ The meta-plugin is pure RiX and adds no alternate arithmetic rules.
 `.fracfun` remains host-backed for closure rewriting and its paired
 display/evaluation construction, but its expression and restriction outputs
 now cross a stable public Calculus boundary.
+
+## Checked fraction evidence
+
+The [portable fraction derivation guide](../fraction/derivation-tutorial.md)
+connects written Fraction pairs, bounded Farey paths, exact convergent errors,
+conditional lazy-tail bounds, symbolic constants and static document views.
+The same inert records drive the Web exact-number inspector.

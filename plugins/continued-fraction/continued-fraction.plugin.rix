@@ -4,12 +4,12 @@ description: Finite, lazy, transduced, and certified-extracted simple continued 
 kind: rix
 mount: continuedFraction
 aliases: [cf]
-exports: [Finite, Lazy, Periodic, GeneralizedFinite, Sqrt2, Sqrt, NthRoot, FromRational, FromRefinable, Coefficient, CoefficientResult, Coefficients, Convergent, Convergents, Enclosure, ErrorInterval, QuadraticForm, BestApproximation, Translate, Reciprocal, ZeroStatus, Record]
+exports: [Finite, Lazy, Periodic, GeneralizedFinite, Sqrt2, Sqrt, NthRoot, FromRational, FromRefinable, Coefficient, CoefficientResult, Coefficients, Convergent, Convergents, Enclosure, ErrorInterval, QuadraticForm, BestApproximation, Translate, Reciprocal, ZeroStatus, Record, Derivation, CheckDerivation]
 groups: [Numerics, Exact]
 permissions: []
-requires: [rix.oracle@1]
+requires: [rix.oracle@1, rix.fraction@1]
 provides: [rix.continued-fraction@1, rix.refinable@1, rix.enclosable-real@1]
-schemas: [rix.continued-fraction.finite@1, rix.continued-fraction.lazy@1, rix.continued-fraction.generalized-finite@1, rix.continued-fraction.generalized-result@1, rix.continued-fraction.generalized-normalization@1, rix.continued-fraction.gosper@1, rix.continued-fraction.extractor@1, rix.continued-fraction.coefficient-result@1, rix.continued-fraction.arithmetic-real@1, rix.continued-fraction.quadratic-form@1, rix.continued-fraction.best-approximation@1, rix.continued-fraction.zero-status@1]
+schemas: [rix.continued-fraction.finite@1, rix.continued-fraction.lazy@1, rix.continued-fraction.generalized-finite@1, rix.continued-fraction.generalized-result@1, rix.continued-fraction.generalized-normalization@1, rix.continued-fraction.gosper@1, rix.continued-fraction.extractor@1, rix.continued-fraction.coefficient-result@1, rix.continued-fraction.arithmetic-real@1, rix.continued-fraction.quadratic-form@1, rix.continued-fraction.best-approximation@1, rix.continued-fraction.zero-status@1, rix.continued-fraction.derivation@1]
 snapshot: false
 deterministic: true
 defaultEnabled: false
@@ -183,6 +183,15 @@ CFEnclosureAt(real, count ?= _) -> {;
            ?_ CFWitness(real, count == _ ?: 2 ?_ CFRequireCount(count, "Continued-fraction enclosure count"))[:interval]);
 };
 
+CFDerivation(real,count ?= _) -> {;
+    amount=count==_ ?: (real[:kind]==:finite ?: real[:length] ?_ .Error("Lazy derivations require an explicit coefficient count")) ?_ CFRequireCount(count,"Derivation count");
+    (amount>=1 && amount<=256 && (real[:kind]!=:finite || real[:length]<=256))
+      ?: _ ?_ .Error("Continued-fraction derivation supports at most 256 observed/finite coefficients");
+    coefficients=CFCoefficients(real,amount);
+    full=real[:kind]==:finite ?: CFCoefficients(real) ?_ _;
+    .fraction.CoefficientDerivation(coefficients,full);
+};
+
 CFErrorInterval(real, count) -> {;
     convergent = CFConvergent(real, count);
     enclosure = CFEnclosureAt(real, real[:kind] == :finite ?: _ ?_ count);
@@ -252,6 +261,7 @@ CFAttachProtocol(real) -> {;
         Translate = (self, offset, options ?= {= }) -> CFTranslate(self, offset, options),
         Reciprocal = (self, options ?= {= }) -> CFReciprocal(self, options),
         ZeroStatus = (self, options ?= {= }) -> CFZeroStatus(self, options),
+        Derivation = (self,count ?= _) -> CFDerivation(self,count),
         Record = (self) -> CFRecord(self),
         Enclose = (self, request ?= {= }) -> self[:kind] == :gosper
           ?: CFGosperProtocolEnclosure(self, request, :enclose)
@@ -2103,6 +2113,8 @@ continuedFractionNamespace._proto = {=
     Translate = (self, real, offset, options ?= {= }) -> CFTranslate(real, offset, options),
     Reciprocal = (self, real, options ?= {= }) -> CFReciprocal(real, options),
     ZeroStatus = (self, real, options ?= {= }) -> CFZeroStatus(real, options),
+    Derivation = (self,real,count ?= _) -> CFDerivation(real,count),
+    CheckDerivation = (self,evidence) -> .fraction.CheckDerivation(evidence),
     Record = (self, real) -> CFRecord(real)
 };
 

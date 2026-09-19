@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "description": "Semantic RiX record with lowercase normalized keys. Exact mathematical leaves use the inert Output JSON graph encoding, not JavaScript floating-point JSON. The public checker enforces component bounds and complete deterministic replay.",
+  "$id": "https://rix.ratmath.com/schema/fraction-derivation.schema.json",
+  "title": "Checked bounded fraction derivation",
+  "required": [
+    "schema",
+    "checker",
+    "kind",
+    "input",
+    "options",
+    "status",
+    "value",
+    "error",
+    "steps",
+    "details",
+    "work"
+  ],
+  "properties": {
+    "schema": {
+      "const": "rix.fraction.derivation@1"
+    },
+    "checker": {
+      "const": "fraction-replay@1"
+    },
+    "kind": {
+      "enum": [
+        "mediant",
+        "parentage",
+        "fareyPath",
+        "convergents",
+        "coefficients"
+      ]
+    },
+    "input": {
+      "description": "Original Fraction or bounded coefficient/component array; written pairs are retained."
+    },
+    "options": {
+      "type": "object",
+      "required": [
+        "maxsteps",
+        "maxterms",
+        "maxdenominator"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "maxsteps": {
+          "description": "Exact Integer in 0..4096"
+        },
+        "maxterms": {
+          "description": "Exact Integer in 1..256"
+        },
+        "maxdenominator": {
+          "description": "Positive exact Integer of at most 16384 bits"
+        }
+      }
+    },
+    "status": {
+      "enum": [
+        "exact",
+        "found",
+        "budgetExhausted",
+        "denominatorLimit",
+        "termBudgetExhausted",
+        "componentBudgetExhausted"
+      ]
+    },
+    "value": {
+      "description": "Retained Fraction or null"
+    },
+    "error": {
+      "description": "Exact signed source-minus-result error or null"
+    },
+    "steps": {
+      "type": "array",
+      "maxItems": 4096,
+      "items": {
+        "type": "object"
+      }
+    },
+    "details": {
+      "type": "object"
+    },
+    "work": {
+      "type": "object"
+    }
+  }
+}

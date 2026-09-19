@@ -1,0 +1,13 @@
+/**
+plugins: [fraction, continued-fraction, document, html, markdown, latex, pdf]
+**/
+.Plugin.Load("fraction"); .Plugin.Load("continued-fraction"); .Plugin.Load("document");
+mediant = .fraction.Derivation(:mediant,[.frac(6,8),.frac(1,2)]);
+path = .fraction.Derivation(:fareyPath,.frac(-3,5));
+convergents = .fraction.Derivation(:convergents,.frac(710,226),{= maxTerms=2 });
+conditional = .cf.Sqrt2().Derivation(4);
+report = .document.Report("Checked fraction derivations",[.Paragraph("Written pairs, exact errors and assumptions are retained in every format."),.fraction.DerivationView(mediant),.fraction.DerivationView(path),.fraction.DerivationView(convergents),.fraction.DerivationView(conditional)]);
+.Out("fraction-derivations.html",report); .Out("fraction-derivations.md",report);
+.Out("fraction-derivations.tex",report); .Out("fraction-derivations.pdf",report);
+.Out("fraction-derivations-source.txt",.document.EncodeJSON(report));
+0;

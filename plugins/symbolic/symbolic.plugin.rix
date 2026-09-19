@@ -3,12 +3,12 @@ id: symbolic
 description: Meta-plugin joining representation-sensitive FractionFunction work with portable abstract Calculus expressions.
 kind: rix
 mount: symbolic
-exports: [Fraction, FractionFunction, CalculusExpression, Evaluate, EvaluateResult, SimplifyResult, CheckSimplification, RewriteResult, CheckRewrite, Differentiate, DifferentiateResult, DifferentiateN, DifferentiateNResult, Partial, PartialResult, Gradient, GradientResult, Jacobian, JacobianResult, Hessian, HessianResult, SelectedPrimitive, AntiderivativeFamily, DefiniteIntegral, Obligations, Transformations, FindTransformations, Transformation, Services]
+exports: [Fraction, FractionDerivation, FractionFunction, CalculusExpression, Evaluate, EvaluateResult, SimplifyResult, CheckSimplification, RewriteResult, CheckRewrite, Differentiate, DifferentiateResult, DifferentiateN, DifferentiateNResult, Partial, PartialResult, Gradient, GradientResult, Jacobian, JacobianResult, Hessian, HessianResult, SelectedPrimitive, AntiderivativeFamily, DefiniteIntegral, Obligations, Transformations, FindTransformations, Transformation, Services]
 groups: [Algebra, Calculus, Analysis, Exact, Symbolic]
 permissions: []
 requires: [rix.fraction-function@1, rix.calculus@1]
 provides: [rix.symbolic.formal@1, rix.symbolic.transformations@1]
-schemas: [rix.symbolic.transformation-descriptor@1]
+schemas: [rix.symbolic.transformation-descriptor@1, rix.symbolic.fraction-derivation@1]
 snapshot: false
 deterministic: true
 defaultEnabled: false
@@ -183,9 +183,19 @@ SymbolicTransformation(id) -> {;
     matches.Len()==1 ?: matches[1] ?_ .Error(@"Unknown symbolic transformation @{id}");
 };
 
+SymbolicFractionDerivation(evidence) -> {;
+    .fraction.CheckDerivation(evidence)[:accepted] ?_> .Error("Symbolic fraction derivation requires checked evidence");
+    value=evidence[:value];
+    value!=_ && value.Denominator()!=0 ?_> .Error("Symbolic fraction derivation requires a finite retained result");
+    {= schema="rix.symbolic.fraction-derivation@1",representation=value,
+        expression=.calculus.Constant(value.Rational()),evidence=evidence,
+        relation=:exactRetainedResult,sourceEqualityClaim=_ };
+};
+
 symbolicNamespace = {= };
 symbolicNamespace._proto = {=
     Fraction = (self, first, second ?= _) -> second == _ ?: .fraction(first) ?_ .fraction(first,second),
+    FractionDerivation = (self,evidence) -> SymbolicFractionDerivation(evidence),
     FractionFunction = (self, value, variable ?= _) -> variable == _ ?: .fracfun(value) ?_ .fracfun(value,variable),
     CalculusExpression = (self, value) -> SymbolicCalculusExpression(value),
     Evaluate = (self, value, bindings ?= {= }, options ?= {= }) ->

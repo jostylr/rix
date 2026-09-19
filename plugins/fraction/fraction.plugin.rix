@@ -4,11 +4,11 @@ description: Representation-sensitive fractions, fraction intervals, mediants, a
 kind: rix
 mount: fraction
 aliases: [frac, f]
-exports: [Fraction, Interval, Infinity, Parse, FromSternBrocotPath, ContinuedFraction, FromContinuedFraction, FareySearch]
+exports: [Fraction, Interval, Infinity, Parse, FromSternBrocotPath, ContinuedFraction, FromContinuedFraction, FareySearch, Derivation, CoefficientDerivation, CheckDerivation, DerivationView]
 groups: [Algebra, Exact, Symbolic]
 permissions: []
 provides: [rix.fraction@1, rix.fraction-interval@1, rix.fraction-cf-adapter@1]
-schemas: [rix.fraction@1, rix.fraction-interval@1, rix.fraction.continued-fraction@1, rix.fraction.continued-fraction-result@1, rix.fraction.farey-search@1]
+schemas: [rix.fraction@1, rix.fraction-interval@1, rix.fraction.continued-fraction@1, rix.fraction.continued-fraction-result@1, rix.fraction.farey-search@1, rix.fraction.derivation@1, rix.fraction.derivation-view@1, rix.continued-fraction.derivation@1]
 snapshot: true
 deterministic: true
 defaultEnabled: false
@@ -401,6 +401,146 @@ FractionFareySearch(value, options ?= {= }) -> {;
     };
 };
 
+/* Portable evidence uses the same public algorithms as the Fraction methods. */
+FractionEvidenceBounded(value) -> {;
+    exact = FractionPromote(value,"Fraction derivation input");
+    (FractionNumerator(exact).BitLength() <= 16384 && FractionDenominator(exact).BitLength() <= 16384)
+      ?: exact ?_ .Error("Fraction derivation component budget exceeded (16384 bits)");
+};
+FractionEvidenceRational(value) -> (FractionNumerator(value)/FractionDenominator(value)) ~!: :Rational;
+FractionEvidenceOptions(options) -> {;
+    options ? :Map ?: _ ?_ .Error("Fraction derivation options must be a Map");
+    steps = FractionInteger(FractionOption(options,"maxsteps",128),"maxSteps");
+    terms = FractionInteger(FractionOption(options,"maxterms",32),"maxTerms");
+    denominator = FractionInteger(FractionOption(options,"maxdenominator",1000000),"maxDenominator");
+    (steps >= 0 && steps <= 4096 && terms >= 1 && terms <= 256 && denominator >= 1 && denominator.BitLength() <= 16384)
+      ?: {= maxSteps=steps,maxTerms=terms,maxDenominator=denominator }
+      ?_ .Error("Fraction derivation limits: maxSteps 0..4096, maxTerms 1..256, positive bounded maxDenominator");
+};
+FractionDerivation(kind,input,options ?= {= }) -> {;
+    [:mediant,:parentage,:fareyPath,:convergents,:coefficients].Includes(kind)
+      ?: _ ?_ .Error("Unknown Fraction derivation kind");
+    limits = FractionEvidenceOptions(options);
+    source = kind==:mediant
+      ?: {; ((@input ? :Array) && @input.Len()==2) ?: _ ?_ .Error("Mediant derivation requires two inputs"); @input.Map((value)->FractionEvidenceBounded(value)); }
+      ?_ kind==:coefficients
+      ?: {;
+          ((@input ? :Array) && @input.Len()>=1 && @input.Len()<=256) ?: _ ?_ .Error("Coefficient derivation requires 1..256 integers");
+          @input.Map((value,index)->{; exact=FractionInteger(value,"coefficient");(index==1 || exact>0) ?: _ ?_ .Error("Continued-fraction tail coefficients must be positive");exact.BitLength()<=16384 ?: exact ?_ .Error("Coefficient bit budget exceeded"); });
+      }
+      ?_ FractionEvidenceBounded(input);
+    result := _; status := :exact; steps := []; details := {= }; error := _;
+    kind==:mediant
+      ?: {;
+          @result ~= FractionMediant(@source[1],@source[2]);
+          @steps ~= [{= rule=:componentAddition,left=@source[1],right=@source[2],value=@result }];
+      }
+      ?_ kind==:parentage
+      ?: {;
+          FractionFinite(@source,"Parentage source");
+          parents=FractionFareyParents(@source);
+          signedRoot=FractionNumerator(@source)==0 && FractionDenominator(@source)==1;
+          @result ~= signedRoot ?: FractionRaw(0,1) ?_ FractionMediant(parents[1],parents[2]);
+          @details ~= {= parents=parents,rule=signedRoot ?: :signedRootConvention ?_ :componentAddition };
+          @steps ~= [{= rule=@details[:rule],left=parents[1],right=parents[2],value=@result }];
+      }
+      ?_ kind==:fareyPath
+      ?: {;
+          walk=FractionFareySearch(@source,@limits);
+          @result ~= walk[:result];@status ~= walk[:status];@steps ~= walk[:trace];@details ~= walk;
+          @error ~= FractionEvidenceRational(@source)-FractionEvidenceRational(@result);
+      }
+      ?_ {;
+          target=@kind==:convergents ?: FractionEvidenceRational(FractionFinite(@source)) ?_ _;
+          terms=@kind==:convergents ?: target.ToContinuedFraction({= maxTerms=@limits[:maxterms]+1 }) ?_ @source;
+          truncated=terms.Len()>@limits[:maxterms];
+          coefficients=truncated ?: terms.Slice(1,@limits[:maxterms]+1) ?_ terms;
+          p0:=0;p1:=1;q0:=1;q1:=0;blocked:=_;used:=[];
+          {@ index=1; index<=@coefficients.Len() && !@blocked; {;
+              a=@coefficients[index];
+              (index==1 || a>0) ?: _ ?_ .Error("Continued-fraction tail coefficients must be positive");
+              pn=a*@p1+@p0;qn=a*@q1+@q0;
+              (pn.BitLength()>16384 || qn.BitLength()>16384)
+                ?: {; @blocked ~= 1; }
+                ?_ {;
+                    current=FractionRaw(@pn,@qn);exact=FractionEvidenceRational(current);
+                    delta=@target==_ ?: _ ?_ @target-exact;
+                    @steps ~= @steps.Push({= index=@index,rule=:continuantRecurrence,coefficient=@a,
+                        previousNumerators=[@p0,@p1],previousDenominators=[@q0,@q1],
+                        value=current,rational=exact,determinant=@pn*@q1-@p1*@qn,error=delta,
+                        errorBound=delta==_ ?: _ ?_ delta.Abs(),errorInterval=delta==_ ?: _ ?_ delta:delta });
+                    @used ~= @used.Push(@a);@result ~= current;@error ~= delta;
+                    @p0 ~= @p1;@p1 ~= @pn;@q0 ~= @q1;@q1 ~= @qn;
+                };
+          };index+=1 };
+          @status ~= blocked ?: :componentBudgetExhausted ?_ truncated ?: :termBudgetExhausted ?_ :exact;
+          @details ~= {= coefficients=used,sourceTerms=@kind==:coefficients ?: @source.Len() ?_ _,
+              exactTarget=target,complete=@status==:exact,retainedTerms=used.Len() };
+      };
+    result==_ ?: _ ?_ FractionEvidenceBounded(result);
+    .ImmutableValue({= schema="rix.fraction.derivation@1",checker="fraction-replay@1",kind=kind,input=source,options=limits,
+        status=status,value=result,error=error,steps=steps,details=details,work={= steps=steps.Len(),maxSteps=limits[:maxsteps],maxTerms=limits[:maxterms] } });
+};
+FractionEvidenceSame(left,right,depth ?= 0) -> {;
+    depth<=128 ?: _ ?_ .Error("Fraction evidence depth budget exceeded");
+    left ? :Fraction
+      ?: ((right ? :Fraction) && FractionSamePair(left,right))
+      ?_ (left ? :FractionInterval)
+      ?: ((right ? :FractionInterval) && FractionSamePair(FractionIntervalLow(left),FractionIntervalLow(right)) && FractionSamePair(FractionIntervalHigh(left),FractionIntervalHigh(right)))
+      ?_ (left ? :RationalInterval)
+      ?: ((right ? :RationalInterval) && left.Low()==right.Low() && left.High()==right.High() && left.ToString()==right.ToString())
+      ?_ (left ? :Array)
+      ?: ((right ? :Array) && left.Len()==right.Len() && left.Reduce((same,value,index)->same && FractionEvidenceSame(value,@right[index],@depth+1),1))
+      ?_ (left ? :Tuple)
+      ?: ((right ? :Tuple) && left.Len()==right.Len() && left.Reduce((same,value,index)->same && FractionEvidenceSame(value,@right[index],@depth+1),1))
+      ?_ (left ? :Map)
+      ?: ((right ? :Map) && left.Len()==right.Len() && left.ReduceKeys((same,key,value)->same && @right.Has(key) && FractionEvidenceSame(value,@right[key],@depth+1),1))
+      ?_ left==right;
+};
+FractionCoefficientDerivation(coefficients,sourceCoefficients ?= _) -> {;
+    prefix=FractionDerivation(:coefficients,coefficients,{= maxTerms=256 });
+    full=sourceCoefficients==_ ?: _ ?_ FractionDerivation(:coefficients,sourceCoefficients,{= maxTerms=256 });
+    (full==_ || (coefficients.Len()<=sourceCoefficients.Len() && FractionEvidenceSame(coefficients,sourceCoefficients.Slice(1,coefficients.Len()+1))))
+      ?: _ ?_ .Error("Convergent coefficients must prefix the finite source");
+    enclosure=(full!=_ && full[:status]==:exact)
+      ?: {; target=FractionEvidenceRational(@full[:value]);target:target; }
+      ?_ (full==_ && prefix[:steps].Len()>=2)
+      ?: {;
+          rows=@prefix[:steps];n=rows.Len();
+          rows[n-1][:rational]:rows[n][:rational];
+      }
+      ?_ _;
+    errors=prefix[:steps].Map((step)->@enclosure==_ ?: _ ?_ (@enclosure.Low()-step[:rational]):(@enclosure.High()-step[:rational]));
+    status=enclosure==_ ?: :unresolved ?_ full==_ ?: :conditional ?_ :exact;
+    .ImmutableValue({= schema="rix.continued-fraction.derivation@1",checker="fraction-replay@1",
+        kind=full==_ ?: :positiveTailAssumed ?_ :finite,status=status,prefix=prefix,source=full,
+        value=prefix[:value],enclosure=enclosure,errors=errors,
+        evidenceLevel=full==_ ?: :assumedPositiveTail ?_ :exactFinite,
+        premise=full==_ ?: "All unobserved simple continued-fraction tail coefficients are positive integers; source identity is not checked by this snapshot." ?_ _,
+        certified=full!=_ && status==:exact });
+};
+
+FractionCheckDerivation(candidate) -> {;
+    valid=(candidate ? :Map) && (["rix.fraction.derivation@1","rix.continued-fraction.derivation@1"].Includes(candidate[:schema])) && candidate[:checker]=="fraction-replay@1";
+    valid ?_> {= accepted=_,reason=:unsupportedFractionEvidence };
+    replay=candidate[:schema]=="rix.continued-fraction.derivation@1"
+      ?: FractionCoefficientDerivation(candidate[:prefix][:input],candidate[:source]==_ ?: _ ?_ candidate[:source][:input])
+      ?_ FractionDerivation(candidate[:kind],candidate[:input],candidate[:options]);
+    accepted=FractionEvidenceSame(candidate,replay);
+    {= accepted=accepted,reason=accepted ?: _ ?_ :fractionEvidenceMismatch,status=replay[:status],mismatches=candidate.Keys().Filter((key)->!FractionEvidenceSame(@candidate[key],@replay[key])) };
+};
+FractionDerivationView(candidate) -> {;
+    FractionCheckDerivation(candidate)[:accepted] ?_> .Error("Cannot render unchecked fraction derivation");
+    kind=candidate[:kind];
+    cf=candidate[:schema]=="rix.continued-fraction.derivation@1";
+    steps=cf ?: candidate[:prefix][:steps] ?_ candidate[:steps];
+    premise=candidate[:premise]==_ ?: "Finite coefficient replay is exact." ?_ candidate[:premise];
+    rows=steps.Map((step,index)->[index,step[:rule]==_ ?: :fareyMediant ?_ step[:rule],step[:value]==_ ?: step[:candidate] ?_ step[:value],@cf ?: @candidate[:errors][index] ?_ step[:error]==_ ?: " " ?_ step[:error]]);
+    .Fragment([.Heading(1,@"Fraction derivation: @{kind}"),.Paragraph(@"Status: @{candidate[:status]}; exact source pairs and every retained step are preserved."),
+        .Paragraph(cf ?: @"Evidence: @{candidate[:evidenceLevel]}. @{premise}" ?_ "Computed error entries use exact source values."),
+        .Table(["Step","Rule","Value","Exact error or conditional interval"],rows)],{= schema="rix.fraction.derivation-view@1",source=candidate });
+};
+
 FractionString(value) -> {;
     numerator = FractionNumerator(value);
     denominator = FractionDenominator(value);
@@ -558,7 +698,11 @@ fractionNamespace._proto = {=
     FromSternBrocotPath = (self, path) -> FractionFromPath(path),
     ContinuedFraction = (self, value) -> FractionContinuedFraction(value),
     FromContinuedFraction = (self, source, options ?= {= }) -> FractionFromContinuedFraction(source,options),
-    FareySearch = (self, value, options ?= {= }) -> FractionFareySearch(value,options)
+    FareySearch = (self, value, options ?= {= }) -> FractionFareySearch(value,options),
+    Derivation = (self, kind, input, options ?= {= }) -> FractionDerivation(kind,input,options),
+    CoefficientDerivation = (self, coefficients, source ?= _) -> FractionCoefficientDerivation(coefficients,source),
+    CheckDerivation = (self, candidate) -> FractionCheckDerivation(candidate),
+    DerivationView = (self, candidate) -> FractionDerivationView(candidate)
 };
 
 .Host.RegisterCallableValue("fraction", fractionNamespace, "Representation-sensitive unreduced fractions", ["Algebra", "Exact", "Symbolic"]);

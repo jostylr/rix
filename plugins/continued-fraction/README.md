@@ -265,3 +265,10 @@ for the Möbius and Farey-pair views, roots, elementary functions, and a
 rational-boundary demonstration.
 
 See [tutorial.md](tutorial.md).
+
+## Checked fraction evidence
+
+The [portable fraction derivation guide](../fraction/derivation-tutorial.md)
+connects written Fraction pairs, bounded Farey paths, exact convergent errors,
+conditional lazy-tail bounds, symbolic constants and static document views.
+The same inert records drive the Web exact-number inspector.

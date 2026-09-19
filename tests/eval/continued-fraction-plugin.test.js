@@ -362,7 +362,10 @@ describe("Continued Fraction plugin", () => {
         expect(textValue(entry(result.values[0], "extraction"))).toBe("acceleratedFarey");
         expect(result.values[1].values.map(String)).toEqual(["2", "1", "2", "1", "1", "4", "1", "1"]);
         expect(result.values[2].values.map(String)).toEqual(["0", "1", "2", "3", "1", "6"]);
-        expect(result.values[3].toString()).toBe("19/7:11/4");
+        // CFWitness retains previous-to-current orientation, including a descending pair.
+        expect(result.values[3].toString()).toBe("11/4:19/7");
+        expect(result.values[3].low.toString()).toBe("19/7");
+        expect(result.values[3].high.toString()).toBe("11/4");
         expect(textValue(entry(result.values[4], "status"))).toBe("enclosed");
         expect(textValue(entry(result.values[4], "backend"))).toBe("continuedFraction");
         expect(textValue(entry(entry(result.values[4], "evidence"), "kind")))

@@ -51,7 +51,7 @@ phase numbers in the detailed historical sections are not execution priorities.
 | 9 | `.linalg` | Rational characteristic/minimal polynomials and eigenspaces; finite tensor follow-up | **Ready:** Q-only work uses existing univariate polynomials; extension-field forms are later |
 | 10 | `.optimize` | Bounded branch-and-bound integer and mixed-integer linear optimization | **Ready:** preserve partial bounds and unexplored nodes |
 | 11 | `.solve` | Certified subdivision consumers; multivariate elimination separately | **Waiting:** numerical consumers need `.numerics` box subdivision; algebraic elimination is explicitly later |
-| 12 | `.fraction` | Portable classroom-derivation and fraction-path evidence | **Ready:** bounded exact records in plan N2 |
+| 12 | `.fraction` | Portable classroom-derivation and fraction-path evidence | **Complete N2:** bounded replay, views and source-preserving records |
 | 13 | `.fracfun` | Multivariate forms and declared coefficient domains | **Waiting:** multivariate Polynomial/coefficient-domain support |
 | 14 | `.cas` | Mixed trigonometric powers, selected radicals, and definite-integral symmetries | **Ready:** bounded trig power recurrences and product-to-sum join the existing course rules |
 | 15 | `.symbolic` | Shared assumptions and restricted-domain wrappers | **Decision:** one portable assumption/branch-obligation contract |
@@ -60,7 +60,7 @@ phase numbers in the detailed historical sections are not execution priorities.
 | 18 | `.analysis` | Metric, normed, Banach, Hilbert, and selected `L^p` records | **Phase 4:** abstract function-space program |
 | 19 | `.ball` | Polynomial evaluation, interval Newton, and validated linear algebra over balls | **Waiting:** shared validated linear-algebra API from `.numerics` |
 | 20 | `.cauchy` | Constructive-completeness and portable proof/evidence exchange | **Phase 4:** proof-connected foundations |
-| 21 | `.continuedFraction` | Public symbolic/convergent adapters and exact error evidence | **Ready:** plan N2; general correlation proofs remain later |
+| 21 | `.continuedFraction` | Public symbolic/convergent adapters and exact error evidence | **Complete N2:** finite exact and conditional lazy snapshots; general correlation proofs remain later |
 | 22 | `.algebraicReal` | Exact conic coordinates and multivariate algebraic isolation | **Waiting:** `.algebra` elimination plus Geometry conic records |
 | 23 | `.complex` | Explicit branch and continuation-path semantics | **Decision:** portable path/branch contract |
 | 24 | `.cayley` | Power-series analysis for one-generated associative subalgebras | **Phase 4:** specialist hypercomplex analysis |
@@ -833,7 +833,7 @@ tracked in
    - [x] Add continued-fraction/Farey interoperability and bounded searches
      that retain component provenance.
 4. **Phase 4 — Evidence and interchange**
-   - [ ] Add portable representations and verification records for fraction
+   - [x] Add portable representations and verification records for fraction
      paths, parentage, and classroom derivations.
 
 ### `.fracfun`
@@ -1131,7 +1131,9 @@ tracked in
      normalization and zero-separation rules.
 4. **Phase 4 — Research algorithms**
    - [x] Explore exact real arithmetic via continued-fraction transducers.
-   - [ ] Add deeper symbolic-algebra interoperability and correlation proofs.
+   - [x] Add checked finite convergent/symbolic adapters and explicit conditional
+     positive-tail error snapshots (N2).
+   - [ ] Add general correlation proofs and deeper symbolic-algebra interoperability.
 
 ### `.algebraicReal`
 
