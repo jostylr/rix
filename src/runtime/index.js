@@ -231,9 +231,12 @@ export {
     createLazySequence,
     cloneLazySequence,
     ensureLazyIndex,
+    ensureLazyIndexAsync,
+    pullLazyValueAsync,
     isLazySequence,
     lazyKnownLength,
     materializeLazySequence,
+    materializeLazySequenceAsync,
 } from "./lazy-sequence.js";
 export {
     DEFAULT_RANDOM_SEED,
@@ -331,3 +334,5 @@ export { LOGIC_SEQUENT_SCHEMA, LOGIC_SEQUENT_CHECKER, createSequent, checkSequen
 export { createPublicationProfile, createPublicationBuild, parsePublicationProfiles, serializePublicationProfiles, createPublicationRebuilder, PUBLICATION_BUILD_SCHEMA, PUBLICATION_MANIFEST_SCHEMA, PUBLICATION_TARGETS, PUBLICATION_LIMITS } from "./publication-workflow.js";
 
 export { IMPLICIT_TRACE_SCHEMA, IMPLICIT_TRACE_CHECKER, evaluateImplicitTrace, checkImplicitTrace, refineImplicitTrace } from "./implicit-geometry.js";
+
+export { ASYNC_LIMITS, asyncLimits, capabilityAsyncPolicy } from "./async-policy.js";

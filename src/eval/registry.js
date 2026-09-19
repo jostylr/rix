@@ -1,3 +1,4 @@
+import { capabilityAsyncPolicy } from "../runtime/async-policy.js";
 import { TYPE_INSTALL_FUNCTIONS } from "../runtime/type-system.js";
 
 /**
@@ -33,6 +34,7 @@ export class Registry {
             pure: options.pure || false,
             doc: options.doc || "",
             preempt: options.preempt || null,
+            ...capabilityAsyncPolicy(options),
         };
         if (this.multifunctionNames.has(name) && !entry.lazy) {
             this.functions.set(name, this._createSystemMultifunction(name, entry));
@@ -177,6 +179,11 @@ export class Registry {
         if (func.variants.some((existing) => existing.name === variant.name && !existing.nativeFallback)) {
             throw new Error(`Duplicate system multifunction variant '${variant.name}' for ${name}`);
         }
+        const policy = capabilityAsyncPolicy(variant);
+        if (policy.concurrency !== "safe") {
+            func.pure = false;
+            Object.assign(func, policy);
+        }
         const fallbackIndex = func.variants.findIndex((existing) => existing.nativeFallback);
         const insertAt = fallbackIndex === -1 ? func.variants.length : fallbackIndex;
         func.variants.splice(insertAt, 0, {
@@ -233,7 +240,7 @@ export class Registry {
     /**
      * Override a function implementation (saves original for restore).
      */
-    override(name, newImpl) {
+    override(name, newImpl, options = {}) {
         const original = this.functions.get(name);
         if (original && !this._overrides.has(name)) {
             this._overrides.set(name, original);
@@ -241,6 +248,8 @@ export class Registry {
         this.functions.set(name, {
             ...(original || {}),
             impl: newImpl,
+            pure: options.pure === true,
+            ...capabilityAsyncPolicy(options),
         });
     }
 

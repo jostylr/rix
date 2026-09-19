@@ -1,3 +1,4 @@
+import { asyncLimits, asyncLimitFault } from "./async-policy.js";
 /**
  * Evaluation Context
  *
@@ -95,6 +96,8 @@ export class Context {
         if (!activation) {
             throw new Error("##_ cleanup registration requires an active code block");
         }
+        const limit = asyncLimits(this.getEnv("asyncLimits", {})).outstanding;
+        if (activation.length >= limit) throw asyncLimitFault("finalizers", limit);
         activation.push(finalizer);
     }
 

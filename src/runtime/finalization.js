@@ -1,16 +1,14 @@
 import { CleanupGraceFault } from "./operational-fault.js";
 
-function attachSuppressed(primary, errors) {
-    if (!primary || errors.length === 0) return primary;
-    const existing = Array.isArray(primary.suppressed) ? primary.suppressed : [];
-    primary.suppressed = [...existing, ...errors];
-    return primary;
-}
+import { appendAsyncFailures, normalizeAsyncFailure, asyncLimits } from "./async-policy.js";
 
-function finalOutcome(primary, cleanupErrors) {
-    if (primary) return attachSuppressed(primary, cleanupErrors);
-    if (cleanupErrors.length === 0) return null;
-    return attachSuppressed(cleanupErrors[0], cleanupErrors.slice(1));
+function finalOutcome(primary, cleanupErrors, hasPrimary, limit, dropped) {
+    if (!hasPrimary && cleanupErrors.length === 0) return null;
+    const failure = hasPrimary
+        ? appendAsyncFailures(primary, cleanupErrors, limit)
+        : appendAsyncFailures(cleanupErrors[0], cleanupErrors.slice(1), limit);
+    if (dropped) failure.asyncDroppedErrors = (failure.asyncDroppedErrors || 0) + dropped;
+    return failure;
 }
 
 function isPromiseLike(value) {
@@ -21,10 +19,14 @@ export function withFinalizerActivationSync(context, callback) {
     context.pushFinalizerActivation();
     let result;
     let primary = null;
+    let hasPrimary = false;
+    const errorLimit = asyncLimits(context.getEnv("asyncLimits", {})).errors;
+    let dropped = 0;
     try {
         result = callback();
     } catch (error) {
-        primary = error;
+        primary = normalizeAsyncFailure(error);
+        hasPrimary = true;
     }
     const finalizers = context.popFinalizerActivation();
     const cleanupErrors = [];
@@ -32,13 +34,15 @@ export function withFinalizerActivationSync(context, callback) {
         try {
             const cleanup = finalizers[index]();
             if (isPromiseLike(cleanup)) {
+                Promise.resolve(cleanup).catch(() => {});
                 throw new Error("Async cleanup requires promise-aware RiX evaluation");
             }
         } catch (error) {
-            cleanupErrors.push(error);
+            if (cleanupErrors.length < errorLimit) cleanupErrors.push(normalizeAsyncFailure(error));
+            else dropped++;
         }
     }
-    const failure = finalOutcome(primary, cleanupErrors);
+    const failure = finalOutcome(primary, cleanupErrors, hasPrimary, errorLimit, dropped);
     if (failure) throw failure;
     return result;
 }
@@ -47,10 +51,14 @@ export async function withFinalizerActivationAsync(context, callback, options = 
     context.pushFinalizerActivation();
     let result;
     let primary = null;
+    let hasPrimary = false;
+    const errorLimit = asyncLimits(context.getEnv("asyncLimits", {})).errors;
+    let dropped = 0;
     try {
         result = await callback();
     } catch (error) {
-        primary = error;
+        primary = normalizeAsyncFailure(error);
+        hasPrimary = true;
     }
     const finalizers = context.popFinalizerActivation();
     const cleanupErrors = [];
@@ -82,12 +90,13 @@ export async function withFinalizerActivationAsync(context, callback, options = 
                 }),
             ]).finally(() => clearTimeout(timer));
         } catch (error) {
-            cleanupErrors.push(error);
+            if (cleanupErrors.length < errorLimit) cleanupErrors.push(normalizeAsyncFailure(error));
+            else dropped++;
             if (error instanceof CleanupGraceFault) break;
         }
     }
 
-    const failure = finalOutcome(primary, cleanupErrors);
+    const failure = finalOutcome(primary, cleanupErrors, hasPrimary, errorLimit, dropped);
     if (failure) throw failure;
     return result;
 }

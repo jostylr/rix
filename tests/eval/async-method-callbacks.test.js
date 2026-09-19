@@ -1,3 +1,4 @@
+// These host fixtures deliberately permit overlapping invocations; default unknown effects serialize.
 import { expect, test } from "bun:test";
 import { Context, createDefaultSystemContext, parseAndEvaluate, parseAndEvaluateAsync } from "../../src/index.js";
 import { formatValue } from "../../src/eval/format.js";
@@ -24,7 +25,7 @@ for (const source of [
 test("delayed nested callbacks run in order and preserve captured scopes", async () => {
     const systemContext=createDefaultSystemContext({frozen:false});
     const visits=[];
-    systemContext.registerHost("delay",{impl:async ([value])=>{
+    systemContext.registerHost("delay",{ concurrency: "safe",impl:async ([value])=>{
         visits.push(value.value);
         await new Promise(resolve=>setTimeout(resolve,1));
         return value;

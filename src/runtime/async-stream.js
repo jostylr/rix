@@ -1,3 +1,4 @@
+import { asyncLimits, asyncLimitFault, normalizeAsyncFailure, appendAsyncFailures } from "./async-policy.js";
 import { Integer } from "@ratmath/core";
 import { OperationalFault } from "./operational-fault.js";
 import { registerAsyncResource } from "./async-runtime.js";
@@ -42,6 +43,8 @@ function createRoot(options) {
         closeCount: 0,
         terminalOwner: null,
         pullTail: Promise.resolve(),
+        pendingPulls: 0,
+        limits: asyncLimits(options.limits),
         nextImpl: options.next,
         closeImpl: options.close || (() => undefined),
         inspect: options.inspect || null,
@@ -110,11 +113,13 @@ export function dropAsyncStream(source, countValue) {
 
 export function chunkAsyncStream(source, sizeValue) {
     const size = positiveInteger(sizeValue, "Stream Chunk size");
+    if (size > source._stream.root.limits.outputItems) throw asyncLimitFault("stream chunk", source._stream.root.limits.outputItems);
     return derive(source, { kind: "chunk", size, buffer: [] });
 }
 
 export function windowAsyncStream(source, sizeValue, stepValue = new Integer(1n)) {
     const size = positiveInteger(sizeValue, "Stream Window size");
+    if (size > source._stream.root.limits.outputItems) throw asyncLimitFault("stream window", source._stream.root.limits.outputItems);
     const step = positiveInteger(stepValue, "Stream Window step");
     return derive(source, { kind: "window", size, step, buffer: [], sinceEmit: 0 });
 }
@@ -187,6 +192,8 @@ export async function pullRawAsyncStream(stream, signal = null) {
     if (root.status === "done" || root.status === "closed") return { done: true };
     if (root.status === "faulted") throw new Error(`Async stream '${root.label}' is faulted`);
 
+    if (root.pendingPulls >= root.limits.queued) throw asyncLimitFault("stream pull queue", root.limits.queued);
+    root.pendingPulls++;
     const operation = root.pullTail.then(async () => {
         if (signal?.aborted) throw abortError(signal);
         if (root.status !== "open") return { done: true };
@@ -206,8 +213,9 @@ export async function pullRawAsyncStream(stream, signal = null) {
         root.pulled++;
         return { done: false, value: result.value, sourceIndex: root.pulled };
     });
-    root.pullTail = operation.catch(() => {});
-    return operation;
+    const settled = operation.finally(() => { root.pendingPulls--; });
+    root.pullTail = settled.catch(() => {});
+    return settled;
 }
 
 async function applyStage(stage, values, stream, execution) {
@@ -351,7 +359,11 @@ export async function consumeAsyncStreamSequential(stream, terminal, execution) 
             if (processed.unresolved !== undefined) return processed.unresolved;
             for (const value of processed.values) {
                 count++;
-                if (terminal.kind === "collect") result.push(value);
+                if (terminal.kind === "collect") {
+                    const limit = execution.limits?.outputItems ?? stream._stream.root.limits.outputItems;
+                    if (result.length >= limit) throw asyncLimitFault("stream output", limit);
+                    result.push(value);
+                }
                 else if (terminal.kind === "forEach") await execution.invoke(terminal.callable, [value, new Integer(BigInt(count)), stream._stream.callbackSource ?? stream]);
                 else if (terminal.kind === "reduce") result = await execution.invoke(terminal.callable, [result, value, new Integer(BigInt(count)), stream._stream.callbackSource ?? stream]);
                 else if (terminal.kind === "first") {
@@ -392,7 +404,11 @@ export async function consumeAsyncStreamSequential(stream, terminal, execution) 
         const flushed = await flushAsyncStreamStages(stream, execution);
         for (const value of flushed) {
             count++;
-            if (terminal.kind === "collect") result.push(value);
+            if (terminal.kind === "collect") {
+                    const limit = execution.limits?.outputItems ?? stream._stream.root.limits.outputItems;
+                    if (result.length >= limit) throw asyncLimitFault("stream output", limit);
+                    result.push(value);
+                }
             else if (terminal.kind === "forEach") await execution.invoke(terminal.callable, [value, new Integer(BigInt(count)), stream]);
             else if (terminal.kind === "reduce") result = await execution.invoke(terminal.callable, [result, value, new Integer(BigInt(count)), stream]);
             else if (terminal.kind === "first") return value;
@@ -419,16 +435,15 @@ export async function consumeAsyncStreamSequential(stream, terminal, execution) 
         return result;
     } catch (error) {
         reason = error;
-        primary = error;
-        throw error;
+        primary = normalizeAsyncFailure(error);
+        throw primary;
     } finally {
         if (claimed) {
             try {
                 await closeAsyncStream(stream, reason);
             } catch (cleanupError) {
                 if (!primary) throw cleanupError;
-                const existing = Array.isArray(primary.suppressed) ? primary.suppressed : [];
-                primary.suppressed = [...existing, cleanupError];
+                appendAsyncFailures(primary, [cleanupError], execution.limits?.errors ?? stream._stream.root.limits.errors);
             }
         }
     }
@@ -448,6 +463,7 @@ export function asyncStreamFromIterable(source, options = {}) {
         const iterator = source[Symbol.asyncIterator]();
         return createAsyncStream({
             label: options.label || "async iterable",
+            limits: options.limits,
             finite: options.finite === true,
             next: (signal) => iterator.next(signal),
             close: (reason) => iterator.return?.(reason),
@@ -457,6 +473,7 @@ export function asyncStreamFromIterable(source, options = {}) {
     let index = 0;
     return createAsyncStream({
         label: options.label || "iterable",
+        limits: options.limits,
         finite: true,
         async next(signal) {
             if (signal?.aborted) throw abortError(signal);
@@ -467,7 +484,9 @@ export function asyncStreamFromIterable(source, options = {}) {
 }
 
 export function createHotAsyncStream(options = {}) {
+    const limits = asyncLimits(options.limits);
     const capacity = positiveInteger(options.capacity ?? 16, "Hot stream capacity");
+    if (capacity > limits.outputItems) throw asyncLimitFault("hot stream capacity", limits.outputItems);
     const policy = stringOption(options.overflowPolicy ?? "drop_oldest", "Hot stream overflow policy");
     if (!["drop_oldest", "drop_latest", "error", "block"].includes(policy)) {
         throw new Error(`Unknown hot stream overflow policy '${policy}'`);
@@ -486,8 +505,9 @@ export function createHotAsyncStream(options = {}) {
     };
     const stream = createAsyncStream({
         label: options.label || "hot",
+        limits,
         finite: false,
-        inspect: () => ({ queued: queue.length, capacity, policy: { type: "string", value: policy } }),
+        inspect: () => ({ queued: queue.length, blocked: blocked.length, capacity, policy: { type: "string", value: policy } }),
         next(signal) {
             if (failure) throw failure;
             if (queue.length > 0) {
@@ -551,6 +571,7 @@ export function createHotAsyncStream(options = {}) {
             for (const waiter of waiters.splice(0)) waiter.reject(failure);
             return false;
         }
+        if (blocked.length >= limits.queued) return Promise.reject(asyncLimitFault("hot stream blocked producers", limits.queued));
         return new Promise((resolve, reject) => blocked.push({ value, resolve, reject }));
     };
     const end = () => {
@@ -573,6 +594,7 @@ export const asyncStreamCapabilities = {
         impl(args, context) {
             const stream = asyncStreamFromIterable(args[0], {
                 label: args[1]?.type === "string" ? args[1].value : "collection stream",
+                limits: context.getEnv("asyncLimits", {}),
             });
             registerAsyncResource(context, stream._stream.root, (_root, reason) => closeAsyncStream(stream, reason));
             return stream;

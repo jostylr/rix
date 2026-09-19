@@ -1,3 +1,4 @@
+// These host fixtures deliberately permit overlapping invocations; default unknown effects serialize.
 import { describe, expect, test } from "bun:test";
 import {
     createDefaultSystemContext,
@@ -18,7 +19,7 @@ async function waitUntil(predicate, message = "condition") {
 
 function asyncSystem(name, implementation) {
     const systemContext = createDefaultSystemContext({ frozen: false });
-    systemContext.registerHost(name, { impl: implementation });
+    systemContext.registerHost(name, { concurrency: "safe", impl: implementation });
     systemContext.freeze();
     return systemContext;
 }
@@ -95,13 +96,13 @@ describe("RiX async and concurrency", () => {
         const events = [];
         const cleanupReleases = new Map();
         const systemContext = createDefaultSystemContext({ frozen: false });
-        systemContext.registerHost("work", {
+        systemContext.registerHost("work", { concurrency: "safe",
             impl: ([value]) => {
                 events.push(`work:${Number(value.value)}`);
                 return value;
             },
         });
-        systemContext.registerHost("close", {
+        systemContext.registerHost("close", { concurrency: "safe",
             impl: ([value]) => new Promise((resolve) => {
                 const number = Number(value.value);
                 events.push(`close:${number}`);
@@ -392,15 +393,15 @@ describe("RiX async and concurrency", () => {
     test("loops, case arms, hole coalescing, and destructuring await their selected work", async () => {
         const events = [];
         const systemContext = createDefaultSystemContext({ frozen: false });
-        systemContext.registerHost("step", {
+        systemContext.registerHost("step", { concurrency: "safe",
             impl: async ([value]) => {
                 await Promise.resolve();
                 events.push(Number(value.value));
                 return value;
             },
         });
-        systemContext.registerHost("no", { impl: async () => null });
-        systemContext.registerHost("pair", {
+        systemContext.registerHost("no", { concurrency: "safe", impl: async () => null });
+        systemContext.registerHost("pair", { concurrency: "safe",
             impl: async () => ({ type: "sequence", values: [new Integer(4n), new Integer(5n)] }),
         });
         systemContext.freeze();
@@ -468,14 +469,14 @@ describe("RiX async and concurrency", () => {
         const events = [];
         const sourceReleases = new Map();
         const systemContext = createDefaultSystemContext({ frozen: false });
-        systemContext.registerHost("source", {
+        systemContext.registerHost("source", { concurrency: "safe",
             impl: ([value]) => new Promise((resolve) => {
                 const number = Number(value.value);
                 events.push(`source:${number}`);
                 sourceReleases.set(number, () => resolve(value));
             }),
         });
-        systemContext.registerHost("stage", {
+        systemContext.registerHost("stage", { concurrency: "safe",
             impl: async ([value]) => {
                 events.push(`stage:${Number(value.value)}`);
                 return value;
@@ -571,7 +572,7 @@ describe("RiX async and concurrency", () => {
         let activeReducers = 0;
         let maxReducers = 0;
         const systemContext = createDefaultSystemContext({ frozen: false });
-        systemContext.registerHost("source", {
+        systemContext.registerHost("source", { concurrency: "safe",
             impl: ([value]) => new Promise((resolve) => {
                 const number = Number(value.value);
                 starts.push(number);
@@ -581,7 +582,7 @@ describe("RiX async and concurrency", () => {
                 });
             }),
         });
-        systemContext.registerHost("sum", {
+        systemContext.registerHost("sum", { concurrency: "safe",
             impl: async ([accumulator, value]) => {
                 reduced.push(Number(value.value));
                 activeReducers++;
@@ -713,14 +714,14 @@ describe("RiX async and concurrency", () => {
     test("timeout headers abort capability work, drain, clean up, and expose a recoverable fault", async () => {
         const events = [];
         const systemContext = createDefaultSystemContext({ frozen: false });
-        systemContext.registerHost("open", { impl: ([value]) => value });
-        systemContext.registerHost("close", {
+        systemContext.registerHost("open", { concurrency: "safe", impl: ([value]) => value });
+        systemContext.registerHost("close", { concurrency: "safe",
             impl: ([value]) => {
                 events.push(`close:${Number(value.value)}`);
                 return null;
             },
         });
-        systemContext.registerHost("wait", {
+        systemContext.registerHost("wait", { concurrency: "safe",
             impl: (args, context, evaluate, { signal }) => new Promise((resolve, reject) => {
                 if (signal?.aborted) {
                     reject(signal.reason);

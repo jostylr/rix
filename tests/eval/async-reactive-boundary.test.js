@@ -1,3 +1,4 @@
+// These host fixtures deliberately permit overlapping invocations; default unknown effects serialize.
 import { describe, expect, test } from "bun:test";
 import {
     createDefaultSystemContext,
@@ -10,7 +11,7 @@ import { Context } from "../../src/runtime/context.js";
 
 function asyncIdentitySystem() {
     const systemContext = createDefaultSystemContext({ frozen: false });
-    systemContext.registerHost("slow", {
+    systemContext.registerHost("slow", { concurrency: "safe",
         impl: async ([value]) => {
             await Promise.resolve();
             return value;

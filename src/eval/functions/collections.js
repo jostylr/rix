@@ -11,6 +11,8 @@ import { applySemanticHeader } from "../../runtime/semantic.js";
 import {
     createLazySequence,
     materializeLazySequence,
+    materializeLazySequenceAsync,
+    requireConcreteLazyValue,
 } from "../../runtime/lazy-sequence.js";
 import { callWithConcreteArgs } from "./functions.js";
 import { shallowCopyValue } from "../../runtime/cell.js";
@@ -151,7 +153,7 @@ const partialHistoryWidth = (callable) => {
     );
 };
 
-function createGeneratorValue(args, ctx, evaluate, defaultMode) {
+function createGeneratorValue(args, ctx, evaluate, defaultMode, execution = null) {
     const firstGenerator = args.findIndex((arg) => arg?.fn === "GENERATOR");
     if (firstGenerator < 0) return null;
     if (args.slice(firstGenerator).some((arg) => arg?.fn !== "GENERATOR")) {
@@ -198,14 +200,20 @@ function createGeneratorValue(args, ctx, evaluate, defaultMode) {
     const terminal = terminalOps[0] || null;
     const eager = terminal?.fn === "GEN_EAGER_LIMIT" || (!source && terminal?.fn !== "GEN_LIMIT");
     const numericLimit = terminal ? generatorCount(terminal.value) : null;
-    if (numericLimit !== null && numericLimit < 0) throw new Error("Generator limit must be non-negative");
+    if (numericLimit !== null && (!Number.isSafeInteger(numericLimit) || numericLimit < 0)) throw new Error("Generator limit must be a non-negative safe integer");
     if (terminal && numericLimit === null && !generatorCallable(terminal.value)) {
         throw new Error("Generator limit must be an integer or callable predicate");
     }
 
     const maxIterations = ctx.getEnv?.("generatorMaxIterations", ctx.getEnv?.("defaultLoopMax", 10000)) ?? 10000;
     let sequence;
-    const invoke = (callable, concreteArgs) => callWithConcreteArgs(callable, concreteArgs, ctx, evaluate);
+    const historyWidth = sourceOp?.fn === "GEN_PIPE"
+        ? Math.max(1, partialHistoryWidth(sourceOp.value) ?? sourceOp.value?.params?.positional?.length ?? 1)
+        : 1;
+    const retainHistory = (state, value) => {
+        state.sourceHistory.push(value);
+        if (state.sourceHistory.length > historyWidth) state.sourceHistory.splice(0, state.sourceHistory.length - historyWidth);
+    };
     const copySeed = (value, cloneValue) => cloneValue ? cloneValue(value) : value;
     const makeState = (cloneOptions = {}) => ({
         seeds: seedValues.map((value) => copySeed(value, cloneOptions.cloneValue)),
@@ -229,77 +237,108 @@ function createGeneratorValue(args, ctx, evaluate, defaultMode) {
         knownLength: numericLimit,
         maxIterations,
         label: "sequence generator",
+        maxCache: ctx.getEnv?.("asyncLimits", {})?.outputItems,
+        maxPending: ctx.getEnv?.("asyncLimits", {})?.queued,
         pull(state, self, budget) {
-            if (state.stop || (numericLimit !== null && state.emitted >= numericLimit)) return { done: true };
-            let attempts = 0;
-            while (attempts < budget) {
-                let candidate;
-                if (state.seedIndex < state.seeds.length) {
-                    candidate = state.seeds[state.seedIndex++];
-                    state.sourceHistory.push(candidate);
-                } else if (!sourceOp) {
-                    return { done: true, attempts };
-                } else {
-                    if ((sourceOp.fn === "GEN_ADD" || sourceOp.fn === "GEN_MUL") && state.sourceHistory.length === 0) {
-                        throw new Error("Arithmetic generator requires at least one seed value");
-                    }
-                    if (sourceOp.fn === "GEN_ADD") {
-                        candidate = evaluate({ fn: "ADD", args: [state.sourceHistory.at(-1), sourceOp.value] });
-                    } else if (sourceOp.fn === "GEN_MUL") {
-                        candidate = evaluate({ fn: "MUL", args: [state.sourceHistory.at(-1), sourceOp.value] });
-                    } else if (sourceOp.fn === "GEN_FUNC") {
-                        const index = new Integer(BigInt(state.sourceHistory.length + 1));
-                        candidate = invoke(sourceOp.value, [index, self]);
-                    } else if (sourceOp.fn === "GEN_PIPE") {
-                        if (state.sourceHistory.length === 0) throw new Error("History generator requires seed values");
-                        const placeholderWidth = partialHistoryWidth(sourceOp.value);
-                        const parameterWidth = sourceOp.value?.params?.positional?.length;
-                        const width = placeholderWidth ?? parameterWidth;
-                        if (width === undefined) {
-                            throw new Error("History system/variadic callables require explicit _n placeholders");
-                        }
-                        if (state.sourceHistory.length < width) {
-                            throw new Error(`History generator requires ${width} seed values but only ${state.sourceHistory.length} are available`);
-                        }
-                        const args = width === 0 ? [] : state.sourceHistory.slice(-width).reverse().map(shallowCopyValue);
-                        candidate = invoke(sourceOp.value, args);
-                    }
-                    state.sourceHistory.push(candidate);
-                }
-
-                attempts++;
-                state.sourcePosition++;
-                let value = candidate;
-                let accepted = true;
-                for (const stage of stages) {
-                    if (stage.fn === "GEN_PIPE") {
-                        value = invoke(stage.value, [value]);
-                    } else if (stage.fn === "GEN_FILTER") {
-                        const filterValue = invoke(stage.value, [value, new Integer(BigInt(state.sourcePosition)), self]);
-                        if (isUndecided(filterValue)) return { unresolved: UNDECIDED, attempts };
-                        accepted = isTruthy(filterValue);
-                        if (!accepted) break;
-                    }
-                }
-                if (!accepted) continue;
-
-                state.emitted++;
-                if (terminal && numericLimit === null) {
-                    const terminalValue = invoke(terminal.value, [value, new Integer(BigInt(state.sourcePosition)), self]);
-                    if (isUndecided(terminalValue)) return { unresolved: UNDECIDED, attempts };
-                    state.stop = isTruthy(terminalValue);
-                }
-                return { done: false, value: captureResolvedValue(value, defaultMode), attempts };
-            }
-            return { attempts: budget + 1 };
+            const steps = pullSteps(state, self, budget);
+            let step = steps.next();
+            while (!step.done) step = steps.next(requireConcreteLazyValue(step.value));
+            return step.value;
         },
+        pullAsync: execution ? async (state, self, budget, signal) => {
+            const steps = pullSteps(state, self, budget);
+            let step = steps.next();
+            while (!step.done) {
+                if (signal?.aborted) throw signal.reason;
+                step = steps.next(await step.value);
+            }
+            return step.value;
+        } : null,
     });
 
+    function* pullSteps(state, self, budget) {
+        const invoke = (callable, values) => execution
+            ? execution.invoke(callable, values, self)
+            : callWithConcreteArgs(callable, values, ctx, evaluate);
+        if (state.stop || (numericLimit !== null && state.emitted >= numericLimit)) return { done: true };
+        let attempts = 0;
+        while (attempts < budget) {
+            let candidate;
+            if (state.seedIndex < state.seeds.length) {
+                candidate = state.seeds[state.seedIndex++];
+                retainHistory(state, candidate);
+            } else if (!sourceOp) {
+                return { done: true, attempts };
+            } else {
+                if ((sourceOp.fn === "GEN_ADD" || sourceOp.fn === "GEN_MUL") && state.sourceHistory.length === 0) {
+                    throw new Error("Arithmetic generator requires at least one seed value");
+                }
+                if (sourceOp.fn === "GEN_ADD") {
+                    candidate = yield evaluate({ fn: "ADD", args: [state.sourceHistory.at(-1), sourceOp.value] });
+                } else if (sourceOp.fn === "GEN_MUL") {
+                    candidate = yield evaluate({ fn: "MUL", args: [state.sourceHistory.at(-1), sourceOp.value] });
+                } else if (sourceOp.fn === "GEN_FUNC") {
+                    const index = new Integer(BigInt(state.sourcePosition + 1));
+                    candidate = yield invoke(sourceOp.value, [index, self]);
+                } else if (sourceOp.fn === "GEN_PIPE") {
+                    if (state.sourceHistory.length === 0) throw new Error("History generator requires seed values");
+                    const placeholderWidth = partialHistoryWidth(sourceOp.value);
+                    const parameterWidth = sourceOp.value?.params?.positional?.length;
+                    const width = placeholderWidth ?? parameterWidth;
+                    if (width === undefined) {
+                        throw new Error("History system/variadic callables require explicit _n placeholders");
+                    }
+                    if (state.sourceHistory.length < width) {
+                        throw new Error(`History generator requires ${width} seed values but only ${state.sourceHistory.length} are available`);
+                    }
+                    const args = width === 0 ? [] : state.sourceHistory.slice(-width).reverse().map(shallowCopyValue);
+                    candidate = yield invoke(sourceOp.value, args);
+                }
+                retainHistory(state, candidate);
+            }
+
+            attempts++;
+            state.sourcePosition++;
+            let value = candidate;
+            let accepted = true;
+            for (const stage of stages) {
+                if (stage.fn === "GEN_PIPE") {
+                    value = yield invoke(stage.value, [value]);
+                } else if (stage.fn === "GEN_FILTER") {
+                    const filterValue = yield invoke(stage.value, [value, new Integer(BigInt(state.sourcePosition)), self]);
+                    if (isUndecided(filterValue)) return { unresolved: UNDECIDED, attempts };
+                    accepted = isTruthy(filterValue);
+                    if (!accepted) break;
+                }
+            }
+            if (!accepted) continue;
+
+            state.emitted++;
+            if (terminal && numericLimit === null) {
+                const terminalValue = yield invoke(terminal.value, [value, new Integer(BigInt(state.sourcePosition)), self]);
+                if (isUndecided(terminalValue)) return { unresolved: UNDECIDED, attempts };
+                state.stop = isTruthy(terminalValue);
+            }
+            return { done: false, value: captureResolvedValue(value, defaultMode), attempts };
+        }
+        return { attempts: budget + 1 };
+    }
+
     if (!eager) return sequence;
+    if (execution) return materializeLazySequenceAsync(sequence, { allowUnknown: true, maxIterations, signal: execution.signal }).then((materialized) => {
+        if (isUndecided(materialized)) return UNDECIDED;
+        materialized._ext = new Map([["_mutable", new Integer(1n)]]);
+        return attachBuiltinProto(materialized);
+    });
     const materialized = materializeLazySequence(sequence, { allowUnknown: true, maxIterations });
     if (isUndecided(materialized)) return UNDECIDED;
     materialized._ext = new Map([["_mutable", new Integer(1n)]]);
     return attachBuiltinProto(materialized);
+}
+
+/** Operands have already been resolved by the promise-aware collection evaluator. */
+export function createAsyncGeneratorValue(args, context, evaluate, execution) {
+    return createGeneratorValue(args, context, evaluate, constructorDefaultCaptureMode(context), execution);
 }
 
 export const collectionFunctions = {

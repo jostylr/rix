@@ -1,3 +1,4 @@
+// These host fixtures deliberately permit overlapping invocations; default unknown effects serialize.
 import { describe, expect, test } from "bun:test";
 import { Integer } from "@ratmath/core";
 import {
@@ -42,7 +43,7 @@ describe("|>_ ForEach pipe", () => {
         const context = new Context();
         context.set("items", { type: "sequence", values: [1, 2, 3, 4].map((n) => new Integer(BigInt(n))) });
         const systemContext = createDefaultSystemContext({ frozen: false });
-        systemContext.registerHost("work", {
+        systemContext.registerHost("work", { concurrency: "safe",
             impl([value]) {
                 const n = Number(value.value);
                 starts.push(n);
@@ -73,7 +74,7 @@ describe("|>_ ForEach pipe", () => {
     test("fails fast and does not admit queued handlers after a fatal error", async () => {
         const starts = [];
         const systemContext = createDefaultSystemContext({ frozen: false });
-        systemContext.registerHost("work", {
+        systemContext.registerHost("work", { concurrency: "safe",
             impl([value], _context, _evaluate, options) {
                 const n = Number(value.value);
                 starts.push(n);
@@ -92,8 +93,8 @@ describe("|>_ ForEach pipe", () => {
     test("is a terminal barrier when a later collection pipe is written", async () => {
         let mapped = 0;
         const systemContext = createDefaultSystemContext({ frozen: false });
-        systemContext.registerHost("effect", { impl() { return new Integer(99n); } });
-        systemContext.registerHost("mapped", { impl() { mapped++; return new Integer(1n); } });
+        systemContext.registerHost("effect", { concurrency: "safe", impl() { return new Integer(99n); } });
+        systemContext.registerHost("mapped", { concurrency: "safe", impl() { mapped++; return new Integer(1n); } });
         systemContext.freeze();
         const result = await parseAndEvaluateAsync(
             "{$:2$ [1,2] |>_ .effect |>> .mapped }",
@@ -133,8 +134,8 @@ describe("|>! expected error values", () => {
     test("does not catch thrown errors or invoke a handler for non-error values", () => {
         let handled = 0;
         const systemContext = createDefaultSystemContext({ frozen: false });
-        systemContext.registerHost("explode", { impl() { throw new Error("boom"); } });
-        systemContext.registerHost("handled", { impl() { handled++; return new Integer(1n); } });
+        systemContext.registerHost("explode", { concurrency: "safe", impl() { throw new Error("boom"); } });
+        systemContext.registerHost("handled", { concurrency: "safe", impl() { handled++; return new Integer(1n); } });
         systemContext.freeze();
         expect(() => parseAndEvaluate(".explode() |>! .handled", { systemContext })).toThrow("boom");
         expect(parseAndEvaluate("5 |>! .handled", { systemContext }).value).toBe(5n);
@@ -144,7 +145,7 @@ describe("|>! expected error values", () => {
     test("remains lazy on streams and skips before a terminal drain", async () => {
         const seen = [];
         const systemContext = createDefaultSystemContext({ frozen: false });
-        systemContext.registerHost("record", { impl([value]) { seen.push(Number(value.value)); return null; } });
+        systemContext.registerHost("record", { concurrency: "safe", impl([value]) { seen.push(Number(value.value)); return null; } });
         systemContext.freeze();
         const result = await parseAndEvaluateAsync(
             "(.Stream([{: :error, :drop}, 2, {: :error, :replace, 3}]) "
@@ -168,7 +169,7 @@ describe(".Retry", () => {
     test("retries expected errors until success and returns the final ordinary value", () => {
         let attempts = 0;
         const systemContext = createDefaultSystemContext({ frozen: false });
-        systemContext.registerHost("attempt", {
+        systemContext.registerHost("attempt", { concurrency: "safe",
             impl() {
                 attempts++;
                 return attempts < 3
@@ -184,7 +185,7 @@ describe(".Retry", () => {
     test("exhaustion returns the final tuple and kinds can stop retry immediately", () => {
         let attempts = 0;
         const systemContext = createDefaultSystemContext({ frozen: false });
-        systemContext.registerHost("attempt", {
+        systemContext.registerHost("attempt", { concurrency: "safe",
             impl() {
                 attempts++;
                 return { type: "tuple", values: [
@@ -213,9 +214,9 @@ describe(".Retry", () => {
         const events = [];
         let attempts = 0;
         const systemContext = createDefaultSystemContext({ frozen: false });
-        systemContext.registerHost("open", { impl() { events.push("open"); return new Integer(1n); } });
-        systemContext.registerHost("close", { impl() { events.push("close"); return null; } });
-        systemContext.registerHost("attempt", {
+        systemContext.registerHost("open", { concurrency: "safe", impl() { events.push("open"); return new Integer(1n); } });
+        systemContext.registerHost("close", { concurrency: "safe", impl() { events.push("close"); return null; } });
+        systemContext.registerHost("attempt", { concurrency: "safe",
             impl() {
                 attempts++;
                 events.push(`attempt${attempts}`);
@@ -234,7 +235,7 @@ describe(".Retry", () => {
         const events = [];
         const attempts = new Map();
         const systemContext = createDefaultSystemContext({ frozen: false });
-        systemContext.registerHost("attemptItem", {
+        systemContext.registerHost("attemptItem", { concurrency: "safe",
             impl([item]) {
                 const number = Number(item.value);
                 const count = (attempts.get(number) || 0) + 1;
@@ -260,7 +261,7 @@ describe(".Retry", () => {
     test("does not retry thrown failures and validates policy fields", () => {
         let attempts = 0;
         const systemContext = createDefaultSystemContext({ frozen: false });
-        systemContext.registerHost("explode", { impl() { attempts++; throw new Error("boom"); } });
+        systemContext.registerHost("explode", { concurrency: "safe", impl() { attempts++; throw new Error("boom"); } });
         systemContext.freeze();
         expect(() => parseAndEvaluate(".Retry(4, @{ .explode() })", { systemContext })).toThrow("boom");
         expect(attempts).toBe(1);
@@ -273,7 +274,7 @@ describe(".Retry", () => {
     test("scope timeout cancels a pending backoff without another attempt", async () => {
         let attempts = 0;
         const systemContext = createDefaultSystemContext({ frozen: false });
-        systemContext.registerHost("attempt", {
+        systemContext.registerHost("attempt", { concurrency: "safe",
             impl() {
                 attempts++;
                 return { type: "tuple", values: [{ type: "string", value: "error" }, { type: "string", value: "timeout" }] };

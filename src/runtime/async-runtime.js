@@ -1,3 +1,5 @@
+import { asyncLimits, asyncLimitFault, normalizeAsyncFailure, appendAsyncFailures } from "./async-policy.js";
+
 /**
  * FIFO bounded scheduler used by RiX structured-concurrency scopes.
  *
@@ -8,11 +10,14 @@
  * and reacquire it before continuing.
  */
 export class AsyncScheduler {
-    constructor(limit) {
+    constructor(limit, options = {}) {
         if (!Number.isSafeInteger(limit) || limit < 1) {
             throw new Error("Async concurrency limit must be a positive safe integer");
         }
-        this.limit = limit;
+        this.limits = asyncLimits(options);
+        this.limit = Math.min(limit, this.limits.concurrency);
+        this.pending = 0;
+        this.groups = new Set();
         this.active = 0;
         this.queue = [];
         this.cancelled = false;
@@ -21,7 +26,11 @@ export class AsyncScheduler {
         this.nextTaskId = 1;
         this.nextObservationOrder = 1;
         this.admitScheduled = false;
-        this.defaultGroup = this.createGroup(limit);
+        this.defaultGroup = this.createGroup(this.limit);
+    }
+
+    snapshot() {
+        return { executor: "event-loop", limit: this.limit, active: this.active, pending: this.pending, queued: this.queue.length, cancellation: this.cancelReason?.message ?? (this.cancelled ? String(this.cancelReason) : "none") };
     }
 
     createGroup(limit = this.limit, parent = null) {
@@ -33,6 +42,8 @@ export class AsyncScheduler {
             parent,
             children: new Set(),
             inFlight: 0,
+            pending: 0,
+            droppedErrors: 0,
             cancelled: false,
             cancelReason: null,
             primaryError: null,
@@ -42,12 +53,16 @@ export class AsyncScheduler {
         };
         group.signal = group.controller.signal;
         parent?.children.add(group);
+        this.groups.add(group);
         return group;
     }
 
     run(task, group = this.defaultGroup, options = {}) {
         const cancellation = this.#cancellationFor(group);
         if (cancellation) return Promise.reject(cancellation);
+        if (this.queue.length >= this.limits.queued || this.pending + this.queue.length >= this.limits.outstanding) {
+            return Promise.reject(asyncLimitFault("admission queue", this.limits.queued));
+        }
         return new Promise((resolve, reject) => {
             const id = this.nextTaskId++;
             this.queue.push({
@@ -57,6 +72,7 @@ export class AsyncScheduler {
                 reject,
                 group,
                 path: options.path || `task ${id}`,
+                taskPath: options.taskPath ? [...options.taskPath] : null,
                 branchPath: Array.isArray(options.branchPath) ? [...options.branchPath] : null,
             });
             this.#scheduleAdmit();
@@ -64,7 +80,7 @@ export class AsyncScheduler {
     }
 
     suspend(ticket) {
-        if (!ticket?.active) return false;
+        if (!ticket?.active || ticket.finished) return false;
         ticket.active = false;
         this.active--;
         this.#adjustInFlight(ticket.group, -1);
@@ -75,26 +91,24 @@ export class AsyncScheduler {
 
     resume(ticket) {
         if (!ticket || ticket.active) return Promise.resolve();
+        if (ticket.finished) return Promise.reject(new Error("Cannot resume a completed async task"));
+        if (ticket.resumePromise) return ticket.resumePromise;
         const cancellation = this.#cancellationFor(ticket.group);
         if (cancellation) return Promise.reject(cancellation);
-        return new Promise((resolve, reject) => {
-            this.queue.push({
-                kind: "resume",
-                ticket,
-                group: ticket.group,
-                branchPath: null,
-                resolve,
-                reject,
-            });
+        // A suspended task already owns an outstanding-work reservation.
+        ticket.resumePromise = new Promise((resolve, reject) => {
+            this.queue.push({ kind: "resume", ticket, group: ticket.group, branchPath: null, resolve, reject });
             this.#scheduleAdmit();
-        });
+        }).finally(() => { ticket.resumePromise = null; });
+        return ticket.resumePromise;
     }
 
     cancel(reason = new Error("Async scope cancelled")) {
         if (this.cancelled) return;
+        reason = normalizeAsyncFailure(reason);
         this.cancelled = true;
         this.cancelReason = reason;
-        this.#abortGroupTree(this.defaultGroup, reason);
+        for (const group of this.groups) this.#abortGroupTree(group, reason);
         const queued = this.queue.splice(0);
         for (const entry of queued) entry.reject(reason);
         this.#notifyIdle();
@@ -102,6 +116,7 @@ export class AsyncScheduler {
 
     cancelGroup(group, reason = new Error("Async scope cancelled")) {
         if (!group || group.cancelled) return;
+        reason = normalizeAsyncFailure(reason);
         const cancelledGroups = new Set();
         const markCancelled = (current) => {
             if (current.cancelled) return;
@@ -130,6 +145,8 @@ export class AsyncScheduler {
     closeGroup(group) {
         if (!group || !this.#isIdle(group)) return false;
         group.parent?.children.delete(group);
+        this.groups.delete(group);
+        group.branchAdmissions.clear();
         return true;
     }
 
@@ -146,14 +163,24 @@ export class AsyncScheduler {
                 entry.resolve();
                 continue;
             }
-            const ticket = { group: entry.group, active: true };
+            const ticket = { group: entry.group, active: true, finished: false };
+            this.pending++;
+            for (let current = entry.group; current; current = current.parent) current.pending++;
             Promise.resolve()
                 .then(() => entry.task(ticket))
                 .then(entry.resolve, (error) => {
-                    this.#observeFailure(entry.group, error, entry.path);
-                    entry.reject(error);
+                    entry.reject(this.#observeFailure(entry.group, error, entry.path, entry.taskPath));
                 })
                 .finally(() => {
+                    ticket.finished = true;
+                    this.pending--;
+                    for (let current = entry.group; current; current = current.parent) current.pending--;
+                    // A host may mistakenly return without awaiting its resume.
+                    this.queue = this.queue.filter((queued) => {
+                        if (queued.ticket !== ticket) return true;
+                        queued.reject(new Error("Async task completed before resuming"));
+                        return false;
+                    });
                     if (ticket.active) {
                         ticket.active = false;
                         this.active--;
@@ -219,7 +246,9 @@ export class AsyncScheduler {
         for (const segment of entry.branchPath) {
             prefix.push(segment);
             const key = prefix.join("/");
-            entry.group.branchAdmissions.set(key, (entry.group.branchAdmissions.get(key) || 0) + 1);
+            if (entry.group.branchAdmissions.has(key) || entry.group.branchAdmissions.size < this.limits.branchRecords) {
+                entry.group.branchAdmissions.set(key, (entry.group.branchAdmissions.get(key) || 0) + 1);
+            }
         }
     }
 
@@ -231,24 +260,27 @@ export class AsyncScheduler {
         return true;
     }
 
-    #observeFailure(group, error, path) {
-        if (!error || typeof error !== "object") error = new Error(String(error));
+    #observeFailure(group, error, path, taskPath) {
+        error = normalizeAsyncFailure(error);
         error.asyncTaskPath ??= path;
+        if (taskPath) error.asyncTaskSegments ??= [...taskPath];
         error.asyncObservationOrder ??= this.nextObservationOrder++;
         error.asyncObservedAt ??= performance.now();
+        error.asyncScheduler ??= this.snapshot();
         if (!group.primaryError) {
             group.primaryError = error;
-            // Fail fast: stop admitting queued siblings before the rejected
-            // item releases its slot.
             this.cancelGroup(group, error);
-            return;
+            return error;
         }
-        if (error === group.primaryError || error === group.cancelReason) return;
-        group.suppressedErrors.push(error);
-        const existing = Array.isArray(group.primaryError.suppressed)
-            ? group.primaryError.suppressed
-            : [];
-        group.primaryError.suppressed = [...existing, error];
+        if (error === group.primaryError || error === group.cancelReason) return error;
+        if (group.suppressedErrors.length < this.limits.errors) {
+            group.suppressedErrors.push(error);
+            appendAsyncFailures(group.primaryError, [error], this.limits.errors);
+        } else {
+            group.droppedErrors++;
+            group.primaryError.asyncDroppedErrors = (group.primaryError.asyncDroppedErrors || 0) + 1;
+        }
+        return error;
     }
 
     #adjustInFlight(group, delta) {
@@ -281,8 +313,8 @@ export class AsyncScheduler {
     }
 
     #isIdle(group) {
-        if (!group) return this.active === 0 && this.queue.length === 0;
-        if (group.inFlight !== 0) return false;
+        if (!group) return this.pending === 0 && this.queue.length === 0;
+        if (group.pending !== 0) return false;
         return !this.queue.some((entry) => this.#isDescendant(entry.group, group));
     }
 
@@ -299,15 +331,28 @@ export class AsyncScheduler {
 export const BACKGROUND_TASKS_ENV = "__async_background_tasks__";
 export const BACKGROUND_ERRORS_ENV = "__async_background_errors__";
 const asyncResources = new WeakMap();
+const disposingContexts = new WeakSet();
 
 export function registerAsyncResource(context, resource, close) {
     if (!context || !resource || typeof close !== "function") return resource;
+    if (disposingContexts.has(context)) throw new Error("Cannot acquire async resources during context shutdown");
     let resources = asyncResources.get(context);
     if (!resources) {
         resources = new Map();
         asyncResources.set(context, resources);
     }
-    resources.set(resource, close);
+    const limit = asyncLimits(context.getEnv("asyncLimits", {})).outstanding;
+    if (!resources.has(resource) && resources.size >= limit) throw asyncLimitFault("async resources", limit);
+    const taskPath = [...(context.getEnv("__async_task_path__", []) || []), "cleanup"];
+    resources.set(resource, async (value, reason) => {
+        try { return await close(value, reason); }
+        catch (error) {
+            const failure = normalizeAsyncFailure(error);
+            failure.asyncTaskSegments ??= taskPath;
+            failure.asyncTaskPath ??= taskPath.join(" / ");
+            throw failure;
+        }
+    });
     return resource;
 }
 
@@ -323,21 +368,53 @@ export async function disposeAsyncResources(context, reason = { kind: "session s
     const resources = asyncResources.get(context);
     if (!resources || resources.size === 0) return [];
     asyncResources.delete(context);
+    disposingContexts.add(context);
     const failures = [];
+    const limit = asyncLimits(context.getEnv("asyncLimits", {})).errors;
     for (const [resource, close] of [...resources].reverse()) {
         try {
             await close(resource, reason);
         } catch (error) {
-            failures.push(error);
+            if (failures.length < limit) failures.push(normalizeAsyncFailure(error));
+            else failures.droppedErrors = (failures.droppedErrors || 0) + 1;
         }
     }
+    disposingContexts.delete(context);
     return failures;
 }
 
-export function registerBackgroundTask(context, task) {
+export function reserveBackgroundTask(context) {
+    if (disposingContexts.has(context)) throw new Error("Cannot launch background work during context shutdown");
+    if (!context.getEnv("__async_background_owner__", null)) context.setEnv("__async_background_owner__", context);
+    if (!context.getEnv(BACKGROUND_ERRORS_ENV, null)) context.setEnv(BACKGROUND_ERRORS_ENV, []);
     const tasks = context.getEnv(BACKGROUND_TASKS_ENV, new Set());
     context.setEnv(BACKGROUND_TASKS_ENV, tasks);
+    const limits = asyncLimits(context.getEnv("asyncLimits", {}));
+    if ((asyncResources.get(context)?.size || 0) >= limits.outstanding) throw asyncLimitFault("async resources", limits.outstanding);
+    const limit = limits.background;
+    if (tasks.size >= limit) throw asyncLimitFault("background tasks", limit);
+    let release;
+    const reservation = new Promise((resolve) => { release = resolve; });
+    tasks.add(reservation);
+    return () => { tasks.delete(reservation); release(); };
+}
+
+export function recordBackgroundError(context, error) {
+    context = context.getEnv("__async_background_owner__", context);
+    error = normalizeAsyncFailure(error);
+    const errors = context.getEnv(BACKGROUND_ERRORS_ENV, []);
+    const limit = asyncLimits(context.getEnv("asyncLimits", {})).errors;
+    if (errors.length < limit) errors.push(error);
+    else context.setEnv("__async_dropped_background_errors__", context.getEnv("__async_dropped_background_errors__", 0) + 1);
+    context.setEnv(BACKGROUND_ERRORS_ENV, errors);
+}
+
+export function registerBackgroundTask(context, task, releaseReservation = null) {
+    const tasks = context.getEnv(BACKGROUND_TASKS_ENV, new Set());
+    context.setEnv(BACKGROUND_TASKS_ENV, tasks);
+    if (!releaseReservation) releaseReservation = reserveBackgroundTask(context);
     tasks.add(task);
+    releaseReservation();
     task.then(
         () => tasks.delete(task),
         () => tasks.delete(task),

@@ -1,3 +1,4 @@
+import { capabilityAsyncPolicy } from "./async-policy.js";
 /**
  * SystemContext — the user-visible capability root (`.`).
  *
@@ -553,6 +554,7 @@ export class SystemContext {
             impl: typeof def === "function" ? def : def.impl,
             lazy: def?.lazy || false,
             pure: def?.pure || false,
+            ...capabilityAsyncPolicy({ ...def, ...options }),
             doc: options.doc ?? def?.doc ?? "",
             namespace,
             displayName: options.displayName || name,

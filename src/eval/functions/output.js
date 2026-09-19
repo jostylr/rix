@@ -1,3 +1,4 @@
+import { asyncLimitFault } from "../../runtime/async-policy.js";
 import { parse } from "../../parser/parser.js";
 import { lower } from "../lower.js";
 import { formatValue } from "../format.js";
@@ -540,7 +541,7 @@ const liveViewFunction = {
 const outFunction = {
     pure: false,
     doc: "Declare an output artifact for the active host output sink",
-    impl(args, context) {
+    impl(args, context, _evaluate, execution) {
         if (args.length !== 2) throw new Error(".Out expects a relative output path and a value");
         const [target, value] = args;
         if (!target || target.type !== "string" || !target.value.trim()) {
@@ -550,7 +551,10 @@ const outFunction = {
         if (typeof sink !== "function") {
             throw new Error(".Out requires a host output sink (use rix --out=DIR)");
         }
-        sink({ path: target.value, value });
+        const outputState = context.getEnv("__async_output_count__", null);
+        if (outputState && ++outputState.count > outputState.limit) throw asyncLimitFault("output artifacts", outputState.limit);
+        const taskPath = execution?.taskPath?.length ? execution.taskPath : context.getEnv("__async_task_path__", null);
+        sink(taskPath ? { path: target.value, value, taskPath: [...taskPath] } : { path: target.value, value });
         return value;
     },
 };

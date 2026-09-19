@@ -1,3 +1,4 @@
+// These host fixtures deliberately permit overlapping invocations; default unknown effects serialize.
 import { describe, expect, test } from "bun:test";
 import {
     createDefaultSystemContext,
@@ -10,13 +11,13 @@ import { getDiagnostics } from "../../src/runtime/diagnostics.js";
 
 function asyncIdentitySystem() {
     const systemContext = createDefaultSystemContext({ frozen: false });
-    systemContext.registerHost("slow", {
+    systemContext.registerHost("slow", { concurrency: "safe",
         impl: async ([value]) => {
             await Promise.resolve();
             return value;
         },
     });
-    systemContext.registerHost("fail", {
+    systemContext.registerHost("fail", { concurrency: "safe",
         impl: async () => {
             await Promise.resolve();
             throw new Error("async boom");
@@ -162,7 +163,7 @@ describe("promise-aware evaluator parity", () => {
     test("keeps Multi operands sequential across async suspension", async () => {
         const order = [];
         const systemContext = createDefaultSystemContext({ frozen: false });
-        systemContext.registerHost("step", {
+        systemContext.registerHost("step", { concurrency: "safe",
             impl: async ([value]) => {
                 if (value.value === 1n) {
                     await new Promise((resolve) => setTimeout(resolve, 10));
@@ -395,7 +396,7 @@ describe("promise-aware evaluator parity", () => {
         let active = 0;
         let maximumActive = 0;
         const systemContext = createDefaultSystemContext({ frozen: false });
-        systemContext.registerHost("slow", {
+        systemContext.registerHost("slow", { concurrency: "safe",
             impl: async ([value]) => {
                 active += 1;
                 maximumActive = Math.max(maximumActive, active);

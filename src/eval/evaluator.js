@@ -54,7 +54,7 @@ import { arithmeticFunctions } from "./functions/arithmetic.js";
 import { comparisonFunctions } from "./functions/comparison.js";
 import { logicFunctions } from "./functions/logic.js";
 import { addEvaluationContext, controlFunctions, matchesBreakTarget, splitScopedBlockArgs, unwrapDefer } from "./functions/control.js";
-import { collectionFunctions } from "./functions/collections.js";
+import { collectionFunctions, createAsyncGeneratorValue } from "./functions/collections.js";
 import { functionFunctions } from "./functions/functions.js";
 import { methodFunctions } from "./functions/methods.js";
 import { propertyFunctions } from "./functions/properties.js";
@@ -121,7 +121,7 @@ import { posToLineCol, tokenize } from "../parser/tokenizer.js";
 import { mergeOperatorDefinitions } from "../parser/custom-operators.js";
 import { lower } from "./lower.js";
 import { irToText } from "./ir-to-text.js";
-import { ensureLazyIndex, isLazySequence, materializeLazySequence } from "../runtime/lazy-sequence.js";
+import { ensureLazyIndex, ensureLazyIndexAsync, isLazySequence, materializeLazySequence, materializeLazySequenceAsync } from "../runtime/lazy-sequence.js";
 import {
     expectedErrorArgs,
     isPipeSkip,
@@ -138,13 +138,61 @@ import {
 } from "./functions/functions.js";
 import {
     AsyncScheduler,
-    BACKGROUND_ERRORS_ENV,
     drainBackgroundTasks,
     disposeAsyncResources,
     registerBackgroundTask,
+    reserveBackgroundTask,
+    recordBackgroundError,
     registerAsyncResource,
     unregisterAsyncResource,
 } from "../runtime/async-runtime.js";
+
+import { AsyncEffectLane, asyncLimits, asyncLimitFault, appendAsyncFailures, normalizeAsyncFailure } from "../runtime/async-policy.js";
+
+function asyncOwner(context) {
+    let owner = context.getEnv("__async_owner__", null);
+    if (!owner) {
+        const limits = asyncLimits(context.getEnv("asyncLimits", {}));
+        owner = { limits, lane: new AsyncEffectLane(limits) };
+        context.setEnv("__async_owner__", owner);
+    }
+    return owner;
+}
+
+function asyncRootState(context, state = null) {
+    return { ...asyncOwner(context), taskPath: [], ...state };
+}
+
+async function prepareAsyncLazyRead(target, index, state, materialize = false) {
+    if (!isLazySequence(target)) return;
+    const limits = state?.limits || asyncLimits();
+    target._lazy.maxCache = Math.min(target._lazy.maxCache, limits.outputItems);
+    target._lazy.maxPending = Math.min(target._lazy.maxPending, limits.queued);
+    if (!target._lazy.pullAsync) return;
+    if (state?.activeLazySource === target && (materialize || index > target._lazy.cache.length)) throw new Error("A recurrence may only read already committed values from its own sequence");
+    if (materialize || index < 0) await materializeLazySequenceAsync(target, { signal: state?.signal });
+    else if (Number.isSafeInteger(index) && index > 0) await ensureLazyIndexAsync(target, index, state?.signal);
+}
+
+async function invokeAsyncCapability(capability, values, context, evaluateNode, registry, systemContext, state) {
+    const owner = state?.lane ? state : asyncOwner(context);
+    if (capability.impl === stdlibFunctions.FIRST.impl) await prepareAsyncLazyRead(values[0], 1, state);
+    else if (capability.impl === stdlibFunctions.LAST.impl) await prepareAsyncLazyRead(values[0], -1, state, true);
+    else if (capability.impl === stdlibFunctions.GETEL.impl) await prepareAsyncLazyRead(values[0], Number(values[1]?.value ?? values[1]), state);
+    const call = (delegate) => capability.impl(values, context,
+        SYNC_REACTIVE_FORMULA_CAPABILITY_IMPLS.has(capability.impl)
+            ? evaluateNode
+            : (node) => delegate(() => evaluateNode(node)), {
+            promiseAware: true,
+            signal: state?.signal ?? null,
+            taskPath: [...(state?.taskPath || [])],
+            effect: capability.effect ?? "unknown",
+            cancellation: capability.cancellation ?? "none",
+            invoke: (callable, args) => delegate(() => invokeCallableAsync(callable, args, context, registry, systemContext, state)),
+        });
+    if (capability.concurrency === "safe" || (capability.concurrency === undefined && capability.pure === true)) return call((callback) => callback());
+    return owner.lane.run(call, state?.signal);
+}
 
 const POSTFIX_CHECK_VALUE_ENV = "__postfix_check_value__";
 
@@ -1595,7 +1643,11 @@ async function runCallablePrepAsync(fn, context, registry, systemContext, state)
 
 function traceAsyncCallEvent(context, entry) {
     const trace = context.getEnv("__trace_context__");
-    if (trace?.active) trace.log.push(entry);
+    if (trace?.active) {
+        const limit = asyncOwner(context).limits.traceEvents;
+        if (trace.log.length < limit) trace.log.push({ ...entry, taskPath: [...(context.getEnv("__async_task_path__", []) || [])], scheduler: context.getEnv("__async_scheduler__", null)?.snapshot() });
+        else trace.droppedEvents = (trace.droppedEvents || 0) + 1;
+    }
 }
 
 function createCallableAsyncState(fn, callerState, context) {
@@ -1617,13 +1669,14 @@ function createCallableAsyncState(fn, callerState, context) {
         "defaultAsyncConcurrency",
         runtimeDefaults.defaultAsyncConcurrency,
     );
-    const scheduler = new AsyncScheduler(limit);
+    const scheduler = new AsyncScheduler(limit, asyncOwner(context).limits);
     return {
         state: {
+            ...asyncRootState(context, callerState),
             scheduler,
             group: scheduler.defaultGroup,
             signal: scheduler.defaultGroup.signal,
-            limit,
+            limit: scheduler.limit,
             name: null,
             parallelCollections: true,
         },
@@ -1652,14 +1705,14 @@ async function invokeUserCallableAsync(fn, callArgs, context, registry, systemCo
 
     const traceEnter = (args) => {
         if (!trace?.active || trace.currentDepth >= trace.depth) return false;
-        trace.log.push({ event: "enter", fn: callName || "<lambda>", depth: trace.currentDepth, args });
+        traceAsyncCallEvent(context, { event: "enter", fn: callName || "<lambda>", depth: trace.currentDepth, args });
         trace.currentDepth += 1;
         return true;
     };
     const traceExit = (value, threw = false) => {
         if (!traceActive || !trace) return;
         trace.currentDepth -= 1;
-        if (!threw) trace.log.push({ event: "exit", fn: callName || "<lambda>", depth: trace.currentDepth, value });
+        if (!threw) traceAsyncCallEvent(context, { event: "exit", fn: callName || "<lambda>", depth: trace.currentDepth, value });
     };
 
     try {
@@ -1777,8 +1830,7 @@ async function invokeUserCallableAsync(fn, callArgs, context, registry, systemCo
         while (pushed-- > 0) context.pop();
         if (schedulerCleanupError) {
             if (primaryError) {
-                const existing = Array.isArray(primaryError.suppressed) ? primaryError.suppressed : [];
-                primaryError.suppressed = [...existing, schedulerCleanupError];
+                primaryError = appendAsyncFailures(primaryError, [schedulerCleanupError], asyncOwner(context).limits.errors);
             } else {
                 throw schedulerCleanupError;
             }
@@ -1910,16 +1962,12 @@ async function invokeCallableAsync(fn, callArgs, context, registry, systemContex
         if (systemContext?.has(fn.name)) {
             const capability = systemContext.get(fn.name);
             if (capability.kind !== "function") throw new Error(`System ${capability.kind} .${capability.displayName} is not callable`);
-            return await capability.impl(callArgs, context, (node) =>
-                evaluateAsyncInternal(node, context, registry, systemContext, state), {
-                promiseAware: true,
-                signal: state?.signal ?? null,
-                invoke: (callable, values) => invokeCallableAsync(callable, values, context, registry, systemContext, state),
-            });
+            return await invokeAsyncCapability(capability, callArgs, context,
+                (node) => evaluateAsyncInternal(node, context, registry, systemContext, state), registry, systemContext, state);
         }
         return evaluateAsyncInternal({ fn: fn.name, args: callArgs }, context, registry, systemContext, state);
     }
-    if (typeof fn === "function") return await fn(...callArgs);
+    if (typeof fn === "function") return (state?.lane || asyncOwner(context).lane).run(() => fn(...callArgs), state?.signal);
 
     // Remaining host callables retain their concrete-call semantics. Their
     // result may itself be awaitable.
@@ -2090,10 +2138,12 @@ async function evaluateDebugCapabilityAsync(args, context, registry, systemConte
     return finalValue;
 }
 
-function recordAsyncTraceEvent(context, label, filePath, depth, trackedVars, traceLog, finalValue) {
+function recordAsyncTraceEvent(context, label, filePath, depth, trackedVars, traceLog, finalValue, droppedEvents = 0) {
     const calls = traceLog.map((entry) => {
         const values = new Map([["event", asyncDiagnosticString(entry.event)]]);
         if (entry.fn) values.set("fn", asyncDiagnosticString(entry.fn));
+        if (entry.taskPath) values.set("taskPath", { type: "sequence", values: entry.taskPath.map(asyncDiagnosticString) });
+        if (entry.scheduler) values.set("scheduler", { type: "map", entries: new Map(Object.entries(entry.scheduler).map(([key, value]) => [key, typeof value === "number" ? asyncDiagnosticInteger(value) : asyncDiagnosticString(value)])) });
         if (entry.scope) values.set("scope", asyncDiagnosticString(entry.scope));
         if (entry.depth !== undefined) values.set("depth", asyncDiagnosticInteger(entry.depth));
         if (entry.args) values.set("args", { type: "sequence", values: entry.args });
@@ -2120,6 +2170,7 @@ function recordAsyncTraceEvent(context, label, filePath, depth, trackedVars, tra
                     values: trackedVars.map(asyncDiagnosticString),
                 }],
                 ["calls", { type: "sequence", values: calls }],
+                ["droppedEvents", asyncDiagnosticInteger(droppedEvents)],
                 ["final", finalValue],
             ]),
         },
@@ -2158,6 +2209,14 @@ async function evaluateTraceCapabilityAsync(args, context, registry, systemConte
 
     const filePath = getCurrentFilePath(context);
     const traceLog = [];
+    const traceLimit = asyncOwner(context).limits.traceEvents;
+    Object.defineProperty(traceLog, "push", { value: (...entries) => {
+        for (const entry of entries) {
+            if (traceLog.length < traceLimit) Array.prototype.push.call(traceLog, { ...entry, taskPath: entry.taskPath ?? [...(context.getEnv("__async_task_path__", []) || [])] });
+            else traceContext.droppedEvents = (traceContext.droppedEvents || 0) + 1;
+        }
+        return traceLog.length;
+    } });
     const traceContext = {
         depth,
         trackedVars: new Set(trackedVars),
@@ -2196,7 +2255,7 @@ async function evaluateTraceCapabilityAsync(args, context, registry, systemConte
         context.setEnv("__trace_context__", previousTrace || null);
     }
 
-    recordAsyncTraceEvent(context, label, filePath, depth, trackedVars, traceLog, finalValue);
+    recordAsyncTraceEvent(context, label, filePath, depth, trackedVars, traceLog, finalValue, traceContext.droppedEvents || 0);
     return finalValue;
 }
 
@@ -2274,19 +2333,19 @@ function withAsyncItemFinalizers(context, callback) {
 }
 
 function childBranchState(state, index) {
-    return { ...state, branchPath: [...(state.branchPath || []), index] };
+    return { ...state, branchPath: [...(state.branchPath || []), index], taskPath: [...(state.taskPath || []), `branch ${index + 1}`] };
 }
 
 function asyncTaskPath(state, fallback = "item") {
-    const scope = state.name ? `scope ${state.name}` : "async scope";
-    const branch = (state.branchPath || []).map((index) => `branch ${index + 1}`).join(" / ");
-    return branch ? `${scope} / ${branch}` : `${scope} / ${fallback}`;
+    return state?.taskPath?.length ? state.taskPath.join(" / ") : `async scope / ${fallback}`;
 }
 
 async function orderedAsyncMap(items, state, worker) {
     if (items.length === 0) return [];
+    const limit = state.limits?.outputItems ?? asyncLimits().outputItems;
+    if (items.length > limit) throw asyncLimitFault("collection output", limit);
     const window = Math.max(1, state.limit * 2);
-    const promises = new Array(items.length);
+    const promises = new Map();
     const results = new Array(items.length);
     let nextToStart = 0;
     const start = (index) => {
@@ -2299,11 +2358,12 @@ async function orderedAsyncMap(items, state, worker) {
         // A sibling may fail before its source-order turn is awaited. Attach a
         // rejection observer immediately while preserving the original promise.
         promise.catch(() => {});
-        promises[index] = promise;
+        promises.set(index, promise);
     };
     while (nextToStart < items.length && nextToStart < window) start(nextToStart++);
     for (let published = 0; published < items.length; published++) {
-        results[published] = await promises[published];
+        results[published] = await promises.get(published);
+        promises.delete(published);
         if (nextToStart < items.length) start(nextToStart++);
     }
     return results;
@@ -2315,7 +2375,7 @@ async function orderedAsyncTerminal(items, state, worker, terminal) {
     const group = scheduler.createGroup(state.limit, state.group);
     const terminalState = { ...state, group, signal: group.signal };
     const window = Math.max(1, state.limit * 2);
-    const promises = new Array(items.length);
+    const promises = new Map();
     let nextToStart = 0;
     let candidateCount = 0;
     let lastCandidate = null;
@@ -2329,7 +2389,7 @@ async function orderedAsyncTerminal(items, state, worker, terminal) {
             promise = Promise.reject(error);
         }
         promise.catch(() => {});
-        promises[index] = promise;
+        promises.set(index, promise);
     };
     const stop = async (result) => {
         if (!group.cancelled) scheduler.cancelGroup(group, streamEarlyStop("ordered terminal result"));
@@ -2340,7 +2400,8 @@ async function orderedAsyncTerminal(items, state, worker, terminal) {
     try {
         while (nextToStart < items.length && nextToStart < window) start(nextToStart++);
         for (let published = 0; published < items.length; published++) {
-            const record = await promises[published];
+            const record = await promises.get(published);
+            promises.delete(published);
             if (!record.dropped) {
                 candidateCount++;
                 lastCandidate = record.value;
@@ -2374,7 +2435,7 @@ async function consumeAsyncStreamStructured(stream, terminal, context, registry,
     const scheduler = state.scheduler;
     const group = scheduler.createGroup(state.limit, state.group);
     const window = Math.max(1, state.limit * 2);
-    const promises = [];
+    const promises = new Map();
     let nextToStart = 0;
     let nextToPublish = 0;
     let outputIndex = 0;
@@ -2387,9 +2448,11 @@ async function consumeAsyncStreamStructured(stream, terminal, context, registry,
     let claimed = false;
 
     const start = (index) => {
+        const branchState = childBranchState(state, index);
         const itemContext = context.concurrentChild();
+        itemContext.setEnv("__async_task_path__", branchState.taskPath);
         const promise = scheduler.run((admission) => withAsyncItemFinalizers(itemContext, async () => {
-            const itemState = { ...state, group, signal: group.signal, admission };
+            const itemState = { ...branchState, group, signal: group.signal, admission };
             const raw = await pullRawAsyncStream(stream, group.signal);
             if (raw.done) return { done: true, index };
             const processed = await processAsyncStreamItem(stream, raw, {
@@ -2432,11 +2495,12 @@ async function consumeAsyncStreamStructured(stream, terminal, context, registry,
             }
             return { done: false, index, records, stop: processed.stop };
         }), group, {
-            path: `stream ${stream._stream.label} / item ${index + 1}`,
+            path: `${asyncTaskPath(branchState)} / stream ${stream._stream.label}`,
+            taskPath: branchState.taskPath,
             branchPath: [...(state.branchPath || []), index],
         });
         promise.catch(() => {});
-        promises[index] = promise;
+        promises.set(index, promise);
     };
 
     const cancelPending = (reason) => {
@@ -2458,7 +2522,8 @@ async function consumeAsyncStreamStructured(stream, terminal, context, registry,
         }
         while (nextToStart < window) start(nextToStart++);
         while (!stopped) {
-            const record = await promises[nextToPublish++];
+            const record = await promises.get(nextToPublish);
+            promises.delete(nextToPublish++);
             if (record.done) {
                 stopReason = { kind: "complete" };
                 cancelPending(streamEarlyStop("source completion"));
@@ -2470,7 +2535,10 @@ async function consumeAsyncStreamStructured(stream, terminal, context, registry,
             }
             for (const entry of record.records) {
                 outputIndex++;
-                if (terminal.kind === "collect") collected.push(entry.value);
+                if (terminal.kind === "collect") {
+                    if (collected.length >= state.limits.outputItems) throw asyncLimitFault("stream output", state.limits.outputItems);
+                    collected.push(entry.value);
+                }
                 else if (terminal.kind === "reduce") {
                     accumulator = await invokeTraversalCallbackAsync(
                         terminal.callable,
@@ -2533,8 +2601,7 @@ async function consumeAsyncStreamStructured(stream, terminal, context, registry,
                 await closeAsyncStream(stream, stopReason);
             } catch (cleanupError) {
                 if (!primary) throw cleanupError;
-                const existing = Array.isArray(primary.suppressed) ? primary.suppressed : [];
-                primary.suppressed = [...existing, cleanupError];
+                appendAsyncFailures(primary, [cleanupError], asyncOwner(context).limits.errors);
             }
         }
     }
@@ -2558,6 +2625,7 @@ function createAsyncMethodExecution(context, registry, systemContext, state) {
                     return await consumeAsyncStreamStructured(stream, terminal, context, registry, systemContext, state);
                 }
                 return await consumeAsyncStreamSequential(stream, terminal, {
+                    limits: state?.limits || asyncOwner(context).limits,
                     signal: state?.signal ?? null,
                     invoke: (callable, args) => invokeTraversalCallbackAsync(
                         callable,
@@ -2578,6 +2646,24 @@ function createAsyncMethodExecution(context, registry, systemContext, state) {
 async function invokeMethodAsync(target, methodName, callArgs, context, registry, systemContext, state) {
     if (methodName.endsWith("!")) ensureMutableReceiver(target);
     const fn = resolveMethod(target, methodName, context);
+    if (isLazySequence(target) && fn?.type === "method_builtin") {
+        if (["FIRST", "ISEMPTY"].includes(methodName)) await prepareAsyncLazyRead(target, 1, state);
+        else if (["MATERIALIZE", "LAST"].includes(methodName)) await prepareAsyncLazyRead(target, -1, state, true);
+        else if (methodName === "GET") {
+            const index = Number(callArgs[0]?.value ?? callArgs[0]);
+            await prepareAsyncLazyRead(target, index, state);
+        }
+    }
+    if (target?.type === "iterator" && target.source?._lazy && fn?.type === "method_builtin" && target.cursor !== null) {
+        let index = null;
+        if (methodName === "NEXT") index = target.cursor + Number(callArgs[0]?.value ?? callArgs[0] ?? 1);
+        else if (methodName === "PEEK") index = target.cursor + Number(callArgs[0]?.value ?? callArgs[0] ?? 0);
+        else if (methodName === "RESET" && callArgs.length) {
+            index = Number(callArgs[0]?.value ?? callArgs[0]);
+            if (index < 0 && target.source._lazy.knownLength !== null) index += target.source._lazy.knownLength + 1;
+        }
+        if (Number.isSafeInteger(index) && index > 0) await prepareAsyncLazyRead(target.source, index, state);
+    }
     if (fn?.type === "method_builtin") {
         try {
             return await fn.impl(
@@ -2601,6 +2687,7 @@ function asyncCollectionEntry(node, context, registry, systemContext, state) {
         return evaluateAsyncInternal(node, context, registry, systemContext, state);
     }
     const itemContext = context.concurrentChild();
+    itemContext.setEnv("__async_task_path__", [...(state?.taskPath || [])]);
     if (containsNestedAsyncCollection(node)) {
         // Structural parents consume no permit; their leaves do.
         // They still need isolated call/scope stacks from their siblings.
@@ -2616,6 +2703,7 @@ function asyncCollectionEntry(node, context, registry, systemContext, state) {
         )), state.group, {
             branchPath: state.branchPath,
             path: asyncTaskPath(state),
+            taskPath: state.taskPath,
         });
 }
 
@@ -2637,7 +2725,8 @@ async function resolveAsyncCollectionArg(arg, context, registry, systemContext, 
         return { ...arg, args: resolved };
     }
     if (arg?.fn === "SPREAD") {
-        const value = await asyncCollectionEntry(arg.args[0], context, registry, systemContext, state);
+        let value = await asyncCollectionEntry(arg.args[0], context, registry, systemContext, state);
+        if (isLazySequence(value) && value._lazy.pullAsync) value = await materializeLazySequenceAsync(value, { signal: state?.signal });
         return { fn: "SPREAD", args: [value] };
     }
     if (arg && !arg.fn && arg.expression) {
@@ -2664,6 +2753,8 @@ async function evaluateAsyncCollectionBody(irNode, context, registry, systemCont
     const definition = registry.get(irNode.fn);
     if (!definition) throw new Error(`Unknown collection constructor: ${irNode.fn}`);
     const args = irNode.args;
+    const outputLimit = state.limits?.outputItems ?? asyncOwner(context).limits.outputItems;
+    if (args.length > outputLimit + 1) throw asyncLimitFault("collection output", outputLimit);
     const hasHeader = args[0]?.header && !args[0].fn;
     const start = hasHeader ? 1 : 0;
     const resolved = hasHeader ? [args[0]] : [];
@@ -2677,6 +2768,7 @@ async function evaluateAsyncCollectionBody(irNode, context, registry, systemCont
             if (entry?.fn === "MAP_PAIR") {
                 const [kind, key, value, mode] = entry.args;
                 const itemContext = context.concurrentChild();
+                itemContext.setEnv("__async_task_path__", entryState.taskPath);
                 const resolveEntry = async (admission = null) => {
                     const itemState = admission ? { ...entryState, admission } : entryState;
                     return {
@@ -2732,8 +2824,18 @@ async function evaluateAsyncCollectionBody(irNode, context, registry, systemCont
         }
     }
 
-    const resolvedEvaluate = (node) => node?.fn ? evaluate(node, context, registry, systemContext) : node;
-    return await definition.impl(resolved, context, resolvedEvaluate, systemContext);
+    const resolvedEvaluate = (node) => node?.fn && !node.type ? evaluate(node, context, registry, systemContext) : node;
+    if (irNode.fn === "ARRAY" && definition.impl === collectionFunctions.ARRAY.impl && resolved.some((arg) => arg?.fn === "GENERATOR")) {
+        const recurrenceState = { ...asyncRootState(context, state), scheduler: null, group: null, admission: null, parallelCollections: false };
+        return await createAsyncGeneratorValue(resolved, context, resolvedEvaluate, {
+            signal: state?.signal,
+            invoke: (callable, values, source) => invokeCallableAsync(callable, values, context, registry, systemContext, { ...recurrenceState, activeLazySource: source }),
+        });
+    }
+    const result = await definition.impl(resolved, context, resolvedEvaluate, systemContext);
+    const size = result?.values?.length ?? result?.elements?.length ?? result?.entries?.size ?? result?.data?.length ?? 0;
+    if (size > outputLimit) throw asyncLimitFault("collection output", outputLimit);
+    return result;
 }
 
 async function evaluateAsyncCollection(irNode, context, registry, systemContext, state) {
@@ -2937,15 +3039,17 @@ async function evaluateAsyncStreamPipe(stream, stages, callables, context, regis
     return derived;
 }
 
-function lazySequenceAsyncStream(source) {
+function lazySequenceAsyncStream(source, limits = asyncLimits()) {
+    source._lazy.maxCache = Math.min(source._lazy.maxCache, limits.outputItems);
+    source._lazy.maxPending = Math.min(source._lazy.maxPending, limits.queued);
     let index = 1;
     return createAsyncStream({
         label: "lazy sequence",
         finite: source._lazy.knownLength !== null,
         callbackSource: source,
-        next(signal) {
+        async next(signal) {
             if (signal?.aborted) throw signal.reason;
-            const value = ensureLazyIndex(source, index);
+            const value = await ensureLazyIndexAsync(source, index, signal);
             if (source._lazy.done && source._lazy.cache.length < index) return { done: true };
             index++;
             return { done: false, value };
@@ -2996,7 +3100,7 @@ async function evaluateSequentialAsyncPipe(irNode, context, registry, systemCont
     }
     if (isLazySequence(collection)) {
         return evaluateAsyncStreamPipe(
-            lazySequenceAsyncStream(collection),
+            lazySequenceAsyncStream(collection, state?.limits || asyncOwner(context).limits),
             stages,
             callables,
             context,
@@ -3009,6 +3113,8 @@ async function evaluateSequentialAsyncPipe(irNode, context, registry, systemCont
         return evaluateScalarExpectedPipe(collection, stages, callables, context, registry, systemContext, state);
     }
     const items = collectionItems(collection);
+    const outputLimit = state?.limits?.outputItems ?? asyncOwner(context).limits.outputItems;
+    if (items.length > outputLimit) throw asyncLimitFault("collection output", outputLimit);
     const records = [];
     for (let index = 0; index < items.length; index++) {
         const item = items[index];
@@ -3054,6 +3160,7 @@ async function evaluateAsyncPipe(irNode, context, registry, systemContext, state
         const runEntry = (entry, index, taskState = state) => {
             const itemContext = context.concurrentChild();
             const branchState = childBranchState(taskState, index);
+            itemContext.setEnv("__async_task_path__", branchState.taskPath);
             return taskState.scheduler.run((admission) => withAsyncItemFinalizers(itemContext, async () => {
                 const itemState = { ...branchState, admission };
                 const rawNode = entry?.expression || entry;
@@ -3081,6 +3188,7 @@ async function evaluateAsyncPipe(irNode, context, registry, systemContext, state
             }), taskState.group, {
                 branchPath: branchState.branchPath,
                 path: `${asyncTaskPath(branchState)} / fused pipe`,
+                taskPath: branchState.taskPath,
             });
         };
         if (terminal === "PANY" || terminal === "PALL") {
@@ -3105,7 +3213,7 @@ async function evaluateAsyncPipe(irNode, context, registry, systemContext, state
     }
     if (isLazySequence(collection)) {
         return evaluateAsyncStreamPipe(
-            lazySequenceAsyncStream(collection),
+            lazySequenceAsyncStream(collection, state?.limits || asyncOwner(context).limits),
             stages,
             callables,
             context,
@@ -3122,6 +3230,7 @@ async function evaluateAsyncPipe(irNode, context, registry, systemContext, state
     const runItem = (item, index, taskState = state) => {
         const itemContext = context.concurrentChild();
         const branchState = childBranchState(taskState, index);
+        itemContext.setEnv("__async_task_path__", branchState.taskPath);
         return taskState.scheduler.run((admission) => withAsyncItemFinalizers(itemContext, () => runAsyncPipeStages(
             item.value,
             index,
@@ -3137,6 +3246,7 @@ async function evaluateAsyncPipe(irNode, context, registry, systemContext, state
         )), taskState.group, {
             branchPath: branchState.branchPath,
             path: `${asyncTaskPath(branchState)} / pipe`,
+            taskPath: branchState.taskPath,
         });
     };
 
@@ -3441,7 +3551,7 @@ async function evaluateAsyncChunk(args, context, registry, systemContext, state)
     return assembleAsyncPieces(collection, pieces, isString, isStringObject);
 }
 
-async function evaluateAsyncScopeBody(args, context, registry, systemContext, parentState) {
+async function evaluateAsyncScopeBody(args, context, registry, systemContext, parentState, node) {
     const { meta, body } = splitAsyncBlockArgs(args);
     const enteredAt = performance.now();
     const configured = meta.concurrencyLimit ?? context.getEnv(
@@ -3449,8 +3559,9 @@ async function evaluateAsyncScopeBody(args, context, registry, systemContext, pa
         runtimeDefaults.defaultAsyncConcurrency,
     );
     const hasParentScheduler = !!parentState?.scheduler;
-    const effectiveLimit = hasParentScheduler ? Math.min(configured, parentState.limit) : configured;
-    const scheduler = hasParentScheduler ? parentState.scheduler : new AsyncScheduler(effectiveLimit);
+    const owner = asyncOwner(context);
+    const effectiveLimit = Math.min(configured, parentState?.limit ?? owner.limits.concurrency, owner.limits.concurrency);
+    const scheduler = hasParentScheduler ? parentState.scheduler : new AsyncScheduler(effectiveLimit, owner.limits);
     const group = hasParentScheduler
         ? scheduler.createGroup(effectiveLimit, parentState.group)
         : scheduler.defaultGroup;
@@ -3465,6 +3576,8 @@ async function evaluateAsyncScopeBody(args, context, registry, systemContext, pa
             data: { timeoutSeconds: meta.timeoutSeconds, scope: meta.name ?? null },
         });
     const state = {
+        ...owner,
+        taskPath: [...(parentState?.taskPath || []), `${meta.name ? `scope ${meta.name}` : "async scope"}${getNodeLocation(node, context) ? ` (${getNodeLocation(node, context)})` : ""}`],
         scheduler,
         group,
         signal: group.signal,
@@ -3473,7 +3586,7 @@ async function evaluateAsyncScopeBody(args, context, registry, systemContext, pa
         parallelCollections: true,
         deadlineMs,
         deadlineFault,
-        branchPath: [],
+        branchPath: parentState?.branchPath || [],
     };
     let timeoutId = null;
     let removeParentAbort = null;
@@ -3490,6 +3603,10 @@ async function evaluateAsyncScopeBody(args, context, registry, systemContext, pa
             scheduler.cancelGroup(group, deadlineFault);
         }, Math.max(0, deadlineMs - performance.now()));
     }
+    const previousTaskPath = context.getEnv("__async_task_path__", null);
+    const previousScheduler = context.getEnv("__async_scheduler__", null);
+    context.setEnv("__async_task_path__", state.taskPath);
+    context.setEnv("__async_scheduler__", scheduler);
     context.push(undefined, { isolated: true });
     try {
         return await withFinalizerActivationAsync(context, async () => {
@@ -3525,15 +3642,17 @@ async function evaluateAsyncScopeBody(args, context, registry, systemContext, pa
         removeParentAbort?.();
         state.scheduler.closeGroup(state.group);
         context.pop();
+        context.setEnv("__async_task_path__", previousTaskPath);
+        context.setEnv("__async_scheduler__", previousScheduler);
     }
 }
 
-async function evaluateAsyncScope(args, context, registry, systemContext, parentState) {
+async function evaluateAsyncScope(args, context, registry, systemContext, parentState, node) {
     const releaseState = parentState
         ? { ...parentState, parallelCollections: true }
         : parentState;
     return withReleasedAsyncAdmission(releaseState, () =>
-        evaluateAsyncScopeBody(args, context, registry, systemContext, parentState));
+        evaluateAsyncScopeBody(args, context, registry, systemContext, parentState, node));
 }
 
 function readAsyncTemplateHole(source, start) {
@@ -3662,6 +3781,16 @@ async function evaluateSelectedLazyOperandsAsync(
             await evaluateAsyncInternal(operand, context, registry, systemContext, state),
         );
     }
+    const target = resolved.get(args[0]);
+    if (isLazySequence(target) && definition.impl === propertyFunctions.BRACKET_GET.impl) {
+        const indexes = operands.slice(1).map((operand) => resolved.get(operand)).map((value) => Number(value?.value ?? value));
+        if (args.slice(2, 2 + args[1]).some((spec) => spec?.fn === "FULL_SLICE") || indexes.some((index) => index < 0)) {
+            await prepareAsyncLazyRead(target, -1, state, true);
+        } else {
+            const index = Math.max(0, ...indexes.filter(Number.isSafeInteger));
+            if (index > 0) await prepareAsyncLazyRead(target, index, state);
+        }
+    }
     return await definition.impl(
         args,
         context,
@@ -3684,7 +3813,7 @@ function bracketLazyOperands(args, { assignment = false } = {}) {
     return operands;
 }
 
-function startDetachedBlock(args, context, registry, systemContext, parentState) {
+function startDetachedBlock(args, context, registry, systemContext, parentState, node) {
     const runtime = context.getEnv(SCRIPT_RUNTIME_ENV_KEY, null);
     const frame = runtime?.frameStack?.[runtime.frameStack.length - 1] ?? null;
     if (frame && !frame.permissions.has("BACKGROUND")) {
@@ -3695,14 +3824,22 @@ function startDetachedBlock(args, context, registry, systemContext, parentState)
     }
     const { meta, body } = splitAsyncBlockArgs(args);
     const importedBindings = captureDetachedImports(meta.imports, context);
+    const releaseReservation = reserveBackgroundTask(context);
     const taskContext = context.concurrentChild();
     const controller = new AbortController();
     const detachedState = {
+        ...asyncRootState(context, parentState),
+        scheduler: null, group: null, admission: null,
+        taskPath: [...(parentState?.taskPath || []), `detached ${meta.name || "task"} (${getNodeLocation(node, context) || "host"})`],
         signal: controller.signal,
         parallelCollections: false,
         deadlineMs: parentState?.deadlineMs ?? Infinity,
         deadlineFault: parentState?.deadlineFault ?? null,
     };
+    const detachedTimer = Number.isFinite(detachedState.deadlineMs)
+        ? setTimeout(() => controller.abort(detachedState.deadlineFault), Math.max(0, detachedState.deadlineMs - performance.now()))
+        : null;
+    taskContext.setEnv("__async_task_path__", detachedState.taskPath);
     const task = Promise.resolve().then(async () => {
         taskContext.push(importedBindings, { isolated: true, callableBoundary: true });
         try {
@@ -3722,15 +3859,15 @@ function startDetachedBlock(args, context, registry, systemContext, parentState)
         } finally {
             taskContext.pop();
         }
-    }).catch((error) => {
+    }).catch(async (error) => {
         if (controller.signal.aborted && error === controller.signal.reason) return;
         const handler = context.getEnv("backgroundTaskError", null);
-        if (typeof handler === "function") handler(error);
-        const errors = context.getEnv(BACKGROUND_ERRORS_ENV, []);
-        errors.push(error);
-        context.setEnv(BACKGROUND_ERRORS_ENV, errors);
+        recordBackgroundError(context, error);
+        if (typeof handler === "function") {
+            try { await handler(error); } catch (handlerError) { recordBackgroundError(context, handlerError); }
+        }
     });
-    registerBackgroundTask(context, task);
+    registerBackgroundTask(context, task, releaseReservation);
     registerAsyncResource(context, task, async (_resource, reason) => {
         if (!controller.signal.aborted) controller.abort(reason);
         const shutdown = Promise.resolve().then(async () => {
@@ -3748,7 +3885,8 @@ function startDetachedBlock(args, context, registry, systemContext, parentState)
             }),
         ]).finally(() => clearTimeout(timer));
     });
-    task.finally(() => unregisterAsyncResource(context, task));
+    const completed = () => { if (detachedTimer !== null) clearTimeout(detachedTimer); unregisterAsyncResource(context, task); };
+    task.then(completed, completed);
     return null;
 }
 
@@ -3867,9 +4005,13 @@ async function evaluateAsyncLoop(args, context, registry, systemContext, state) 
     ].map(usable);
     const shareCurrentScope = context.consumeSharedBody("LOOP");
     if (!shareCurrentScope) context.push(undefined, { isolated: true });
-    const evaluateShared = (node) => context.withSharedBody(node, () => (
-        evaluateAsyncInternal(node, context, registry, systemContext, state)
-    ));
+    const evaluateShared = (node, iteration = null) => context.withSharedBodyAsync(node, async () => {
+        const iterationState = iteration === null ? state : { ...state, taskPath: [...(state?.taskPath || []), `loop iteration ${iteration}`] };
+        const previousPath = context.getEnv("__async_task_path__", null);
+        context.setEnv("__async_task_path__", iterationState?.taskPath || []);
+        try { return await evaluateAsyncInternal(node, context, registry, systemContext, iterationState); }
+        finally { context.setEnv("__async_task_path__", previousPath); }
+    });
     try {
         applyAsyncImports(imports, context);
         try {
@@ -3895,14 +4037,14 @@ async function evaluateAsyncLoop(args, context, registry, systemContext, state) 
                 }
                 if (bodyNode) {
                     try {
-                        result = await evaluateShared(bodyNode);
+                        result = await evaluateShared(bodyNode, iterations + 1);
                     } catch (error) {
                         throw addEvaluationContext(error, `while evaluating loop body, iteration ${iterations + 1}`);
                     }
                 }
                 if (updateNode) {
                     try {
-                        await evaluateShared(updateNode);
+                        await evaluateShared(updateNode, iterations + 1);
                     } catch (error) {
                         throw addEvaluationContext(error, `while evaluating loop update after iteration ${iterations + 1}`);
                     }
@@ -3978,21 +4120,23 @@ async function evaluateAsyncInternal(irNode, context, registry, systemContext, s
         if (fn === "POSTFIX_FINALIZER") {
             const value = await evaluateAsyncInternal(args[0], context, registry, systemContext, state);
             const cleanup = await evaluateAsyncInternal(args[1], context, registry, systemContext, state);
-            context.registerFinalizer((cleanupSignal) => invokeCallableAsync(
-                cleanup,
-                [value],
-                context,
-                registry,
-                systemContext,
-                state ? {
-                    ...state,
-                    signal: cleanupSignal,
-                    scheduler: null,
-                    group: null,
-                    admission: null,
-                    parallelCollections: false,
-                } : null,
-            ));
+            context.registerFinalizer(async (cleanupSignal) => {
+                const cleanupState = {
+                    ...asyncRootState(context, state),
+                    taskPath: [...(state?.taskPath || []), "cleanup"],
+                    signal: cleanupSignal, scheduler: null, group: null, admission: null, parallelCollections: false,
+                };
+                const previousPath = context.getEnv("__async_task_path__", null);
+                context.setEnv("__async_task_path__", cleanupState.taskPath);
+                try { return await invokeCallableAsync(cleanup, [value], context, registry, systemContext, cleanupState); }
+                catch (error) {
+                    const failure = annotateEvaluationError(normalizeAsyncFailure(error), irNode, context);
+                    failure.asyncTaskPath ??= asyncTaskPath(cleanupState);
+                    failure.asyncTaskSegments ??= cleanupState.taskPath;
+                    throw failure;
+                }
+                finally { context.setEnv("__async_task_path__", previousPath); }
+            });
             return value;
         }
         if (fn === "POSTFIX_FAULT_RECOVERY") {
@@ -4026,17 +4170,18 @@ async function evaluateAsyncInternal(irNode, context, registry, systemContext, s
             }
             return invokeMethodAsync(target, methodName, callArgs, context, registry, systemContext, state);
         }
-        if (fn === "ASYNC_SCOPE") return await evaluateAsyncScope(args, context, registry, systemContext, state);
-        if (fn === "DETACH") return startDetachedBlock(args, context, registry, systemContext, state);
+        if (fn === "ASYNC_SCOPE") return await evaluateAsyncScope(args, context, registry, systemContext, state, irNode);
+        if (fn === "DETACH") return startDetachedBlock(args, context, registry, systemContext, state, irNode);
         if (ASYNC_COLLECTION_FNS.has(fn)) {
             const collectionState = state?.scheduler ? state : {
+                ...asyncRootState(context, state),
                 scheduler: null,
                 group: null,
                 signal: state?.signal || null,
                 limit: 1,
                 name: null,
                 parallelCollections: false,
-                branchPath: [],
+                branchPath: state?.branchPath || [],
             };
             return await evaluateAsyncCollection(irNode, context, registry, systemContext, collectionState);
         }
@@ -4155,11 +4300,7 @@ async function evaluateAsyncInternal(irNode, context, registry, systemContext, s
                     callArgNodes, context, registry, systemContext, state,
                 );
             }
-            if (capability.lazy) return await capability.impl(callArgNodes, context, evalAsync, {
-                promiseAware: true,
-                signal: state?.signal ?? null,
-                invoke: (callable, values) => invokeCallableAsync(callable, values, context, registry, systemContext, state),
-            });
+            if (capability.lazy) return await invokeAsyncCapability(capability, callArgNodes, context, evalAsync, registry, systemContext, state);
             const values = [];
             for (const arg of callArgNodes) values.push(await evalAsync(arg));
             if (state?.signal?.aborted) throw state.signal.reason;
@@ -4171,11 +4312,7 @@ async function evaluateAsyncInternal(irNode, context, registry, systemContext, s
             const capabilityEvaluate = SYNC_REACTIVE_FORMULA_CAPABILITY_IMPLS.has(capability.impl)
                 ? (node) => evaluate(node, context, registry, systemContext)
                 : evalAsync;
-            return await capability.impl(values, context, capabilityEvaluate, {
-                promiseAware: true,
-                signal: state?.signal ?? null,
-                invoke: (callable, values) => invokeCallableAsync(callable, values, context, registry, systemContext, state),
-            });
+            return await invokeAsyncCapability(capability, values, context, capabilityEvaluate, registry, systemContext, state);
         }
         if (["SYS_GET", "SYS_OBJ"].includes(fn)) return evaluate(irNode, context, registry, systemContext);
 
@@ -4439,29 +4576,42 @@ async function evaluateAsyncInternal(irNode, context, registry, systemContext, s
             }
             // Lazy operations not requiring promise-aware control flow retain
             // their established evaluator. Async-specific forms are handled above.
-            const result = await definition.impl(
-                args,
-                context,
-                (node) => evaluate(node, context, registry, systemContext),
-                systemContext,
-            );
+            const invoke = () => definition.impl(args, context, (node) => evaluate(node, context, registry, systemContext), systemContext);
+            const result = definition.concurrency === "safe" ? await invoke() : await (state?.lane || asyncOwner(context).lane).run(invoke, state?.signal);
             return fn === "MULTIFUNCTION" ? markLexicalAsyncCallable(result, state) : result;
         }
 
         const evaluatedArgs = [];
         for (const arg of args) evaluatedArgs.push(await evalAsync(arg));
+        if (isLazySequence(evaluatedArgs[0])) {
+            const target = evaluatedArgs[0];
+            if (fn === "INDEX_GET" || fn === "GETEL") {
+                const index = Number(evaluatedArgs[1]?.value ?? evaluatedArgs[1]);
+                await prepareAsyncLazyRead(target, index, state);
+            } else if (fn === "FIRST") await ensureLazyIndexAsync(target, 1, state?.signal);
+            else if (fn === "LAST") await materializeLazySequenceAsync(target, { signal: state?.signal });
+        }
         if (!definition.holeAware && evaluatedArgs.some(isHole)) {
             throw new Error(`Cannot use undefined/hole value in computation (in ${fn})`);
         }
-        return await definition.impl(evaluatedArgs, context, (node) => evaluate(node, context, registry, systemContext), systemContext);
+        const invoke = () => definition.impl(evaluatedArgs, context, (node) => evaluate(node, context, registry, systemContext), systemContext);
+        return definition.concurrency === "safe" || (definition.concurrency === undefined && definition.pure === true)
+            ? await invoke()
+            : await (state?.lane || asyncOwner(context).lane).run(invoke, state?.signal);
     } catch (error) {
-        throw annotateEvaluationError(error, irNode, context);
+        const annotated = annotateEvaluationError(error, irNode, context);
+        if (annotated && typeof annotated === "object" && Object.isExtensible(annotated)) {
+            annotated.asyncTaskPath ??= asyncTaskPath(state);
+            annotated.asyncTaskSegments ??= [...(state?.taskPath || [])];
+        }
+        throw annotated;
     }
 }
 
 /** Promise-aware IR entry point. RiX values never expose the returned promises. */
 export async function evaluateAsync(irNode, context, registry, systemContext) {
-    return evaluateAsyncInternal(irNode, context, registry, systemContext, null);
+    context.setEnv("__async_output_count__", { count: 0, limit: asyncOwner(context).limits.outputItems });
+    return evaluateAsyncInternal(irNode, context, registry, systemContext, asyncRootState(context));
 }
 
 /**
@@ -4483,7 +4633,7 @@ export function evaluateObserved(irNode, context, registry, systemContext, optio
 export async function evaluateObservedAsync(irNode, context, registry, systemContext, options = {}) {
     const captured = await captureObservedEvaluationAsync(
         context,
-        () => evaluateAsyncInternal(irNode, context, registry, systemContext, null),
+        () => evaluateAsyncInternal(irNode, context, registry, systemContext, asyncRootState(context)),
     );
     const value = typeof options.selectValue === "function"
         ? options.selectValue(captured.value)
@@ -4656,6 +4806,7 @@ export async function parseAndEvaluateAsync(code, options = {}) {
     const irNodes = lower(ast);
     attachSourceInfo(irNodes, code, options.file || "<repl>");
 
+    context.setEnv("__async_output_count__", { count: 0, limit: asyncOwner(context).limits.outputItems });
     const budgetScope = enterEvaluationBudget(context, options);
     try {
         return await withFinalizerActivationAsync(context, async () => {
@@ -4667,7 +4818,7 @@ export async function parseAndEvaluateAsync(code, options = {}) {
                         context,
                         registry,
                         systemContext,
-                        budgetScope.budget?.signal ? { signal: budgetScope.budget.signal } : null,
+                        asyncRootState(context, { signal: budgetScope.budget?.signal }),
                     );
                     continue;
                 }
@@ -4683,7 +4834,7 @@ export async function parseAndEvaluateAsync(code, options = {}) {
                         context,
                         registry,
                         systemContext,
-                        budgetScope.budget?.signal ? { signal: budgetScope.budget.signal } : null,
+                        asyncRootState(context, { signal: budgetScope.budget?.signal }),
                     );
                 } finally {
                     if (previousObserver.has) context.setEnv(REACTIVE_OUTPUT_READ_ENV, previousObserver.value);

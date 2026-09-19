@@ -1,3 +1,4 @@
+// These host fixtures deliberately permit overlapping invocations; default unknown effects serialize.
 import { describe, expect, test } from "bun:test";
 import { Integer } from "@ratmath/core";
 import {
@@ -96,7 +97,7 @@ describe("RiX async streams", () => {
         let active = 0;
         let maxActive = 0;
         const systemContext = createDefaultSystemContext({ frozen: false });
-        systemContext.registerHost("work", {
+        systemContext.registerHost("work", { concurrency: "safe",
             impl: ([value]) => new Promise((resolve) => {
                 const number = Number(value.value);
                 starts.push(number);
@@ -233,7 +234,7 @@ describe("RiX async streams", () => {
 
     test("per-item typed fault recovery can produce an ordinary outcome value", async () => {
         const systemContext = createDefaultSystemContext({ frozen: false });
-        systemContext.registerHost("maybe", {
+        systemContext.registerHost("maybe", { concurrency: "safe",
             impl([value]) {
                 if (value.value === 2n) {
                     throw new OperationalFault("item failed", { code: "ITEM_FAILED" });
@@ -252,7 +253,7 @@ describe("RiX async streams", () => {
     test("First cancels an in-flight transformation and custom ##_ ..Close is idempotent", async () => {
         let cancelled = 0;
         const systemContext = createDefaultSystemContext({ frozen: false });
-        systemContext.registerHost("work", {
+        systemContext.registerHost("work", { concurrency: "safe",
             impl: ([value], _context, _evaluate, options) => {
                 if (value.value === 1n) return value;
                 return new Promise((_, reject) => {
@@ -290,7 +291,7 @@ describe("RiX async streams", () => {
         let active = 0;
         let maxActive = 0;
         const systemContext = createDefaultSystemContext({ frozen: false });
-        systemContext.registerHost("work", {
+        systemContext.registerHost("work", { concurrency: "safe",
             async impl([value]) {
                 active++;
                 maxActive = Math.max(maxActive, active);
@@ -337,7 +338,7 @@ describe("RiX async streams", () => {
         let closes = 0;
         const context = new Context();
         const systemContext = createDefaultSystemContext({ frozen: false });
-        systemContext.registerHost("open", {
+        systemContext.registerHost("open", { concurrency: "safe",
             impl() {
                 return createAsyncStream({
                     label: "background source",

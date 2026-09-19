@@ -30,9 +30,13 @@ The event-loop implementation now also supplies bounded pull for legacy lazy
 sources when an explicit async terminal consumes them, ordered early
 cancellation for both `|>||` and `|>&&`, loop/pull/stage cancellation
 checkpoints, promise-aware script imports and selective control forms, and
-deterministic seeded random substreams per source branch. Still planned are
-async callbacks inside recurrence generators, capability safety/serialization
-metadata, worker execution, and complete structural task-path diagnostics.
+deterministic seeded random substreams per source branch. R1 now also supplies
+async recurrence callbacks with concrete committed caches, conservative capability
+effect/cancellation/concurrency metadata, an owner serial lane, structural task
+paths, bounded retained work/errors/output/traces, and detached admission limits.
+Scheduler-owned CPU worker execution remains separate R2 work. See
+[implemented safety contracts](../../eval/concurrency-safety.md) for host settings,
+adapter metadata, diagnostics, cancellation boundaries, and acceptance coverage.
 
 The proposal deliberately separates two operations:
 
@@ -505,18 +509,20 @@ have. A capability may additionally declare:
 
 ```js
 {
-  async: true,
-  parallelSafe: true,
-  cancellable: true,
-  executor: "event-loop", // or "worker"
-  effects: ["net"]
+  effect: "read",                // pure | read | write | unknown
+  concurrency: "safe",           // safe | serial
+  cancellation: "cooperative"    // cooperative | none
 }
 ```
 
-The exact metadata spelling can change during implementation, but the runtime
-must distinguish promise-awareness, safe overlap, cooperative cancellation,
-executor needs, and effects. A capability not marked parallel-safe executes
-through a serialized lane even inside a concurrency scope.
+These are implemented registry and SystemContext fields. A truthful existing
+`pure: true` declaration defaults to `effect: "pure"` and safe overlap; unknown
+or effectful functions default to the owner serial lane. Explicit safety metadata
+may permit independent I/O to overlap. Every async adapter receives `signal` and
+`taskPath`; cooperative adapters must honor the signal themselves. Await delegated
+`execution.invoke(...)`/evaluation callbacks: delegation releases the owner lease
+until the callbacks settle, avoiding nested lane deadlocks. Worker eligibility and
+transport are separate R2 contracts; these metadata do not grant permissions.
 
 After `.RANDOMSEED`, concurrent work receives a deterministic child stream
 derived in stable source-branch creation order. Completion timing does not
@@ -963,7 +969,7 @@ reactive batch later publishes `result` and `status` together.
 - [x] Add `AsyncContainer` and `DetachedBlock` AST nodes.
 - [x] Parse `{!$ value }` and `{!$name! value }` as async-targeted breaks.
 - [x] Lower to `ASYNC_SCOPE`, `DETACH`, and `BREAK(targetType="async")`.
-- [x] Preserve scope names, limits, and source spans in IR. Stable task paths remain pending.
+- [x] Preserve scope names, limits, and source spans in IR and structural task paths.
 - [x] Add tokenizer/parser/lowering negative tests for zero, malformed, and
   unsafe concurrency limits.
 - [x] Recognize `|>_` and `|>!` before `|>` and lower them to `PFOREACH` and
@@ -998,16 +1004,16 @@ reactive batch later publishes `result` and `status` together.
 - [x] Use hierarchical round-robin admission across nested sibling branches.
 - [x] Attach stable scheduler task IDs, observation order, and timestamps to
   failures.
-- [ ] Replace fallback task IDs with complete structural task paths in every
-  evaluator admission and diagnostic.
-- [x] Implement effective-limit composition for nested scopes. A distinct host
-  maximum remains follow-up configuration work.
+- [x] Carry scope/source/branch paths through evaluator admission, output, cleanup,
+  errors, and bounded traces; loop bodies and detached spawn sites add provenance.
+- [x] Compose nested scope limits with a separate host concurrency ceiling.
 - [x] Ensure structural parents do not retain leaf permits
   while awaiting children.
 - [x] Add task-local ordinary snapshots and reject captured-cell writes.
 - [x] Isolate captured composites by deep task snapshot so local mutation
   cannot change the surrounding ordinary value.
-- [ ] Finish callable/capability concurrency-safety classification.
+- [x] Classify registry/capability effects, cancellation, and safe overlap; unknown
+  functions, overrides and unclassified installed variants serialize.
 - [x] Derive deterministic seeded random substreams in stable source-branch
   creation order.
 - [x] Add deferred-capability tests that assert admission and
@@ -1020,15 +1026,15 @@ reactive batch later publishes `result` and `status` together.
 - [x] Capture parallel-constructor semantics lexically for functions defined
   inside `{$ ... }`; keep outside-defined functions sequential unless they use
   an explicit inner concurrency scope.
-- [ ] Classify callable/capability safety beyond the implemented captured-cell
-  write rejection.
+- [x] Add conservative capability safety metadata and owner serialization alongside
+  captured-cell write rejection.
 - [x] Preserve source-order result assembly despite completion-order slot fills.
 - [x] Implement finite map key/value and insertion-order rules.
 - [x] Treat pre-existing collections as data sources without re-evaluation.
 - [x] Add bounded pull and early close for pre-existing lazy/generator sources
   consumed by async terminals; recurrence generation remains sequential.
-- [ ] Add promise-returning callbacks to the legacy recurrence-generator
-  protocol without allowing promises into its synchronous cache.
+- [x] Await recurrence callbacks through a shared sync/async generation algorithm;
+  commit concrete state/cache entries only after successful completion.
 - [x] Test the current limit-2 `{= a=[F(), G()], b=H() }` structural-parent
   behavior without consuming permits.
 - [x] Assert the settled `F, H, G` hierarchical order for that scenario.
@@ -1068,13 +1074,14 @@ reactive batch later publishes `result` and `status` together.
   cleanup drain.
 - [x] Preserve body failure as primary and attach later cleanup failures as
   suppressed errors.
-- [ ] Give every cleanup and scheduler error a complete structural task path.
+- [x] Preserve source/task paths on cleanup and scheduler failures, retain the first
+  observed failure, and bound aggregate details with disclosed omitted counts.
 - [x] Implement named and unnamed `{!$...}` completion races with queued-sibling cancellation.
-- [ ] Specify capability metadata for parallel safety, cancellation, executor,
-  and effects; serialize unsafe capabilities through a single lane.
+- [x] Implement effect/concurrency/cancellation metadata and the owner serial lane.
+  Executor selection remains in the worker task.
 - [x] Test queued cancellation and cooperative I/O abort.
-- [ ] Add focused tests for a loop checkpoint after suspension, simultaneous
-  breaks, and uncancellable synchronous work.
+- [x] Test loop cancellation after suspension, simultaneous named breaks, and the
+  fact that synchronous effects already entered finish without rollback.
 - [x] Verify explicitly that cancellation does not imply effect rollback.
 
 ## 7. Background supervisor and reactive publication
@@ -1082,7 +1089,8 @@ reactive batch later publishes `result` and `status` together.
 - [x] Implement `DETACH` as immediate null plus a supervisor-owned task.
 - [x] Add session-close cancellation, task-owned resource disposal, and bounded
   cleanup; RiX Web invokes it on reset and page disposal.
-- [ ] Add active-task/queue limits, task IDs, and complete source diagnostics.
+- [x] Reserve detached capacity before launch, bound tasks/error retention, preserve
+  spawn source/task paths, honor inherited deadlines, and reject acquisition during shutdown.
 - [x] Define and implement CLI drain-by-default plus exported host/session
   disposal for cancel-and-drain behavior.
 - [x] Report background errors to the host handler/error queue without retroactively
@@ -1137,12 +1145,12 @@ reactive batch later publishes `result` and `status` together.
 ## 9. Documentation, observability, and hardening
 
 - [x] Add syntax/reference documentation for the implemented runtime slice.
-- [ ] Show scope/task paths, queue state, running count, cancellation reason,
-  and executor in trace diagnostics.
-- [ ] Tag concurrent output events with task paths and define host presentation
-  ordering.
-- [ ] Add deterministic stress tests for deep nesting, low limits, barriers,
-  cancellation storms, and background shutdown.
+- [x] Include task paths and bounded scheduler snapshots (queue/active/pending/limit,
+  cancellation, event-loop executor) in async trace/failure diagnostics.
+- [x] Tag concurrent `.Out` events with task paths. Event delivery follows completed
+  effects; collection results retain source ordering and hosts may group by path.
+- [x] Add deferred/microtask stress for nesting, suspension, low limits, simultaneous
+  breaks, cancellation storms, hot/cold queues, cache races, and shutdown.
 - [ ] Add benchmarks for I/O overlap, pipeline latency, scheduler overhead, and
   worker CPU scaling.
 - [x] Run `bun test` from `rix/` after every implementation slice.

@@ -1,6 +1,9 @@
+import { ASYNC_LIMITS } from "./async-policy.js";
+
 export const runtimeDefaults = Object.freeze({
   defaultLoopMax: 10000,
   defaultAsyncConcurrency: 10,
+  asyncLimits: ASYNC_LIMITS,
   asyncCleanupGraceMs: 5000,
   editorMaxEvaluationSteps: 250000,
   editorMaxEvaluationTimeMs: 5000,

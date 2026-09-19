@@ -121,3 +121,35 @@ describe("async_stream runtime protocol", () => {
         expect(numbers(await drainRaw(ended.stream))).toEqual([1]);
     });
 });
+
+describe("bounded stream stress", () => {
+    test("hot blocked producers are bounded and every pending producer settles on close", async () => {
+        let closes = 0;
+        const hot = createHotAsyncStream({ capacity: 1, overflowPolicy: "block", limits: { queued: 2 }, unsubscribe: () => { closes++; } });
+        expect(hot.push(new Integer(1n))).toBe(true);
+        const first = hot.push(new Integer(2n));
+        const second = hot.push(new Integer(3n));
+        for (let i = 0; i < 20; i++) await expect(hot.push(new Integer(4n))).rejects.toMatchObject({ code: "ASYNC_LIMIT_EXCEEDED" });
+        expect(hot.stream._stream.root.inspect().blocked).toBe(2);
+        await closeAsyncStream(hot.stream);
+        await closeAsyncStream(hot.stream);
+        expect(await first).toBe(false);
+        expect(await second).toBe(false);
+        expect(closes).toBe(1);
+        expect(hot.stream._stream.root.inspect().blocked).toBe(0);
+    });
+
+    test("cold raw-pull chains have a separate bounded admission queue", async () => {
+        let release;
+        const gate = new Promise((resolve) => { release = resolve; });
+        const stream = createAsyncStream({ limits: { queued: 2 }, async next() { await gate; return { value: new Integer(1n) }; } });
+        const first = pullRawAsyncStream(stream);
+        const second = pullRawAsyncStream(stream);
+        await expect(pullRawAsyncStream(stream)).rejects.toMatchObject({ code: "ASYNC_LIMIT_EXCEEDED" });
+        expect(stream._stream.root.pendingPulls).toBe(2);
+        release();
+        await Promise.all([first, second]);
+        expect(stream._stream.root.pendingPulls).toBe(0);
+        await closeAsyncStream(stream);
+    });
+});

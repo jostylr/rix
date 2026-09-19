@@ -38,6 +38,7 @@ project:
     - eval/objects/array.md
     - eval/objects/lazy-sequence.md
     - eval/objects/async-stream.md
+    - eval/concurrency-safety.md
     - eval/objects/iterator.md
     - eval/objects/map.md
     - eval/objects/set.md
