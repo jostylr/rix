@@ -91,7 +91,7 @@ describe('Decision conditional (?: ?_ ??)', () => {
         expect(ast.nullExpression.elements.length).toBe(3);
     });
 
-    it('should parse ternary with matrix literals', () => {
+    it('should parse ternary with rank-2 shaped literals', () => {
         const result = parse('det > 0 ?: [[1,0],[0,1]] ?_ [[0,1],[1,0]]');
         const ast = result[0];
 

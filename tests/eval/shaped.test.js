@@ -38,24 +38,24 @@ function unbox(value) {
     return value;
 }
 
-function shapedSnapshot(tensor) {
-    if (!isShaped(tensor)) {
-        throw new Error("Expected a tensor");
+function shapedSnapshot(shaped) {
+    if (!isShaped(shaped)) {
+        throw new Error("Expected a shaped");
     }
 
     const flat = [];
-    forEachShapedCell(tensor, (value) => {
+    forEachShapedCell(shaped, (value) => {
         flat.push(unbox(value));
     });
 
     return {
-        shape: [...tensor.shape],
+        shape: [...shaped.shape],
         flat,
     };
 }
 
-describe("Tensor literals and indexing", () => {
-    test("semicolon array notation canonicalizes matrices and higher-rank tensors", () => {
+describe("Shaped literals and indexing", () => {
+    test("semicolon array notation canonicalizes matrices and higher-rank shaped values", () => {
         const matrix = evalRiX("[1, 2; 3, 4]");
         expect(shapedSnapshot(matrix)).toEqual({ shape: [2, 2], flat: [1, 2, 3, 4] });
 
@@ -72,12 +72,12 @@ describe("Tensor literals and indexing", () => {
         });
     });
 
-    test("semicolon tensor inference rejects ragged dimensions", () => {
+    test("semicolon shaped inference rejects ragged dimensions", () => {
         expect(() => evalRiX("[1, 2; 3]")).toThrow("ragged along columns");
         expect(() => evalRiX("[1; 2 ;; 3]")).toThrow("ragged along rows");
     });
 
-    test("tensor literal stores row-major flat data", () => {
+    test("shaped literal stores row-major flat data", () => {
         const result = evalRiX("m := {:2x3: 1, 2, 3; 4, 5, 6}; m");
         expect(shapedSnapshot(result)).toEqual({
             shape: [2, 3],
@@ -85,7 +85,7 @@ describe("Tensor literals and indexing", () => {
         });
     });
 
-    test("rank-3 tensor literal uses rows, columns, then depth slices", () => {
+    test("rank-3 shaped literal uses rows, columns, then depth slices", () => {
         const result = evalRiX("t := {:2x3x2: 1, 2, 3; 4, 5, 6 ;; 7, 8, 9; 10, 11, 12}; t");
         expect(shapedSnapshot(result)).toEqual({
             shape: [2, 3, 2],
@@ -93,22 +93,22 @@ describe("Tensor literals and indexing", () => {
         });
     });
 
-    test("rank-3 tensor formatting preserves rows, columns, then depth slices", () => {
+    test("rank-3 shaped formatting preserves rows, columns, then depth slices", () => {
         const result = evalRiX("t := {:2x3x2: 1, 2, 3; 4, 5, 6 ;; 7, 8, 9; 10, 11, 12}; t");
         expect(formatValue(result)).toBe("{:2x3x2: 1, 2, 3; 4, 5, 6 ;; 7, 8, 9; 10, 11, 12 }");
     });
 
-    test("tensor scalar indexing uses 1-based indices", () => {
+    test("shaped scalar indexing uses 1-based indices", () => {
         const result = evalRiX("m := {:2x3: 1, 2, 3; 4, 5, 6}; m[2, 3]");
         expect(unbox(result)).toBe(6);
     });
 
-    test("tensor indexing accepts a tuple locator", () => {
+    test("shaped indexing accepts a tuple locator", () => {
         const result = evalRiX("m := {:2x3: 1, 2, 3; 4, 5, 6}; idx := (2, 3); m[idx]");
         expect(unbox(result)).toBe(6);
     });
 
-    test("tensor slices return views with the sliced shape", () => {
+    test("shaped slices return views with the sliced shape", () => {
         const row = evalRiX("m := {:2x3: 1, 2, 3; 4, 5, 6}; m[1, ::]");
         expect(shapedSnapshot(row)).toEqual({
             shape: [3],
@@ -122,7 +122,7 @@ describe("Tensor literals and indexing", () => {
         });
     });
 
-    test("tensor slices support reverse endpoints and negative indices", () => {
+    test("shaped slices support reverse endpoints and negative indices", () => {
         const result = evalRiX("m := {:2x3: 1, 2, 3; 4, 5, 6}; m[-1:1, ::]");
         expect(shapedSnapshot(result)).toEqual({
             shape: [2, 3],
@@ -130,19 +130,19 @@ describe("Tensor literals and indexing", () => {
         });
     });
 
-    test("tensor indexing is strict about bounds", () => {
+    test("shaped indexing is strict about bounds", () => {
         expect(() => evalRiX("m := {:2x3: 1, 2, 3; 4, 5, 6}; m[3, 1]"))
             .toThrow("out of range");
     });
 
-    test("tensor literal rejects a body whose row and column structure does not match the shape", () => {
+    test("shaped literal rejects a body whose row and column structure does not match the shape", () => {
         expect(() => evalRiX("t := {:2x3x2: 1, 2; 3, 4; 5, 6 ;; 7, 8; 9, 10; 11, 12}"))
             .toThrow("expects 3 columns per row");
     });
 });
 
-describe("Tensor views and assignment", () => {
-    test("transpose produces a rank-2 tensor view", () => {
+describe("Shaped views and assignment", () => {
+    test("transpose produces a rank-2 shaped view", () => {
         const transposed = evalRiX("m := {:2x3: 1, 2, 3; 4, 5, 6}; m^^");
         expect(shapedSnapshot(transposed)).toEqual({
             shape: [3, 2],
@@ -155,7 +155,7 @@ describe("Tensor views and assignment", () => {
         expect(unbox(result)).toEqual([4, 2]);
     });
 
-    test("tensor scalar and slice assignment mutate the backing tensor", () => {
+    test("shaped scalar and slice assignment mutate the backing shaped", () => {
         const result = evalRiX("m := {:2x3:}; m[1, 2] = 9; m[::, 1] = 7; m");
         expect(shapedSnapshot(result)).toEqual({
             shape: [2, 3],
@@ -164,8 +164,8 @@ describe("Tensor views and assignment", () => {
     });
 });
 
-describe("Tensor-aware pipes", () => {
-    test("PMAP on an empty tensor can fill by index tuple", () => {
+describe("Shaped-aware pipes", () => {
+    test("PMAP on an empty shaped can fill by index tuple", () => {
         const result = evalRiX("{:2x3:} |>> (v, idx) -> idx[1] * 10 + idx[2]");
         expect(shapedSnapshot(result)).toEqual({
             shape: [2, 3],
@@ -173,7 +173,7 @@ describe("Tensor-aware pipes", () => {
         });
     });
 
-    test("PFILTER on a tensor returns value/index tuples", () => {
+    test("PFILTER on a shaped returns value/index tuples", () => {
         const result = evalRiX("m := {:2x3: 1, 2, 3; 4, 5, 6}; m |>? (v, idx) -> idx[2] == 2");
         expect(unbox(result)).toEqual([
             [2, [1, 2]],
@@ -181,12 +181,12 @@ describe("Tensor-aware pipes", () => {
         ]);
     });
 
-    test("PREDUCE on a tensor receives index tuples", () => {
+    test("PREDUCE on a shaped receives index tuples", () => {
         const result = evalRiX("m := {:2x3: 1, 2, 3; 4, 5, 6}; m |:> 0 >: (acc, v, idx) -> acc + idx[1]");
         expect(unbox(result)).toBe(9);
     });
 
-    test("zero-sized tensor mapping preserves the shape", () => {
+    test("zero-sized shaped mapping preserves the shape", () => {
         const result = evalRiX("{:0x3:} |>> (v, idx) -> 7");
         expect(shapedSnapshot(result)).toEqual({
             shape: [0, 3],
@@ -263,5 +263,43 @@ describe("Matrix semantics", () => {
     test("bare shaped literals do not acquire matrix multiplication implicitly", () => {
         expect(() => evalRiX("[1, 2; 3, 4] * [1, 0; 0, 1]")).not.toThrow();
         expect(shapedSnapshot(evalRiX("[1, 2; 3, 4] * [1, 0; 0, 1]")).flat).toEqual([1, 0, 0, 4]);
+    });
+});
+
+describe("Shaped migration contracts", () => {
+    test("explicit generation, mapping, reshaping and permutation compose without broadcasting", () => {
+        const value = evalRiX(`
+            .Shaped.Generate({: 2, 3 }, idx -> idx[1] * 10 + idx[2])
+                .Map(value -> value + 1).Reshape({: 3, 2 }).Permute({: 2, 1 })
+        `);
+        expect(shapedSnapshot(value)).toEqual({ shape: [2, 3], flat: [12, 14, 23, 13, 22, 24] });
+        expect(isShaped(value)).toBe(true);
+        expect(() => evalRiX("[1, 2; 3, 4].Reshape({: 3 })")).toThrow("size mismatch");
+        for (const axes of ["1, 1", "0, 2", "1, 3", "1/2, 2"]) {
+            expect(() => evalRiX(`[1, 2; 3, 4].Permute({: ${axes} })`)).toThrow();
+        }
+    });
+
+    test("compact and general Matrix headers format canonically and retain arithmetic", () => {
+        for (const header of ["/Matrix/", "/matrix/", "/::MATRIX/"]) {
+            const value = evalRiX(`{:2x2: ${header} 1, 2; 3, 4}`);
+            expect(formatValue(value)).toBe("{:2x2: /Matrix/ 1, 2; 3, 4 }");
+            expect(formatValue(evalRiX(formatValue(value)))).toBe(formatValue(value));
+        }
+        expect(formatValue(evalRiX("{:0x2: /Matrix/}"))).toBe("{:0x2: /Matrix/ }");
+        for (const source of ["{:2: /Matrix/ 1, 2}", "{:1x1x1: /Matrix/ 1}", "{:2x2: /Tensor/ 1, 2; 3, 4}"]) {
+            expect(() => evalRiX(source)).toThrow("semantic type");
+        }
+    });
+
+    test("mixed Matrix and Shaped arithmetic explains the explicit conversion", () => {
+        for (const expression of ["matrix + shaped", "shaped - matrix", "matrix * shaped", "shaped * matrix", "matrix.Hadamard(shaped)"]) {
+            expect(() => evalRiX(`matrix := {:2x2: /Matrix/ 1, 2; 3, 4}; shaped := [1, 0; 0, 1]; ${expression}`))
+                .toThrow("~!: :Matrix");
+        }
+        expect(() => evalRiX("[1, 2; 3, 4].Hadamard([1, 0; 0, 1])")).toThrow("~!: :Matrix");
+        expect(() => evalRiX("[1, 2; 3, 4].UnrelatedMethod()")).toThrow("Method not found");
+        expect(shapedSnapshot(evalRiX("matrix := {:2x2: /Matrix/ 1, 2; 3, 4}; matrix * ([1, 0; 0, 1] ~!: :Matrix)")))
+            .toEqual({ shape: [2, 2], flat: [1, 2, 3, 4] });
     });
 });

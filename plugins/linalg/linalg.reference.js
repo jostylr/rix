@@ -60,7 +60,7 @@ function copyRows(rows) {
     return rows.map((row) => row.map((value) => exactRational(value)));
 }
 
-function flatTensorValues(value) {
+function flatShapedValues(value) {
     const values = [];
     forEachShapedCell(value, (entry) => values.push(entry));
     return values;
@@ -69,12 +69,10 @@ function flatTensorValues(value) {
 export function exactMatrix(value, label = "matrix") {
     let rows;
     if (isShaped(value)) {
-        if (shapedRank(value) !== 2) throw new Error(`${label} must be a rank-2 tensor`);
-        const flat = flatTensorValues(value);
+        if (shapedRank(value) !== 2) throw new Error(`${label} must be a rank-2 Shaped or Matrix value`);
+        const flat = flatShapedValues(value);
         rows = Array.from({ length: value.shape[0] }, (_, row) =>
             flat.slice(row * value.shape[1], (row + 1) * value.shape[1]));
-    } else if (value?.type === "matrix" && Array.isArray(value.rows)) {
-        rows = value.rows.map((row) => sequence(row, `${label} row`));
     } else {
         rows = sequence(value, label).map((row, index) => sequence(row, `${label} row ${index + 1}`));
     }
@@ -88,22 +86,22 @@ export function exactMatrix(value, label = "matrix") {
 export function exactVector(value, label = "vector") {
     let values;
     if (isShaped(value)) {
-        if (shapedRank(value) !== 1) throw new Error(`${label} must be a rank-1 tensor`);
-        values = flatTensorValues(value);
+        if (shapedRank(value) !== 1) throw new Error(`${label} must be a rank-1 Shaped value`);
+        values = flatShapedValues(value);
     } else {
         values = sequence(value, label);
     }
     return values.map((entry, index) => exactRational(entry, `${label} entry ${index + 1}`));
 }
 
-export function matrixTensor(rows) {
+export function matrixValue(rows) {
     if (rows.length === 0 || rows[0].length === 0) throw new Error("Matrix cannot be empty");
     const value = createShaped([rows.length, rows[0].length], rows.flat());
     value._ext.set("__type", str("Matrix"));
     return value;
 }
 
-export function vectorTensor(values) {
+export function vectorStorage(values) {
     return createShaped([values.length], values);
 }
 
@@ -209,7 +207,7 @@ export function solveLinearValues(matrixValue, vectorValue) {
             particular: null,
             nullspace: seq([]),
             rank: reduced.pivots.length,
-            rref: matrixTensor(reduced.rows),
+            rref: matrixValue(reduced.rows),
             pivots: seq(reduced.pivots.map((column) => int(column + 1))),
         });
     }
@@ -224,23 +222,23 @@ export function solveLinearValues(matrixValue, vectorValue) {
         reduced.pivots.forEach((pivotColumn, row) => {
             basis[pivotColumn] = reduced.rows[row][freeColumn].negate();
         });
-        return vectorTensor(basis);
+        return vectorStorage(basis);
     });
-    const solution = vectorTensor(particular);
+    const solution = vectorStorage(particular);
     return linalgResult({
         status: freeColumns.length === 0 ? "unique" : "underdetermined",
         solution,
         particular: solution,
         nullspace: seq(nullspace),
         rank: reduced.pivots.length,
-        rref: matrixTensor(reduced.rows),
+        rref: matrixValue(reduced.rows),
         pivots: seq(reduced.pivots.map((column) => int(column + 1))),
     });
 }
 
 export function rref(args) {
     const rows = exactMatrix(args[0], "Rref matrix");
-    return matrixTensor(rrefRows(rows).rows);
+    return matrixValue(rrefRows(rows).rows);
 }
 
 export function rank(args) {
@@ -253,7 +251,7 @@ export function determinant(args) {
 }
 
 export function inverse(args) {
-    return matrixTensor(inverseRows(exactMatrix(args[0], "Inverse matrix")));
+    return matrixValue(inverseRows(exactMatrix(args[0], "Inverse matrix")));
 }
 
 export function solveLinear(args) {
@@ -351,14 +349,14 @@ export function frame(args) {
         name,
         space,
         relativeTo,
-        localBasis: matrixTensor(localBasis),
-        basis: matrixTensor(absoluteBasis),
-        inverseBasis: matrixTensor(inverse),
+        localBasis: matrixValue(localBasis),
+        basis: matrixValue(absoluteBasis),
+        inverseBasis: matrixValue(inverse),
         defining,
         metadata: field(entries, "metadata"),
         _ext: new Map([
             ["_type", str("Frame")], ["immutable", int(1)], ["name", str(name)], ["space", space],
-            ["relativeTo", relativeTo], ["basis", matrixTensor(absoluteBasis)], ["inverseBasis", matrixTensor(inverse)],
+            ["relativeTo", relativeTo], ["basis", matrixValue(absoluteBasis)], ["inverseBasis", matrixValue(inverse)],
             ["defining", defining ? int(1) : null],
         ]),
     });
@@ -377,7 +375,7 @@ export function changeMatrixValues(sourceValue, targetValue) {
 }
 
 export function changeMatrix(args) {
-    return matrixTensor(changeMatrixValues(args[0], args[1]));
+    return matrixValue(changeMatrixValues(args[0], args[1]));
 }
 
 function varianceName(value) {
@@ -516,7 +514,7 @@ function tupleForLinear(linear, shape) {
 
 function transformAxis(tensor, axis, matrix) {
     const shape = [...tensor.shape];
-    const input = flatTensorValues(tensor).map((value) => exactRational(value));
+    const input = flatShapedValues(tensor).map((value) => exactRational(value));
     const output = new Array(input.length);
     const sourceStrides = strides(shape);
     for (let linear = 0; linear < output.length; linear++) {
@@ -554,7 +552,7 @@ function transformedComponents(value, targets) {
         const change = changeMatrixValues(slot.frame, target);
         const applied = slot.dual ? inverseRows(transposeRows(change)) : change;
         components = transformAxis(components, axis, applied);
-        changes.push(matrixTensor(applied));
+        changes.push(matrixValue(applied));
     });
     return { components, changes };
 }
@@ -635,8 +633,8 @@ export function pair(args, runtime = {}) {
     const alignedVector = vectorValue.slots[0].frame === covectorValue.slots[0].frame
         ? vectorValue
         : transformTensor([vectorValue, covectorValue.slots[0].frame], runtime);
-    const covectorEntries = flatTensorValues(covectorValue.components).map(exactRational);
-    const vectorEntries = flatTensorValues(alignedVector.components).map(exactRational);
+    const covectorEntries = flatShapedValues(covectorValue.components).map(exactRational);
+    const vectorEntries = flatShapedValues(alignedVector.components).map(exactRational);
     return covectorEntries.reduce((sum, entry, index) =>
         sum.add(entry.multiply(vectorEntries[index])), zero());
 }
@@ -646,7 +644,7 @@ export function vector(args, runtime = {}) {
     const frameValue = requireFrame(field(entries, "frame"));
     const values = exactVector(field(entries, "components"), "Vector components");
     if (values.length !== frameValue.space.dimension) throw new Error("Vector dimension does not match its Frame");
-    return makeTensor(vectorTensor(values), [{ frame: frameValue, dual: false }], {}, runtime.context);
+    return makeTensor(vectorStorage(values), [{ frame: frameValue, dual: false }], {}, runtime.context);
 }
 
 export function covector(args, runtime = {}) {
@@ -654,7 +652,7 @@ export function covector(args, runtime = {}) {
     const frameValue = requireFrame(field(entries, "frame"));
     const values = exactVector(field(entries, "components"), "Covector components");
     if (values.length !== frameValue.space.dimension) throw new Error("Covector dimension does not match its Frame");
-    return makeTensor(vectorTensor(values), [{ frame: frameValue, dual: true }], {}, runtime.context);
+    return makeTensor(vectorStorage(values), [{ frame: frameValue, dual: true }], {}, runtime.context);
 }
 
 export function typedShaped(componentsValue, header, resolvedSlots, context = null) {
@@ -690,8 +688,8 @@ function combineTensorValues(name, leftValue, rightValue, runtime = {}) {
     const aligned = left.slots.every((slot, axis) => slot.frame === right.slots[axis].frame)
         ? right
         : transformTensor([right, seq(left.slots.map((slot) => slot.frame))], runtime);
-    const a = flatTensorValues(left.components).map(exactRational);
-    const b = flatTensorValues(aligned.components).map(exactRational);
+    const a = flatShapedValues(left.components).map(exactRational);
+    const b = flatShapedValues(aligned.components).map(exactRational);
     const values = a.map((entry, index) => name === "ADD" ? entry.add(b[index]) : entry.subtract(b[index]));
     return makeTensor(createShaped(left.components.shape, values), left.slots, {
         derivedFrom: [left, right],
@@ -701,7 +699,7 @@ function combineTensorValues(name, leftValue, rightValue, runtime = {}) {
 function scaleTensorValue(name, value, scalarValue, scalarFirst, runtime = {}) {
     const tensorValue = requireTensor(value);
     const scalar = exactRational(scalarValue, "Tensor scalar");
-    const values = flatTensorValues(tensorValue.components).map((entry) => {
+    const values = flatShapedValues(tensorValue.components).map((entry) => {
         const exactEntry = exactRational(entry);
         if (name === "MUL") return exactEntry.multiply(scalar);
         return scalarFirst ? scalar.divide(exactEntry) : exactEntry.divide(scalar);

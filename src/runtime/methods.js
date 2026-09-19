@@ -1534,6 +1534,9 @@ const shapedMethods = {
         if (order?.type !== "tuple") throw new Error("Permute expects a tuple of axis numbers");
         const axes = order.values.map((value) => numericIndex(value) - 1);
         if (axes.length !== target.shape.length) throw new Error("Permute rank mismatch");
+        if (new Set(axes).size !== axes.length || axes.some(axis => !Number.isSafeInteger(axis) || axis < 0 || axis >= target.shape.length)) {
+            throw new Error(`Permute expects each axis from 1 to ${target.shape.length} exactly once`);
+        }
         return createShapedView(target, {
             shape: axes.map((axis) => target.shape[axis]),
             strides: axes.map((axis) => target.strides[axis]),
@@ -2061,6 +2064,13 @@ export function resolveMethod(target, name, context = null) {
         return resolved;
     }
 
+    if (isShaped(target) && String(ext?.get("__type")?.value ?? "Shaped").toLowerCase() === "shaped") {
+        const matrixMethod = upperName === "HADAMARD" ||
+            systemContext?.resolveMethodExtension?.(["Matrix"], name);
+        if (matrixMethod) {
+            throw new Error(`Method ${name} requires Matrix semantics; convert rank-2 Shaped storage explicitly with value ~!: :Matrix`);
+        }
+    }
     throw new Error(`Method not found: ${name}`);
 }
 

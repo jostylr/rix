@@ -277,7 +277,7 @@ describe("RiX async and concurrency", () => {
         expect(result.values[0].values.map((value) => Number(value.value))).toEqual([1, 2, 3]);
     });
 
-    test("tensor literal cells fan out and retain row-major assembly", async () => {
+    test("shaped literal cells fan out and retain row-major assembly", async () => {
         const starts = [];
         const releases = new Map();
         const systemContext = asyncSystem("work", ([value]) => new Promise((resolve) => {

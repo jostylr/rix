@@ -1385,18 +1385,6 @@ function sheetData(value) {
         };
     }
 
-    if (value?.type === "matrix" && Array.isArray(value.rows)) {
-        const rows = value.rows.map((row, index) => sequence(row, `Sheet matrix row ${index + 1}`));
-        const columns = rows[0]?.length ?? 0;
-        if (!rows.every((row) => row.length === columns)) throw new Error("Sheet matrix rows must have equal lengths");
-        return {
-            kind: "matrix",
-            binding,
-            shape: [rows.length, columns],
-            at: ([row, column]) => rows[row - 1][column - 1],
-        };
-    }
-
     if (Array.isArray(value) || isSequence(value)) {
         const values = sequence(value, "Sheet data");
         const nested = values.length > 0 && values.every((item) => Array.isArray(item) || isSequence(item));

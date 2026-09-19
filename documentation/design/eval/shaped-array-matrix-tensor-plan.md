@@ -1,6 +1,6 @@
 ---
 title: "Shaped values, matrices, vectors, and mathematical tensors"
-description: "Deferred design and migration checklist for separating shaped storage, matrix algebra, and coordinate-aware vectors and tensors."
+description: "Implemented Shaped/Matrix migration and remaining finite coordinate-aware tensor work."
 toc-depth: 4
 ---
 
@@ -18,6 +18,22 @@ not new permission requirements. Preserve the implemented syntax and settled
 choices below. The umbrella `ratmath/WORK_PLAN.md` owns the remaining execution
 queue and actual user decisions. Full cross-host verification must be rerun
 when implementing the remaining work; past checked tests are not today's run.
+
+## A2 migration verification (2026-09-19)
+
+The remaining migration cleanup is implemented: source AST/IR/runtime helpers
+use Shaped, Matrix formatting retains `/Matrix/`, compact headers keep complete
+source spans and survive editor formatting, and Matrix-only diagnostics suggest
+explicit conversion. Matrix-data adapters in linalg/optimize/solve make their
+conversion explicit and return Matrix values where appropriate. Mathematical
+Tensor names remain for actual slot/frame-aware values.
+
+Verification lives in the parser, shaped, formatter, editor/worker,
+linalg/optimize/solve, Web REPL and Notebook engine suites. Generated references
+and host catalogs come from their existing scripts. Full cross-repository
+release checks remain Q1, not evidence supplied by this migration record.
+The finite tensor algebra, identity imports and sparse-coordinate items below
+belong to T1–T3; optional syntax and infinite-dimensional research stay in D2/D9.
 
 # Decision summary
 
@@ -701,21 +717,21 @@ record collection rather than recursively embedding object chains.
 
 # Runtime and system-method naming
 
-The current implementation uses “tensor” for all rank-N shaped storage:
+The pre-migration implementation used “tensor” for all rank-N shaped storage:
 `type: "tensor"`, `tensor.js`, `shapedMethods`, `SHAPED_LITERAL`,
 `SHAPED_TRANSPOSE`, `.TGEN`, and the public Tensor method group. Once `Tensor`
 means only a mathematical tensor, those public names are misleading.
 
-Preferred target names for the coordinated pre-release rename:
+Completed cutover (historical names appear here only as a migration inventory):
 
 | Current experimental name | Target name | Migration rule |
 |---|---|---|
 | Tensor runtime method group | Shaped method group | Move generic methods; remove the old group |
 | generic `tensor` semantic trait | storage-specific traits | Reserve `tensor` for mathematics; use `shaped`, `sparseCoordinates`, or later coordinate-provider traits on component storage |
 | `tensor.js` helpers | `shaped.js` helpers | Rename all imports and remove the old module |
-| `isShaped` / `createShaped` | `isShaped` / `createShaped` | Rename all callers; retain no forwarding exports |
-| `SHAPED_LITERAL` | `SHAPED_LITERAL` | Update parser/lowering/evaluator/tests together |
-| `SHAPED_TRANSPOSE` | semantic transpose/axis permutation dispatch | `Matrix` and `Tensor` preserve their own invariants |
+| `isTensor` / `createTensor` | `isShaped` / `createShaped` | Rename all callers; retain no forwarding exports |
+| `TENSOR_LITERAL` | `SHAPED_LITERAL` | Update parser/lowering/evaluator/tests together |
+| `TENSOR_TRANSPOSE` | semantic transpose/axis permutation dispatch | `Matrix` and `Tensor` preserve their own invariants |
 | `.TGEN` | `.Shaped.Generate` or another selected long form | Replace it directly; no legacy short alias is required |
 | runtime `._type = tensor` | `._type = shaped` | Rename repository-owned values, schemas, formatters, and tests together |
 | semantic `:Tensor` on generic storage | `:Shaped` | Reserve `:Tensor` for complete slot metadata |
@@ -726,28 +742,27 @@ The work may still be split into reviewable commits on one migration branch,
 but the branch is not considered complete or mergeable until every repository
 consumer uses the new contract.
 
-`.TGEN(shape, fn)` currently generates shaped storage by calling `fn` once for
+The removed `.TGEN(shape, fn)` generated shaped storage by calling `fn` once for
 each one-based index tuple. For example, `.TGEN({: 2, 3 }, idx -> ...)` builds a
 `2x3` value. The `T` meant “tensor” under the old generic-storage terminology.
-Its long replacement should say `Shaped` and `Generate`; whether any short
-convenience name is desirable remains a naming decision, not a compatibility
-requirement.
+The implemented replacement is `.Shaped.Generate(shape, fn)`. No short alias
+is retained.
 
 # Staged implementation checklist
 
 ## Stage 0 — Freeze, inventory, and fixtures
 
 - [x] Begin the Shaped/Matrix migration; the original start gates are historical.
-- [ ] Inventory every runtime tag, helper, IR function, formatter, parser AST
+- [x] Inventory every runtime tag, helper, IR function, formatter, parser AST
   node, method table, plugin API, renderer, sheet adapter, worker boundary,
   export schema, and documentation reference containing matrix/tensor naming.
 - [ ] Add characterization tests for current literals, views, mutation,
   destructuring, pipes, async collections, formatting, sheets, workers, and
   plugin inputs before renaming anything.
-- [ ] Inventory every current name that must be removed; none is a released
+- [x] Inventory every current name that must be removed; none is a released
   compatibility promise.
-- [ ] Choose one coordinated IR and interchange cutover with no legacy reader.
-- [ ] Publish the approved syntax examples and operator table as the migration
+- [x] Choose one coordinated IR and interchange cutover with no legacy reader.
+- [x] Publish the approved syntax examples and operator table as the migration
   contract.
 
 ## Stage 1 — Case-insensitive semantic names
@@ -765,7 +780,7 @@ requirement.
   forwarding module.
 - [x] Rename helpers to `isShaped`, `createShaped`, and the corresponding view,
   indexing, traversal, and shape vocabulary.
-- [ ] Rename internal local variables and documentation categories where the
+- [x] Rename internal local variables and documentation categories where the
   value is only shaped storage.
 - [x] Add a `Shaped` semantic registration with validation,
   normalization, export/import, traits, and generic methods.
@@ -773,7 +788,7 @@ requirement.
   trait without implying that every Vector or Tensor representation is dense
   and finite.
 - [x] Deliver the Stage 3 public semantics; no pending branch-isolation gate.
-- [ ] Prove Node, worker, browser, sheet, output, and plugin consumers use the
+- [x] Prove Node, worker, browser, sheet, output, and plugin consumers use the
   renamed implementation with no old-name adapters.
 
 ## Stage 3 — Make literals default to Shaped and isolate Matrix
@@ -793,9 +808,10 @@ requirement.
 - [x] Require exact shape equality for Shaped-to-Shaped arithmetic, support
   scalar application entrywise, and reject every other implicit shape
   combination with diagnostics naming both shapes.
-- [ ] Provide explicit shape construction through `Generate`, `Map`, `Reshape`,
-  and `Permute`; add `Tile`/`Repeat`/`Expand`/`Pad` only with fully specified
-  policies and no participation in implicit arithmetic.
+- [x] Provide explicit shape construction through `Generate`, `Map`, `Reshape`,
+  and `Permute`, with invalid-shape/permutation checks and no broadcasting.
+- [ ] Optional `Tile`/`Repeat`/`Expand`/`Pad` policies remain later decision D2;
+  they are not required to complete the migration.
 - [x] Add explicit `Hadamard` for matrices.
 - [x] Implement the agreed slice rule: every two-axis matrix slice remains
   Matrix; scalar selections return scalars and one-axis selections return
@@ -804,11 +820,11 @@ requirement.
 - [x] Store a declared scalar domain on Shaped and Matrix values, validate all
   entries on construction/update, and reject cross-domain operations until an
   explicit conversion is requested.
-- [ ] Update `.linalg`, `.optimize`, `.solve`, `.Sheet`, formatters, and examples
+- [x] Update `.linalg`, `.optimize`, `.solve`, `.Sheet`, formatters, and examples
   to request `Matrix` where matrix semantics are required.
-- [ ] Add clear diagnostics suggesting `~!: :Matrix` when a shaped array is
+- [x] Add clear diagnostics suggesting `~!: :Matrix` when a shaped array is
   passed to a matrix-only operation.
-- [ ] Update all untyped rank-2 plugin inputs to request Matrix or explicitly
+- [x] Update all untyped rank-2 plugin inputs to request Matrix or explicitly
   convert Shaped values; provide no compatibility mode.
 
 ## Stage 4 — Implement coordinate-aware Vector and complete Tensor slots
@@ -858,17 +874,17 @@ requirement.
 
 - [x] Replace old IR names and repository-owned serialized/IR fixtures;
   unsupported experimental names are not compatibility readers.
-- [ ] Rename parser AST nodes wherever they still call shaped storage a tensor;
+- [x] Rename parser AST nodes wherever they still call shaped storage a tensor;
   no legacy syntax-level artifacts should remain in the unreleased API.
-- [ ] Migrate runtime methods, standard functions, destructuring diagnostics,
+- [x] Migrate runtime methods, standard functions, destructuring diagnostics,
   formatter labels, reference generation, editor tooling, and completions.
-- [ ] Migrate all bundled plugins and examples from generic tensor assumptions.
-- [ ] Update RiX Web and RiX Notebook consumers in coordinated changes.
+- [x] Migrate all bundled plugins and examples from generic tensor assumptions.
+- [x] Update RiX Web and RiX Notebook consumers in coordinated changes.
 - [x] Replace `.TGEN` and every other superseded capability after its selected
   replacement works in every host; remove rather than deprecate the old name.
-- [ ] Regenerate the system reference and search the repository for stale uses
+- [x] Regenerate the system reference and search the repository for stale uses
   of “tensor” that actually mean shaped storage.
-- [ ] Retain “tensor” only where it refers to mathematical tensors, tensor
+- [x] Retain “tensor” only where it refers to mathematical tensors, tensor
   products, or tensor slots.
 
 ## Stage 6 — Advanced tensor algebra

@@ -1,6 +1,8 @@
 import { ExternalTokenizer } from "@lezer/lr";
 import {
   BacktickString,
+  ShapedOpen,
+  ShapedHeader,
   Comment,
   Identifier,
   Number,
@@ -171,9 +173,19 @@ function startsNumber(input) {
 function consumeNumber(input) {
   if (!startsNumber(input)) return false;
   let offset = input.next === 45 ? 1 : 0;
-  const allowed = /[0-9A-Za-z_#.:/=\[\]~^]/;
+  const allowed = /[0-9A-Za-z_#.:/=~^]/;
   while (input.peek(offset) >= 0) {
     const next = input.peek(offset);
+    if (next === 91) {
+      let end = offset + 1;
+      let digits = "";
+      while (input.peek(end) >= 0 && /[0-9_:+-]/.test(String.fromCharCode(input.peek(end)))) {
+        digits += String.fromCharCode(input.peek(end++));
+      }
+      if (input.peek(end) !== 93 || !/[0-9]/.test(digits)) break;
+      offset = end + 1;
+      continue;
+    }
     if (next === 123) {
       let run = offset + 1;
       while (input.peek(run) >= 48 && input.peek(run) <= 57) run++;
@@ -221,6 +233,25 @@ export const rixTokens = new ExternalTokenizer((input, stack) => {
   if (input.next === code.slash && input.peek(1) === code.star && consumeBlockComment(input)) return input.acceptToken(Comment);
   if (input.next === code.doubleQuote && consumeQuote(input, '"')) return input.acceptToken(StringToken);
   if (input.next === code.backtick && consumeQuote(input, "`")) return input.acceptToken(BacktickString);
+  if (input.next === 123 && input.peek(1) === 58 && stack.canShift(ShapedOpen)) {
+    let offset = 2;
+    let shape = "";
+    while (input.peek(offset) >= 0 && /[0-9x]/.test(String.fromCharCode(input.peek(offset)))) {
+      shape += String.fromCharCode(input.peek(offset++));
+    }
+    if (/^[0-9]+(?:x[0-9]+)*$/.test(shape) && input.peek(offset) === 58) {
+      input.advance(offset + 1);
+      return input.acceptToken(ShapedOpen);
+    }
+  }
+  if (input.next === code.slash && stack.canShift(ShapedHeader)) {
+    let offset = 1;
+    while (input.peek(offset) >= 0 && input.peek(offset) !== code.slash && input.peek(offset) !== code.closeBrace) offset++;
+    if (input.peek(offset) === code.slash) {
+      input.advance(offset + 1);
+      return input.acceptToken(ShapedHeader);
+    }
+  }
   if (consumeRegex(input)) return input.acceptToken(Regex);
 
   if (input.next === code.at && input.peek(1) === code.underscore) {

@@ -221,7 +221,7 @@ If `initial` is omitted, RiX creates a mutable accumulator suited to the receive
 | Set | `{| |}` |
 | String | Empty string |
 | Tuple | Same-arity mutable tuple filled with holes |
-| Tensor | Same-shape mutable tensor filled with holes |
+| Shaped | Same-shape mutable storage filled with holes |
 
 Extra callback arguments may be ignored normally or capped explicitly, for example with `@+[2]`.
 

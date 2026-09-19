@@ -53,9 +53,7 @@ function indexInto(value, selectors) {
             throw new Error("Slice bindings currently require shaped data");
         }
         const index = integer(item.value);
-        if (current?.type === "matrix" && Array.isArray(current.rows)) {
-            current = current.rows[index - 1];
-        } else if (current && ["sequence", "tuple", "array"].includes(current.type)) {
+        if (current && ["sequence", "tuple", "array"].includes(current.type)) {
             current = (current.values || current.elements)[index - 1];
         } else if (Array.isArray(current)) {
             current = current[index - 1];
@@ -77,9 +75,7 @@ function setInto(root, selectors, value) {
     const final = selectors.at(-1);
     if (final.kind !== "index") throw new Error("Slice assignment currently requires shaped data");
     const index = integer(final.value);
-    if (parent?.type === "matrix" && Array.isArray(parent.rows)) {
-        parent.rows[index - 1] = value;
-    } else if (parent && ["sequence", "tuple", "array"].includes(parent.type)) {
+    if (parent && ["sequence", "tuple", "array"].includes(parent.type)) {
         (parent.values || parent.elements)[index - 1] = value;
     } else if (Array.isArray(parent)) {
         parent[index - 1] = value;

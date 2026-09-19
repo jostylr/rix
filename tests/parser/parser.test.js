@@ -984,7 +984,7 @@ describe("RiX Parser", () => {
       ]);
     });
 
-    test("3D tensor with double semicolon separator", () => {
+    test("3D shaped value with double semicolon separator", () => {
       const ast = parseCode("[1, 2; 3, 4 ;; 5, 6; 7, 8];");
       expect(stripMetadata(ast)).toEqual([
         {
@@ -1106,7 +1106,7 @@ describe("RiX Parser", () => {
       ]);
     });
 
-    test("tensor with only separators", () => {
+    test("shaped value with only separators", () => {
       const ast = parseCode("[;;];");
       expect(stripMetadata(ast)).toEqual([
         {
@@ -1129,7 +1129,7 @@ describe("RiX Parser", () => {
       ]);
     });
 
-    test("4D tensor with mixed dimensions", () => {
+    test("4D shaped value with mixed dimensions", () => {
       const ast = parseCode("[1 ;; 2 ;;; 3];");
       expect(stripMetadata(ast)).toEqual([
         {
@@ -1156,7 +1156,7 @@ describe("RiX Parser", () => {
       ]);
     });
 
-    test("tensor literal with explicit shape header", () => {
+    test("shaped literal with explicit shape header", () => {
       const ast = parseCode("{:2x3: a, b, c; d, e, f };");
       expect(stripMetadata(ast)).toEqual([
         {
@@ -1177,7 +1177,7 @@ describe("RiX Parser", () => {
       ]);
     });
 
-    test("rank-3 tensor literal with explicit shape header uses rows then columns within each depth slice", () => {
+    test("rank-3 shaped literal with explicit shape header uses rows then columns within each depth slice", () => {
       const ast = parseCode("{:2x3x2: a, b, c; d, e, f ;; g, h, i; j, k, l };");
       expect(stripMetadata(ast)).toEqual([
         {
@@ -1204,12 +1204,12 @@ describe("RiX Parser", () => {
       ]);
     });
 
-    test("rank-3 tensor literal rejects a 3x2 body under a 2x3x2 shape", () => {
+    test("rank-3 shaped literal rejects a 3x2 body under a 2x3x2 shape", () => {
       expect(() => parseCode("{:2x3x2: a, b; c, d; e, f ;; g, h; i, j; k, l };"))
         .toThrow("expects 3 columns per row");
     });
 
-    test("empty tensor literal with explicit shape header", () => {
+    test("empty shaped literal with explicit shape header", () => {
       const ast = parseCode("{:2x3:};");
       expect(stripMetadata(ast)).toEqual([
         {
@@ -1223,7 +1223,7 @@ describe("RiX Parser", () => {
       ]);
     });
 
-    test("tensor bracket indexing with slices", () => {
+    test("shaped bracket indexing with slices", () => {
       const ast = parseCode("m[1, ::];");
       expect(stripMetadata(ast)).toEqual([
         {
@@ -1240,7 +1240,7 @@ describe("RiX Parser", () => {
       ]);
     });
 
-    test("tensor bracket indexing preserves interval slices", () => {
+    test("shaped bracket indexing preserves interval slices", () => {
       const ast = parseCode("m[-1:1, 2];");
       expect(stripMetadata(ast)).toEqual([
         {
@@ -3217,7 +3217,7 @@ describe("RiX Parser", () => {
         );
       });
 
-      test("tensor with metadata throws error", () => {
+      test("shaped value with metadata throws error", () => {
         expect(() => parseCode("[1, 2; 3, 4, key := value];")).toThrow(
           /Cannot mix Shaped syntax with metadata/,
         );
@@ -4240,7 +4240,7 @@ describe("RiX Parser", () => {
       });
     });
 
-    test("tensor selector alias parses through destructuring instead of tensor literal rules", () => {
+    test("shaped selector alias parses through destructuring instead of shaped literal rules", () => {
       const ast = stripMetadata(parseCode("{=:2x3: row2[2, 1:3]} = src;"))[0].expression;
       expect(ast.left).toEqual({
         type: "DestructureArrayPattern",
@@ -4262,5 +4262,23 @@ describe("RiX Parser", () => {
         rest: null,
       });
     });
+  });
+});
+
+describe("Shaped constructor source ranges", () => {
+  test("compact Matrix and Frame headers retain complete literal and header spans", () => {
+    for (const header of ["/Matrix/", "/::Matrix/", "/Tensor: E@F*/", "/Covector: E/"]) {
+      const source = `value := {:2x2: ${header} 1, 2; 3, 4};`;
+      const literal = parse(source)[0].expression.right;
+      expect(literal.type).toBe("ShapedLiteral");
+      expect(source.slice(literal.pos[1], literal.pos[2])).toBe(`{:2x2: ${header} 1, 2; 3, 4}`);
+      expect(source.slice(literal.header.pos[1], literal.header.pos[2])).toBe(header);
+      if (header.includes("Tensor")) {
+        expect(literal.header.slots).toEqual([
+          { displayName: "E", bindingName: "e", dual: false },
+          { displayName: "F", bindingName: "f", dual: true },
+        ]);
+      }
+    }
   });
 });

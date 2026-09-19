@@ -9,7 +9,7 @@
 
 Statement { Expression }
 
-Separator { ";" | "," }
+Separator { ";"+ | "," }
 
 // Keep partial expressions useful while typing. The Pratt parser remains the
 // semantic authority, but the editor grammar names every container form so
@@ -45,10 +45,10 @@ Group { "(" ExpressionList? ")" }
 
 ExpressionList { Expression ("," Expression)* }
 
-Array { "[" ExpressionList? "]" }
+Array { "[" ContainerContents? "]" }
 
 Container {
-  MapContainer | CaseContainer | BlockContainer | SetContainer | TupleContainer |
+  ShapedContainer | MapContainer | CaseContainer | BlockContainer | SetContainer | TupleContainer |
   LoopContainer | MatchContainer | RangeContainer | GreaterContainer | PowerContainer |
   DollarContainer | MutationContainer | PlusContainer | StarContainer | AndContainer |
   OrContainer | BackslashContainer | SlashContainer | IncrementContainer |
@@ -62,6 +62,7 @@ CaseContainer { "{?" ContainerContents? BraceClose }
 BlockContainer { "{;" ContainerContents? BraceClose }
 SetContainer { "{|" ContainerContents? BraceClose }
 TupleContainer { "{:" ContainerContents? BraceClose }
+ShapedContainer { ShapedOpen ShapedHeader? ContainerContents? BraceClose }
 LoopContainer { "{@" ContainerContents? BraceClose }
 MatchContainer { "{#" ContainerContents? BraceClose }
 RangeContainer { "{.." ContainerContents? BraceClose }
@@ -85,6 +86,8 @@ PlainContainer { "{" ContainerContents? BraceClose }
 BraceClose { "|}" | "}" }
 
 @external tokens rixTokens from "./tokens.js" {
+  ShapedOpen,
+  ShapedHeader,
   Number,
   String,
   BacktickString,

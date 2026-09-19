@@ -6,9 +6,9 @@ import {
     exactMatrix,
     exactRational,
     exactVector,
-    matrixTensor,
-    vectorTensor,
-} from "../linalg/linalg.js";
+    matrixValue,
+    vectorStorage,
+} from "../linalg/linalg.reference.js";
 
 export const LINEAR_PROGRAM_SCHEMA = "rix.optimize.linear-program@1";
 export const OPTIMIZATION_RESULT_SCHEMA = "rix.optimize.result@1";
@@ -61,9 +61,9 @@ function linearProgramValue(objective, matrix, bounds, sense, name = null) {
     const value = {
         type: "linear_program",
         schema: LINEAR_PROGRAM_SCHEMA,
-        objective: vectorTensor(objective),
-        A: matrixTensor(matrix),
-        b: vectorTensor(bounds),
+        objective: vectorStorage(objective),
+        A: matrixValue(matrix),
+        b: vectorStorage(bounds),
         sense,
         variableCount: objective.length,
         constraintCount: matrix.length,
@@ -194,7 +194,7 @@ export function solveProgram(args) {
                 objectiveValue: null,
                 iterations,
                 enteringVariable: int(entering + 1),
-                tableau: matrixTensor(tableau),
+                tableau: matrixValue(tableau),
                 diagnostics: seq([str("No leaving row exists for the selected improving direction")]),
             });
         }
@@ -209,7 +209,7 @@ export function solveProgram(args) {
             solution: null,
             objectiveValue: null,
             iterations,
-            tableau: matrixTensor(tableau),
+            tableau: matrixValue(tableau),
             diagnostics: seq([str("Simplex iteration limit reached")]),
         });
     }
@@ -222,13 +222,13 @@ export function solveProgram(args) {
         bound.subtract(matrix[row].reduce((sum, value, column) => sum.add(value.multiply(solution[column])), zero())));
     return optimizationResult(program, {
         status: "optimal",
-        solution: vectorTensor(solution),
+        solution: vectorStorage(solution),
         objectiveValue: dot(objective, solution),
-        slacks: vectorTensor(slacks),
+        slacks: vectorStorage(slacks),
         feasible: slacks.every((value) => !isNegative(value)),
         iterations,
         basis: seq(basis.map((column) => int(column + 1))),
-        tableau: matrixTensor(tableau),
+        tableau: matrixValue(tableau),
         diagnostics: seq([]),
     });
 }
@@ -246,8 +246,8 @@ export function evaluateProgram(args) {
         type: "optimization_evaluation",
         objectiveValue: dot(exactVector(program.objective), point),
         feasible,
-        lhs: vectorTensor(lhs),
-        slacks: vectorTensor(bounds.map((bound, row) => bound.subtract(lhs[row]))),
+        lhs: vectorStorage(lhs),
+        slacks: vectorStorage(bounds.map((bound, row) => bound.subtract(lhs[row]))),
     };
 }
 

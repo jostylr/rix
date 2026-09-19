@@ -1,5 +1,5 @@
-import { tokenize } from ../../src/parser/tokenizer.js';
-import { parse } from ../../src/parser/parser.js';
+import { tokenize } from '../../src/parser/tokenizer.js';
+import { parse } from '../../src/parser/parser.js';
 
 // Demo function to parse and display results
 function parseAndDisplay(code, description) {
@@ -15,70 +15,70 @@ function parseAndDisplay(code, description) {
     }
 }
 
-console.log('=== Matrix and Tensor Parsing Examples ===');
+console.log('=== Shaped Parsing Examples ===');
 
-// 2D Matrix Examples
+// 2D Rank-2 Shaped Examples
 parseAndDisplay(
     '[1, 2; 3, 4];',
-    '1. Simple 2x2 Matrix'
+    '1. Simple 2x2 Rank-2 Shaped'
 );
 
 parseAndDisplay(
     '[1, 2, 3; 4, 5, 6; 7, 8, 9];',
-    '2. 3x3 Matrix'
+    '2. 3x3 Rank-2 Shaped'
 );
 
 parseAndDisplay(
     '[x, y; z, w];',
-    '3. Matrix with Variables'
+    '3. Rank-2 Shaped with Variables'
 );
 
 parseAndDisplay(
     '[1, 2; 3, 4; 5, 6];',
-    '4. 3x2 Matrix (rectangular)'
+    '4. 3x2 Rank-2 Shaped (rectangular)'
 );
 
 parseAndDisplay(
     '[1, 2, 3; ];',
-    '5. Matrix with Empty Row'
+    '5. Rank-2 Shaped with Empty Row'
 );
 
 parseAndDisplay(
     '[; 1, 2, 3];',
-    '6. Matrix Starting with Empty Row'
+    '6. Rank-2 Shaped Starting with Empty Row'
 );
 
-// 3D Tensor Examples
+// 3D Shaped Examples
 parseAndDisplay(
     '[1, 2; 3, 4 ;; 5, 6; 7, 8];',
-    '7. 3D Tensor (2x2x2)'
+    '7. 3D Shaped (2x2x2)'
 );
 
 parseAndDisplay(
     '[1, 2, 3; 4, 5, 6 ;; 7, 8, 9; 10, 11, 12];',
-    '8. 3D Tensor (2x3x2)'
+    '8. 3D Shaped (2x3x2)'
 );
 
 parseAndDisplay(
     '[a, b; c, d ;; e, f; g, h ;; i, j; k, l];',
-    '9. 3D Tensor with Variables (3x2x2)'
+    '9. 3D Shaped with Variables (3x2x2)'
 );
 
-// Higher Dimensional Tensors
+// Higher Dimensional Shaped values
 parseAndDisplay(
     '[1, 2; 3, 4 ;; 5, 6; 7, 8 ;;; 9, 10; 11, 12 ;; 13, 14; 15, 16];',
-    '10. 4D Tensor'
+    '10. 4D Shaped'
 );
 
 parseAndDisplay(
     '[1; 2 ;; 3; 4 ;;; 5; 6 ;; 7; 8];',
-    '11. 4D Tensor with Single Elements'
+    '11. 4D Shaped with Single Elements'
 );
 
 // Edge Cases
 parseAndDisplay(
     '[1; 2; 3];',
-    '12. Column Vector (3x1 Matrix)'
+    '12. One-column Shaped (3x1 Rank-2 Shaped)'
 );
 
 parseAndDisplay(
@@ -88,7 +88,7 @@ parseAndDisplay(
 
 parseAndDisplay(
     '[;;];',
-    '14. Empty Tensor Structure'
+    '14. Empty Shaped Structure'
 );
 
 parseAndDisplay(
@@ -99,36 +99,36 @@ parseAndDisplay(
 // Mathematical expressions in matrices
 parseAndDisplay(
     '[a + b, c * d; sin(x), cos(y)];',
-    '16. Matrix with Mathematical Expressions'
+    '16. Rank-2 Shaped with Mathematical Expressions'
 );
 
 parseAndDisplay(
     '[1/2, 3/4; 5/6, 7/8];',
-    '17. Matrix with Fractions'
+    '17. Rank-2 Shaped with Fractions'
 );
 
 parseAndDisplay(
     '[2^3, 4^2; sqrt(16), log(10)];',
-    '18. Matrix with Function Calls and Powers'
+    '18. Rank-2 Shaped with Function Calls and Powers'
 );
 
 // Complex nested structures
 parseAndDisplay(
     '[[1, 2], [3, 4]; [5, 6], [7, 8]];',
-    '19. Matrix of Arrays'
+    '19. Rank-2 Shaped of Arrays'
 );
 
 parseAndDisplay(
     '[{a: 1, b: 2}; {c: 3, d: 4}];',
-    '20. Matrix of Objects'
+    '20. Rank-2 Shaped of Objects'
 );
 
 console.log('\n=== Summary ===');
-console.log('Matrix Syntax: [row1_elem1, row1_elem2; row2_elem1, row2_elem2]');
-console.log('Tensor Syntax: [slice1_row1; slice1_row2 ;; slice2_row1; slice2_row2]');
+console.log('Rank-2 Shaped Syntax: [row1_elem1, row1_elem2; row2_elem1, row2_elem2]');
+console.log('Shaped Syntax: [slice1_row1; slice1_row2 ;; slice2_row1; slice2_row2]');
 console.log('- Single ; separates rows within a 2D slice');
-console.log('- Double ;; separates 2D slices within a 3D tensor');
-console.log('- Triple ;;; separates 3D blocks within a 4D tensor');
+console.log('- Double ;; separates 2D slices within a 3D shaped');
+console.log('- Triple ;;; separates 3D blocks within a 4D shaped');
 console.log('- And so on for higher dimensions...');
 console.log('- Spaces between semicolons create separate separator tokens');
 console.log('- Empty rows/slices are preserved in the structure');

@@ -110,8 +110,7 @@ Args can contain other IR nodes (nested calls), literal strings, numbers, or str
 | `MAP` | `{= a, b, c }` | `[elem1, elem2, ...]` |
 | `TUPLE` | `{: a, b }`, `(a, b)` | `[elem1, elem2, ...]` |
 | `INTERVAL` | `a : b` | `[low, high]` |
-| `MATRIX` | matrix literal | `[row1, row2, ...]` |
-| `TENSOR` | tensor literal | `[elem1, ...]` |
+| `SHAPED_LITERAL` | `[1,2;3,4]`, `{:2x2: ...}` | `[shape, elem1, ...]` or `[constructor_meta, shape, elem1, ...]` |
 
 ### Property Access
 

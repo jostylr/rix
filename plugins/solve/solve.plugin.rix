@@ -36,12 +36,12 @@ SolveVectorArray(value)->{;
     {@ index=1; index<=@length; {; @result ~= @result.Push(@value[index]); }; index+=1 };
     result;
 };
-SolveMatrixTensor(rows)->{;
+SolveMatrixValue(rows)->{;
     flat:=[];
     {@ row=1; row<=@rows.Len(); {;
         {@ column=1; column<=@rows[@row].Len(); {; @flat ~= @flat.Push(@rows[@row][column]); }; column+=1 };
     }; row+=1 };
-    (flat ~!: :Shaped).Reshape([rows.Len(),rows[1].Len()]);
+    (flat ~!: :Shaped).Reshape([rows.Len(),rows[1].Len()]) ~!: :Matrix;
 };
 SolveIndexOf(values,requested)->{;
     found:=_;
@@ -320,7 +320,7 @@ SolveOptimizationResult(spec,roleInfo,outputs,equations,relations,matrix,bounds,
     objective=SolveNamedOptionVector(options,"objective",outputs,0).Map((value)->SolveExact(value,"objective coefficient"));
     lower=SolveNamedOptionVector(options,"lowerbounds",outputs,0);
     upper=SolveNamedOptionVector(options,"upperbounds",outputs,_);
-    program=.optimize.LinearProgram(objective,SolveMatrixTensor(matrix),bounds,{=
+    program=.optimize.LinearProgram(objective,SolveMatrixValue(matrix),bounds,{=
         relations=relations,lowerBounds=lower,upperBounds=upper,
         sense=SolveOption(options,"sense",:max),name=SolveOption(options,"name",_)
     });

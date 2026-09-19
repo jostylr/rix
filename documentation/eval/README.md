@@ -20,7 +20,7 @@ This is the active RiX runtime, not a stub. It currently supports:
 - First-class unit, quantity, and exact-generator values loaded through the
   `.Units` and `.Exact` RiX map collections
 - Promise-aware evaluation, bounded `{$ ... }` collection concurrency, fused
-  map/filter/find/all pipes, nested limit groups, finite matrix/tensor fan-out,
+  map/filter/find/all pipes, nested limit groups, finite shaped-value fan-out,
   ordered reduce and structural barriers, named async breaks, and supervised
   `{$$ ... }` background blocks
 

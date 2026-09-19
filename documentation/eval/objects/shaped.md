@@ -3,6 +3,28 @@
 Shaped values are rectangular rank-N component storage. They carry no matrix or
 mathematical-tensor meaning. Selectors and axis numbers are one-based.
 
+## Explicit shape construction and Matrix interpretation
+
+```{.rix exec=true id=shaped-explicit-construction}
+grid := .Shaped.Generate({: 2, 3 }, index -> index[1] * 10 + index[2]);
+grid.Map(value -> value + 1).Reshape({: 3, 2 }).Permute({: 2, 1 }).Get(1, 3) ##@ == 23;
+a := {:2x2: /Matrix/ 1, 2; 3, 4};
+b := [1, 0; 0, 1] ~!: :Matrix;
+(a * b).Get(2, 1) ##@ == 3;
+a.Hadamard(b).Get(1, 2) ##@ == 0;
+```
+
+Bare rank-2 storage stays `Shaped`; `*` acts entrywise. Choose `/Matrix/` or
+`~!: :Matrix` explicitly for matrix algebra. Matrix-only methods diagnose this
+conversion when called on Shaped storage. Both operands must declare compatible
+scalar domains. `.linalg` and `.optimize` deliberately accept Shaped input data,
+validate dimensions and entries, and perform their own explicit Matrix
+conversion. These adapter contracts do not add implicit arithmetic conversion.
+
+Mathematical vectors and tensors belong to named spaces with Frames. Their
+`Components()` operation exposes storage; storage methods alone do not supply
+those mathematical semantics.
+
 ## Method reference
 
 | Full syntax | Result | Meaning |

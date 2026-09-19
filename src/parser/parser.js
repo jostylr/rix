@@ -3253,6 +3253,7 @@ class Parser {
     if (this.current.value !== "/") {
       this.error("Unterminated /.../ header");
     }
+    const end = this.current.pos[2];
     this.advance();
 
     return this.createNode("SemanticHeader", {
@@ -3261,8 +3262,8 @@ class Parser {
       typeName,
       ...(slots ? { slots } : {}),
       traits,
-      pos: startToken.pos,
-      original: startToken.original,
+      pos: [startToken.pos[0], startToken.pos[1], end],
+      original: this.source ? this.source.slice(startToken.pos[0], end) : startToken.original,
     });
   }
 
@@ -3736,14 +3737,15 @@ class Parser {
     if (this.current.value !== "}") {
       this.error("Expected closing brace for shaped literal");
     }
+    const end = this.current.pos[2];
     this.advance();
 
     return this.createNode("ShapedLiteral", {
       shape,
       ...(header ? { header } : {}),
       elements,
-      pos: startToken.pos,
-      original: startToken.original,
+      pos: [startToken.pos[0], startToken.pos[1], end],
+      original: this.source ? this.source.slice(startToken.pos[0], end) : startToken.original,
     });
   }
 

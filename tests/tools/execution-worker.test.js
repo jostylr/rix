@@ -170,3 +170,15 @@ plugins: [linalg]
             .toMatch(/forbidden permissions.*net/i);
     });
 });
+
+test("worker preserves Shaped storage and explicit Matrix arithmetic", async () => {
+    const events = [];
+    const session = createExecutionSession({ emit: (event) => events.push(event) });
+    await session.run({ requestId: "shaped-migration", uri: "file:///shaped.rix", source: `
+        shaped := .Shaped.Generate({: 2, 2 }, idx -> idx[1] + idx[2]);
+        matrix := shaped ~!: :Matrix;
+        [shaped ? :Shaped, matrix.__type, (matrix * matrix)[1, 1]];
+    ` });
+    expect(events.find(({ kind }) => kind === "result")?.payload.text).toBe('[1, Matrix, 13]');
+    expect(events.at(-1)?.payload.state).toBe("passed");
+});

@@ -138,3 +138,16 @@ total ##@ > 0;
         expect(() => parse(formatRix(source))).not.toThrow();
     });
 });
+
+test("formatter preserves compact shaped interpretation headers and complete ranges", () => {
+    for (const header of ["/Matrix/", "/::Matrix/", "/Tensor: E@F*/", "/Vector: E*/"]) {
+        const source = `value := {:2x2: ${header} 1, 2; 3, 4};`;
+        for (const profile of ["readable", "compact"]) {
+            const formatted = formatRix(source, { profile });
+            expect(formatted).toContain(`${header} 1`);
+            expect(formatRix(formatted, { profile })).toBe(formatted);
+            const literal = parse(formatted)[0].expression.right;
+            expect(formatted.slice(literal.header.pos[1], literal.header.pos[2])).toBe(header);
+        }
+    }
+});

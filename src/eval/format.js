@@ -76,11 +76,13 @@ function formatShapedBody(shaped, formatValue, levels, levelIndex = 0, displayPa
 
 function formatShaped(shaped, formatValue) {
     const shapeText = shaped.shape.join("x");
+    const interpretation = String(shaped._ext?.get("__type")?.value ?? "").toLowerCase() === "matrix"
+        ? "/Matrix/ " : "";
     if (shapedSize(shaped) === 0) {
-        return `{:${shapeText}:}`;
+        return interpretation ? `{:${shapeText}: ${interpretation}}` : `{:${shapeText}:}`;
     }
     const levels = shapedDisplayLevels(shaped.shape);
-    return `{:${shapeText}: ${formatShapedBody(shaped, formatValue, levels)} }`;
+    return `{:${shapeText}: ${interpretation}${formatShapedBody(shaped, formatValue, levels)} }`;
 }
 
 function truncate(text, limit = 40) {

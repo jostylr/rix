@@ -515,3 +515,18 @@ describe("solve Phase 2 domain dispatch and Solution values", () => {
         expect(result.values[7].values.map((item) => item.value)).toEqual(["continuityOrTrustedRootCount"]);
     });
 });
+
+
+test("linalg adapters preserve Matrix results and explain explicit method conversion", () => {
+    expect(() => parseAndEvaluate('.Plugin.Load("linalg"); [1, 2; 3, 4].Determinant()'))
+        .toThrow("~!: :Matrix");
+    expect(formatValue(parseAndEvaluate('.Plugin.Load("linalg"); ([1, 2; 3, 4] ~!: :Matrix).Determinant()')))
+        .toBe("-2");
+    const value = parseAndEvaluate(`
+        .Plugin.Load("linalg");
+        source := [1, 2; 3, 4];
+        result := .linalg.Rref(source);
+        [source.__type, result.__type];
+    `);
+    expect(formatValue(value)).toBe("[Shaped, Matrix]");
+});

@@ -36,7 +36,8 @@ OptimizeVector(value, label ?= "Vector") -> {;
 OptimizeMatrix(value, label ?= "Matrix") -> {;
     (value ? :Shaped) ?: _ ?_ .Error(@"@{label} must be a rank-2 Shaped or Matrix value");
     value.Shape().Len() == 2 ?: _ ?_ .Error(@"@{label} must have rank 2");
-    shape = value.Shape();
+    matrix = value ~!: :Matrix;
+    shape = matrix.Shape();
     rowCount = shape[1];
     columnCount = shape[2];
     rowCount >= 1 && columnCount >= 1 ?: _ ?_ .Error(@"@{label} cannot be empty");
@@ -44,16 +45,16 @@ OptimizeMatrix(value, label ?= "Matrix") -> {;
     {@ row = 1; row <= @rowCount; {;
         entries := [];
         {@ column = 1; column <= @columnCount; {;
-            @entries ~= @entries.Push(OptimizeExact(@value[@row,column], @label));
+            @entries ~= @entries.Push(OptimizeExact(@matrix[@row,column], @label));
         }; column += 1 };
         @rows ~= @rows.Push(entries);
     }; row += 1 };
     rows;
 };
 
-OptimizeVectorTensor(values) -> values ~!: :Shaped;
+OptimizeVectorStorage(values) -> values ~!: :Shaped;
 
-OptimizeMatrixTensor(rows) -> {;
+OptimizeMatrixValue(rows) -> {;
     rowCount = rows.Len();
     columnCount = rows[1].Len();
     flat := [];
@@ -62,7 +63,7 @@ OptimizeMatrixTensor(rows) -> {;
             @flat ~= @flat.Push(@rows[@row][column]);
         }; column += 1 };
     }; row += 1 };
-    (flat ~!: :Shaped).Reshape({: rowCount, columnCount });
+    (flat ~!: :Shaped).Reshape({: rowCount, columnCount }) ~!: :Matrix;
 };
 
 OptimizeTranspose(rows) -> {;
@@ -157,9 +158,9 @@ OptimizeProgram(objective, matrix, bounds, options ?= {= }) -> {;
     program = {=
         valueKind = :linearProgram,
         schema = "rix.optimize.linear-program@2",
-        objective = OptimizeVectorTensor(exactObjective),
-        A = OptimizeMatrixTensor(exactMatrix),
-        b = OptimizeVectorTensor(exactBounds),
+        objective = OptimizeVectorStorage(exactObjective),
+        A = OptimizeMatrixValue(exactMatrix),
+        b = OptimizeVectorStorage(exactBounds),
         sense = OptimizeSense(OptimizeOption(options, "sense", :max)),
         variableCount = exactObjective.Len(),
         constraintCount = exactMatrix.Len(),
@@ -594,7 +595,7 @@ OptimizeSolveStandard(value, options ?= {= }) -> {;
           objectiveValue=_,
           iterations=iterations,
           enteringVariable=entering,
-          tableau=OptimizeMatrixTensor(tableau),
+          tableau=OptimizeMatrixValue(tableau),
           diagnostics=["No leaving row exists for the selected improving direction"]
       })
       ?_ status == :iterationLimit
@@ -603,7 +604,7 @@ OptimizeSolveStandard(value, options ?= {= }) -> {;
                solution=_,
                objectiveValue=_,
                iterations=iterations,
-               tableau=OptimizeMatrixTensor(tableau),
+               tableau=OptimizeMatrixValue(tableau),
                diagnostics=["Simplex iteration limit reached"]
            })
            ?_ {;
@@ -620,13 +621,13 @@ OptimizeSolveStandard(value, options ?= {= }) -> {;
                }; row += 1 };
                OptimizeResult(@program, {=
                    status="optimal",
-                   solution=OptimizeVectorTensor(solution),
+                   solution=OptimizeVectorStorage(solution),
                    objectiveValue=OptimizeDot(@objective, solution),
-                   slacks=OptimizeVectorTensor(slacks),
+                   slacks=OptimizeVectorStorage(slacks),
                    feasible=slacks.All((slack)->slack >= 0),
                    iterations=@iterations,
                    basis=@basis,
-                   tableau=OptimizeMatrixTensor(@tableau),
+                   tableau=OptimizeMatrixValue(@tableau),
                    diagnostics=[]
                });
            };
@@ -676,14 +677,14 @@ OptimizeRhsSensitivity(tableau,basis,basisInverse,sourceRows) -> {;
 OptimizeUnboundedGeneralResult(program,canonical,phaseTwo,totalIterations,columns,original) -> {;
     direction=OptimizeDirectionFromEntering(canonical,phaseTwo[:tableau],phaseTwo[:basis],phaseTwo[:entering],columns);
     certificate=OptimizeCertificate(:unbounded,program,{=
-        point=OptimizeVectorTensor(original),direction=OptimizeVectorTensor(direction),
+        point=OptimizeVectorStorage(original),direction=OptimizeVectorStorage(direction),
         enteringVariable=phaseTwo[:entering],work={= iterations=totalIterations }
     });
     OptimizeResult(program,{=
         schema="rix.optimize.result@2",status="unbounded",method=:twoPhaseExactSimplex,
-        solution=OptimizeVectorTensor(original),objectiveValue=_,feasible=1,
+        solution=OptimizeVectorStorage(original),objectiveValue=_,feasible=1,
         enteringVariable=phaseTwo[:entering],iterations=totalIterations,
-        certificate=certificate,tableau=OptimizeMatrixTensor(phaseTwo[:tableau]),
+        certificate=certificate,tableau=OptimizeMatrixValue(phaseTwo[:tableau]),
         diagnostics=["Exact feasible improving ray has no leaving row"]
     });
 };
@@ -703,16 +704,16 @@ OptimizeOriginalCleanRows(setup,clean) -> {;
 OptimizeOptimalGeneralResult(program,canonical,setup,clean,phaseTwo,effectiveObjective,totalIterations,columns,original,evaluation) -> {;
     originalRows=OptimizeOriginalCleanRows(setup,clean);
     basisRows=OptimizeBasisMatrix(originalRows,phaseTwo[:basis],columns);
-    factorization=.linalg.LU(OptimizeMatrixTensor(basisRows));
+    factorization=.linalg.LU(OptimizeMatrixValue(basisRows));
     basisInverse=OptimizeMatrix(factorization.Inverse());
     cBasis=phaseTwo[:basis].Map((column)->@effectiveObjective[column]);
-    dual=.linalg.Solve(OptimizeMatrixTensor(OptimizeTranspose(basisRows)),cBasis)[:solution];
+    dual=.linalg.Solve(OptimizeMatrixValue(OptimizeTranspose(basisRows)),cBasis)[:solution];
     keptBounds=clean[:keptrows].Map((row)->@canonical[:bounds][row]);
     effectiveConstant=program[:sense]==:min ?: 0-canonical[:objectiveconstant] ?_ canonical[:objectiveconstant];
     effectiveDual=effectiveConstant+OptimizeDot(keptBounds,OptimizeVector(dual));
     dualObjective=program[:sense]==:min ?: 0-effectiveDual ?_ effectiveDual;
     certificate=OptimizeCertificate(:optimal,program,{=
-        primal=OptimizeVectorTensor(original),dual=dual,
+        primal=OptimizeVectorStorage(original),dual=dual,
         objectiveValue=evaluation[:objectivevalue],primalObjective=evaluation[:objectivevalue],dualObjective=dualObjective,
         basis=phaseTwo[:basis],work={= iterations=totalIterations }
     });
@@ -720,11 +721,11 @@ OptimizeOptimalGeneralResult(program,canonical,setup,clean,phaseTwo,effectiveObj
     sensitivity=OptimizeRhsSensitivity(phaseTwo[:tableau],phaseTwo[:basis],basisInverse,sources);
     OptimizeResult(program,{=
         schema="rix.optimize.result@2",status="optimal",method=:twoPhaseExactSimplex,
-        solution=OptimizeVectorTensor(original),objectiveValue=evaluation[:objectivevalue],
+        solution=OptimizeVectorStorage(original),objectiveValue=evaluation[:objectivevalue],
         slacks=evaluation[:slacks],feasible=evaluation[:feasible],dualSolution=dual,
         certificate=certificate,sensitivity=sensitivity,basis=phaseTwo[:basis],
         basisFactorization=factorization,iterations=totalIterations,
-        tableau=OptimizeMatrixTensor(phaseTwo[:tableau]),diagnostics=[]
+        tableau=OptimizeMatrixValue(phaseTwo[:tableau]),diagnostics=[]
     });
 };
 
@@ -740,7 +741,7 @@ OptimizeRunPhaseTwo(program,canonical,setup,phaseOne,maxIterations) -> {;
     original=OptimizeOriginalPoint(canonical,transformed); evaluation=OptimizeEvaluate(program,original);
     {? phaseTwo[:status]==:iterationLimit ? OptimizeResult(program,{=
            schema="rix.optimize.result@2",status="iterationLimit",method=:twoPhaseExactSimplex,
-           phase=2,iterations=totalIterations,tableau=OptimizeMatrixTensor(phaseTwo[:tableau]),
+           phase=2,iterations=totalIterations,tableau=OptimizeMatrixValue(phaseTwo[:tableau]),
            diagnostics=["Phase II simplex iteration limit reached"]
        });
        phaseTwo[:status]==:unbounded ?
@@ -753,13 +754,13 @@ OptimizeRunPhaseTwo(program,canonical,setup,phaseOne,maxIterations) -> {;
 
 OptimizeInfeasibleGeneralResult(program,phaseOne,phaseObjective) -> {;
     certificate=OptimizeCertificate(:infeasible,program,{=
-        phaseOneObjective=phaseObjective,basis=phaseOne[:basis],tableau=OptimizeMatrixTensor(phaseOne[:tableau]),
+        phaseOneObjective=phaseObjective,basis=phaseOne[:basis],tableau=OptimizeMatrixValue(phaseOne[:tableau]),
         work={= iterations=phaseOne[:iterations] }
     });
     OptimizeResult(program,{=
         schema="rix.optimize.result@2",status="infeasible",method=:twoPhaseExactSimplex,
         solution=_,objectiveValue=_,feasible=_,iterations=phaseOne[:iterations],
-        certificate=certificate,tableau=OptimizeMatrixTensor(phaseOne[:tableau]),
+        certificate=certificate,tableau=OptimizeMatrixValue(phaseOne[:tableau]),
         diagnostics=["Phase I optimum is negative, so artificial variables cannot all leave the basis"]
     });
 };
@@ -769,7 +770,7 @@ OptimizeAfterPhaseOne(program,canonical,setup,phaseOne,maxIterations) -> {;
     result=phaseOne[:status]==:iterationLimit
       ?: OptimizeResult(program,{=
           schema="rix.optimize.result@2",status="iterationLimit",method=:twoPhaseExactSimplex,
-          phase=1,iterations=phaseOne[:iterations],tableau=OptimizeMatrixTensor(phaseOne[:tableau]),
+          phase=1,iterations=phaseOne[:iterations],tableau=OptimizeMatrixValue(phaseOne[:tableau]),
           diagnostics=["Phase I simplex iteration limit reached"]
       })
       ?_ phaseObjective<0
@@ -830,8 +831,8 @@ OptimizeEvaluate(value, point) -> {;
         valueKind=:optimizationEvaluation,
         objectiveValue=OptimizeDot(OptimizeVector(program[:objective]), exactPoint),
         feasible=variableFeasible && constraintsFeasible,
-        lhs=OptimizeVectorTensor(lhs),
-        slacks=OptimizeVectorTensor(slacks)
+        lhs=OptimizeVectorStorage(lhs),
+        slacks=OptimizeVectorStorage(slacks)
     };
     result.__type = "OptimizationEvaluation";
     result.objectiveValue = result[:objectiveValue];

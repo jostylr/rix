@@ -164,3 +164,13 @@ view := P3.Realize(p);
 tensors, maps, and realizations. Tensor records use stable numeric tensor and
 representation IDs and refer to prior representations by ID, avoiding live
 object cycles while preserving bounded in-memory lineage separately.
+
+### Shaped input boundary
+
+The matrix services accept rank-2 Shaped or Matrix values and arrays of rows.
+Validated Shaped inputs are explicitly converted to Matrix inside the adapter;
+this does not change the caller's value or enable mixed Shaped/Matrix arithmetic.
+Matrix-valued outputs use `Matrix`; rank-1 coordinate storage uses `Shaped`.
+Calling a registered Matrix-only method such as `Determinant` on Shaped storage
+suggests `value ~!: :Matrix`. Mathematical Tensor values retain their frame and
+slot semantics and are not generic storage containers.

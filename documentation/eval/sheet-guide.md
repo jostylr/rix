@@ -1,6 +1,6 @@
 # Sheet views
 
-`.Sheet` creates a portable two-dimensional view of a RiX tensor, matrix, array,
+`.Sheet` creates a portable two-dimensional view of a RiX Shaped value, Matrix, array,
 tuple, or sequence. It is part of the structured-output model: the result
 retains exact RiX values and can be rendered as text or HTML without depending
 on a browser DOM.
@@ -11,14 +11,14 @@ live view whose semantic edits are handled by a host-owned widget session.
 formula-backed model. Formula source can be persisted in the versioned
 [RiXCel document format](../design/eval/rixcel-format.md).
 
-## Basic tensor view
+## Basic shaped view
 
 ```rix
 m := {:2x3: 1, 2, 3; 4, 5, 6}
 .Sheet(m)
 ```
 
-The visible rows and columns correspond to tensor axes 1 and 2. Each rendered
+The visible rows and columns correspond to shaped axes 1 and 2. Each rendered
 entry retains a canonical RiX address:
 
 ```text
@@ -45,10 +45,10 @@ Use the arrow keys, Home, and End to move around a focused sheet. In a read-only
 Sheet, Enter or a double-click activates the selected address. In RiX Web this
 inserts the canonical address into the formula input; in the notebook it
 inserts the address at the current editor selection. Selection never mutates
-the source tensor.
+the source shaped.
 
 By default, column headers use a dual display such as `C · 3`. The letter is a
-familiar spreadsheet label; the number is the RiX tensor coordinate.
+familiar spreadsheet label; the number is the RiX shaped coordinate.
 
 ## Options
 
@@ -60,7 +60,7 @@ familiar spreadsheet label; the number is the RiX tensor coordinate.
 | `address` | Base used by canonical cell addresses | `"grid"` |
 | `axes` | Rank-length array of axis names | `["axis1", ...]` |
 | `axisLabels` | Rank-length array of cosmetic coordinate-label arrays or `_` | all coordinates numeric/lettered |
-| `viewAxes` | Visible tensor axes, using 1-based RiX indices | `[1,2]` |
+| `viewAxes` | Visible shaped axes, using 1-based RiX indices | `[1,2]` |
 | `slice` | Rank-length locator; visible axes must contain `_` | visible axes `_`, hidden axes `1` |
 | `columnLabels` | `:dual`, `:letters`, or `:numbers` | `:dual` |
 
@@ -121,7 +121,7 @@ Every axis must be supplied. Axis names and coordinate labels match exactly,
 with an unambiguous case-insensitive fallback. Duplicate cosmetic labels remain
 valid for display but produce an ambiguity error when used for lookup.
 
-## Rank-N tensor planes
+## Rank-N shaped planes
 
 A `Sheet` always presents at most two axes. Other axes select a plane:
 
@@ -138,12 +138,12 @@ depth2 := .Sheet(t, {=
 })
 ```
 
-The top-right visible entry has value `9`, tensor index `[1,3,2]`, and address
+The top-right visible entry has value `9`, shaped index `[1,3,2]`, and address
 `cube[1,3,2]`.
 
 RiX Web and the notebook render a selector for every hidden axis. Changing a
 selector swaps the visible plane in the immutable snapshot; it does not mutate
-the tensor. The portable Sheet value retains one plane record for every hidden
+the shaped. The portable Sheet value retains one plane record for every hidden
 axis combination so this interaction also works in static and live notebook
 output without re-evaluation.
 
@@ -157,7 +157,7 @@ rowByDepth := .Sheet(t, {=
 })
 ```
 
-This fixes tensor axis 2 at index 2 and displays rows against depth.
+This fixes shaped axis 2 at index 2 and displays rows against depth.
 
 ## Vectors, matrices, and sequences
 
@@ -208,7 +208,7 @@ A Binding captures the RiX `Cell` behind the name. If `m` is later rebound with
 silently switching targets.
 
 RiX Web and the editable notebook result pane translate edits into semantic
-`sheet:set` events containing a full 1-based tensor index and a RiX value. A
+`sheet:set` events containing a full 1-based shaped index and a RiX value. A
 host-owned `WidgetSession` validates the index, updates the Binding, increments
 its revision, and creates a refreshed Sheet. The browser DOM is never stored in
 the Binding or Sheet.
@@ -238,7 +238,7 @@ model[2,2]  # 5
 .Sheet(model, {= title="Formula results" })
 ```
 
-Tensor notation is preferred because its shape is explicit and extends to
+Shaped notation is preferred because its shape is explicit and extends to
 rank-N FormulaSheets. A rectangular nested array remains accepted for rank 2.
 Every entry must be a deferred RiX body. Formula evaluation has an isolated
 context containing:

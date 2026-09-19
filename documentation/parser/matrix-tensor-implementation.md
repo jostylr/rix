@@ -1,162 +1,78 @@
 # Shaped Literal Implementation
 
-## Overview
+RiX uses one rectangular storage representation for inferred semicolon literals
+and explicit shape constructors. Both default to `Shaped`. Matrix algebra is an
+explicit interpretation; mathematical Vector, Covector and Tensor values need
+Frames from the linalg plugin.
 
-This document describes rectangular Shaped parsing in RiX. Semicolon separators
-extend array notation to rank-N component storage. Bare results have semantic
-type `Shaped`; explicit `/Matrix/` and linalg slot headers add stronger meaning.
+## Source and AST contract
 
-## Syntax
+Commas separate columns, `;` separates rows, and `;;`, `;;;`, and higher
+semicolon runs separate higher-axis display slices. The tokenizer emits a
+`Symbol` for `;` and `SemicolonSequence` for longer runs. Arrays without
+semicolons remain arrays.
 
-### Basic Rules
-
-- **Commas (`,`)** separate elements within a row
-- **Single semicolon (`;`)** separates rows within a 2D matrix  
-- **Multiple semicolons (`;;`, `;;;`, etc.)** indicate higher-dimensional separators
-- **Spaces between semicolons** create separate separator tokens
-- **Empty rows/slices** are preserved in the structure
-
-### Examples
-
-```javascript
-// Rank-2 Shaped
-[1, 2; 3, 4]           // shape 2x2
-[1, 2, 3; 4, 5, 6]     // 2x3 matrix
-[1; 2; 3]              // 3x1 column vector
-
-// Rank-3 Shaped
-[1, 2; 3, 4 ;; 5, 6; 7, 8]    // shape 2x2x2
-
-// 4D Tensor
-[1; 2 ;; 3; 4 ;;; 5; 6 ;; 7; 8]   // 4D structure
-
-// Edge Cases
-[; 1, 2]               // Matrix starting with empty row
-[1, 2; ]               // Matrix ending with empty row
-[;;]                   // Empty tensor structure
+```rix
+[1, 2; 3, 4]                         ## Shaped, shape 2x2
+[1, 2; 3, 4 ;; 5, 6; 7, 8]         ## Shaped, shape 2x2x2
+{:2x2: 1, 2; 3, 4}                  ## explicit Shaped
+{:2x2: /Matrix/ 1, 2; 3, 4}          ## explicit Matrix
+{:2x2: /::Matrix/ 1, 2; 3, 4}        ## general semantic-header spelling
 ```
 
-## Implementation Details
+`src/parser/parser.js` emits `Shaped` for inferred semicolon notation. Rank-2
+nodes have `rows`; higher-rank nodes have `structure` (rows with following
+`separatorLevel`) and `maxDimension`. Explicit dimensions produce
+`ShapedLiteral` with `shape`, `elements`, and an optional `SemanticHeader`.
+There are no legacy `Matrix`, `Tensor`, or `TensorLiteral` AST adapters.
 
-### Tokenizer Changes
+A compact header retains `typeName`, optional ordered `slots`, and normal
+capture/name/trait directives. Each slot has `displayName`, normalized
+`bindingName`, and `dual`. `/Tensor: E@F*/` selects frames `e` and the canonical
+dual of `f`; it does not imply that the spaces have the same dimension.
+The complete explicit literal and header have source spans. The language
+formatter preserves each semantic header as a unit, including dual marks.
 
-Modified `src/tokenizer.js` to recognize consecutive semicolons as single tokens:
+## Lowering and runtime semantics
 
-- Added `tryMatchSemicolonSequence()` function
-- Creates `SemicolonSequence` tokens with `count` property only for multiple consecutive semicolons (`;;`, `;;;`, etc.)
-- Single semicolons (`;`) remain as regular `Symbol` tokens
-- Preserves backward compatibility with existing semicolon usage
+`src/eval/lower.js` infers rectangular shape, rejects ragged rows or slices,
+and reorders display slices into row-major axis storage. Inferred and explicit
+constructors lower to `SHAPED_LITERAL`; its arguments are shape plus cells, or
+constructor metadata followed by shape plus cells. Runtime storage uses
+`type: "shaped"` and `src/runtime/shaped.js`.
 
-### Parser Changes
+Bare Shaped arithmetic is elementwise and requires identical shapes. Scalars
+apply entrywise within the declared scalar domain. Matrix multiplication
+contracts rows and columns; `Hadamard` requests its entrywise counterpart.
+Mixed Shaped/Matrix operations diagnose the required explicit conversion:
+`value ~!: :Matrix`. A rank-2 Shaped value does not acquire Matrix methods merely
+because its dimensions happen to fit.
 
-Modified `src/parser.js` with several key changes:
+`.Shaped.Generate(shape, callback)`, `Map`, `Reshape`, and `Permute` provide
+explicit shape construction. They do not broadcast. New repetition/padding
+syntax remains deferred in the umbrella plan's D2 register.
 
-1. **New token handling in `getSymbolInfo()`**:
-   - `SemicolonSequence` tokens get `type: 'separator'`
-   - Prevents them from being treated as binary operators
+`.linalg` and `.optimize` accept rectangular Shaped inputs as data and convert
+them explicitly to Matrix inside their validated adapters. Matrix-valued
+outputs in linalg, optimize and solve are explicitly typed. Rank-1 coordinate
+storage remains Shaped, while mathematical tensors retain their distinct
+Frames, slots and identity records.
 
-2. **Enhanced `parseExpression()`**:
-   - Breaks on both `Symbol` semicolons and `SemicolonSequence` tokens
-   - Treats separators like statement terminators
+## Verification and examples
 
-3. **`parseMatrixOrArray()` method**:
-   - Detects semicolon usage to determine whether the result is Array or Shaped
-   - Builds a structure array with separator levels
-   - Handles empty rows and edge cases
-   - Supports both single semicolons and semicolon sequences
+- `tests/parser/parser.test.js`: inferred/explicit constructors, malformed
+  shapes, compact headers, slots and source spans.
+- `tests/eval/shaped.test.js`: indexing/views, scalar domains, explicit shape
+  operations, Matrix products and conversion diagnostics.
+- `tests/eval/linalg-optimize-solve-plugin.test.js`: matrix adapters and
+  mathematical coordinate semantics.
+- `tests/tools/codemirror.test.js`, `language-service.test.js`, and
+  `execution-worker.test.js`: highlighting, formatting and worker execution.
+- Web REPL and Notebook engine tests exercise the same migrated constructors.
+- `examples/parser/simple-matrices.js`, `matrix-tensor-demo.js`, and
+  `matrix-error-cases.js` demonstrate parser structures. Their historical
+  filenames are retained so existing links continue to work.
 
-4. **`consumeSemicolonSequence()` method**:
-   - Handles both `Symbol` (single `;`) and `SemicolonSequence` (multiple `;;+`) tokens
-   - Returns the correct count for dimension detection
-
-### AST node
-
-Both rank-2 and higher inferred literals use `Shaped`:
-
-```javascript
-{
-    type: "Shaped",
-    structure: [{
-        row: [ASTNode],         // Array of elements in this row
-        separatorLevel: number  // Number of semicolons that follow this row
-    }],
-    maxDimension: number,       // Highest dimension level (separatorLevel + 1)
-    pos: [start, delim, end],
-    original: string
-}
-```
-
-## Key Features
-
-### Dimension Detection
-
-- **Rank-2 Shaped**: When `maxSeparatorLevel === 1`
-- **Rank-N Shaped**: When `maxSeparatorLevel > 1`
-- **Array**: When no semicolons are present
-
-### Error Handling
-
-- **Metadata conflicts**: Shaped semicolon syntax cannot be mixed with `:=` metadata annotations
-- **Proper error messages**: Clear error messages for invalid combinations
-
-### Edge Case Handling
-
-- **Empty rows**: Preserved as empty arrays in structure
-- **Leading semicolons**: Create empty rows at the beginning
-- **Trailing semicolons**: Create empty rows at the end
-- **Only separators**: Create valid tensor structures with empty rows
-
-## Testing
-
-Comprehensive test suite in `tests/parser.test.js` covers:
-
-- Basic rank-2 Shaped values
-- Rank-3 Shaped values with double semicolons
-- Rank-4+ Shaped values with multiple semicolon levels
-- Edge cases (empty rows, leading/trailing semicolons)
-- Error conditions (metadata mixing)
-- Complex expressions within matrices
-- Position tracking
-
-## Examples
-
-Three example files demonstrate usage:
-
-1. **`examples/simple-matrices.js`**: Basic usage examples
-2. **`examples/matrix-tensor-demo.js`**: Comprehensive demonstration
-3. **`examples/matrix-error-cases.js`**: Edge cases and error handling
-
-## Integration Notes
-
-### Backward Compatibility
-
-- Regular arrays `[1, 2, 3]` remain unchanged
-- Single semicolons in statements (`a := 1; b := 2;`) work as before
-- System expressions with semicolons (`{x :=: 1; y :=: 2}`) work as before
-- Existing functionality is fully preserved
-- Only affects bracket expressions containing semicolons
-
-### Lowering and evaluation
-
-The parser retains the separator structure in `Matrix`/`Tensor` AST nodes.
-Lowering infers a rectangular shape, reorders higher-axis display slices into
-the runtime's row-major axis order, and emits the same `SHAPED_LITERAL` IR used
-by an explicit `{:d1xd2x...: ...}` constructor. Consequently
-`[1,2;3,4]` evaluates as a shaped `2x2` tensor rather than a separate matrix
-record. Ragged rows or higher-axis groups are rejected during lowering.
-
-### Performance
-
-- Minimal impact on existing parsing performance
-- Semicolon sequence detection is efficient with regex matching
-- Single semicolons processed normally through existing symbol tokenization
-- Parser complexity increased only for bracket expressions
-- Tokenizer properly distinguishes between consecutive (`;;`) and separated (`; ;`) semicolons
-
-## Future Enhancements
-
-Potential areas for extension:
-
-1. **Element-wise operations**: Define explicit tensor arithmetic separately from contraction
-2. **Sparse matrix support**: Special handling for sparse structures
-3. **Broadcasting rules**: Define behavior for operations between different-sized tensors
+See [Shaped methods](../eval/objects/shaped.md) for runnable method examples and
+[the migration record](../design/eval/shaped-array-matrix-tensor-plan.md) for the
+separate finite tensor work tracked by T1–T3 in the umbrella execution plan.

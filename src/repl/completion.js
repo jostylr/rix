@@ -1,4 +1,4 @@
-import { getBuiltinProto } from "../runtime/methods.js";
+import { getBuiltinProto, isCallableValue } from "../runtime/methods.js";
 
 const REPL_COMMANDS = ["help", "exit", "load", "vars", "fns", "reset", "ast", "tokens"];
 
@@ -68,9 +68,10 @@ function propertyValue(target, name) {
     return target._ext instanceof Map ? target._ext.get(name) : undefined;
 }
 
-function resolveReceiver(path, context) {
-    const names = path.split(".");
-    let value = context.get(names.shift());
+function resolveReceiver(path, context, systemContext) {
+    const system = path.startsWith(".");
+    const names = (system ? path.slice(1) : path).split(".");
+    let value = system ? systemContext?.get(names.shift())?.value : context.get(names.shift());
     if (value === undefined) return undefined;
     for (const name of names) {
         value = propertyValue(value, name);
@@ -79,17 +80,25 @@ function resolveReceiver(path, context) {
     return value;
 }
 
-function propertyCandidates(receiver, query, formatValue) {
+function propertyCandidates(receiver, query, formatValue, systemContext) {
     if (!receiver || typeof receiver !== "object") return [];
     const entries = new Map();
     if (receiver._ext instanceof Map) {
         for (const [name, value] of receiver._ext) {
-            entries.set(name, { kind: "property", value, detail: "metadata property" });
+            entries.set(name, { kind: isCallableValue(value) ? "method" : "property", value, detail: "metadata property" });
         }
     }
     const proto = getBuiltinProto(receiver);
-    if (proto?.entries instanceof Map) {
-        for (const [name, value] of proto.entries) {
+    const semantic = receiver._ext?.get("__proto")?.entries;
+    const protos = [semantic?.get("traits"), semantic?.get("type"), proto];
+    const typeNames = [receiver._ext?.get("__type")?.value, receiver.type].filter(Boolean);
+    for (const entry of systemContext?.getMethodExtensions?.(typeNames) || []) {
+        if (!entries.has(entry.methodName)) entries.set(entry.methodName, {
+            kind: "method", value: entry.callable, detail: `${entry.typeName} method from ${entry.pluginId || "host"}`,
+        });
+    }
+    for (const methodProto of protos) {
+        for (const [name, value] of methodProto?.entries || []) {
             if (!entries.has(name)) {
                 const [signature, meaning] = METHOD_HELP[name] ?? [`.${name}(...)`, `built-in ${receiver.type ?? "value"} operation`];
                 entries.set(name, { kind: "method", value, detail: `${signature} — ${meaning}` });
@@ -149,7 +158,7 @@ export function complete(source, cursor, { context, systemContext, formatValue }
     let token = before.match(/\$\$?[A-Za-z_][A-Za-z0-9_]*$|\$\$?$|[@.]?[A-Za-z_][A-Za-z0-9_]*$|[@.]?$/)?.[0] ?? "";
     // A trailing dot belongs to its receiver ("value."), not to the token.
     // A lone dot remains the system-capability prefix.
-    if (token === "." && before.length > 1) token = "";
+    if (token.startsWith(".") && before.length > token.length) token = token.slice(1);
     const reactivePrefix = token.match(/^\$\$?/)?.[0] ?? "";
     const from = cursor - token.length + reactivePrefix.length;
     const query = token.replace(/^\$\$?/, "").replace(/^@_?/, "").replace(/^\./, "");
@@ -193,9 +202,9 @@ export function complete(source, cursor, { context, systemContext, formatValue }
         const prefix = token.startsWith("@_") ? "@_" : "@_";
         candidates = systemCandidates(systemContext, prefix);
     } else if (prior.endsWith(".")) {
-        const receiverMatch = prior.slice(0, -1).match(/([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)$/);
+        const receiverMatch = prior.slice(0, -1).match(/(\.?[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)$/);
         if (receiverMatch) {
-            candidates = propertyCandidates(resolveReceiver(receiverMatch[1], context), query, formatValue);
+            candidates = propertyCandidates(resolveReceiver(receiverMatch[1], context, systemContext), query, formatValue, systemContext);
         } else {
             candidates = systemCandidates(systemContext);
         }

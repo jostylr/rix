@@ -74,3 +74,18 @@ describe("REPL completion", () => {
         expect(completions("$$val", context).candidates[0].kind).toBe("reactive sheet");
     });
 });
+
+test("Shaped namespace and Matrix methods complete without evaluating source", () => {
+    const context = new Context();
+    const systemContext = createDefaultSystemContext();
+    parseAndEvaluate('.Plugin.Load("linalg"); grid := [1,2;3,4]; matrix := grid ~!: :Matrix;', {
+        context, systemContext, registry: createDefaultRegistry(),
+    });
+    const names = source => complete(source, source.length, { context, systemContext }).candidates.map(item => item.insertText.toUpperCase());
+    expect(names(".Shaped.")).toContain("GENERATE");
+    expect(names(".Shaped.Ge")).toContain("GENERATE");
+    expect(names("matrix.Ha")).toContain("HADAMARD");
+    expect(names("matrix.De")).toContain("DETERMINANT");
+    expect(names("grid.Ha")).not.toContain("HADAMARD");
+    expect(names("grid.De")).not.toContain("DETERMINANT");
+});

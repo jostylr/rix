@@ -507,7 +507,7 @@ Advanced brace constructors set a constructor-wide default in the shared header:
 {:2x2: /::=/ a, b; c, d}
 ```
 
-`[...]`, `{= ...}`, `{: ...}`, `{| ...}`, and tensor literals without an explicit constructor header still participate in this model; they simply fall back to the runtime default capture mode.
+`[...]`, `{= ...}`, `{: ...}`, `{| ...}`, and shaped literals without an explicit constructor header still participate in this model; they simply fall back to the runtime default capture mode.
 
 Value outfitting uses the same header but applies to the resulting value itself after capture:
 

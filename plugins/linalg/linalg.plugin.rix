@@ -42,7 +42,7 @@ LinalgPositiveInteger(value, label) -> {;
 LinalgVectorValues(value, label ?= "vector") -> {;
     isArray = value ? :Array;
     isShapedVector = value ? :Shaped ?: value.Shape().Len() == 1 ?_ _;
-    (isArray || isShapedVector) ?: _ ?_ .Error(@"@{label} must be an Array or rank-1 tensor");
+    (isArray || isShapedVector) ?: _ ?_ .Error(@"@{label} must be an Array or rank-1 Shaped value");
     length = isArray ?: value.Len() ?_ value.Size();
     result := [];
     {@ index = 1; index <= @length; {;
@@ -54,18 +54,19 @@ LinalgVectorValues(value, label ?= "vector") -> {;
 LinalgMatrixRows(value, label ?= "matrix") -> {;
     isShapedMatrix = value ? :Shaped ?: value.Shape().Len() == 2 ?_ _;
     isRows = value ? :Array;
-    (isShapedMatrix || isRows) ?: _ ?_ .Error(@"@{@label} must be a rank-2 tensor or Array of rows");
+    (isShapedMatrix || isRows) ?: _ ?_ .Error(@"@{@label} must be a rank-2 Shaped or Matrix value, or Array of rows");
     rows := [];
+    matrix = isShapedMatrix ?: value ~!: :Matrix ?_ _;
     isShapedMatrix
       ?: {;
-          shape = @value.Shape();
+          shape = @matrix.Shape();
           rowCount = shape[1];
           columnCount = shape[2];
           rowCount >= 1 && columnCount >= 1 ?: _ ?_ .Error(@"@{@label} cannot be empty");
           {@ row = 1; row <= @rowCount; {;
               entries := [];
               {@ column = 1; column <= @columnCount; {;
-                  @entries ~= @entries.Push(LinalgExact(@value[@row,column], @"@{@label} entry @{@row},@{column}"));
+                  @entries ~= @entries.Push(LinalgExact(@matrix[@row,column], @"@{@label} entry @{@row},@{column}"));
               }; column += 1 };
               @rows ~= @rows.Push(entries);
           }; row += 1 };
@@ -91,15 +92,14 @@ LinalgFlattenRows(rows) -> {;
     flat;
 };
 
-LinalgVectorTensor(values) -> values ~!: :Shaped;
+LinalgVectorStorage(values) -> values ~!: :Shaped;
 
 LinalgShapedFromFlat(flat, shape) -> (flat ~!: :Shaped).Reshape(shape);
 
-LinalgMatrixTensor(rows) -> {;
+LinalgMatrixValue(rows) -> {;
     rows.Len() >= 1 && rows[1].Len() >= 1 ?: _ ?_ .Error("Matrix cannot be empty");
     value = LinalgShapedFromFlat(LinalgFlattenRows(rows), {: rows.Len(), rows[1].Len() });
-    value.__type = "Matrix";
-    value;
+    value ~!: :Matrix;
 };
 
 LinalgZeros(count) -> {;
@@ -293,7 +293,7 @@ LinalgBareissRows(source) -> {;
                 }
                 ?_ _;
               pivot = @rows[@pivotRow][@column];
-              before = LinalgMatrixTensor(LinalgCopyRows(@rows));
+              before = LinalgMatrixValue(LinalgCopyRows(@rows));
               {@ row = @pivotRow+1; row <= @rowCount; {;
                   leading = @rows[row][@column];
                   replacement := @rows[row];
@@ -312,7 +312,7 @@ LinalgBareissRows(source) -> {;
                   previousPivot=@previousPivot,
                   swapped=didSwap ?: 1 ?_ _,
                   before=before,
-                  after=LinalgMatrixTensor(LinalgCopyRows(@rows))
+                  after=LinalgMatrixValue(LinalgCopyRows(@rows))
               });
               @previousPivot ~= pivot;
               @pivotRow += 1;
@@ -348,14 +348,14 @@ LinalgVerifyBareiss(value) -> {;
 
 LinalgBareiss(value) -> {;
     sourceRows = LinalgMatrixRows(value,"Bareiss matrix");
-    source = LinalgMatrixTensor(sourceRows);
+    source = LinalgMatrixValue(sourceRows);
     core = LinalgBareissRows(sourceRows);
     result = {=
         valueKind=:bareissElimination,
         schema="rix.linalg.bareiss@1",
         exact=1,
         source=source,
-        echelon=LinalgMatrixTensor(core[:rows]),
+        echelon=LinalgMatrixValue(core[:rows]),
         pivots=core[:pivots],
         rank=core[:rank],
         rowSwaps=core[:rowswaps],
@@ -378,7 +378,7 @@ LinalgBareiss(value) -> {;
 LinalgDeterminantCertificate(value) -> {;
     sourceRows = LinalgMatrixRows(value,"Determinant certificate matrix");
     sourceRows.Len()==sourceRows[1].Len() ?: _ ?_ .Error("Determinant certificate requires a square matrix");
-    elimination = LinalgBareiss(LinalgMatrixTensor(sourceRows));
+    elimination = LinalgBareiss(LinalgMatrixValue(sourceRows));
     expected = LinalgDeterminantRows(sourceRows);
     determinant = elimination[:determinant];
     verified = elimination.Verify() && determinant==expected;
@@ -415,7 +415,7 @@ LinalgNullBasisRows(rows,pivots) -> {;
             pivotColumn = @pivots[row];
             @vector ~= @vector.Set(pivotColumn,-@rows[row][@freeColumn]);
         }; row += 1 };
-        @basis ~= @basis.Push(LinalgVectorTensor(vector));
+        @basis ~= @basis.Push(LinalgVectorStorage(vector));
     }; freeIndex += 1 };
     {= basis=basis, freeColumns=freeColumns };
 };
@@ -429,9 +429,9 @@ LinalgVerifySubspace(value) -> {;
     kind==:nullSpace
       ?: value[:basis].All((vector)->LinalgAllZero(LinalgMultiplyMatrixVector(sourceRows,LinalgVectorValues(vector))))
       ?_ (kind==:rowSpace
-          ?: LinalgRank(value[:basis].Len()==0 ?: {:1x1: 0} ?_ LinalgMatrixTensor(value[:basis].Map((vector)->LinalgVectorValues(vector))))==value[:dimension]
+          ?: LinalgRank(value[:basis].Len()==0 ?: {:1x1: 0} ?_ LinalgMatrixValue(value[:basis].Map((vector)->LinalgVectorValues(vector))))==value[:dimension]
           ?_ (kind==:columnSpace
-              ?: LinalgRank(value[:basis].Len()==0 ?: {:1x1: 0} ?_ LinalgMatrixTensor(LinalgTransposeRows(value[:basis].Map((vector)->LinalgVectorValues(vector)))))==value[:dimension]
+              ?: LinalgRank(value[:basis].Len()==0 ?: {:1x1: 0} ?_ LinalgMatrixValue(LinalgTransposeRows(value[:basis].Map((vector)->LinalgVectorValues(vector)))))==value[:dimension]
               ?_ _));
 };
 
@@ -440,9 +440,9 @@ LinalgSubspace(value,kind) -> {;
     reduced = LinalgRrefRows(sourceRows);
     pivots = reduced[:pivots];
     basis = kind==:rowSpace
-      ?: reduced[:rows].Filter((row)->!LinalgAllZero(row)).Map((row)->LinalgVectorTensor(row))
+      ?: reduced[:rows].Filter((row)->!LinalgAllZero(row)).Map((row)->LinalgVectorStorage(row))
       ?_ (kind==:columnSpace
-          ?: pivots.Map((column)->LinalgVectorTensor(sourceRows.Map((row)->row[column])))
+          ?: pivots.Map((column)->LinalgVectorStorage(sourceRows.Map((row)->row[column])))
           ?_ LinalgNullBasisRows(reduced[:rows],pivots)[:basis]);
     ambient = kind==:columnSpace ?: sourceRows.Len() ?_ sourceRows[1].Len();
     result = {=
@@ -450,7 +450,7 @@ LinalgSubspace(value,kind) -> {;
         schema="rix.linalg.subspace@1",
         exact=1,
         kind=kind,
-        source=LinalgMatrixTensor(sourceRows),
+        source=LinalgMatrixValue(sourceRows),
         ambientDimension=ambient,
         dimension=basis.Len(),
         basis=basis,
@@ -558,7 +558,7 @@ LinalgFactorSolve(value,rightHandSide) -> {;
     value[:singular] ?: .Error("Singular factorization cannot solve uniquely") ?_ _;
     lu=value[:kind]==:lu ?: value ?_ value[:lu];
     values=LinalgVectorValues(rightHandSide,"Factorization right-hand side");
-    LinalgVectorTensor(LinalgTriangularSolveRows(
+    LinalgVectorStorage(LinalgTriangularSolveRows(
         LinalgMatrixRows(lu[:lower]),
         LinalgMatrixRows(lu[:upper]),
         LinalgMatrixRows(lu[:permutation]),
@@ -571,7 +571,7 @@ LinalgFactorInverse(value) -> {;
     size=LinalgMatrixRows(value[:source]).Len();
     identity=LinalgIdentityRows(size);
     columns=identity.Map((basis)->LinalgVectorValues(LinalgFactorSolve(value,basis)));
-    LinalgMatrixTensor(LinalgTransposeRows(columns));
+    LinalgMatrixValue(LinalgTransposeRows(columns));
 };
 
 LinalgLU(value) -> {;
@@ -582,10 +582,10 @@ LinalgLU(value) -> {;
         schema="rix.linalg.factorization@1",
         exact=1,
         kind=:lu,
-        source=LinalgMatrixTensor(sourceRows),
-        permutation=LinalgMatrixTensor(core[:permutation]),
-        lower=LinalgMatrixTensor(core[:lower]),
-        upper=LinalgMatrixTensor(core[:upper]),
+        source=LinalgMatrixValue(sourceRows),
+        permutation=LinalgMatrixValue(core[:permutation]),
+        lower=LinalgMatrixValue(core[:lower]),
+        upper=LinalgMatrixValue(core[:upper]),
         rowSwaps=core[:rowswaps],
         swapSign=core[:swapsign],
         rank=core[:rank],
@@ -620,8 +620,8 @@ LinalgLDU(value) -> {;
         source=lu[:source],
         permutation=lu[:permutation],
         lower=lu[:lower],
-        diagonal=LinalgMatrixTensor(diagonal),
-        upper=LinalgMatrixTensor(unitUpper),
+        diagonal=LinalgMatrixValue(diagonal),
+        upper=LinalgMatrixValue(unitUpper),
         lu=lu,
         rowSwaps=lu[:rowswaps],
         swapSign=lu[:swapsign],
@@ -671,7 +671,7 @@ LinalgQrDiagnostic(sourceRows,statusValue,details) -> {;
     result={=
         valueKind=:exactQRDiagnostic,schema="rix.linalg.qr@1",kind=:qr,status=statusValue,
         supported=_,exact=1,coefficientDomain=:Rational,algorithm=:modifiedGramSchmidt,
-        mode=:reduced,source=LinalgMatrixTensor(sourceRows),verified=_
+        mode=:reduced,source=LinalgMatrixValue(sourceRows),verified=_
     }.Merge(details);
     result.__type="ExactQRDiagnostic";
     result._proto={= Verify=(self)->_, Record=(self)->self };
@@ -734,15 +734,15 @@ LinalgQRTallRows(sourceRows) -> {;
     stopped!=_
       ?: LinalgQrDiagnostic(sourceRows,stopped[:status],stopped.Merge({=
           rowCount=rowCount,columnCount=columnCount,completedColumns=qColumns.Len(),
-          orthonormalColumns=qColumns.Map((column)->LinalgVectorTensor(column)),
-          partialUpper=LinalgMatrixTensor(upperRows)
+          orthonormalColumns=qColumns.Map((column)->LinalgVectorStorage(column)),
+          partialUpper=LinalgMatrixValue(upperRows)
       }))
       ?_ {;
           qRows=LinalgTransposeRows(@qColumns);
           result={=
               valueKind=:exactQRDecomposition,schema="rix.linalg.qr@1",kind=:qr,status=:decomposed,
               supported=1,exact=1,coefficientDomain=:Rational,algorithm=:modifiedGramSchmidt,mode=:reduced,
-              source=LinalgMatrixTensor(@sourceRows),q=LinalgMatrixTensor(qRows),r=LinalgMatrixTensor(@upperRows),
+              source=LinalgMatrixValue(@sourceRows),q=LinalgMatrixValue(qRows),r=LinalgMatrixValue(@upperRows),
               rowCount=@rowCount,columnCount=@columnCount,rank=@columnCount,verified=1
           };
           result.__type="ExactQRDecomposition";
@@ -782,7 +782,7 @@ LinalgSolveValues(matrixValue, vectorValue) -> {;
     inconsistent
       ?: LinalgResult({=
           status="inconsistent", solution=_, particular=_, nullspace=[],
-          rank=reduced[:pivots].Len(), rref=LinalgMatrixTensor(reduced[:rows]), pivots=reduced[:pivots]
+          rank=reduced[:pivots].Len(), rref=LinalgMatrixValue(reduced[:rows]), pivots=reduced[:pivots]
       })
       ?_ {;
           particular := LinalgZeros(@columns);
@@ -802,21 +802,21 @@ LinalgSolveValues(matrixValue, vectorValue) -> {;
                   pivotColumn = @reduced[:pivots][row];
                   @basis ~= @basis.Set(pivotColumn,-@reduced[:rows][row][@freeColumn]);
               }; row += 1 };
-              @nullspace ~= @nullspace.Push(LinalgVectorTensor(basis));
+              @nullspace ~= @nullspace.Push(LinalgVectorStorage(basis));
           }; freeIndex += 1 };
-          solution = LinalgVectorTensor(particular);
+          solution = LinalgVectorStorage(particular);
           LinalgResult({=
               status=freeColumns.Len()==0 ?: "unique" ?_ "underdetermined",
               solution=solution, particular=solution, nullspace=nullspace,
-              rank=@reduced[:pivots].Len(), rref=LinalgMatrixTensor(@reduced[:rows]), pivots=@reduced[:pivots]
+              rank=@reduced[:pivots].Len(), rref=LinalgMatrixValue(@reduced[:rows]), pivots=@reduced[:pivots]
           });
       };
 };
 
-LinalgRref(value) -> LinalgMatrixTensor(LinalgRrefRows(LinalgMatrixRows(value,"Rref matrix"))[:rows]);
+LinalgRref(value) -> LinalgMatrixValue(LinalgRrefRows(LinalgMatrixRows(value,"Rref matrix"))[:rows]);
 LinalgRank(value) -> LinalgRrefRows(LinalgMatrixRows(value,"Rank matrix"))[:pivots].Len();
 LinalgDeterminant(value) -> LinalgDeterminantRows(LinalgMatrixRows(value,"Determinant matrix"));
-LinalgInverse(value) -> LinalgMatrixTensor(LinalgInverseRows(LinalgMatrixRows(value,"Inverse matrix")));
+LinalgInverse(value) -> LinalgMatrixValue(LinalgInverseRows(LinalgMatrixRows(value,"Inverse matrix")));
 LinalgSolve(first, second ?= _) -> second == _ && (first ? :Map)
   ?: LinalgSolveValues(first[:A],first[:b])
   ?_ LinalgSolveValues(first,second);
@@ -879,8 +879,8 @@ LinalgFrame(spaceValue, specification ?= _, basisArgument ?= _, options ?= {= })
     value = {=
         valueKind=:frame, schema="rix.linalg.frame@1", name=name, space=space,
         spaceIdentity=space[:spaceidentity], frameIdentity=LinalgNextIdentity(:frame),
-        relativeTo=relativeTo, localBasis=LinalgMatrixTensor(localBasis),
-        basis=LinalgMatrixTensor(absoluteBasis), inverseBasis=LinalgMatrixTensor(inverse),
+        relativeTo=relativeTo, localBasis=LinalgMatrixValue(localBasis),
+        basis=LinalgMatrixValue(absoluteBasis), inverseBasis=LinalgMatrixValue(inverse),
         defining=defining ?: 1 ?_ _, metadata=LinalgOption(settings,"metadata",_)
     };
     value.__type="Frame";
@@ -898,7 +898,7 @@ LinalgChangeRows(sourceValue,targetValue) -> {;
     source[:spaceidentity]==target[:spaceidentity] ?: _ ?_ .Error("Frames must belong to the same VectorSpace");
     LinalgMultiplyRows(LinalgMatrixRows(target[:inversebasis]),LinalgMatrixRows(source[:basis]));
 };
-LinalgChangeMatrix(source,target) -> LinalgMatrixTensor(LinalgChangeRows(source,target));
+LinalgChangeMatrix(source,target) -> LinalgMatrixValue(LinalgChangeRows(source,target));
 
 LinalgVariance(value) -> (value==:down || value==:covariant || value=="down" || value=="covariant")
   ?: 1
@@ -998,8 +998,8 @@ LinalgTensor(components,frames,variance ?= _,options ?= {= }) -> {;
     slots=LinalgNormalizeSlots(components,frames,variance);
     LinalgTensorValue(components,slots);
 };
-LinalgVector(components,frame,options ?= {= })->LinalgTensor(LinalgVectorTensor(LinalgVectorValues(components,"Vector components")),frame,[:up],options);
-LinalgCovector(components,frame,options ?= {= })->LinalgTensor(LinalgVectorTensor(LinalgVectorValues(components,"Covector components")),frame,[:down],options);
+LinalgVector(components,frame,options ?= {= })->LinalgTensor(LinalgVectorStorage(LinalgVectorValues(components,"Vector components")),frame,[:up],options);
+LinalgCovector(components,frame,options ?= {= })->LinalgTensor(LinalgVectorStorage(LinalgVectorValues(components,"Covector components")),frame,[:down],options);
 
 LinalgTypedShaped(requested,components,slotRecords) -> {;
     slots=slotRecords.Map((slot)->LinalgSlot(slot[:frame],requested==:Covector ?: 1 ?_ slot[:dual]));
@@ -1065,7 +1065,7 @@ LinalgTransformed(value,targets) -> {;
         change=LinalgChangeRows(slot[:frame],target);
         applied=slot[:dual] ?: LinalgInverseRows(LinalgTransposeRows(change)) ?_ change;
         @components ~= LinalgTransformAxis(@components,axis,applied);
-        @changes ~= @changes.Push(LinalgMatrixTensor(applied));
+        @changes ~= @changes.Push(LinalgMatrixValue(applied));
     }; axis+=1 };
     {= components=components, changes=changes };
 };
@@ -1192,7 +1192,7 @@ LinalgLinearMap(domainValue,codomainValue,matrixValue,options ?= {= }) -> {;
     value={=
         valueKind=:linearMap,schema="rix.linalg.linear-map@1",
         name=LinalgOption(options,"name","linearMap"),domain=domain,codomain=codomain,
-        matrix=LinalgMatrixTensor(rows),sourceFrame=sourceFrame,targetFrame=targetFrame,
+        matrix=LinalgMatrixValue(rows),sourceFrame=sourceFrame,targetFrame=targetFrame,
         exact=1,provenance=LinalgOption(options,"provenance",{= plugin=:linalg,version=2,construction=:coordinateMatrix })
     };
     value.__type="LinearMap";
@@ -1247,7 +1247,7 @@ LinalgCompose(leftValue,rightValue) -> {;
         LinalgMatrixRows(left[:matrix]),
         LinalgMultiplyRows(bridge,LinalgMatrixRows(right[:matrix]))
     );
-    LinalgLinearMap(right[:domain],left[:codomain],LinalgMatrixTensor(matrix),{=
+    LinalgLinearMap(right[:domain],left[:codomain],LinalgMatrixValue(matrix),{=
         name="composition",sourceFrame=right[:sourceframe],targetFrame=left[:targetframe],
         provenance={= plugin=:linalg,version=2,construction=:composition,factors=[left[:name],right[:name]] }
     });
@@ -1266,7 +1266,7 @@ LinalgLinearMapInverse(value) -> {;
 LinalgDualMap(value) -> {;
     map=LinalgRequireLinearMap(value);
     domain=LinalgDualSpace(map[:codomain]); codomain=LinalgDualSpace(map[:domain]);
-    LinalgLinearMap(domain,codomain,LinalgMatrixTensor(LinalgTransposeRows(LinalgMatrixRows(map[:matrix]))),{=
+    LinalgLinearMap(domain,codomain,LinalgMatrixValue(LinalgTransposeRows(LinalgMatrixRows(map[:matrix]))),{=
         name=@"@{map[:name]} dual",sourceFrame=LinalgDefaultFrame(domain),targetFrame=LinalgDefaultFrame(codomain),
         provenance={= plugin=:linalg,version=2,construction=:dual,source=map[:name] }
     });

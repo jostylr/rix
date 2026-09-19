@@ -8,6 +8,7 @@ import { formatValue } from "../../src/eval/format.js";
 import { Context } from "../../src/runtime/context.js";
 import {
     makeProto,
+    convertToRegisteredType,
     exportByRegisteredTypeRuntime,
     importByRegisteredTypeRuntime,
     registerTrait,
@@ -313,4 +314,14 @@ describe("RiX type and trait registry", () => {
             convert: (value) => value,
         })).toThrow(/Duplicate type alias/);
     });
+});
+
+
+test("native validation rejects false while RiX numeric zero remains truthy", () => {
+    for (const [name, result] of [["MigrationRejectFalse", false], ["MigrationAcceptTrue", true], ["MigrationAcceptZero", new Integer(0n)]]) {
+        registerType({ name, nativeType: "Integer", validate: () => result });
+        const converted = convertToRegisteredType(new Integer(7n), name);
+        if (result === false) expect(converted).toBeNull();
+        else expect(converted.value.value).toBe(7n);
+    }
 });

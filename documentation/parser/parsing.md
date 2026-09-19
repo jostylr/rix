@@ -274,31 +274,27 @@ Represents array literals:
 }
 ```
 
-#### Matrix
-Represents 2D matrix literals using semicolon separators:
+#### Shaped and ShapedLiteral
+
+Inferred semicolon literals use `Shaped`. Rank 2 records `rows`; higher ranks
+record `structure` (rows and separator levels) and `maxDimension`:
+
 ```javascript
-{
-    type: "Matrix",
-    rows: [[ASTNode]],      // Array of rows, each row is array of elements
-    pos: [start, delim, end],
-    original: string
-}
+// [1, 2; 3, 4]
+{ type: "Shaped", rows: [[ASTNode, ASTNode], [ASTNode, ASTNode]],
+  pos: [start, delim, end], original: string }
+
+// [1; 2 ;; 3; 4]
+{ type: "Shaped", structure: [{ row: [ASTNode], separatorLevel: number }],
+  maxDimension: number, pos: [start, delim, end], original: string }
 ```
 
-#### Tensor
-Represents multi-dimensional tensor literals using multiple semicolon separators:
-```javascript
-{
-    type: "Tensor",
-    structure: [{
-        row: [ASTNode],     // Array of elements in this row
-        separatorLevel: number  // Number of semicolons that follow this row
-    }],
-    maxDimension: number,   // Highest dimension level (separatorLevel + 1)
-    pos: [start, delim, end],
-    original: string
-}
-```
+An explicit `{:2x2: /Matrix/ ...}` constructor uses `ShapedLiteral` with
+`shape`, row-major `elements`, and an optional `SemanticHeader`. The header's
+`typeName` selects an interpretation; it does not change the AST node name.
+`/Vector: E/`, `/Covector: E/`, and `/Tensor: E@E*/` additionally carry ordered
+`slots` with `displayName`, normalized `bindingName`, and `dual`. Both the
+explicit literal and its header retain their complete source spans.
 
 #### Set
 Represents set literals containing only literal values or expressions without special operators:
@@ -1040,25 +1036,25 @@ The parser supports metadata annotations within array syntax using the `:=` oper
 }
 ```
 
-## Matrix and Tensor Syntax
+## Shaped Literal Syntax
 
-The parser supports multi-dimensional matrix and tensor literals using semicolon separators with different levels indicating dimensionality.
+The parser supports rank-N shaped literals using semicolon separators with different levels indicating dimensionality.
 
 ### Syntax Rules
 
 - **Commas (`,`)** separate elements within a row
-- **Single semicolon (`;`)** separates rows within a 2D matrix
-- **Double semicolon (`;;`)** separates 2D slices within a 3D tensor
-- **Triple semicolon (`;;;`)** separates 3D blocks within a 4D tensor
+- **Single semicolon (`;`)** separates rows within rank-2 storage
+- **Double semicolon (`;;`)** separates 2D slices within rank-3 storage
+- **Triple semicolon (`;;;`)** separates 3D blocks within rank-4 storage
 - And so on for higher dimensions...
 
-### Matrix Examples
+### Rank-2 Shaped Examples
 
-#### 2D Matrix
+#### Rank-2 Shaped
 ```javascript
 // Input: [1, 2; 3, 4];
 {
-    type: "Matrix",
+    type: "Shaped",
     rows: [
         [
             { type: "Number", value: "1" },
@@ -1072,11 +1068,11 @@ The parser supports multi-dimensional matrix and tensor literals using semicolon
 }
 ```
 
-#### Matrix with Variables
+#### Shaped with Variables
 ```javascript
 // Input: [x, y; z, w];
 {
-    type: "Matrix",
+    type: "Shaped",
     rows: [
         [
             { type: "UserIdentifier", name: "x" },
@@ -1090,11 +1086,11 @@ The parser supports multi-dimensional matrix and tensor literals using semicolon
 }
 ```
 
-#### Column Vector
+#### One-Column Shaped
 ```javascript
 // Input: [1; 2; 3];
 {
-    type: "Matrix",
+    type: "Shaped",
     rows: [
         [{ type: "Number", value: "1" }],
         [{ type: "Number", value: "2" }],
@@ -1103,13 +1099,13 @@ The parser supports multi-dimensional matrix and tensor literals using semicolon
 }
 ```
 
-### Tensor Examples
+### Higher-Rank Shaped Examples
 
-#### 3D Tensor
+#### Rank-3 Shaped
 ```javascript
 // Input: [1, 2; 3, 4 ;; 5, 6; 7, 8];
 {
-    type: "Tensor",
+    type: "Shaped",
     structure: [
         {
             row: [
@@ -1144,11 +1140,11 @@ The parser supports multi-dimensional matrix and tensor literals using semicolon
 }
 ```
 
-#### 4D Tensor
+#### Rank-4 Shaped
 ```javascript
 // Input: [1; 2 ;; 3; 4 ;;; 5; 6 ;; 7; 8];
 {
-    type: "Tensor",
+    type: "Shaped",
     structure: [
         // Structure with separatorLevel values ranging from 0 to 3
     ],
@@ -1163,7 +1159,7 @@ Empty rows are preserved in the structure:
 ```javascript
 // Input: [1, 2; ; 3, 4];
 {
-    type: "Matrix",
+    type: "Shaped",
     rows: [
         [
             { type: "Number", value: "1" },
@@ -1179,11 +1175,11 @@ Empty rows are preserved in the structure:
 ```
 
 #### Mixed with Expressions
-Matrix elements can be any valid expressions:
+Shaped literal elements can be any valid expressions:
 ```javascript
 // Input: [a + b, sin(x); f(y), z^2];
 {
-    type: "Matrix",
+    type: "Shaped",
     rows: [
         [
             { type: "BinaryOperation", operator: "+", ... },
@@ -1199,7 +1195,7 @@ Matrix elements can be any valid expressions:
 
 ### Important Notes
 
-- **Metadata incompatible**: Matrix/tensor syntax cannot be mixed with metadata annotations (`:=` syntax)
+- **Metadata incompatible**: Shaped-literal syntax cannot be mixed with metadata annotations (`:=` syntax)
 - **Spaces matter**: Spaces between semicolons create separate separator tokens
 - **Post-processing**: Actual dimensional analysis is performed at post-processing level
 - **Precedence**: Semicolon sequences have separator precedence and break expression parsing
@@ -2808,11 +2804,11 @@ Generator syntax is fully compatible with:
 - Explicit seed elements before the generator operators
 - Metadata annotations
 - Nested arrays
-- Matrix/tensor syntax (when not mixed)
+- Shaped-literal syntax (when not mixed)
 
 Generator syntax is NOT compatible with:
 - Metadata mixed with generators in same array
-- Matrix semicolon separators in generator arrays
+- Shaped semicolon separators in generator arrays
 
 ## Performance Considerations
 

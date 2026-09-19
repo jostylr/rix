@@ -65,7 +65,7 @@ This document provides a comprehensive reference for all token types generated b
 **Syntax:** `_1`, `_2`, `__3`, `___42`
 
 ### SemicolonSequence  
-**Purpose:** Represents multiple consecutive semicolons for matrix/tensor separators  
+**Purpose:** Represents multiple consecutive semicolons for shaped-literal separators
 **Syntax:** `;;`, `;;;`, `;;;;`
 
 ### End
@@ -476,7 +476,7 @@ On the left of `:=`, `ReactiveRef` updates an existing reactive definition and
 }
 ```
 
-### Matrix
+### Shaped (rank 2)
 ```javascript
 {
   rows: [[ASTNode]],  // Matrix rows (2D array)
@@ -484,7 +484,7 @@ On the left of `:=`, `ReactiveRef` updates an existing reactive definition and
 }
 ```
 
-### Tensor
+### Shaped (higher rank)
 ```javascript
 {
   structure: [object], // Multi-dimensional structure

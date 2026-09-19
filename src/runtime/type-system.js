@@ -282,8 +282,11 @@ export function convertToRegisteredType(value, requestedTypeName, context = null
     if (next === null || next === undefined) {
         return null;
     }
-    if (entry.validate && !truthy(invokeMaybeCallable(entry.validate, [next], context, evaluate))) {
-        return null;
+    if (entry.validate) {
+        const valid = invokeMaybeCallable(entry.validate, [next], context, evaluate);
+        // Native validators return JavaScript booleans; RiX validators return
+        // null or ordinary truthy values (including numeric zero).
+        if (valid === false || !truthy(valid)) return null;
     }
     return { value: next, entry, requestedTypeName: entry.name };
 }
@@ -377,6 +380,9 @@ function shapedBinary(name, left, right, context, evaluate) {
     }
 
     const scalar = leftShaped ? right : left;
+    if (isMatrixValue(scalar)) {
+        throw new Error(`Shaped ${name} cannot mix Shaped and Matrix values; convert the Shaped operand explicitly with value ~!: :Matrix`);
+    }
     if (!valueBelongsToScalarDomain(scalar, domain)) {
         throw new Error(`Shaped ${name} scalar does not satisfy declared domain ${domain}; convert it explicitly`);
     }
@@ -411,7 +417,7 @@ function requireSameMatrixDomain(left, right, operation) {
 
 function matrixElementwise(name, left, right, context, evaluate) {
     if (!isMatrixValue(left) || !isMatrixValue(right)) {
-        throw new Error(`Matrix ${name} requires two Matrix values`);
+        throw new Error(`Matrix ${name} requires two Matrix values; convert Shaped operands explicitly with value ~!: :Matrix`);
     }
     if (!shapesEqual(left, right)) {
         throw new Error(`Matrix ${name} requires identical shapes; received ${left.shape.join("x")} and ${right.shape.join("x")}`);
@@ -423,6 +429,9 @@ function matrixElementwise(name, left, right, context, evaluate) {
 }
 
 function matrixScalar(name, matrix, scalar, scalarFirst, context, evaluate) {
+    if (isPlainShaped(scalar)) {
+        throw new Error(`Matrix ${name} cannot use a Shaped value as a scalar; convert it explicitly with value ~!: :Matrix for matrix operations`);
+    }
     const domain = shapedScalarDomain(matrix);
     if (!valueBelongsToScalarDomain(scalar, domain)) {
         throw new Error(`Matrix ${name} scalar does not satisfy declared domain ${domain}; convert it explicitly`);

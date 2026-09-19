@@ -62,7 +62,19 @@ function containerCommaCounts(tokens) {
  */
 export function formatRix(source, options = {}) {
     const input = String(source);
-    parse(input, options.systemLookup, options.parseOptions || {});
+    const ast = parse(input, options.systemLookup, options.parseOptions || {});
+    // Header punctuation has semantic roles (slot products, dual marks, and
+    // closing slash), so preserve this parser-delimited region as one unit.
+    const headers = new Map();
+    const visit = (node) => {
+        if (!node || typeof node !== "object") return;
+        if (node.type === "SemanticHeader") headers.set(node.pos[1], node.pos[2]);
+        for (const value of Object.values(node)) {
+            if (Array.isArray(value)) value.forEach(visit);
+            else if (value && typeof value === "object") visit(value);
+        }
+    };
+    visit(ast);
     const tokens = tokenize(input).filter((token) => token.type !== "End");
     if (tokens.length === 0) return input;
 
@@ -106,6 +118,17 @@ export function formatRix(source, options = {}) {
         const token = tokens[index];
         const value = token.value;
         const next = tokens[index + 1] || null;
+
+        const headerEnd = headers.get(token.pos[1]);
+        if (headerEnd !== undefined) {
+            space();
+            write(input.slice(token.pos[1], headerEnd));
+            while (tokens[index + 1]?.pos[1] < headerEnd) index++;
+            space();
+            previous = tokens[index];
+            previousWasUnary = false;
+            continue;
+        }
 
         if (isComment(token)) {
             const raw = String(token.original || rawToken(input, token)).trim();

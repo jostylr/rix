@@ -985,3 +985,13 @@ describe("WidgetSession", () => {
         widget.dispose();
     });
 });
+
+
+test("legacy matrix row objects are rejected at binding and Sheet boundaries", () => {
+    const state = session();
+    state.context.set("legacy", { type: "matrix", rows: [[parseAndEvaluate("1")]] });
+    const binding = parseAndEvaluate(".Bind(legacy)", state);
+    expect(() => binding.at(1).get()).toThrow("Cannot index a Binding");
+    expect(() => binding.at(1).set(parseAndEvaluate("2"))).toThrow("Cannot index a Binding");
+    expect(() => parseAndEvaluate(".Sheet(legacy)", state)).toThrow();
+});

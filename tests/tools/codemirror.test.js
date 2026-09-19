@@ -89,3 +89,9 @@ describe("RiX Lezer grammar", () => {
     expect(language.parser.parse("`.custom:a+b`").length).toBe(13);
   });
 });
+
+test("editor grammar retains compact Shaped, Matrix and mathematical Tensor headers", () => {
+  for (const source of ["{:2x2: /Matrix/ 1, 2; 3, 4}", "{:2x2: /Tensor: E@F*/ 1, 2; 3, 4}", ".Shaped.Generate({: 2, 2 }, idx -> idx[1])", "[1, 2; 3, 4 ;; 5, 6; 7, 8]", "[1.2[3:4], 5]"]) {
+    expect(tree(source)).not.toContain("⚠");
+  }
+});

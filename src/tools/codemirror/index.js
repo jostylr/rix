@@ -15,6 +15,8 @@ const parserWithMetadata = parser.configure({
   props: [
     styleTags({
       Number: t.number,
+      ShapedOpen: t.brace,
+      ShapedHeader: t.typeName,
       String: t.string,
       BacktickString: t.special(t.string),
       Regex: t.regexp,
@@ -28,7 +30,7 @@ const parserWithMetadata = parser.configure({
       SelfReference: t.self,
       Operator: t.operatorKeyword,
       BraceClose: t.brace,
-      "MapContainer CaseContainer BlockContainer SetContainer TupleContainer LoopContainer MatchContainer RangeContainer GreaterContainer PowerContainer DollarContainer MutationContainer PlusContainer StarContainer AndContainer OrContainer BackslashContainer SlashContainer IncrementContainer ShiftLeftContainer ShiftRightContainer PlainContainer": t.brace,
+      "ShapedContainer MapContainer CaseContainer BlockContainer SetContainer TupleContainer LoopContainer MatchContainer RangeContainer GreaterContainer PowerContainer DollarContainer MutationContainer PlusContainer StarContainer AndContainer OrContainer BackslashContainer SlashContainer IncrementContainer ShiftLeftContainer ShiftRightContainer PlainContainer": t.brace,
       "( )": t.paren,
       "[ ]": t.squareBracket,
       Separator: t.separator,

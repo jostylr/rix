@@ -626,6 +626,19 @@ export class SystemContext {
         return this;
     }
 
+    /** List extension methods without exposing methods from hidden plugin mounts. */
+    getMethodExtensions(typeNames) {
+        const entries = new Map();
+        for (const typeName of typeNames || []) {
+            const methods = this._methodExtensions.get(String(typeName).replace(/^:/, "").toLowerCase());
+            for (const [name, entry] of methods || []) {
+                if (entry.mount && !this.has(entry.mount)) continue;
+                if (!entries.has(name)) entries.set(name, { ...entry });
+            }
+        }
+        return [...entries.values()];
+    }
+
     /** Resolve an extension method, respecting the capabilities visible here. */
     resolveMethodExtension(typeNames, methodName) {
         const methodKey = String(methodName).toUpperCase();
