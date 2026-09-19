@@ -1,5 +1,14 @@
 # `.svg`
 
+`{= optimize=1 }` enables conservative deterministic source optimization after
+certified coordinate lowering. It compacts path syntax, uses equivalent
+horizontal/vertical commands without removing vertices, and shares identical
+gradient definitions through references while retaining every definition ID.
+Style, semantic IDs, marker vertices, exact coordinate metadata, and diagnostics
+are unchanged. `metadata.optimization` reports the `rix.svg.optimization@1`
+schema and counts. Optimization is opt-in so editable source remains stable by
+default.
+
 Renders a core `.Graphics.Graphic` or graphic `.Figure` to deterministic,
 standalone SVG. Paths, curve commands, transforms, groups, rectangular clips,
 text, rectangles, circles, and static/interactive drag-point metadata are

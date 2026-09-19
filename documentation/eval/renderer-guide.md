@@ -141,6 +141,13 @@ document; the default is a `tikzpicture` fragment. Endpoint-form SVG arc
 commands currently fail visibly because their geometric conversion is not yet
 defined.
 
+Versioned `rix.scene3d.snapshot@1` records and `Timeline.Render` values are
+accepted directly. For a Timeline, Slides, or Snapshots sequence, `frame=2`
+selects the second retained frame (default 1). `metadata.staticFrame` preserves
+exact state, origin, semantic tracks, and Scene3D projection/evidence. Exact
+rational coordinates remain in the editable source; large expressions request
+the `xfp` package while TeX supplies final display precision.
+
 ```rix
 .tikz.Render(graphic, {= standalone=1 });
 ```
@@ -168,14 +175,22 @@ GIF expands `Slides`, `Timeline`, or `Snapshots` deterministically, delegates
 each Graphic frame to PNG, and then asks the CLI host to encode the ordered
 PNGs. `duration` is measured in seconds, `delays` supplies one seconds value
 per frame, and the RenderResult records integer-centisecond delays and loop
-count. Phase 1 frames must resolve to a single Graphic or graphic Figure.
+count. Exact Timeline `frameDurations` are respected. Frames must resolve to a
+single Graphic, graphic Figure, or versioned Scene3D snapshot.
 
 ```rix
 .gif.Render(timeline, {= duration=1/2, loop=0 });
 ```
 
-The browser exposes the contract and portable timeline preview but reports
-`gif-encoder-unavailable`. See the [GIF tutorial](https://rix.ratmath.com/tutorial/plugin-gif.html).
+Each successful GIF also returns retained SVG frames, exact JSON evidence,
+captions/timing text, and an HTML contact sheet in a deterministic asset
+directory. These preserve exact state and requested duration separately from
+the GIF's quantized timing and display interpolation.
+
+The browser reports `gif-encoder-unavailable` for binary encoding. The portable
+`.Render(timeline,"gif-frames")` contact-sheet target needs no external tools,
+works with a single retained frame, and can be written with
+`.Out("frames.html",result)`. See the [GIF tutorial](https://rix.ratmath.com/tutorial/plugin-gif.html).
 
 ### glTF
 
@@ -280,10 +295,11 @@ The example and its binary outputs are exercised by the CLI renderer tests.
 
 ## 3D boundary
 
-The initial retained `rix.scene3d@1` schema, deterministic wireframe snapshot,
-and glTF JSON exporter are implemented. Scene3D owns cameras and projection;
-SVG/Canvas/TikZ still consume only the Graphic returned by
-`.scene3d.Snapshot`. The snapshot does not claim hidden-line removal or
-lighting. OBJ/MTL, STL, PLY, USD/USDZ, GLB, adaptive surfaces, and interactive
-orbit controls remain future adapters or refiners. See the complete
+The retained `rix.scene3d@1` schema, versioned wireframe and flat-lit snapshots,
+and glTF JSON exporter are implemented. Scene3D owns cameras and projection.
+Canvas, TikZ, PNG, and GIF frame export accept the versioned snapshot directly;
+SVG can render its `value` Graphic. Browser Scene3D supports retained orbit,
+projection, picking, and annotation controls. Static snapshots preserve their
+projection and approximation evidence; they do not claim certified visibility.
+OBJ/MTL, STL, PLY, USD/USDZ, and GLB remain later format work. See the complete
 [3D and n-dimensional guide](scene3d-guide.md).

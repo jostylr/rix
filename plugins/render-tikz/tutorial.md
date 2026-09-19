@@ -74,4 +74,23 @@ commands fail visibly until their geometric conversion is defined.
 
 - Browser: complete TikZ source generation; no TeX compilation.
 - CLI: no external tools to emit `.tikz`.
-- Options: `standalone`, `preamble`.
+- Options: `standalone`, `preamble`, and one-based `frame` for sequences.
+
+## Export a retained 3D snapshot
+
+The renderer accepts the versioned snapshot record directly and retains its
+projection and evidence in `metadata.staticFrame`. A sequence can be exported
+one frame at a time with the same path.
+
+```rix
+.Plugin.Load("scene3d");
+.Plugin.Load("tikz");
+scene := .scene3d.Scene([.scene3d.Mesh(
+    [[0,0,0],[1,0,0],[0,1,0]],[[1,2,3]],{= color="#2563eb" }
+)], {= lights=[.scene3d.AmbientLight("#ffffff",1)] });
+snapshot := .scene3d.Snapshot(scene,{= mode=:lit,size=[240,160] });
+.tikz.Render(snapshot,{= standalone=1 }).Get("metadata");
+```
+
+Exact rational coordinate source is preserved, including derived rectangle and
+curve coordinates. TeX applies its own final display precision.

@@ -7,9 +7,9 @@ exports: [Render]
 groups: [Renderers]
 permissions: [process, files]
 requires: [rix.renderer.png@1]
-provides: [rix.renderer.gif@1, rix.renderer.gif@2]
-schemas: [rix.gif.render@1, rix.gif.render@2]
-targets: [gif, image/gif]
+provides: [rix.renderer.gif@1, rix.renderer.gif@2, rix.renderer.gif-frames@1]
+schemas: [rix.gif.render@1, rix.gif.render@2, rix.animation-export@1]
+targets: [gif, image/gif, gif-frames]
 snapshot: true
 deterministic: true
 defaultEnabled: false
@@ -17,7 +17,9 @@ defaultEnabled: false
 
 import { Integer } from "@ratmath/core";
 import { UnsupportedRenderError } from "../../src/runtime/renderer-registry.js";
-import { field, installRendererPlugin, numberValue, option, rixString, sequence } from "../renderers/common.js";
+import { installRendererPlugin, numberValue, option, rixString, sequence } from "../renderers/common.js";
+import { expandGraphicFrames } from "../renderers/static-frames.js";
+import { createFrameBundle } from "./frame-bundle.js";
 
 function integerOption(value, label, fallback) {
     if (value === null || value === undefined) return fallback;
@@ -36,55 +38,6 @@ function centiseconds(seconds) {
     return Math.max(1, Math.round(seconds * 100));
 }
 
-function outputKind(value) {
-    return value?.type === "output" ? value.kind : value?.type || typeof value;
-}
-
-function frameContent(value, label) {
-    let current = value;
-    for (let depth = 0; depth < 4; depth += 1) {
-        const kind = outputKind(current);
-        if (["slide", "timeline_render", "snapshot"].includes(kind)) current = current.content;
-        else if (kind === "scene3d_snapshot") current = current.value;
-        else if (kind === "object" && current?.content) current = current.content;
-        else break;
-    }
-    if (outputKind(current) === "fragment" && Array.isArray(current.children) && current.children.length === 1) {
-        current = current.children[0];
-    }
-    const kind = outputKind(current);
-    if (!(["graphic", "figure"].includes(kind))) {
-        throw new UnsupportedRenderError(`${label} must resolve to one Graphic or graphic Figure; received ${kind}`, {
-            code: "gif-frame-layout-unsupported",
-            target: "gif",
-        });
-    }
-    return current;
-}
-
-function expandFrames(value) {
-    const kind = outputKind(value);
-    if (kind === "slides") {
-        return value.slides.map((slide, index) => ({
-            content: frameContent(slide, `Slide ${index + 1}`),
-            duration: field(slide.metadata, "duration"),
-        }));
-    }
-    if (kind === "timeline") {
-        return value.frames.map((frame, index) => ({
-            content: frameContent(frame, `Timeline frame ${index + 1}`),
-            duration: null,
-        }));
-    }
-    if (kind === "snapshots") {
-        return value.snapshots.map((frame, index) => ({
-            content: frameContent(frame, `Snapshot ${index + 1}`),
-            duration: null,
-        }));
-    }
-    throw new UnsupportedRenderError(`gif accepts Slides, Timeline, or Snapshots; received ${kind}`, { target: "gif" });
-}
-
 function frameDelays(value, frames, options) {
     const explicit = option(options, "delays");
     if (explicit !== null) {
@@ -94,12 +47,9 @@ function frameDelays(value, frames, options) {
     }
     const durationOption = option(options, "duration");
     const defaultSeconds = durationOption === null ? 1 : positiveSeconds(durationOption, "GIF duration");
-    const timelineSeconds = outputKind(value) === "timeline" && value.duration !== null
-        ? positiveSeconds(value.duration, "Timeline duration") / frames.length
-        : null;
     return frames.map((frame, index) => centiseconds(frame.duration === null
-        ? timelineSeconds ?? defaultSeconds
-        : positiveSeconds(frame.duration, `Slide ${index + 1} duration`)));
+        ? defaultSeconds
+        : positiveSeconds(frame.duration, `Frame ${index + 1} duration`)));
 }
 
 export function createDefinition(encodeGif = null) {
@@ -118,7 +68,7 @@ export function createDefinition(encodeGif = null) {
                     target: "gif",
                 });
             }
-            const frames = expandFrames(request.value);
+            const frames = expandGraphicFrames(request.value, { maxFrames: option(request.options, "maxFrames", 1000) });
             if (frames.length < 2) throw new Error("Animated GIF rendering requires at least two frames");
             const delays = frameDelays(request.value, frames, request.options);
             const loop = integerOption(option(request.options, "loop"), "GIF loop", 0);
@@ -135,14 +85,19 @@ export function createDefinition(encodeGif = null) {
                 scale: option(request.options, "scale", new Integer(1n)),
                 background: option(request.options, "background"),
             };
-            const pngFrames = frames.map(({ content }) => request.render(content, "png", pngOptions));
+            const pngFrames = frames.map(({ graphic }) => request.render(graphic, "png", pngOptions));
+            const bundle = createFrameBundle(request, frames, delays, { loop, transition, transitionFrames, dithering, palette });
             const encoded = encodeGif(pngFrames.map((result) => result.content), { delays, loop, transition, transitionFrames, dithering, palette });
             return {
                 content: encoded.content,
                 toolchain: encoded.toolchain,
-                diagnostics: encoded.diagnostics || [],
+                assets: [...bundle.assets, { path: `${bundle.prefix}/contact-sheet.html`, mime: "text/html", content: bundle.html.replaceAll(`src="${bundle.prefix}/`, 'src="') }],
+                diagnostics: [...bundle.diagnostics, ...(encoded.diagnostics || [])],
                 metadata: {
                     schema: "rix.gif.render@2",
+                    frameManifest: `${bundle.prefix}/manifest.json`,
+                    captionTrack: `${bundle.prefix}/captions.txt`,
+                    contactSheet: `${bundle.prefix}/contact-sheet.html`,
                     frameCount: frames.length,
                     delays,
                     loop,
@@ -157,6 +112,25 @@ export function createDefinition(encodeGif = null) {
     };
 }
 
+/** Portable contact sheet remains available when no rasterizer/encoder is installed. */
+export function createFramesDefinition() {
+    return {
+        target: "gif-frames", mime: "text/vnd.rix.animation-frames+html", extension: "frames.html",
+        inputKinds: ["slides", "timeline", "snapshots"], deterministic: true,
+        description: "Retained animation frames, caption/evidence sidecars, and a static HTML contact sheet",
+        render(request) {
+            const frames = expandGraphicFrames(request.value, { maxFrames: option(request.options, "maxFrames", 1000) });
+            const delays = frameDelays(request.value, frames, request.options);
+            const bundle = createFrameBundle(request, frames, delays, { mode: "static", interpolatedFrames: false });
+            return { content: bundle.html, mime: "text/html", assets: bundle.assets, diagnostics: bundle.diagnostics,
+                metadata: { schema: "rix.animation-export@1", frameCount: frames.length,
+                    frameManifest: `${bundle.prefix}/manifest.json`, captionTrack: `${bundle.prefix}/captions.txt` } };
+        },
+    };
+}
+
 export function install(api) {
-    return installRendererPlugin({ ...api, definition: createDefinition(api.encodeGif) });
+    api.rendererRegistry.register(createFramesDefinition());
+    try { return installRendererPlugin({ ...api, definition: createDefinition(api.encodeGif) }); }
+    catch (error) { api.rendererRegistry.unregister("gif-frames"); throw error; }
 }

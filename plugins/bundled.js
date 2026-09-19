@@ -219,8 +219,8 @@ const BUNDLED_PLUGINS = [
         metadata: {
             id: "svg", description: "Portable SVG renderer with outward-safe exact-coordinate lowering.",
             kind: "host", mount: "svg", exports: ["Render"], groups: ["Renderers"], permissions: [],
-            provides: ["rix.renderer.svg@1", "rix.renderer.svg@2", "rix.svg.coordinate-lowering@1", "rix.viewport@1", "rix.selection@1"],
-            schemas: ["rix.svg.coordinate-lowering@1", "rix.viewport@1", "rix.selection@1"], targets: ["svg", "image/svg+xml"],
+            provides: ["rix.renderer.svg@1", "rix.renderer.svg@2", "rix.svg.coordinate-lowering@1", "rix.svg.optimization@1", "rix.viewport@1", "rix.selection@1"],
+            schemas: ["rix.svg.coordinate-lowering@1", "rix.svg.optimization@1", "rix.viewport@1", "rix.selection@1"], targets: ["svg", "image/svg+xml"],
             snapshot: true, deterministic: true, defaultEnabled: false,
         },
         install: installSvgPlugin,
@@ -277,7 +277,8 @@ const BUNDLED_PLUGINS = [
             requires,
             provides: id === "canvas"
                 ? ["rix.renderer.canvas@1", "rix.renderer.canvas@2", "rix.viewport@1", "rix.selection@1"]
-                : ["markdown", "html", "quarto", "latex", "pdf", "gif"].includes(id)
+                : id === "gif" ? ["rix.renderer.gif@1", "rix.renderer.gif@2", "rix.renderer.gif-frames@1"]
+                : ["markdown", "html", "quarto", "latex", "pdf"].includes(id)
                     ? [`rix.renderer.${id}@1`, `rix.renderer.${id}@2`]
                     : [`rix.renderer.${id}@1`],
             schemas: id === "canvas"
@@ -287,9 +288,9 @@ const BUNDLED_PLUGINS = [
                         : id === "quarto" ? ["rix.quarto.project@1", "rix.quarto.render@2"]
                             : id === "latex" ? ["rix.latex.render@2"]
                                 : id === "pdf" ? ["rix.pdf.render@2"]
-                                    : id === "gif" ? ["rix.gif.render@1", "rix.gif.render@2"]
+                                    : id === "gif" ? ["rix.gif.render@1", "rix.gif.render@2", "rix.animation-export@1"]
                                         : [],
-            targets: [id, mime, ...aliases],
+            targets: [id, mime, ...aliases, ...(id === "gif" ? ["gif-frames"] : [])],
             snapshot: true,
             deterministic,
             defaultEnabled: false,

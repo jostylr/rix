@@ -68,14 +68,15 @@ fixtures live beside it.
 | `.svg` | `Graphic`, graphic `Figure` | Standalone accessible SVG with outward-safe exact-coordinate metadata | None |
 | `.canvas` | `Graphic`, graphic `Figure`, versioned `Scene3D` Snapshot | Versioned JSON `CanvasRenderingContext2D` plan | None; painting needs a browser Canvas |
 | `.webgl` | Retained `Scene3D` | Versioned JSON GPU plan with picking and annotation overlays | None; painting needs browser WebGL |
-| `.tikz` | `Graphic`, graphic `Figure` | TikZ/PGF source | None; TeX is only needed to compile it |
+| `.tikz` | `Graphic`, graphic `Figure`, versioned Scene3D Snapshot, selected Timeline/Slides/Snapshots frame | TikZ/PGF source with retained frame/projection evidence | None; TeX is only needed to compile it |
 | `.png` | `Graphic`, graphic `Figure`, versioned `Scene3D` Snapshot | PNG bytes at explicit size/scale | CLI uses `rsvg-convert`, then ImageMagick as fallback |
 | `.markdown` | Portable document/output trees | CommonMark-oriented `.md` with inline SVG | None |
 | `.html` | Any portable output value | Standalone semantic HTML with inline SVG | None |
 | `.quarto` | Portable documents and slides | `.qmd` with front matter | None; Quarto is only needed for a final build |
 | `.latex` | Portable documents, figures, and slides | Standalone `.tex`, with graphics lowered to TikZ | None; TeX is only needed to compile it |
 | `.pdf` | Portable documents, figures, and static slide content | PDF bytes through the LaTeX renderer | CLI requires `pdflatex` |
-| `.gif` | `Slides`, `Timeline`, `Snapshots` with Graphic frames | Animated GIF bytes with explicit centisecond delays | CLI uses PNG plus ImageMagick |
+| `.gif` | `Slides`, `Timeline`, `Snapshots` with Graphic or Scene3D snapshot frames | Animated GIF bytes plus retained SVG frames, JSON/text evidence and contact sheet | CLI uses PNG plus ImageMagick |
+| `gif-frames` | The same sequences, including a single frame | Portable HTML contact sheet plus SVG/JSON/text assets | None; installed with `.gif` |
 | `.gltf` | Retained `Scene3D` | glTF 2.0 JSON with embedded buffer | None |
 | `.csv` | Core `Table` and `.data` Relation | CSV or TSV with exact scalar text | None |
 

@@ -1,3 +1,4 @@
+import { Integer, Rational } from "@ratmath/core";
 import {
     UnsupportedRenderError,
 } from "../../src/runtime/renderer-registry.js";
@@ -6,13 +7,56 @@ import {
     diagnostic,
     field,
     numberValue,
-    point,
     rixString,
     sequence,
-    stableNumber,
+    stableNumber as roundedNumber,
     styleValue,
     textValue,
 } from "../renderers/common.js";
+
+// PGF evaluates braced rational expressions. Never round retained exact inputs
+// before producing editable source; reduce derived coordinates in the same domain.
+function stableNumber(value, label = "coordinate") {
+    if (value instanceof Rational && value.denominator === 0n) throw new Error(`${label} must be finite`);
+    numberValue(value, label);
+    if (value instanceof Integer) return String(value.value);
+    if (value instanceof Rational) {
+        if (value.denominator === 1n) return String(value.numerator);
+        let denominator = value.denominator, twos = 0, fives = 0;
+        // Only short terminating decimals are emitted; bound factor work too.
+        while (twos < 19 && denominator % 2n === 0n) { denominator /= 2n; twos += 1; }
+        while (fives < 19 && denominator % 5n === 0n) { denominator /= 5n; fives += 1; }
+        const places = Math.max(twos, fives);
+        if (denominator === 1n && places <= 18) {
+            const negative = value.numerator < 0n;
+            const numerator = negative ? -value.numerator : value.numerator;
+            const digits = (numerator * 10n ** BigInt(places) / value.denominator).toString().padStart(places + 1, "0");
+            return `${negative ? "-" : ""}${digits.slice(0, -places)}.${digits.slice(-places).replace(/0+$/, "")}`;
+        }
+        const expression = `${value.numerator}/${value.denominator}`;
+        return value.denominator > 16383n || value.numerator > 16383n || value.numerator < -16383n
+            ? `{\\fpeval{${expression}}}` : `{${expression}}`;
+    }
+    return roundedNumber(value, label);
+}
+
+function point(value, label) {
+    const entries = sequence(value, label);
+    if (entries.length !== 2) throw new Error(`${label} must contain two coordinates`);
+    entries.forEach((entry) => numberValue(entry, label));
+    return entries;
+}
+
+const exact = (value) => value instanceof Rational ? value : value instanceof Integer ? new Rational(value.value, 1n) : null;
+function add(left, right) {
+    const a = exact(left), b = exact(right);
+    return a && b ? a.add(b) : numberValue(left, "coordinate") + numberValue(right, "coordinate");
+}
+function interpolate(from, to) {
+    const a = exact(from), b = exact(to);
+    return a && b ? a.add(b.subtract(a).multiply(new Rational(2n, 3n)))
+        : numberValue(from, "coordinate") + (numberValue(to, "coordinate") - numberValue(from, "coordinate")) * 2 / 3;
+}
 
 function texText(value) {
     return String(value).replace(/[\\{}%$&#_^~]/g, (character) => ({
@@ -145,8 +189,8 @@ function pathSource(node, path, marked = false) {
             if (!current) throw new UnsupportedRenderError(`${path}: quadratic command has no current point`, { target: "tikz" });
             const [cx, cy] = point(field(command, "control"), `Path command ${index + 1} control`);
             const [x, y] = destination(command, index);
-            const control1 = [current[0] + (cx - current[0]) * 2 / 3, current[1] + (cy - current[1]) * 2 / 3];
-            const control2 = [x + (cx - x) * 2 / 3, y + (cy - y) * 2 / 3];
+            const control1 = [interpolate(current[0], cx), interpolate(current[1], cy)];
+            const control2 = [interpolate(x, cx), interpolate(y, cy)];
             parts.push(` .. controls (${stableNumber(control1[0])},${stableNumber(control1[1])}) and (${stableNumber(control2[0])},${stableNumber(control2[1])}) .. (${stableNumber(x)},${stableNumber(y)})`);
             current = [x, y];
             return;
@@ -191,7 +235,7 @@ function scopeOptions(node) {
     if (node.scale !== null && node.scale !== undefined) {
         const scale = Array.isArray(node.scale) || node.scale?.values
             ? point(node.scale, "Transform scale")
-            : [numberValue(node.scale, "Transform scale"), numberValue(node.scale, "Transform scale")];
+            : [node.scale, node.scale];
         values.push(`xscale=${stableNumber(scale[0])}`, `yscale=${stableNumber(scale[1])}`);
     }
     return values.join(",");
@@ -207,7 +251,7 @@ function renderNode(node, state, format, path, inheritedStyle = {}) {
     if (node.kind === "rectangle") {
         const [x, y] = point(node.origin, `${path} origin`);
         const [width, height] = point(node.size, `${path} size`);
-        return `\\path[${reusableStyle(resolvedStyle, state)}] (${stableNumber(x)},${stableNumber(y)}) rectangle (${stableNumber(x + width)},${stableNumber(y + height)});`;
+        return `\\path[${reusableStyle(resolvedStyle, state)}] (${stableNumber(x)},${stableNumber(y)}) rectangle (${stableNumber(add(x, width))},${stableNumber(add(y, height))});`;
     }
     if (node.kind === "circle" || node.kind === "drag_point") {
         const [x, y] = point(node.center, `${path} center`);
@@ -223,7 +267,7 @@ function renderNode(node, state, format, path, inheritedStyle = {}) {
         const options = [
             anchor === "middle" ? "anchor=center" : anchor === "end" ? "anchor=east" : "anchor=west",
             fill ? `text=${fill}` : null,
-            size ? `font=\\fontsize{${stableNumber(size, `${path} font size`)}}{${stableNumber(numberValue(size, `${path} font size`) * 1.2)}}\\selectfont${weight === "bold" ? "\\bfseries" : ""}` : null,
+            size ? `font=\\fontsize{${roundedNumber(size, `${path} font size`)}}{${roundedNumber(numberValue(size, `${path} font size`) * 1.2)}}\\selectfont${weight === "bold" ? "\\bfseries" : ""}` : null,
         ].filter(Boolean).join(",");
         return `\\node[${options}] at (${stableNumber(x)},${stableNumber(y)}) {${texText(textValue(node.text, format))}};`;
     }
@@ -231,8 +275,8 @@ function renderNode(node, state, format, path, inheritedStyle = {}) {
         const options = node.kind === "transform" ? scopeOptions(node) : "";
         const lines = [`\\begin{scope}${options ? `[${options}]` : ""}`];
         if (node.kind === "clip") {
-            const bounds = node.bounds.map((entry, index) => numberValue(entry, `${path} clip bound ${index + 1}`));
-            lines.push(`\\clip (${stableNumber(bounds[0])},${stableNumber(bounds[1])}) rectangle (${stableNumber(bounds[0] + bounds[2])},${stableNumber(bounds[1] + bounds[3])});`);
+            const bounds = node.bounds;
+            lines.push(`\\clip (${stableNumber(bounds[0])},${stableNumber(bounds[1])}) rectangle (${stableNumber(add(bounds[0], bounds[2]))},${stableNumber(add(bounds[1], bounds[3]))});`);
         }
         node.children.forEach((child, index) => lines.push(renderNode(child, state, format, `${path}.${node.kind}[${index + 1}]`, resolvedStyle)));
         lines.push("\\end{scope}");
@@ -265,17 +309,15 @@ function renderPlot(graphic, plot, state, format) {
     state.packages.add("pgfplots");
     const view = field(plot, "view", field(plot, "bounds"));
     if (!view) throw new Error("TikZ plot metadata requires view bounds");
-    const xmin = numberValue(field(view, "xmin"), "plot xmin");
-    const xmax = numberValue(field(view, "xmax"), "plot xmax");
-    const ymin = numberValue(field(view, "ymin"), "plot ymin");
-    const ymax = numberValue(field(view, "ymax"), "plot ymax");
+    const xmin = field(view, "xmin"), xmax = field(view, "xmax");
+    const ymin = field(view, "ymin"), ymax = field(view, "ymax");
     const [width, height] = point(graphic.size, "Graphic size");
     const options = [
         `width=${stableNumber(width)}pt`, `height=${stableNumber(height)}pt`, "scale only axis", "clip=true",
         `xmin=${stableNumber(xmin)}`, `xmax=${stableNumber(xmax)}`,
         `ymin=${stableNumber(ymin)}`, `ymax=${stableNumber(ymax)}`,
-        ymin <= 0 && ymax >= 0 ? "axis x line=middle" : "axis x line=bottom",
-        xmin <= 0 && xmax >= 0 ? "axis y line=middle" : "axis y line=left",
+        numberValue(ymin, "plot ymin") <= 0 && numberValue(ymax, "plot ymax") >= 0 ? "axis x line=middle" : "axis x line=bottom",
+        numberValue(xmin, "plot xmin") <= 0 && numberValue(xmax, "plot xmax") >= 0 ? "axis y line=middle" : "axis y line=left",
     ];
     const title = optionalText(field(plot, "title"), format);
     const xlabel = optionalText(field(plot, "xLabel"), format);
@@ -292,7 +334,10 @@ function renderPlot(graphic, plot, state, format) {
         const tickCountValue = field(plot, "tickCount");
         if (tickCountValue !== null && tickCountValue !== undefined) {
             const tickCount = numberValue(tickCountValue, "plot tick count");
-            options.push(`xtick distance=${stableNumber((xmax - xmin) / (tickCount - 1))}`);
+            const distance = exact(xmin) && exact(xmax) && Number.isInteger(tickCount) && tickCount > 1
+                ? exact(xmax).subtract(exact(xmin)).divide(new Rational(BigInt(tickCount - 1), 1n))
+                : (numberValue(xmax, "plot xmax") - numberValue(xmin, "plot xmin")) / (tickCount - 1);
+            options.push(`xtick distance=${stableNumber(distance)}`);
         }
     }
     const lines = ["\\begin{tikzpicture}", `\\begin{axis}[${options.join(",\n  ")}]`];
@@ -354,6 +399,7 @@ export function renderGraphicTikz(graphic, format, { standalone = false, preambl
     }
     const styles = styleDeclarations(state).join("\n");
     body = styles ? `${styles}\n${body}` : body;
+    if (body.includes("\\fpeval{")) state.packages.add("xfp");
     const declarations = packageDeclarations(state, true);
     let content = `${body}\n`;
     if (preamble) content = `${declarations}\n${content}`;
@@ -377,6 +423,7 @@ export function renderGraphicTikz(graphic, format, { standalone = false, preambl
             pgfplotsCompat: state.packages.has("pgfplots") ? "1.18" : null,
             reusableStyles: state.styles.size,
             lowering: nativePlot ? "pgfplots" : "graphics",
+            coordinateSource: "preserved-exact-rationals",
         },
     };
 }

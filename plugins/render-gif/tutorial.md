@@ -31,3 +31,26 @@ preview the timeline but cannot spawn the PNG rasterizer or GIF encoder.
 - Options: `duration`, `delays`, `loop`, `width`, `height`, `scale`, and
   `background`.
 - CLI tools: `rsvg-convert` or ImageMagick for PNG, then ImageMagick for GIF.
+
+## Keep useful output without an encoder
+
+The same timeline can become a portable HTML contact sheet. Its assets include
+one SVG per retained frame plus exact state, caption/semantic tracks, timing,
+and coordinate/Scene3D evidence in JSON and text sidecars. Exact per-frame
+`frameDurations` are supported; GIF timing is recorded separately in integer
+centiseconds.
+
+```rix
+.Plugin.Load("gif");
+frame := t -> .Figure(.Graphics.Graphic([160,60],[
+    .Graphics.Circle([10+140*t,30],5,{= fill="#2563eb" })
+]),"Exact trajectory sample","trajectory","A point on an exact trajectory");
+timeline := .Timeline.Sequence({= entries=[{: frame,[0,1/3,1] }],frameDurations=[1/4,1/2,3/4] });
+sheet := .Render(timeline,"gif-frames");
+[sheet.Get("mime"),sheet.Get("metadata")];
+```
+
+Write this with `.Out("frames.html",sheet)`. A successful GIF export writes the
+same retained SVG/JSON/text assets and a contact sheet next to the animation.
+Encoder-generated transitions remain display interpolation rather than extra
+certified states.
