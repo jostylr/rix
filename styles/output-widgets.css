@@ -16,7 +16,10 @@
 }
 
 .rix-output-graphic {
+  box-sizing: border-box;
+  min-width: 0;
   max-width: 100%;
+  overflow-wrap: anywhere;
   padding: .55rem;
   border: 1px dashed var(--rix-widget-border);
   color: var(--rix-widget-text);
@@ -58,16 +61,21 @@
 .rix-output-graphic-toolbar-select,
 .rix-output-graphic-toolbar-search {
   display: inline-flex;
+  flex-wrap: wrap;
+  min-width: 0;
+  max-width: 100%;
   align-items: center;
   gap: .25rem;
   color: var(--rix-widget-muted);
   font: 650 .68rem var(--rix-widget-font);
 }
-.rix-output-graphic-toolbar-select select { max-width: min(24rem, 42vw); text-overflow: ellipsis; }
+.rix-output-graphic-toolbar-select select { min-width: 0; max-width: min(100%, 24rem, 42vw); text-overflow: ellipsis; }
 .rix-output-graphic-toolbar-search input { width: min(11rem, 28vw); }
 .rix-output-graphic-inspector {
   display: block;
   min-height: 1.25em;
+  max-height: 12rem;
+  overflow: auto;
   margin-top: .35rem;
   color: var(--rix-widget-text);
   font: .72rem/1.4 var(--rix-widget-mono);
@@ -170,6 +178,13 @@
 .rix-output-graphic-text caption { padding-bottom: .3rem; color: var(--rix-widget-muted); text-align: left; }
 .rix-output-graphic-text th,
 .rix-output-graphic-text td { padding: .25rem .4rem; border: 1px solid var(--rix-widget-border); text-align: left; }
+.rix-output-graphic-coordinate-disclosure { margin-block: .6rem; }
+.rix-output-graphic-table-scroll { max-width: 100%; overflow-x: auto; }
+.rix-output-graphic-coordinate-disclosure td { overflow-wrap: anywhere; min-width: 7ch; max-width: 32ch; }
+.rix-output-graphic-coordinate-disclosure th[scope="col"] { white-space: nowrap; }
+.rix-output-graphic-text { min-width: 0; overflow-wrap: anywhere; }
+.rix-output-graphic-text [aria-current] { outline: 2px solid var(--rix-widget-focus); outline-offset: 2px; }
+.rix-output-graphic-table-scroll:focus-visible { outline: 2px solid var(--rix-widget-focus); }
 .rix-output-graphic-text ol,
 .rix-output-graphic-text ul { padding-left: 1.35rem; }
 .rix-output-audio-trace { display: grid; gap: .45rem; border-color: var(--rix-widget-border-accent); }
@@ -183,7 +198,7 @@
   .rix-output-geometry-workbench { grid-template-columns: 1fr; }
   .rix-output-geometry-tree { grid-row: auto; }
   .rix-output-graphic-toolbar-select select,
-  .rix-output-graphic-toolbar-search input { max-width: 60vw; }
+  .rix-output-graphic-toolbar-search input { max-width: 100%; }
 }
 
 @media (prefers-reduced-motion: reduce) {

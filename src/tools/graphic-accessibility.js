@@ -367,8 +367,52 @@ function constructionRelations(graphic, format) {
     }));
 }
 
+/** Describe coordinate lowering without treating rounded pixels as exact data. */
+export function createGraphicCoordinateDisclosure(graphic, lowering, format = String) {
+    const metadata = lowering?.metadata?.coordinateLowering || lowering?.metadata || lowering;
+    if (metadata?.schema !== "rix.svg.coordinate-lowering@1") return null;
+    const clipping = [];
+    const visit = (node, path) => {
+        if (node?.kind === "clip") clipping.push(Object.freeze({
+            path,
+            bounds: Object.freeze(sequenceValue(node.bounds).map((value) => valueText(value, format))),
+        }));
+        for (const [index, child] of (node?.children || []).entries()) visit(child, `${path}.${node.kind}[${index + 1}]`);
+    };
+    visit(graphic, "graphic");
+    const entries = Object.freeze(metadata.entries.map((entry) => Object.freeze({
+        path: entry.path, role: entry.role, exact: entry.exact, lowered: entry.lowered,
+        lower: entry.lower, upper: entry.upper, certified: entry.certified,
+        approximated: entry.approximated, presentation: entry.presentation ?? null,
+        source: entry.source ?? (entry.certified ? "exact-number" : "approximate-number"),
+    })));
+    const collisions = Object.freeze(metadata.collisions.map((entry) => Object.freeze({
+        role: entry.role, lowered: entry.lowered, exact: Object.freeze([...entry.exact]),
+    })));
+    const summary = `Coordinates use ${metadata.rounding} rounding at ${metadata.precision} decimal places. `
+        + `${metadata.approximated} numeric values were approximated; ${collisions.length} distinct-value collision sets. `
+        + `Exact geometry uses outward enclosure with radius ${metadata.enclosureRadius} SVG user units; this guarantee does not certify approximate inputs. `
+        + (clipping.length ? `${clipping.length} explicit clip regions can hide geometry; retained coordinates remain inspectable.` : "No explicit clip regions; SVG overflow remains visible.");
+    const text = [summary, ...entries.map((entry) => `${entry.path}: source ${entry.exact}; displayed ${entry.lowered}; `
+        + (entry.certified ? `bounds ${entry.lower} to ${entry.upper}` : "approximate input, no certified bounds")
+        + (entry.presentation ? `; ${entry.presentation} source order` : "")),
+    ...collisions.map((entry) => `Collision (${entry.role}): ${entry.exact.join(", ")} display as ${entry.lowered}`),
+    ...clipping.map((entry) => `Clip ${entry.path}: ${entry.bounds.join(", ")}`)].join("\n");
+    return Object.freeze({ schema: "rix.graphics.coordinate-disclosure@1", precision: metadata.precision,
+        rounding: metadata.rounding, guarantee: metadata.guarantee, enclosureRadius: metadata.enclosureRadius,
+        entries, collisions, clipping: Object.freeze(clipping), summary, text });
+}
+
+export function renderGraphicCoordinateDisclosureHtml(disclosure) {
+    if (!disclosure) return "";
+    const rows = disclosure.entries.map((entry) => `<tr><th scope="row">${escapeHtml(entry.path)}</th><td>${escapeHtml(entry.exact)}</td><td>${escapeHtml(entry.lowered)}</td><td>${entry.certified ? `${escapeHtml(entry.lower)} to ${escapeHtml(entry.upper)}` : "No certified bounds"}</td><td>${escapeHtml(entry.source)}${entry.presentation ? `; ${escapeHtml(entry.presentation)}` : ""}</td></tr>`).join("");
+    const collisions = disclosure.collisions.map((entry) => `<li>${escapeHtml(entry.role)}: ${entry.exact.map(escapeHtml).join(", ")} display as ${escapeHtml(entry.lowered)}</li>`).join("");
+    const clips = disclosure.clipping.map((entry) => `<li>${escapeHtml(entry.path)}: ${entry.bounds.map(escapeHtml).join(", ")}</li>`).join("");
+    return `<details class="rix-output-graphic-coordinate-disclosure" data-rix-graphic-detail="coordinates"><summary>Coordinate rounding and uncertainty</summary><p>${escapeHtml(disclosure.summary)}</p><div class="rix-output-graphic-table-scroll" tabindex="0" role="region" aria-label="Exact and displayed graphic coordinates"><table><caption>Exact sources and displayed SVG coordinates</caption><thead><tr><th scope="col">Coordinate</th><th scope="col">Source</th><th scope="col">Displayed</th><th scope="col">Outward bounds</th><th scope="col">Status and order</th></tr></thead><tbody>${rows}</tbody></table></div>${collisions ? `<h4>Rounding collisions</h4><ul>${collisions}</ul>` : ""}${clips ? `<h4>Explicit clipping</h4><ul>${clips}</ul>` : ""}</details>`;
+}
+
 /** Build a deterministic structured-language projection from retained semantics. */
-export function createGraphicsTextPlan(graphic, format = String) {
+export function createGraphicsTextPlan(graphic, format = String, lowering = null) {
     const plot = mapField(graphic?.metadata, "plot");
     const kind = (stringValue(mapField(plot, "kind")) || stringValue(mapField(graphic?.metadata, "kind")) || "mathematical").replaceAll("_", " ");
     const title = stringValue(mapField(plot, "title")) || `${kind[0]?.toUpperCase() || "M"}${kind.slice(1)} graphic`;
@@ -408,6 +452,7 @@ export function createGraphicsTextPlan(graphic, format = String) {
         refinement,
         uncertainty: ambiguous,
         unresolved,
+        coordinateDisclosure: createGraphicCoordinateDisclosure(graphic, lowering, format),
     });
 }
 
@@ -464,28 +509,19 @@ function escapeHtml(value) {
     return String(value).replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
 }
 
-function sampleRows(series) {
-    const samples = series.samples;
-    if (samples.length <= 32) return samples;
-    const indexes = new Set([0, samples.length - 1]);
-    for (let index = 1; index < 15; index += 1) indexes.add(Math.round(index * (samples.length - 1) / 15));
-    return [...indexes].sort((a, b) => a - b).map((index) => samples[index]);
-}
-
 /** Static HTML alternative and audio transport. Hosts progressively enhance it. */
-export function renderGraphicAccessibilityHtml(graphic, format = String) {
-    const textPlan = createGraphicsTextPlan(graphic, format);
+export function renderGraphicAccessibilityHtml(graphic, format = String, lowering = null) {
+    const textPlan = createGraphicsTextPlan(graphic, format, lowering);
     const audioPlan = createAudioTracePlan(graphic, format);
     const axes = textPlan.axes.length ? `<dl class="rix-output-graphic-text-axes">${textPlan.axes.map((axis) => `<div><dt>${escapeHtml(axis.label)} axis</dt><dd>${escapeHtml(axis.scale)}; ${escapeHtml(axis.range.minimumText)} to ${escapeHtml(axis.range.maximumText)}; ${escapeHtml(axis.range.exactness.replace("-", " "))}</dd></div>`).join("")}</dl>` : "";
     const series = textPlan.series.map((entry) => {
-        const rows = sampleRows(entry);
-        const omitted = entry.samples.length - rows.length;
-        return `<details class="rix-output-graphic-series"><summary>${escapeHtml(entry.summary)}</summary><table><caption>${escapeHtml(entry.label)} retained data${omitted ? `; ${omitted} intermediate samples omitted from this concise view` : ""}</caption><thead><tr><th scope="col">Sample</th><th scope="col">x</th><th scope="col">y</th><th scope="col">Status</th></tr></thead><tbody>${rows.map((sample) => `<tr><th scope="row">${sample.index + 1}</th><td>${escapeHtml(sample.xText)}</td><td>${escapeHtml(sample.yText)}</td><td>${escapeHtml(sample.exactness.replace("-", " "))}</td></tr>`).join("")}</tbody></table>${entry.events.length ? `<ul>${entry.events.map((event) => `<li>${escapeHtml(event.label)}</li>`).join("")}</ul>` : ""}</details>`;
+        const rows = entry.samples;
+        return `<details class="rix-output-graphic-series" data-rix-graphic-detail="series:${escapeHtml(entry.id)}"><summary>${escapeHtml(entry.summary)}</summary><table><caption>${escapeHtml(entry.label)} retained data</caption><thead><tr><th scope="col">Sample</th><th scope="col">x</th><th scope="col">y</th><th scope="col">Status</th></tr></thead><tbody>${rows.map((sample) => `<tr><th scope="row">${sample.index + 1}</th><td>${escapeHtml(sample.xText)}</td><td>${escapeHtml(sample.yText)}</td><td>${escapeHtml(sample.exactness.replace("-", " "))}</td></tr>`).join("")}</tbody></table>${entry.events.length ? `<ul>${entry.events.map((event) => `<li>${escapeHtml(event.label)}</li>`).join("")}</ul>` : ""}</details>`;
     }).join("");
     const regions = [...textPlan.unresolved, ...textPlan.uncertainty];
     const semanticPoints = [...textPlan.marks, ...textPlan.intersections, ...textPlan.fieldEvidence];
-    const objects = `<details class="rix-output-graphic-objects"><summary>${textPlan.objects.length} semantic object${textPlan.objects.length === 1 ? "" : "s"}</summary><ol>${textPlan.objects.map((object) => `<li data-rix-graphics-text-object="${escapeHtml(object.id)}"${object.group ? ` data-rix-graphics-text-group="${escapeHtml(object.group)}"` : ""}><strong>${escapeHtml(object.label || object.role.replaceAll("_", " "))}</strong>: ${escapeHtml(object.description)}</li>`).join("")}</ol></details>`;
-    const text = `<details class="rix-output-graphic-text" data-rix-graphics-text-schema="${TEXT_SCHEMA}"><summary>Text alternative: ${escapeHtml(textPlan.title)}</summary><p>${escapeHtml(textPlan.summary)}</p>${axes}${series}${textPlan.refinement.length ? `<section><h4>Adaptive refinement evidence</h4><ul>${textPlan.refinement.map((entry) => `<li>${escapeHtml(entry.summary)}</li>`).join("")}</ul></section>` : ""}${semanticPoints.length ? `<section><h4>Semantic points of interest</h4><ul>${semanticPoints.map((event) => `<li>${escapeHtml(event.label)}</li>`).join("")}</ul></section>` : ""}${textPlan.relations.length ? `<section><h4>Construction dependencies</h4><ol>${textPlan.relations.map((relation) => `<li data-rix-graphics-relation="${escapeHtml(relation.id)}">${escapeHtml(relation.summary)}</li>`).join("")}</ol></section>` : ""}${regions.length ? `<section><h4>Uncertainty and unresolved areas</h4><ul>${regions.map((region) => `<li>${escapeHtml(region)}</li>`).join("")}</ul></section>` : ""}${objects}</details>`;
+    const objects = `<details class="rix-output-graphic-objects" data-rix-graphic-detail="objects"><summary>${textPlan.objects.length} semantic object${textPlan.objects.length === 1 ? "" : "s"}</summary><ol>${textPlan.objects.map((object) => `<li tabindex="-1" data-rix-graphics-text-object="${escapeHtml(object.id)}"${object.group ? ` data-rix-graphics-text-group="${escapeHtml(object.group)}"` : ""}><strong>${escapeHtml(object.label || object.role.replaceAll("_", " "))}</strong>: ${escapeHtml(object.description)}</li>`).join("")}</ol></details>`;
+    const text = `<details class="rix-output-graphic-text" data-rix-graphic-detail="text" data-rix-graphics-text-schema="${TEXT_SCHEMA}"><summary>Text alternative: ${escapeHtml(textPlan.title)}</summary><p>${escapeHtml(textPlan.summary)}</p>${axes}${series}${textPlan.refinement.length ? `<section><h4>Adaptive refinement evidence</h4><ul>${textPlan.refinement.map((entry) => `<li>${escapeHtml(entry.summary)}</li>`).join("")}</ul></section>` : ""}${semanticPoints.length ? `<section><h4>Semantic points of interest</h4><ul>${semanticPoints.map((event) => `<li>${escapeHtml(event.label)}</li>`).join("")}</ul></section>` : ""}${textPlan.relations.length ? `<section><h4>Construction dependencies</h4><ol>${textPlan.relations.map((relation) => `<li data-rix-graphics-relation="${escapeHtml(relation.id)}">${escapeHtml(relation.summary)}</li>`).join("")}</ol></section>` : ""}${renderGraphicCoordinateDisclosureHtml(textPlan.coordinateDisclosure)}${regions.length ? `<section><h4>Uncertainty and unresolved areas</h4><ul>${regions.map((region) => `<li>${escapeHtml(region)}</li>`).join("")}</ul></section>` : ""}${objects}</details>`;
     if (!audioPlan.supported) return text;
     const longest = Math.max(...audioPlan.series.map((entry) => entry.samples.length));
     const seriesOptions = `${audioPlan.series.map((entry, index) => `<option value="${index}">${escapeHtml(entry.label)}</option>`).join("")}${audioPlan.series.length > 1 ? '<option value="overview">Overview (sequential)</option>' : ""}`;

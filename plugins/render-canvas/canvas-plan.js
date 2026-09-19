@@ -2,8 +2,7 @@ import {
     boolValue,
     diagnostic,
     field,
-    numberValue,
-    point,
+    numberValue as rendererNumberValue,
     rixString,
     sequence,
     stableNumber,
@@ -11,6 +10,21 @@ import {
     textValue,
 } from "../renderers/common.js";
 import { createSelection, createViewport, invertViewportPoint } from "../renderers/interaction.js";
+import { lowerGraphicSvg } from "../../src/runtime/output.js";
+import { createGraphicCoordinateDisclosure, createGraphicsTextPlan } from "../../src/tools/graphic-accessibility.js";
+import { Rational, RationalInterval, CertifiedApproximation } from "@ratmath/core";
+
+function numberValue(value, label) {
+    if (value instanceof RationalInterval) value = value.low.add(value.high).divide(new Rational(2));
+    if (value instanceof CertifiedApproximation) value = value.candidate;
+    return rendererNumberValue(value, label);
+}
+
+function point(value, label) {
+    const values = sequence(value, label);
+    if (values.length !== 2) throw new Error(`${label} must contain two coordinates`);
+    return values.map((entry, index) => numberValue(entry, `${label} ${index ? "y" : "x"}`));
+}
 
 function semanticId(node, path) {
     return rixString(styleValue(node.style, "hitId"))
@@ -195,6 +209,11 @@ export function createCanvasPlan(graphic, format, options = {}) {
     const dirtyRegions = interaction.hitRegions.filter((region) => selected.size === 0 || selected.has(region.semanticId)).map((region) => region.bounds);
     const assets = canvasAssets(options);
     if (assets.length) diagnostics.push(diagnostic("canvas-assets-deferred", `${assets.length} image asset${assets.length === 1 ? " is" : "s are"} declared for host loading`, "info"));
+    const reference = lowerGraphicSvg(graphic, format, options);
+    const coordinateDisclosure = createGraphicCoordinateDisclosure(graphic, reference, format);
+    const textPlan = createGraphicsTextPlan(graphic, format);
+    const numericPolicy = "Canvas uses approximate binary floating-point coordinates. SVG reference bounds describe the retained sources; Canvas pixels are not a certified outward enclosure.";
+    diagnostics.push(diagnostic("canvas-coordinate-approximation", numericPolicy, "info"));
     return {
         schema: "rix.canvas-plan@1",
         phase: 2,
@@ -212,7 +231,11 @@ export function createCanvasPlan(graphic, format, options = {}) {
         accessibility: {
             schema: "rix.canvas-accessibility@1",
             objects: interaction.accessibility,
-            text: interaction.accessibility.map(({ label, role }) => `${role}: ${label}`).join("\n"),
+            coordinateDisclosure,
+            numericPolicy,
+            textPlan,
+            text: [textPlan.summary, numericPolicy, coordinateDisclosure.text,
+                ...interaction.accessibility.map(({ label, role }) => `${role}: ${label}`)].join("\n"),
         },
         diagnostics,
     };

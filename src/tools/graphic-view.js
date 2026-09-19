@@ -374,10 +374,14 @@ export function graphicPointFromClient(rect, viewBox, client) {
     if (!(width > 0) || !(height > 0) || !(boxWidth > 0) || !(boxHeight > 0)) {
         throw new Error("Graphic drag coordinates require non-empty bounds");
     }
+    // SVG's default xMidYMid meet preserves aspect ratio and letterboxes.
+    const scale = Math.min(width / boxWidth, height / boxHeight);
+    const insetX = (width - boxWidth * scale) / 2;
+    const insetY = (height - boxHeight * scale) / 2;
     const x = Number(viewBox.x || 0)
-        + ((Number(client.x) - Number(rect.left || 0)) / width) * boxWidth;
+        + (Number(client.x) - Number(rect.left || 0) - insetX) / scale;
     const y = Number(viewBox.y || 0)
-        + ((Number(client.y) - Number(rect.top || 0)) / height) * boxHeight;
+        + (Number(client.y) - Number(rect.top || 0) - insetY) / scale;
     return Object.freeze([
         Math.min(Math.max(x, Number(viewBox.x || 0)), Number(viewBox.x || 0) + boxWidth),
         Math.min(Math.max(y, Number(viewBox.y || 0)), Number(viewBox.y || 0) + boxHeight),
@@ -407,6 +411,25 @@ export function createGraphicViewState(width, height, target = {}) {
         hitTolerance: HIT_TOLERANCES.includes(Number(target.navigation?.hitTolerance)) ? Number(target.navigation.hitTolerance) : 8,
     };
     return target;
+}
+
+/** Keep only identities still present after a reactive scene replacement. */
+export function reconcileGraphicSelection(state, ids) {
+    const available = new Set(ids);
+    const previous = state.selection || { ids: [], focus: null };
+    state.selection = {
+        schema: "rix.selection@1",
+        ids: previous.ids.filter((id) => available.has(id)),
+        focus: available.has(previous.focus) ? previous.focus : null,
+    };
+    return state.selection;
+}
+
+/** Repeating an unchanged message must not retrigger live-region speech. */
+export function announceGraphicStatus(status, message) {
+    if (!status || status.textContent === message) return false;
+    status.textContent = message;
+    return true;
 }
 
 export function graphicViewBox(state) {
@@ -461,6 +484,9 @@ export function updateGraphicGesture(state, previousPointers, nextPointers, rect
     const width = Number(rect?.width);
     const height = Number(rect?.height);
     if (!(width > 0) || !(height > 0)) throw new Error("Graphic gesture requires non-empty bounds");
+    const scale = Math.min(width / state.viewport.width, height / state.viewport.height);
+    const insetX = (width - state.viewport.width * scale) / 2;
+    const insetY = (height - state.viewport.height * scale) / 2;
     const common = previous.filter((pointer) => gesturePointer(next, pointer.id));
     if (!common.length) return Object.freeze({ type: "none", changed: false });
     if (common.length >= 2) {
@@ -479,14 +505,14 @@ export function updateGraphicGesture(state, previousPointers, nextPointers, rect
         const oldDistance = distance(before);
         const newDistance = distance(after);
         const anchor = [
-            (oldMidpoint[0] - Number(rect.left || 0)) / width * state.viewport.width,
-            (oldMidpoint[1] - Number(rect.top || 0)) / height * state.viewport.height,
+            (oldMidpoint[0] - Number(rect.left || 0) - insetX) / scale,
+            (oldMidpoint[1] - Number(rect.top || 0) - insetY) / scale,
         ];
         if (oldDistance > 0 && newDistance > 0) zoomGraphicViewport(state, newDistance / oldDistance, anchor);
         panGraphicViewport(
             state,
-            (newMidpoint[0] - oldMidpoint[0]) * state.viewport.width / width,
-            (newMidpoint[1] - oldMidpoint[1]) * state.viewport.height / height,
+            (newMidpoint[0] - oldMidpoint[0]) / scale,
+            (newMidpoint[1] - oldMidpoint[1]) / scale,
         );
         return Object.freeze({
             type: "pinch",
@@ -497,7 +523,7 @@ export function updateGraphicGesture(state, previousPointers, nextPointers, rect
     const after = gesturePointer(next, before.id);
     const deltaX = Number(after.x) - Number(before.x);
     const deltaY = Number(after.y) - Number(before.y);
-    panGraphicViewport(state, deltaX * state.viewport.width / width, deltaY * state.viewport.height / height);
+    panGraphicViewport(state, deltaX / scale, deltaY / scale);
     return Object.freeze({ type: "pan", changed: deltaX !== 0 || deltaY !== 0 });
 }
 
@@ -982,11 +1008,19 @@ function installNavigation(graphic, svg, status, options) {
         || element.dataset?.rixGraphicAction
         || !element.querySelector?.("[data-rix-semantic-id]")
     ));
+    reconcileGraphicSelection(state, semanticElements.map((element) => element.dataset.rixSemanticId));
     const densityPlan = createGraphicDensityPlan(selectable.length);
     graphic.dataset.rixGraphicDensityProjection = densityPlan.preferredProjection;
     graphic.dataset.rixGraphicSemanticMode = densityPlan.semanticMode;
     graphic.dataset.rixGraphicSourceCount = String(densityPlan.sourceCount);
     const catalog = new Map(graphicSelectionCatalog(options.graphic, options.format || String).map((entry) => [entry.id, entry]));
+    for (const element of selectable) {
+        // Programmatic focus enables spatial navigation without a tab stop per mark.
+        if (!element.hasAttribute?.("tabindex")) element.setAttribute?.("tabindex", "-1");
+        if (!element.hasAttribute?.("aria-label")) {
+            element.setAttribute?.("aria-label", catalog.get(element.dataset.rixSemanticId)?.label || element.dataset.rixSemanticId);
+        }
+    }
     const scopeSelect = toolbar?.querySelector?.("[data-rix-graphic-selection-scope]") || null;
     const objectSelect = toolbar?.querySelector?.("[data-rix-graphic-object-select]") || null;
     const searchInput = toolbar?.querySelector?.("[data-rix-graphic-search]") || null;
@@ -1061,7 +1095,7 @@ function installNavigation(graphic, svg, status, options) {
             origin: Object.freeze([...state.viewport.origin]),
             pan: Object.freeze([...state.viewport.pan]),
         }, source });
-        if (status) status.textContent = `Graphic view at ${Math.round(state.viewport.zoom * 100)}% zoom`;
+        announceGraphicStatus(status, `Graphic view at ${Math.round(state.viewport.zoom * 100)}% zoom`);
         dispatchGraphicEvent(graphic, "rix-graphic-viewport", detail);
         options.onViewport?.(detail, graphic);
         savePreferences();
@@ -1085,7 +1119,7 @@ function installNavigation(graphic, svg, status, options) {
         const plot = plotInspection(options.graphic, scenePoint, options.format || String);
         const message = plot ? `${exact} · ${plot}` : exact;
         if (inspector) inspector.textContent = message;
-        if (status) status.textContent = message;
+        if (source !== "restore") announceGraphicStatus(status, message);
         const detail = Object.freeze({ type: "graphic:selection", selection: {
             schema: "rix.selection@1", ids: Object.freeze([...state.selection.ids]), focus: state.selection.focus,
         }, exact: message, source });
@@ -1117,7 +1151,12 @@ function installNavigation(graphic, svg, status, options) {
     for (const element of semanticElements) {
         if (state.selection.ids.includes(element.dataset.rixSemanticId)) element.classList?.add("rix-output-semantic-selected");
     }
+    for (const textObject of graphic.querySelectorAll?.("[data-rix-graphics-text-object]") || []) {
+        textObject.toggleAttribute?.("aria-current", textObject.dataset.rixGraphicsTextObject === state.selection.focus);
+    }
+    const selectedElement = semanticElements.find((element) => element.dataset.rixSemanticId === state.selection.focus);
     applyViewport();
+    if (selectedElement && inspector) inspector.textContent = describe(selectedElement);
 
     scopeSelect?.addEventListener?.("change", () => {
         state.navigation.scope = scopeSelect.value || "all";
@@ -1233,10 +1272,8 @@ function installNavigation(graphic, svg, status, options) {
     svg.addEventListener("wheel", (event) => {
         event.preventDefault?.();
         const rect = svg.getBoundingClientRect();
-        const anchor = [
-            (event.clientX - rect.left) / rect.width * state.viewport.width,
-            (event.clientY - rect.top) / rect.height * state.viewport.height,
-        ];
+        const anchor = graphicPointFromClient(rect, { x: 0, y: 0, width: state.viewport.width, height: state.viewport.height },
+            { x: event.clientX, y: event.clientY });
         zoomGraphicViewport(state, Math.exp(-finiteNumber(event.deltaY) * 0.002), anchor);
         applyViewport();
         clearTimeout(wheelAnnouncement);

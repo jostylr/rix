@@ -17,6 +17,8 @@ import {
     serializeGeometryConstructionRecord,
     updateGraphicGesture,
     zoomGraphicViewport,
+    reconcileGraphicSelection,
+    announceGraphicStatus,
 } from "../../src/tools/graphic-view.js";
 
 describe("portable Graphic host interaction helpers", () => {
@@ -49,6 +51,14 @@ describe("portable Graphic host interaction helpers", () => {
         )).toEqual([10, 120]);
     });
 
+    test("inverts SVG letterboxing when host and scene aspect ratios differ", () => {
+        const rect = { left: 10, top: 20, width: 400, height: 100 };
+        const viewBox = { x: 5, y: 7, width: 100, height: 100 };
+        expect(graphicPointFromClient(rect, viewBox, { x: 160, y: 45 })).toEqual([5, 32]);
+        expect(graphicPointFromClient(rect, viewBox, { x: 185, y: 45 })).toEqual([30, 32]);
+        expect(graphicPointFromClient(rect, viewBox, { x: 300, y: 45 })).toEqual([105, 32]);
+    });
+
     test("rejects empty rendering bounds", () => {
         expect(() => graphicPointFromClient(
             { left: 0, top: 0, width: 0, height: 100 },
@@ -59,6 +69,46 @@ describe("portable Graphic host interaction helpers", () => {
 });
 
 describe("shared Graphic viewport and exact inspection", () => {
+    test("deterministic transform properties preserve anchors across zoom, pan, and responsive bounds", () => {
+        let seed = 0x51a7;
+        const next = () => ((seed = (1664525 * seed + 1013904223) >>> 0) / 2 ** 32);
+        for (let index = 0; index < 256; index += 1) {
+            const width = 20 + next() * 4000;
+            const height = 20 + next() * 2000;
+            const state = createGraphicViewState(width, height);
+            panGraphicViewport(state, next() * 100 - 50, next() * 100 - 50);
+            const anchor = [next() * width, next() * height];
+            const before = graphicViewBox(state);
+            const expected = [before.x + anchor[0], before.y + anchor[1]];
+            zoomGraphicViewport(state, 0.01 + next() * 1000, anchor);
+            const after = graphicViewBox(state);
+            const actual = [after.x + anchor[0] / state.viewport.zoom, after.y + anchor[1] / state.viewport.zoom];
+            expect(actual[0]).toBeCloseTo(expected[0], 8);
+            expect(actual[1]).toBeCloseTo(expected[1], 8);
+            const rect = { left: 31, top: 17, width: 80 + next() * 900, height: 60 + next() * 600 };
+            const x = next(), y = next();
+            const scale = Math.min(rect.width / after.width, rect.height / after.height);
+            const point = graphicPointFromClient(rect, after, {
+                x: rect.left + (rect.width - after.width * scale) / 2 + x * after.width * scale,
+                y: rect.top + (rect.height - after.height * scale) / 2 + y * after.height * scale,
+            });
+            expect(point[0]).toBeCloseTo(after.x + x * after.width, 8);
+            expect(point[1]).toBeCloseTo(after.y + y * after.height, 8);
+            expect(state.viewport.zoom).toBeGreaterThanOrEqual(1 / 8);
+            expect(state.viewport.zoom).toBeLessThanOrEqual(64);
+        }
+    });
+
+    test("removed identities are pruned and unchanged live messages are silent", () => {
+        const state = createGraphicViewState(100, 60, { selection: { ids: ["a", "b"], focus: "b" } });
+        expect(reconcileGraphicSelection(state, ["a", "c"])).toEqual({ schema: "rix.selection@1", ids: ["a"], focus: null });
+        let writes = 0, message = "Ready";
+        const status = { get textContent() { return message; }, set textContent(value) { message = value; writes += 1; } };
+        expect(announceGraphicStatus(status, "Ready")).toBe(false);
+        expect(announceGraphicStatus(status, "Selected a")).toBe(true);
+        expect(announceGraphicStatus(status, "Selected a")).toBe(false);
+        expect(writes).toBe(1);
+    });
     test("zooms around a stable anchor, pans, resets, and publishes shared schemas", () => {
         const state = createGraphicViewState(200, 100);
         zoomGraphicViewport(state, 2, [50, 25]);
@@ -111,6 +161,18 @@ describe("shared Graphic viewport and exact inspection", () => {
         )).toEqual({ type: "pinch", changed: true });
         expect(state.viewport.zoom).toBeCloseTo(1.2);
         expect(graphicViewBox(state).width).toBeCloseTo(200 / 1.2);
+    });
+
+    test("pan and pinch use the SVG letterbox scale", () => {
+        const state = createGraphicViewState(100, 100);
+        const rect = { left: 0, top: 0, width: 400, height: 100 };
+        updateGraphicGesture(state, [{ id: 1, x: 200, y: 50 }], [{ id: 1, x: 220, y: 60 }], rect);
+        expect(state.viewport.pan).toEqual([20, 10]);
+        resetGraphicViewport(state);
+        updateGraphicGesture(state, [{ id: 1, x: 175, y: 50 }, { id: 2, x: 225, y: 50 }],
+            [{ id: 1, x: 150, y: 50 }, { id: 2, x: 250, y: 50 }], rect);
+        expect(state.viewport.zoom).toBe(2);
+        expect(state.viewport.pan).toEqual([-50, -50]);
     });
 
     test("gesture updates require real layout bounds and ignore unrelated pointer ids", () => {

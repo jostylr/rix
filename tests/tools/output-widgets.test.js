@@ -4,8 +4,34 @@ import {
     restoreControlPanelFocus,
     restoreGraphicFocus,
     restoreSheetFocus,
+    captureGraphicPresentation,
+    restoreGraphicPresentation,
 } from "../../src/tools/output-widgets.js";
 import { formatValue, parseAndEvaluate } from "../../src/index.js";
+
+test("reactive graphic presentation restores open disclosures and stable toolbar focus without stealing external focus", () => {
+    const make = () => {
+        const details = ["text", "coordinates"].map((key) => ({ open: false, getAttribute: () => key }));
+        const search = { tagName: "INPUT", focused: false, focus(options) { this.focused = options.preventScroll; },
+            hasAttribute: (name) => name === "data-rix-graphic-search", getAttribute: () => "true" };
+        const graphic = { contains: (element) => element === search,
+            querySelectorAll: (selector) => selector === "[data-rix-graphic-detail]" ? details
+                : selector === "[data-rix-graphic-search]" ? [search] : [] };
+        const root = { ownerDocument: { activeElement: search }, querySelectorAll: () => [graphic] };
+        return { root, details, search };
+    };
+    const before = make();
+    before.details.forEach((detail) => { detail.open = true; });
+    const snapshot = captureGraphicPresentation(before.root);
+    expect(snapshot.focus).toMatchObject({ kind: "graphic", graphicIndex: 0, attribute: "data-rix-graphic-search", value: "true" });
+    const after = make();
+    restoreGraphicPresentation(after.root, snapshot);
+    expect(after.details.map((detail) => detail.open)).toEqual([true, true]);
+    expect(restoreGraphicFocus(after.root, snapshot.focus)).toBe(true);
+    expect(after.search.focused).toBe(true);
+    before.root.ownerDocument.activeElement = {};
+    expect(captureGraphicPresentation(before.root).focus).toBeNull();
+});
 
 function fakeSheet(addresses) {
     const cells = addresses.map((address) => ({

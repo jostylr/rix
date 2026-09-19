@@ -115,6 +115,17 @@ export function restoreGraphicFocus(root, request) {
     if (!request) return false;
     const graphicRoot = renderedGraphicRoots(root)[request.graphicIndex];
     if (!graphicRoot) return false;
+    if (request.surface || request.attribute) {
+        const candidates = request.surface
+            ? [graphicRoot.querySelector?.("svg.rix-output-svg")]
+            : [...graphicRoot.querySelectorAll(`[${request.attribute}]`)];
+        let target = candidates.find((candidate) => candidate && (request.surface || candidate.getAttribute(request.attribute) === request.value));
+        if (request.summary) target = target?.querySelector?.("summary");
+        target ||= graphicRoot.querySelector?.("svg.rix-output-svg");
+        if (!target) return false;
+        target.focus?.({ preventScroll: true });
+        return true;
+    }
     const selector = request.actionId ? "[data-rix-graphic-action]" : "[data-rix-drag-target]";
     const handle = [...graphicRoot.querySelectorAll(selector)]
         .find((candidate) => request.actionId
@@ -123,6 +134,45 @@ export function restoreGraphicFocus(root, request) {
     if (!handle) return false;
     handle.focus();
     return true;
+}
+
+const graphicFocusAttributes = [
+    "data-rix-graphic-view-command", "data-rix-graphic-search", "data-rix-graphic-object-select",
+    "data-rix-graphic-selection-scope", "data-rix-graphic-hit-tolerance", "data-rix-graphic-detail",
+    "data-rix-semantic-id", "data-rix-graphics-text-object",
+];
+
+/** Capture only local presentation state, never runtime handles or recipes. */
+export function captureGraphicPresentation(root) {
+    const active = root?.ownerDocument?.activeElement;
+    let focus = null;
+    const graphics = renderedGraphicRoots(root).map((graphic, graphicIndex) => {
+        const details = [...(graphic.querySelectorAll?.("[data-rix-graphic-detail]") || [])]
+            .map((detail) => ({ key: detail.getAttribute("data-rix-graphic-detail"), open: Boolean(detail.open) }));
+        if (active && graphic.contains?.(active)) {
+            if (active.matches?.("svg.rix-output-svg")) focus = { kind: "graphic", graphicIndex, surface: true };
+            for (const attribute of graphicFocusAttributes) {
+                const candidate = active.hasAttribute?.(attribute) ? active
+                    : active.tagName?.toLowerCase() === "summary" && active.parentElement?.hasAttribute?.(attribute) ? active.parentElement : null;
+                if (candidate) {
+                    focus = { kind: "graphic", graphicIndex, attribute, value: candidate.getAttribute(attribute), summary: candidate !== active };
+                    break;
+                }
+            }
+        }
+        return { details };
+    });
+    return { graphics, focus };
+}
+
+export function restoreGraphicPresentation(root, snapshot) {
+    renderedGraphicRoots(root).forEach((graphic, index) => {
+        const details = new Map((snapshot?.graphics[index]?.details || []).map((entry) => [entry.key, entry.open]));
+        for (const detail of graphic.querySelectorAll?.("[data-rix-graphic-detail]") || []) {
+            const key = detail.getAttribute("data-rix-graphic-detail");
+            if (details.has(key)) detail.open = details.get(key);
+        }
+    });
 }
 
 export function restoreControlPanelFocus(root, request) {
@@ -524,11 +574,13 @@ export function mountOutputWidgets(root, value, options = {}) {
             mountWidgets(liveRoot, value.current);
             const unsubscribe = value.subscribe((event) => {
                 if (disposed || event.type !== "live:commit") return;
-                const focusRequest = pendingFocusRequest;
+                const presentation = captureGraphicPresentation(liveRoot);
+                const focusRequest = pendingFocusRequest || presentation.focus;
                 pendingFocusRequest = null;
                 liveRoot.innerHTML = render(value.current);
                 liveRoot.dataset.rixLiveRevision = String(value.revision);
                 mountWidgets(liveRoot, value.current);
+                restoreGraphicPresentation(liveRoot, presentation);
                 restoreOutputFocus(liveRoot, focusRequest);
                 options.onLiveChange?.(event, liveRoot);
             });
@@ -541,11 +593,13 @@ export function mountOutputWidgets(root, value, options = {}) {
     if (typeof options.observe === "function") {
         const unsubscribe = options.observe((nextValue, event = null) => {
             if (disposed) return;
-            const focusRequest = pendingFocusRequest;
+            const presentation = captureGraphicPresentation(root);
+            const focusRequest = pendingFocusRequest || presentation.focus;
             pendingFocusRequest = null;
             currentValue = nextValue;
             root.innerHTML = render(currentValue);
             mountWidgets(root, currentValue);
+            restoreGraphicPresentation(root, presentation);
             restoreOutputFocus(root, focusRequest);
             options.onLiveChange?.(event, root);
         });
