@@ -51,6 +51,7 @@ project:
     - eval/document-persistence.md
     - eval/output-assets.md
     - eval/numeric-presentation.md
+    - eval/publication-plan.md
     - eval/graphic-coordinate-disclosure.md
     - eval/exact-exploration.md
     - eval/types-and-traits-guide.md

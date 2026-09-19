@@ -9,6 +9,7 @@ import { isMathExpression } from "./math-expression.js";
 import { realConstantState } from "./math-real.js";
 import { createShaped, isShaped, shapedScalarDomain, shapedGetBySelectors } from "./shaped.js";
 import { createNumericPolicy } from "./numeric-presentation.js";
+import { createPublicationPlan, validatePublicationTree } from "./publication-plan.js";
 
 export const OUTPUT_DOCUMENT_SCHEMA = "rix.output.document@1";
 const DEFAULTS = Object.freeze({ maxBytes: 4_000_000, maxNodes: 20_000, maxEdges: 100_000, maxDepth: 128, maxDigits: 4096 });
@@ -208,7 +209,10 @@ function restoreOutput(kind, fields, path) {
     } else if (kind === "drag_point" || kind === "graphic_action") {
         fail("interactive graphic nodes require a static Graphic snapshot", path);
     }
+    const publicationPlan = fields.publicationPlan == null ? null : createPublicationPlan(fields.publicationPlan, fields);
+    if (publicationPlan) validatePublicationTree(fields, publicationPlan);
     return Object.freeze({ ...fields, ...restored,
+        ...(publicationPlan ? { publicationPlan } : {}),
         ...(fields.numericPolicy !== null && fields.numericPolicy !== undefined ? {numericPolicy:createNumericPolicy(fields.numericPolicy)} : {}),
         _ext: restored?._ext ?? new Map([["immutable", new Integer(1n)]]) });
 }

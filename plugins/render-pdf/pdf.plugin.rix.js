@@ -34,8 +34,9 @@ export function createDefinition(compileLatex = null) {
                     target: "pdf",
                 });
             }
-            const profile = (rixString(option(options, "profile")) || (value?.kind === "slides" ? "slides" : ["graphic", "figure"].includes(value?.kind) ? "figure" : "document")).toLowerCase();
+            const profile = (rixString(option(options, "profile")) || (["slide","slides"].includes(value?.kind) ? "slides" : ["graphic", "figure"].includes(value?.kind) ? "figure" : "document")).toLowerCase();
             if (!["document", "figure", "slides"].includes(profile)) throw new Error("PDF profile must be document, figure, or slides");
+            if (profile === "slides" && !["slide","slides"].includes(value?.kind)) throw new Error("PDF slides profile requires explicit Slide/Slides content");
             const bookmarksValue = option(options, "bookmarks", true);
             const bookmarks = bookmarksValue === true || boolValue(bookmarksValue);
             const metadata = plainValue(option(options, "metadata")) || {};
@@ -51,6 +52,7 @@ export function createDefinition(compileLatex = null) {
                 placement: rixString(option(options, "placement", "htbp")) || "htbp",
                 bookmarks,
                 metadata,
+                publicationPlan: option(options, "publicationPlan"), outputTarget: "pdf",
             });
             const compiled = compileLatex(latex.content, options, latex.assets);
             const fontDiagnostics = compiled.fonts
@@ -61,10 +63,11 @@ export function createDefinition(compileLatex = null) {
                 toolchain: compiled.toolchain,
                 diagnostics: [...latex.diagnostics, ...(compiled.diagnostics || []), ...fontDiagnostics],
                 metadata: {
-                    schema: "rix.pdf.render@2", pages: compiled.pages || null, profile,
-                    pageSize: latex.metadata.pageSize, bookmarks, documentMetadata: metadata,
+                    schema: "rix.pdf.render@2", pages: compiled.pages || null, profile:latex.metadata.documentClass==="beamer"?"slides":profile,
+                    pageSize: latex.metadata.pageSize, slideSize:latex.metadata.slideSize, bookmarks, documentMetadata: metadata,
                     fonts: compiled.fonts || [], packages: latex.metadata.packages,
                     figureAsset: latex.metadata.figureAsset, assetCount: latex.assets.length,
+                    publicationPlan: latex.metadata.publicationPlan, documentClass: latex.metadata.documentClass,
                 },
             };
         },

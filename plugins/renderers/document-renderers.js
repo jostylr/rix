@@ -1,5 +1,6 @@
 import { normalizeAssetReference, isExternalAssetReference } from "../../src/runtime/output-assets.js";
 import { numericFormatter, numericFormatterPolicy } from "../../src/runtime/numeric-presentation.js";
+import { resolvePublicationPlan, validatePublicationTree, publicationDiagnostics, visitPublicationTree } from "../../src/runtime/publication-plan.js";
 /** Structured document lowering shared by Markdown, Quarto, and LaTeX. */
 
 import { formatOutputText, isInlineOutput, isOutputValue, renderGraphicSvg } from "../../src/runtime/output.js";
@@ -147,7 +148,7 @@ function blockMarkdown(value, state, depth = 0) {
         const body = [value.caption ? `**${markdownEscape(value.caption)}**` : null, markdownTable(value, state)].filter(Boolean).join("\n\n");
         if (!value.label) return body;
         return state.quarto
-            ? `::: {#tbl-${value.label.replace(/^tbl-/, "")}}\n${body}\n:::`
+            ? `${value.label.startsWith("tbl-")?"":`[]{#${value.label}}\n\n`}::: {#tbl-${value.label.replace(/^tbl-/, "")}}\n${body}\n:::`
             : `<a id="${value.label.replaceAll('"', '&quot;')}"></a>\n\n${body}`;
     }
     if (value.kind === "grid" || value.kind === "sheet") {
@@ -160,8 +161,8 @@ function blockMarkdown(value, state, depth = 0) {
         const body = blockMarkdown(value.content, state, depth);
         state.figureAlt = previousAlt;
         const caption = value.caption ? `*${markdownEscape(value.caption)}*` : "";
-        if (state.quarto && value.label) return `::: {#fig-${value.label.replace(/^fig-/, "")}}\n${body}\n\n${caption}\n:::`;
-        return [body, caption].filter(Boolean).join("\n\n");
+        if (state.quarto && value.label) return `${value.label.startsWith("fig-")?"":`[]{#${value.label}}\n\n`}::: {#fig-${value.label.replace(/^fig-/, "")}}\n${body}\n\n${caption}\n:::`;
+        return [value.label?`<a id="${value.label.replaceAll('"', '&quot;')}"></a>`:null,body, caption].filter(Boolean).join("\n\n");
     }
     if (value.kind === "graphic") return graphicMarkdown(value, state);
     if (value.kind === "slide") return [`## ${markdownEscape(value.title || "Slide")}`, blockMarkdown(value.content, state, depth)].join("\n\n");
@@ -170,10 +171,16 @@ function blockMarkdown(value, state, depth = 0) {
     return formatOutputText(value, state.format);
 }
 
-export function renderMarkdown(value, { format, render, quarto = false, graphic = null, rawMarkup = "fallback" } = {}) {
+export function renderMarkdown(value, { format, render, quarto = false, graphic = null, rawMarkup = "fallback", publicationPlan = null } = {}) {
     if (!["allow", "fallback", "deny"].includes(rawMarkup)) throw new Error("rawMarkup must be allow, fallback, or deny");
-    const state = { format, render, quarto, graphic, rawMarkup, target: quarto ? "quarto" : "markdown", diagnostics: [], figureAlt: null };
-    return { content: `${blockMarkdown(value, state).trim()}\n`, diagnostics: state.diagnostics };
+    const plan=resolvePublicationPlan(value,publicationPlan?{publicationPlan}:{});
+    validatePublicationTree(value,plan);
+    const state = { format, render, quarto, graphic, rawMarkup, target: quarto ? "quarto" : "markdown", diagnostics: publicationDiagnostics(plan,quarto?"quarto":"markdown"), figureAlt: null };
+    let content=blockMarkdown(value,state).trim();
+    if (quarto && plan.columns>1 && plan.profile==="article") content=`::: {.rix-publication-columns style="column-count:${plan.columns};column-gap:2em"}\n${content}\n:::`;
+    if (plan.index.length) content+=`\n\n## Index\n\n${plan.index.map(entry=>`- [${markdownEscape(entry.term)}](#${entry.label})`).join("\n")}`;
+    if (plan.runningRegions && value.publicationPlan) state.diagnostics.push(diagnostic("publication-running-region-flow", "Markdown/Quarto retain report headers and footers in document flow; repeated page regions depend on the target", "info"));
+    return { content: `${content}\n`, diagnostics: state.diagnostics, metadata:{publicationPlan:plan} };
 }
 
 function texEscape(value) {
@@ -238,6 +245,58 @@ function latexGrid(value, state) {
     return `\\begin{tabular}{${columns}}\n${rows.join("\n")}\n\\end{tabular}`;
 }
 
+function longTableInside(value, state) {
+    let found = false;
+    visitPublicationTree(value, node => { if (node.kind === "table" && node.rows.length >= state.plan.longTableRows) found = true; });
+    return found;
+}
+function latexChildren(children, state) {
+    if (!state.layoutActive || state.plan.columns === 1 || state.inColumns || state.slides) return children.map(child => blockLatex(child, state)).join("\n\n");
+    const parts = [], run = [];
+    const flush = () => {
+        if (!run.length) return;
+        state.packages.add("multicol"); state.inColumns = true;
+        try { parts.push(`\\begin{multicols}{${state.plan.columns}}\n${run.map(child => blockLatex(child, state)).join("\n\n")}\n\\end{multicols}`); }
+        finally { state.inColumns = false; run.length = 0; }
+    };
+    for (const child of children) {
+        if (child?.documentRegion || longTableInside(child, state)) { flush(); parts.push(blockLatex(child, state)); }
+        else run.push(child);
+    }
+    flush(); return parts.join("\n\n");
+}
+function publicationLatexTable(value, state) {
+    const columns = value.columns.map(column => column.align === "right" ? "r" : column.align === "center" ? "c" : "l").join("");
+    const header = `${value.columns.map(({label})=>texEscape(label)).join(" & ")} \\\\\n\\midrule`;
+    const caption = value.caption ? `\\textbf{${texEscape(value.caption)}}\n\n` : "";
+    const anchor = value.label ? `\\phantomsection\\label{${texEscape(value.label)}}\\hypertarget{${texEscape(value.label)}}{}\n` : "";
+    if (state.slides) {
+        const chunks = [];
+        for (let start=0;start<value.rows.length || start===0;start+=state.plan.longTableRows) {
+            const rows=value.rows.slice(start,start+state.plan.longTableRows);
+            chunks.push(`${start===0?anchor:""}${caption}\\begin{tabular}{${columns}}\n\\toprule\n${header}\n${latexRows(rows,state)}\n\\bottomrule\n\\end{tabular}`);
+        }
+        return chunks.join("\n\\framebreak\n");
+    }
+    if (value.rows.length >= state.plan.longTableRows) {
+        state.packages.add("longtable");
+        const first = value.caption ? `\\caption*{${texEscape(value.caption)}}\\\\\n` : "";
+        state.packages.add("caption");
+        return `${anchor}\\begin{longtable}{${columns}}\n${first}\\toprule\n${header}\n\\endfirsthead\n${state.plan.repeatTableHeaders?`\\toprule\n${header}\n`:""}\\endhead\n\\bottomrule\n\\endfoot\n${latexRows(value.rows,state)}\n\\end{longtable}`;
+    }
+    const table=`${anchor}${caption}\\begin{tabular}{${columns}}\n\\toprule\n${header}\n${latexRows(value.rows,state)}\n\\bottomrule\n\\end{tabular}`;
+    if (state.plan.floats === "inline") return table;
+    const position={top:"t",bottom:"b",page:"p"}[state.plan.floats];
+    return `\\begin{table}[${position}]\n\\centering\n${table}\n\\end{table}`;
+}
+
+function publicationLatexIndex(state) {
+    if (!state.plan.index.length) return "";
+    const entries=state.plan.index.map(entry=>`\\item[${texEscape(entry.term)}] \\hyperref[${texEscape(entry.label)}]{page \\pageref*{${texEscape(entry.label)}}}`).join("\n");
+    const content=`\\begin{description}\n${entries}\n\\end{description}`;
+    return state.slides ? `\n\\begin{frame}[fragile,allowframebreaks]{Index}\n${content}\n\\end{frame}` : `\n\\section*{Index}\n${content}`;
+}
+
 function blockLatex(value, state) {
     if (value?.numericPolicy) {
         const previous = state.format;
@@ -245,6 +304,7 @@ function blockLatex(value, state) {
         try { return blockLatex({ ...value, numericPolicy: null }, state); } finally { state.format = previous; }
     }
     if (!isOutputValue(value)) return texEscape(state.format(value));
+    if (state.layoutActive && state.plan.runningRegions && value.documentRegion) return "";
     if (isInlineOutput(value)) return inlineLatex(value, state);
     if (value.kind === "live_view") return blockLatex(value.current, state);
     if (value.kind === "paragraph") return `${value.children.map((child) => inlineLatex(child, state)).join("")}\n`;
@@ -255,7 +315,7 @@ function blockLatex(value, state) {
     }
     if (value.kind === "section") {
         const commands = ["section", "subsection", "subsubsection", "paragraph", "subparagraph", "subparagraph"];
-        return `\\${commands[value.level - 1]}${state.preNumbered ? "*" : ""}{${value.title.map((child) => inlineLatex(child, state)).join("")}}${value.id ? `\\label{${texEscape(value.id)}}` : ""}\n${value.children.map((child) => blockLatex(child, state)).join("\n\n")}`;
+        return `\\${commands[value.level - 1]}${state.preNumbered ? "*" : ""}{${value.title.map((child) => inlineLatex(child, state)).join("")}}${value.id ? `\\label{${texEscape(value.id)}}` : ""}\n${latexChildren(value.children,state)}`;
     }
     if (value.kind === "list") {
         const environment = value.ordered ? "enumerate" : "itemize";
@@ -272,7 +332,7 @@ function blockLatex(value, state) {
         state.diagnostics.push(diagnostic("latex-media-link", `${value.kind} cannot be embedded in static LaTeX; emitted a URL`, "warning"));
         return [latexMediaLink(value.asset.ref, value.title || value.kind), value.transcript ? `Transcript: ${value.transcript.map((child) => inlineLatex(child, state)).join("")}` : null, value.caption ? `\\emph{${value.caption.map((child) => inlineLatex(child, state)).join("")}}` : null].filter(Boolean).join("\n\n");
     }
-    if (value.kind === "fragment") return value.children.map((child) => blockLatex(child, state)).join("\n\n");
+    if (value.kind === "fragment") return latexChildren(value.children,state);
     if (value.kind === "snapshots") return [value.title ? `\\section*{${texEscape(value.title)}}` : null, ...value.snapshots.map((snapshot) => blockLatex(snapshot.content, state)), value.caption ? `\\emph{${texEscape(value.caption)}}` : null].filter(Boolean).join("\n\n");
     if (value.kind === "timeline_render") return blockLatex(value.content, state);
     if (value.kind === "timeline") {
@@ -283,6 +343,7 @@ function blockLatex(value, state) {
         state.diagnostics.push(diagnostic("latex-static-control", "Interactive controls were lowered to static text", "warning"));
         return `\\begin{verbatim}\n${formatOutputText(value, state.format)}\n\\end{verbatim}`;
     }
+    if (value.kind === "table" && state.layoutActive) return publicationLatexTable(value,state);
     if (value.kind === "table" && value.label) {
         return `\\hypertarget{${texEscape(value.label)}}{}\n${blockLatex({ ...value, label: null }, state)}`;
     }
@@ -296,6 +357,10 @@ function blockLatex(value, state) {
         return `\\begin{verbatim}\n${formatOutputText(value, state.format)}\n\\end{verbatim}`;
     }
     if (value.kind === "figure") {
+        if (state.layoutActive && state.plan.floats === "inline" && !state.slides) {
+            state.packages.add("caption");
+            return `\\par\\noindent\\begin{minipage}{\\linewidth}\\centering\n${blockLatex(value.content,state)}${value.caption?`\n\\captionof*{figure}{${texEscape(value.caption)}}`:""}${value.label?`\n\\phantomsection\\label{${texEscape(value.label)}}`:""}\n\\end{minipage}\\par`;
+        }
         return `\\begin{figure}[htbp]\n\\centering\n${blockLatex(value.content, state)}${value.caption ? `\n\\caption{${texEscape(value.caption)}}` : ""}${value.label ? `\n\\label{${texEscape(value.label)}}` : ""}\n\\end{figure}`;
     }
     if (value.kind === "graphic") {
@@ -313,43 +378,66 @@ function blockLatex(value, state) {
         state.diagnostics.push(...rendered.diagnostics);
         return rendered.content.trim();
     }
-    if (value.kind === "slide") return `\\section*{${texEscape(value.title || "Slide")}}\n${blockLatex(value.content, state)}`;
-    if (value.kind === "slides") return value.slides.map((slide) => blockLatex(slide, state)).join("\n\\clearpage\n");
+    if (value.kind === "slide") return state.slides ? `\\begin{frame}[fragile,allowframebreaks]{${texEscape(value.title || "Slide")}}\n${blockLatex(value.content,state)}\n\\end{frame}` : `\\section*{${texEscape(value.title || "Slide")}}\n${blockLatex(value.content, state)}`;
+    if (value.kind === "slides") return value.slides.map((slide) => blockLatex(slide, state)).join(state.slides ? "\n" : "\n\\clearpage\n");
     throw new UnsupportedRenderError(`LaTeX renderer does not support output kind '${outputKind(value)}'`, { target: "latex" });
 }
 
 export function renderLatex(value, {
     format, standalone = true, title = null, render = null, rawMarkup = "fallback",
     figureAsset = "tikz", assetDir = "assets", pageSize = "letterpaper", placement = "htbp", bookmarks = true, metadata = null,
+    publicationPlan = null, outputTarget = "latex",
 } = {}) {
     if (!["allow", "fallback", "deny"].includes(rawMarkup)) throw new Error("LaTeX rawMarkup must be allow, fallback, or deny");
     if (!["tikz", "svg", "png"].includes(figureAsset)) throw new Error("LaTeX figureAsset must be tikz, svg, or png");
     if (!/^[htbp!]+$/.test(placement)) throw new Error("LaTeX placement must contain only h, t, b, p, or !");
     if (!/^[a-z0-9]+paper$/i.test(pageSize)) throw new Error("LaTeX pageSize must be a paper name such as letterpaper or a4paper");
     if (!assetDir || assetDir.startsWith("/") || assetDir.split("/").includes("..")) throw new Error("LaTeX assetDir must be a safe relative directory");
+    const plan = resolvePublicationPlan(value,publicationPlan ? {publicationPlan} : {});
+    const layoutActive = Boolean(publicationPlan || value?.publicationPlan || value?.kind === "slides" || value?.kind === "slide");
+    const slides = layoutActive && plan.profile === "slides";
+    if (slides && !["slide","slides"].includes(value.kind)) throw new Error("Slides publication requires explicit Slide/Slides content");
+    const { regions } = validatePublicationTree(value,plan);
+    if (layoutActive) {
+        pageSize=plan.pageSize;
+        if (plan.floats !== "inline") placement={top:"t",bottom:"b",page:"p"}[plan.floats];
+    }
     const state = {
-        format, render, rawMarkup, figureAsset, assetDir, diagnostics: [], assets: [], figure: 0,
+        format, render, rawMarkup, figureAsset, assetDir, diagnostics: publicationDiagnostics(plan,outputTarget), assets: [], figure: 0,
         packages: new Set(["amsmath", "amssymb", "booktabs", "graphicx", "hyperref", "xcolor", ...(figureAsset === "tikz" ? ["tikz"] : [])]),
-        preNumbered: value?.documentSchema === "rix.document.report@1",
+        preNumbered: value?.documentSchema === "rix.document.report@1", plan, layoutActive, slides, inColumns:false,
     };
-    const body = blockLatex(value, state)
+    const body = (blockLatex(value, state) + publicationLatexIndex(state))
         .replaceAll("\\begin{table}[htbp]", `\\begin{table}[${placement}]`)
         .replaceAll("\\begin{figure}[htbp]", `\\begin{figure}[${placement}]`);
-    const renderMetadata = { schema: "rix.latex.render@2", packages: [...state.packages].sort(), pageSize, figureAsset, placement };
+    let regionsPreamble="";
+    if (layoutActive && plan.runningRegions && (regions.header.length || regions.footer.length)) {
+        const regionText = nodes => {
+            const text=nodes.map(node=>formatOutputText(node,format)).join(" — ");
+            if (text.length>512) state.diagnostics.push(diagnostic("publication-running-region-truncated","Running header/footer is limited to 512 characters; full content remains in the source tree"));
+            return texEscape(text.slice(0,512));
+        };
+        if (slides) state.diagnostics.push(diagnostic("publication-running-region-fallback","Slides use frame titles and page navigation instead of running report regions"));
+        else {
+            state.packages.add("fancyhdr");
+            regionsPreamble=`\\pagestyle{fancy}\n\\fancyhf{}\n\\fancyhead[L]{${regionText(regions.header)}}\n\\fancyfoot[L]{${regionText(regions.footer)}}\n\\fancyfoot[R]{\\thepage}\n\\setlength{\\headheight}{24pt}\n`;
+        }
+    }
+    const renderMetadata = { schema: "rix.latex.render@2", packages: [...state.packages].sort(), pageSize:slides?null:pageSize, slideSize:slides?plan.slideSize:null, figureAsset, placement, publicationPlan:plan, documentClass:slides?"beamer":"article" };
     if (!standalone) return { content: `${body.trim()}\n`, diagnostics: state.diagnostics, assets: state.assets, metadata: renderMetadata };
     const heading = title ? `\\title{${texEscape(title)}}\n\\date{}\n` : "";
-    const makeTitle = title ? "\\maketitle\n" : "";
+    const makeTitle = title ? slides?"\\begin{frame}\\titlepage\\end{frame}\n":`\\maketitle\n${regionsPreamble?"\\thispagestyle{fancy}\n":""}` : "";
     const pdfTitle = metadata?.title || title || "RiX document";
     const pdfAuthor = metadata?.author || "";
-    const themeAccent = value?.documentTheme?.entries?.get("accent")?.value || null;
-    const themePreamble = themeAccent && /^#[0-9a-f]{6}$/i.test(themeAccent)
-        ? `\\definecolor{rixaccent}{HTML}{${themeAccent.slice(1).toUpperCase()}}\n`
-        : "";
+    const themeAccent = value?.documentTheme?.entries?.get("accent")?.value || (plan.theme === "compact"?"#174c3b":"#275dad");
+    const themePreamble = /^#[0-9a-f]{6}$/i.test(themeAccent)
+        ? `\\definecolor{rixaccent}{HTML}{${themeAccent.slice(1).toUpperCase()}}\n` + (slides?"\\setbeamercolor{structure}{fg=rixaccent}\n":"") : "";
+    const documentClass = slides ? `\\documentclass[aspectratio=${plan.slideSize==="wide"?"169":"43"}]{beamer}\n`
+        : `\\documentclass[${pageSize}]{article}\n\\usepackage[margin=1in]{geometry}\n`;
+    const density = plan.theme === "compact" ? "\\setlength{\\parskip}{2pt}\n" : "";
     return {
-        content: `\\documentclass[${pageSize}]{article}\n\\usepackage[margin=1in]{geometry}\n${[...state.packages].sort().map((name) => `\\usepackage{${name}}`).join("\n")}\n\\DeclareUnicodeCharacter{2248}{\\ensuremath{\\approx}}\n${themePreamble}\\hypersetup{pdftitle={${texEscape(pdfTitle)}},pdfauthor={${texEscape(pdfAuthor)}},bookmarks=${bookmarks ? "true" : "false"}}\n${heading}\\begin{document}\n${makeTitle}${body.trim()}\n\\end{document}\n`,
-        diagnostics: state.diagnostics,
-        assets: state.assets,
-        metadata: renderMetadata,
+        content: `${documentClass}${[...state.packages].sort().map((name) => `\\usepackage{${name}}`).join("\n")}\n\\DeclareUnicodeCharacter{2248}{\\ensuremath{\\approx}}\n${themePreamble}${density}\\hypersetup{pdftitle={${texEscape(pdfTitle)}},pdfauthor={${texEscape(pdfAuthor)}},bookmarks=${bookmarks ? "true" : "false"}}\n${heading}${regionsPreamble}\\begin{document}\n${makeTitle}${body.trim()}\n\\end{document}\n`,
+        diagnostics: state.diagnostics, assets: state.assets, metadata: renderMetadata,
     };
 }
 

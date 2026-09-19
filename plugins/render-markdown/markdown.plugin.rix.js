@@ -37,6 +37,7 @@ export const definition = {
         let figure = 0;
         const result = renderMarkdown(value, {
             format, render,
+            publicationPlan: option(options,"publicationPlan"),
             rawMarkup: rixString(option(options, "rawMarkup", "fallback")) || "fallback",
             graphic: policy === "inline" ? null : (graphic, state) => {
                 figure += 1;
@@ -47,7 +48,7 @@ export const definition = {
                 return `![${state.figureAlt || `Figure ${figure}`}](${path})`;
             },
         });
-        return { ...result, assets, metadata: { schema: "rix.markdown.render@2", assetPolicy: policy, assetDirectory: directory, theme } };
+        return { ...result, assets, metadata: { ...result.metadata, schema: "rix.markdown.render@2", assetPolicy: policy, assetDirectory: directory, theme } };
     },
 };
 

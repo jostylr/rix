@@ -321,3 +321,7 @@ export { INTERVAL_LINEAR_SCHEMA, INTERVAL_NEWTON_BOX_SCHEMA, BOX_SUBDIVISION_SCH
 
 export { OUTPUT_BUNDLE_SCHEMA, OUTPUT_ASSET_MANIFEST_SCHEMA, OUTPUT_ASSET_LIMITS, normalizeAssetReference, isExternalAssetReference, createMemoryAssetStore, hashAssetBytes, resolveAssetManifest, bundleOutputDocument, encodeOutputBundle, decodeOutputBundle } from "./output-assets.js";
 export { createOutputBundleHost } from "./output-bundle-host.js";
+
+export { PUBLICATION_PLAN_SCHEMA, PUBLICATION_PROJECT_SCHEMA, createPublicationPlan, resolvePublicationPlan, withPublicationPlan, validatePublicationTree, visitPublicationTree, publicationDiagnostics, quartoProjectYaml } from "./publication-plan.js";
+
+export { createPublicationProject, readPublicationProject } from "./publication-project.js";

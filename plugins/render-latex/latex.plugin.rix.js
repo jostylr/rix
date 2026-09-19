@@ -39,6 +39,7 @@ export const definition = {
             placement: rixString(option(options, "placement", "htbp")) || "htbp",
             bookmarks: option(options, "bookmarks", true) === true || boolValue(option(options, "bookmarks", true)),
             metadata: plainValue(option(options, "metadata")),
+            publicationPlan: option(options, "publicationPlan"),
         });
     },
 };

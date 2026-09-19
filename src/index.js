@@ -165,3 +165,7 @@ export { NUMERIC_PRESENTATION_SCHEMA, createNumericPolicy, presentNumericValue, 
 
 export { OUTPUT_BUNDLE_SCHEMA, OUTPUT_ASSET_MANIFEST_SCHEMA, OUTPUT_ASSET_LIMITS, normalizeAssetReference, isExternalAssetReference, createMemoryAssetStore, hashAssetBytes, resolveAssetManifest, bundleOutputDocument, encodeOutputBundle, decodeOutputBundle } from "./runtime/output-assets.js";
 export { createOutputBundleHost } from "./runtime/output-bundle-host.js";
+
+export { PUBLICATION_PLAN_SCHEMA, PUBLICATION_PROJECT_SCHEMA, createPublicationPlan, resolvePublicationPlan, withPublicationPlan, validatePublicationTree, visitPublicationTree, publicationDiagnostics, quartoProjectYaml } from "./runtime/publication-plan.js";
+
+export { createPublicationProject, readPublicationProject } from "./runtime/publication-project.js";

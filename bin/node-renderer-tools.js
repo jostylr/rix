@@ -213,12 +213,19 @@ export function compileLatex(source, _options = {}, assets = []) {
             mkdirSync(path.dirname(filename), { recursive: true });
             writeFileSync(filename, asset.content);
         }
-        const result = run("pdflatex", ["-interaction=nonstopmode", "-halt-on-error", "document.tex"], {
-            cwd: directory,
-            env: { ...process.env, SOURCE_DATE_EPOCH: "946684800", FORCE_SOURCE_DATE: "1" },
-        });
-        if (!result || !existsSync(output)) throw new Error("pdflatex is not available on this host");
-        return { content: new Uint8Array(readFileSync(output)), toolchain: "pdflatex" };
+        let log = "", passes = 0;
+        const needsRerun = text => /Rerun to get|Label\(s\) may have changed|rerunfilecheck Warning/.test(text);
+        do {
+            const result = run("pdflatex", ["-no-shell-escape", "-interaction=nonstopmode", "-halt-on-error", "document.tex"], {
+                cwd: directory, timeout: 30000,
+                env: { ...process.env, SOURCE_DATE_EPOCH: "946684800", FORCE_SOURCE_DATE: "1" },
+            });
+            if (!result || !existsSync(output)) throw new Error("pdflatex is not available on this host");
+            log = result.stdout.toString("utf8"); passes += 1;
+        } while (passes < 3 && needsRerun(log));
+        const diagnostics = [];
+        if (needsRerun(log) || /There were undefined (references|citations)/.test(log)) diagnostics.push({level:"warning",code:"pdf-unresolved-references",message:"PDF labels/citations did not settle within the three-pass compilation budget."});
+        return { content: new Uint8Array(readFileSync(output)), toolchain: "pdflatex", passes, diagnostics };
     } finally {
         rmSync(directory, { recursive: true, force: true });
     }

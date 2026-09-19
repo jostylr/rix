@@ -1,0 +1,22 @@
+/**
+plugins: [document, latex, pdf, html, quarto]
+**/
+.Plugin.Load("document");
+table := .document.Label("values",.Table(["x","exact fraction"],[[1,1/3],[2,2/3],[3,1],[4,4/3],[5,5/3],[6,2]]));
+graphic := .Graphics.Graphic([200,100],[.Graphics.Circle([100,50],30,{= fill="#275dad" })]);
+figure := .document.Label("diagram",.Figure(graphic,"A retained exact circle"));
+report := .document.Report("One publication plan",[
+    .Paragraph(["See ",.document.Ref("values")," and ",.document.Ref("diagram"),". The exact values remain in the source document."]),
+    .Paragraph("The prose uses bounded columns. Long tables span the page and repeat their headers."),
+    table,figure
+],{= header=.document.Header(.Paragraph("RiX publication")),footer=.document.Footer(.Paragraph("Exact sources retained")) });
+report := .document.Publish(report,{= columns=2,theme=:compact,longTableRows=3,index=[{= term="Circle",label="diagram"},{= term="Values",label="values"}] });
+deck := .document.Publish(.Slides([
+    .Slide(.Fragment([.Paragraph("One retained table, with continued headers."),table]),"Exact values"),
+    .Slide(figure,"Retained geometry")
+]),{= profile=:slides,slideSize=:wide,longTableRows=3 });
+.Out("article.tex",report); .Out("article.pdf",report); .Out("article.html",report); .Out("article.qmd",report);
+.Out("deck.tex",deck); .Out("deck.pdf",deck); .Out("deck.html",deck); .Out("deck.qmd",deck);
+.Out("article-source.txt",.document.EncodeJSON(report));
+.Out("deck-source.txt",.document.EncodeJSON(deck));
+0;

@@ -15,6 +15,7 @@ defaultEnabled: false
 **/
 
 import { renderOutputHtml } from "../../src/runtime/output.js";
+import { resolvePublicationPlan, validatePublicationTree, publicationDiagnostics } from "../../src/runtime/publication-plan.js";
 import { diagnostic, escapeHtml, installRendererPlugin, option, rixString } from "../renderers/common.js";
 
 const DEFAULT_STYLE = `:root{font-family:system-ui,sans-serif;color:#172033;background:#f5f7ff}*{box-sizing:border-box}body{line-height:1.5;max-width:72rem;margin:2rem auto;padding:0 1rem}[data-rix-layout=stack]{display:grid}[data-rix-layout=cluster]{display:flex;flex-wrap:wrap;align-items:center}[data-rix-layout=grid],[data-rix-layout=split]{display:grid}[data-rix-columns="2"]{grid-template-columns:repeat(2,minmax(0,1fr))}[data-rix-columns="3"]{grid-template-columns:repeat(3,minmax(0,1fr))}[data-rix-columns="4"]{grid-template-columns:repeat(4,minmax(0,1fr))}[data-rix-layout=split]{grid-template-columns:minmax(16rem,.8fr) minmax(0,1.4fr)}[data-rix-gap=compact]{gap:.5rem}[data-rix-gap=normal]{gap:1rem}[data-rix-gap=spacious]{gap:2rem}[data-rix-variant=card],[data-rix-variant=hero],[data-rix-variant=muted]{padding:1.25rem;border:1px solid #dfe3ed;border-radius:1rem;background:#fff}[data-rix-variant=hero]{background:linear-gradient(145deg,#fff,#f1edff)}[data-rix-variant=muted]{background:#f7f8fc}.rix-output-control-panel[data-rix-layout=grid]{grid-template-columns:1fr}.rix-output-control-list{display:grid;gap:.5rem}.rix-output-control-panel[data-rix-layout=grid][data-rix-columns="3"] .rix-output-control-list{grid-template-columns:repeat(3,minmax(0,1fr))}.rix-output-control-panel[data-rix-layout=grid][data-rix-columns="4"] .rix-output-control-list{grid-template-columns:repeat(4,minmax(0,1fr))}[data-rix-control-row="1"]{grid-row:1}[data-rix-control-row="2"]{grid-row:2}[data-rix-control-row="3"]{grid-row:3}[data-rix-control-row="4"]{grid-row:4}[data-rix-control-column="1"]{grid-column:1}[data-rix-control-column="2"]{grid-column:2}[data-rix-control-column="3"]{grid-column:3}[data-rix-control-column="4"]{grid-column:4}table{width:100%;border-collapse:collapse;margin:1rem 0;background:#fff}th,td{border:1px solid #cbd5e1;padding:.35rem .6rem}figure{margin:1.5rem 0}.rix-output-svg{max-width:100%;height:auto}pre{overflow:auto;background:#f8fafc;padding:1rem}.rix-output-callout{border-left:.3rem solid #64748b;padding:.5rem 1rem;background:#f8fafc}@media(max-width:760px){[data-rix-layout=grid],[data-rix-layout=split],[data-rix-columns]{grid-template-columns:1fr}}`;
@@ -77,6 +78,9 @@ export const definition = {
     deterministic: true,
     description: "Standalone semantic HTML renderer for portable RiX output trees",
     render({ value, options, format, render }) {
+        const plan=resolvePublicationPlan(value,options);
+        const publication=Boolean(value?.publicationPlan || option(options,"publicationPlan"));
+        validatePublicationTree(value,plan);
         const title = rixString(option(options, "title")) || "RiX output";
         const stylePolicy = (rixString(option(options, "stylePolicy", "inline")) || "inline").toLowerCase();
         if (!["inline", "external", "none"].includes(stylePolicy)) throw new Error("html stylePolicy must be inline, external, or none");
@@ -86,16 +90,19 @@ export const definition = {
         if (!["allow", "fallback", "deny"].includes(rawMarkup)) throw new Error("html rawMarkup must be allow, fallback, or deny");
         const assetDir = rixString(option(options, "assetDir", "assets")) || "assets";
         if (!assetDir || assetDir.startsWith("/") || assetDir.split("/").includes("..")) throw new Error("html assetDir must be a safe relative directory");
-        const style = rixString(option(options, "style")) || DEFAULT_STYLE;
+        const layoutStyle=publication?` .rix-publication-flow{column-count:${plan.profile==="article"?plan.columns:1};column-gap:2em}.rix-publication-flow table,.rix-publication-flow figure{column-span:all}.rix-publication-flow .rix-output-slide{break-after:page;min-height:20rem;padding:2rem;border:1px solid #cbd5e1;aspect-ratio:${plan.slideSize==="wide"?"16 / 9":"4 / 3"}}@media(max-width:700px){.rix-publication-flow{column-count:1}}@media print{thead{display:table-header-group}table,figure{break-inside:avoid}@page{size:${plan.pageSize==="letterpaper"?"letter":plan.pageSize==="a4paper"?"A4":"A5"}}}`:"";
+        const style = (rixString(option(options, "style")) || DEFAULT_STYLE)+layoutStyle;
         const reportTheme = value?.documentTheme?.entries;
-        const theme = rixString(option(options, "theme")) || reportTheme?.get("name")?.value || "plain";
+        const theme = rixString(option(options, "theme")) || (publication?plan.theme:null) || reportTheme?.get("name")?.value || "plain";
         if (!/^[a-z][a-z0-9_-]*$/i.test(theme)) throw new Error("html theme must be a simple theme name");
         const accent = reportTheme?.get("accent")?.value || "#275dad";
-        const diagnostics = [];
+        const diagnostics = publicationDiagnostics(plan,"html");
+        if(publication && plan.runningRegions) diagnostics.push(diagnostic("publication-running-region-flow","HTML keeps report regions in document flow; browser printing does not guarantee repeated running regions","info"));
         staticDiagnostics(value, diagnostics);
         const state = { rawMarkup, assetPolicy, assetDir, render, assets: [], diagnostics, replacements: [], figure: 0 };
         const prepared = prepareHtmlValue(value, state);
         let body = renderOutputHtml(prepared, format);
+        if(publication) body=`<article data-rix-publication="${plan.schema}" data-rix-profile="${plan.profile}"><div class="rix-publication-flow">${body}</div>${plan.index.length?`<nav aria-label="Index"><h2>Index</h2><ul>${plan.index.map(entry=>`<li><a href="#${escapeHtml(entry.label)}">${escapeHtml(entry.term)}</a></li>`).join("")}</ul></nav>`:""}</article>`;
         for (const [marker, content] of state.replacements) body = body.replaceAll(marker, content);
         const styleHref = `${assetDir}/rix.css`;
         if (stylePolicy === "external") state.assets.push({ path: styleHref, mime: "text/css", content: style });
@@ -106,7 +113,7 @@ export const definition = {
             content: `<!doctype html>\n<html lang="en" data-rix-theme="${escapeHtml(theme)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)}</title>${styleTag}</head><body><main>${body}</main></body></html>\n`,
             diagnostics,
             assets: state.assets,
-            metadata: { schema: "rix.html.render@2", assetPolicy, stylePolicy, rawMarkup, theme },
+            metadata: { schema: "rix.html.render@2", assetPolicy, stylePolicy, rawMarkup, theme, publicationPlan:plan },
         };
     },
 };

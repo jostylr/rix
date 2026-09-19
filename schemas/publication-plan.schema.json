@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/publication-plan.schema.json",
+  "title": "Normalized retained publication plan",
+  "description": "Presentation metadata over an existing output tree. Semantic validation also checks unique labels, index targets and document work limits. Capabilities express requirements, not verified conformance.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "profile",
+    "pageSize",
+    "slideSize",
+    "theme",
+    "columns",
+    "floats",
+    "longTableRows",
+    "repeatTableHeaders",
+    "runningRegions",
+    "bibliography",
+    "index",
+    "requires"
+  ],
+  "properties": {
+    "schema": {
+      "const": "rix.publication-plan@1"
+    },
+    "profile": {
+      "enum": [
+        "article",
+        "slides"
+      ]
+    },
+    "pageSize": {
+      "enum": [
+        "letterpaper",
+        "a4paper",
+        "a5paper"
+      ]
+    },
+    "slideSize": {
+      "enum": [
+        "standard",
+        "wide"
+      ]
+    },
+    "theme": {
+      "enum": [
+        "plain",
+        "compact"
+      ]
+    },
+    "columns": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 4
+    },
+    "floats": {
+      "enum": [
+        "inline",
+        "top",
+        "bottom",
+        "page"
+      ]
+    },
+    "longTableRows": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1000
+    },
+    "repeatTableHeaders": {
+      "type": "boolean"
+    },
+    "runningRegions": {
+      "type": "boolean"
+    },
+    "bibliography": {
+      "const": "retained"
+    },
+    "index": {
+      "type": "array",
+      "maxItems": 500,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "term",
+          "label"
+        ],
+        "properties": {
+          "term": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "label": {
+            "type": "string",
+            "maxLength": 128,
+            "pattern": "^[A-Za-z][A-Za-z0-9:_-]*$"
+          }
+        }
+      }
+    },
+    "requires": {
+      "type": "array",
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "svg",
+          "png",
+          "tikz",
+          "audio",
+          "video",
+          "pdf",
+          "tagged-pdf",
+          "pdf-a",
+          "embedded-fonts",
+          "color-managed"
+        ]
+      }
+    }
+  }
+}

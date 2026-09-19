@@ -18,6 +18,8 @@ import { numericFormatterPolicy } from "../../src/runtime/numeric-presentation.j
 
 import { field, installRendererPlugin, option, rixString, sequence } from "../renderers/common.js";
 import { quartoFrontMatter, renderMarkdown } from "../renderers/document-renderers.js";
+import { PUBLICATION_PROJECT_SCHEMA, resolvePublicationPlan, quartoProjectYaml } from "../../src/runtime/publication-plan.js";
+import { readPublicationProject } from "../../src/runtime/publication-project.js";
 
 function assetPolicy(options) {
     const requested = (rixString(option(options, "assets")) || "inline").toLowerCase();
@@ -48,10 +50,9 @@ function projectAsset(options) {
         if (!path || path.startsWith("/") || path.split("/").includes("..")) throw new Error("quarto navigation entries must be safe relative paths");
         return path;
     });
-    const navigationYaml = navigation.length ? `\n  navbar:\n    left:\n${navigation.map((path) => `      - ${JSON.stringify(path)}`).join("\n")}` : "";
     return {
         path: "_quarto.yml", mime: "application/yaml",
-        content: `project:\n  type: ${type}\n  output-dir: ${JSON.stringify(outputDir)}${navigationYaml}\n`,
+        content: quartoProjectYaml(rixString(field(project,"title")) || "RiX publication", navigation.map(path=>({path,title:path})),{type,outputDir}),
         metadata: { schema: "rix.quarto.project@1", type, outputDir, navigation },
     };
 }
@@ -61,10 +62,24 @@ export const definition = {
     mime: "text/x-quarto",
     extension: "qmd",
     aliases: ["qmd", "text/x-quarto"],
-    inputKinds: ["fragment", "section", "paragraph", "heading", "list", "quote", "callout", "code_block", "math_block", "table", "grid", "sheet", "figure", "graphic", "snapshots", "timeline", "timeline_render", "slide", "slides"],
+    inputKinds: ["map", "fragment", "section", "paragraph", "heading", "list", "quote", "callout", "code_block", "math_block", "table", "grid", "sheet", "figure", "graphic", "snapshots", "timeline", "timeline_render", "slide", "slides"],
     deterministic: true,
     description: "Quarto Markdown renderer with front matter and portable figure lowering",
     render({ value, options, format, render }) {
+        if (rixString(field(value,"schema"))===PUBLICATION_PROJECT_SCHEMA) {
+            const project=readPublicationProject(value),assets=[],diagnostics=[];
+            for(const doc of project.documents) {
+                const directory=doc.path.includes("/")?doc.path.slice(0,doc.path.lastIndexOf("/")+1):"";
+                const scopedOptions={...options,project:null,assetDir:`${doc.path.split("/").at(-1).slice(0,-4)}-assets`,title:doc.title};
+                const result=definition.render({value:doc.value,options:scopedOptions,format,render});
+                assets.push({path:doc.path,mime:"text/x-quarto",content:result.content},...result.assets.map(asset=>({...asset,path:directory+asset.path})));
+                diagnostics.push(...result.diagnostics.map(d=>({...d,path:`${doc.path}${d.path?":"+d.path:""}`})));
+            }
+            assets.push({path:"_quarto.yml",mime:"application/yaml",content:quartoProjectYaml(project.title,project.documents,{type:project.type})});
+            const names=new Set();for(const asset of assets){if(names.has(asset.path)) throw new Error(`Quarto project asset path collision ${asset.path}`);names.add(asset.path);}
+            return {content:assets[0].content,assets,diagnostics,metadata:{schema:PUBLICATION_PROJECT_SCHEMA,primaryPath:project.documents[0].path,type:project.type,documents:project.documents.map(doc=>doc.path)}};
+        }
+        const plan=resolvePublicationPlan(value,options);
         const policy = assetPolicy(options);
         const assets = [];
         const project = projectAsset(options);
@@ -74,6 +89,7 @@ export const definition = {
             format,
             render,
             quarto: true,
+            publicationPlan: plan,
             rawMarkup: rixString(option(options, "rawMarkup", "fallback")) || "fallback",
             graphic: policy ? (graphic, state) => {
                 figure += 1;
@@ -87,11 +103,14 @@ export const definition = {
         const codePolicy = (rixString(option(options, "codePolicy", "show")) || "show").toLowerCase();
         if (!["show", "hide", "execute"].includes(codePolicy)) throw new Error("quarto codePolicy must be show, hide, or execute");
         const execute = codePolicy === "execute" ? "" : `execute:\n  enabled: false\n  echo: ${codePolicy === "show" ? "true" : "false"}\n`;
-        const frontMatter = quartoFrontMatter(options).replace(/\n---\n\n$/, `\n${execute}---\n\n`);
+        const frontOptions=Object.fromEntries(["title","author","date","theme","bibliography"].map(key=>[key,field(option(options,"metadata")??options,key,option(options,key))]));
+        frontOptions.format=plan.profile==="slides"?"revealjs":field(option(options,"metadata")??options,"format",option(options,"format"));
+        let frontMatter = quartoFrontMatter(frontOptions).replace(/\n---\n\n$/, `\n${execute}---\n\n`);
+        if(plan.profile==="slides") frontMatter=frontMatter.replace(/\n---\n\n$/,`\nwidth: ${plan.slideSize==="wide"?1280:960}\nheight: 720\n---\n\n`);
         return {
             ...rendered, assets,
             content: `${frontMatter}${rendered.content}`,
-            metadata: { schema: "rix.quarto.render@2", assetPolicy: policy || "inline", codePolicy, project: project?.metadata || null },
+            metadata: { schema: "rix.quarto.render@2", assetPolicy: policy || "inline", codePolicy, project: project?.metadata || null, publicationPlan:plan },
         };
     },
 };
