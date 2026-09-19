@@ -389,6 +389,7 @@ export function createGraphicCoordinateDisclosure(graphic, lowering, format = St
     const collisions = Object.freeze(metadata.collisions.map((entry) => Object.freeze({
         role: entry.role, lowered: entry.lowered, exact: Object.freeze([...entry.exact]),
     })));
+    const retainedSeries = seriesPlans(mapField(graphic?.metadata, "plot"), format);
     const summary = `Coordinates use ${metadata.rounding} rounding at ${metadata.precision} decimal places. `
         + `${metadata.approximated} numeric values were approximated; ${collisions.length} distinct-value collision sets. `
         + `Exact geometry uses outward enclosure with radius ${metadata.enclosureRadius} SVG user units; this guarantee does not certify approximate inputs. `
@@ -397,7 +398,8 @@ export function createGraphicCoordinateDisclosure(graphic, lowering, format = St
         + (entry.certified ? `bounds ${entry.lower} to ${entry.upper}` : "approximate input, no certified bounds")
         + (entry.presentation ? `; ${entry.presentation} source order` : "")),
     ...collisions.map((entry) => `Collision (${entry.role}): ${entry.exact.join(", ")} display as ${entry.lowered}`),
-    ...clipping.map((entry) => `Clip ${entry.path}: ${entry.bounds.join(", ")}`)].join("\n");
+    ...clipping.map((entry) => `Clip ${entry.path}: ${entry.bounds.join(", ")}`),
+    ...retainedSeries.flatMap((series) => series.samples.map((sample) => `Retained ${series.label}, sample ${sample.index + 1}: (${sample.xText}, ${sample.yText}); ${sample.exactness}`))].join("\n");
     return Object.freeze({ schema: "rix.graphics.coordinate-disclosure@1", precision: metadata.precision,
         rounding: metadata.rounding, guarantee: metadata.guarantee, enclosureRadius: metadata.enclosureRadius,
         entries, collisions, clipping: Object.freeze(clipping), summary, text });
