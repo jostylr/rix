@@ -432,6 +432,9 @@ function enhanceSheet(sheet, options) {
         cell.addEventListener("focus", () => {
             if (sheet.dataset.rixSelectedAddress !== cell.dataset.rixAddress) select(cell);
         });
+        // Keep the old selection anchor until the Shift-click handler extends it.
+        // Browser focus occurs on mousedown, before click.
+        cell.addEventListener("mousedown", (event) => { if (event.shiftKey) event.preventDefault(); });
         cell.addEventListener("click", (event) => {
             event.stopPropagation();
             select(cell, { focus: true, extend: event.shiftKey });

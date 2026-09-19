@@ -1,5 +1,7 @@
 import { createFormulaSheet } from "../../runtime/formula-sheet.js";
 import {
+    appendRixCelEvent,
+    exportRixCelDocument,
     importRixCelDocument,
     stringifyRixCelDocument,
 } from "../../runtime/rixcel-document.js";
@@ -42,10 +44,13 @@ export function deferredSource(formula) {
 
 export function createFormulaSheetRuntimeOptions(context, evaluate, systemContext) {
     return {
+        insertAxis(sheet, axis, coordinate, count) {
+            return importRixCelDocument(appendRixCelEvent(exportRixCelDocument(sheet), { type: "axis:insert", axis, coordinate, count }), createFormulaSheetRuntimeOptions(context,evaluate,systemContext));
+        },
         formulaSource: deferredSource,
         compileFormula(source) {
             const wrapped = `@{ ${source}\n}`;
-            const nodes = lower(parse(wrapped, createSystemLookup(systemContext)));
+            const nodes = lower(parse(wrapped, createSystemLookup(systemContext))).filter(node => node.fn !== "NOP");
             if (nodes.length !== 1 || nodes[0]?.fn !== "DEFER") {
                 throw new Error("FormulaSheet source must compile to one deferred formula");
             }

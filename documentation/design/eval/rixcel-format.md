@@ -1,17 +1,18 @@
 # RiXCel document format
 
 RiXCel files use UTF-8 JSON and the `.rixcel` extension. The root `format` and
-integer `version` fields identify the schema. Version 2 is a sparse, rank-N,
-source-authoritative event log. Version 0 drafts and dense version 1 documents
-remain readable and migrate to version 2 in memory.
+integer `version` fields identify the schema. Version 3 is a sparse, rank-N,
+source-authoritative event log. Version 0 drafts, dense version 1 and sparse version 2 documents
+remain readable and migrate to version 3 in memory.
 
-## Version 2
+## Version 3
 
 ```json
 {
   "format": "rixcel",
-  "version": 2,
+  "version": 3,
   "id": "budget",
+  "initialShape": [1000, 1000],
   "shape": [1000, 1000],
   "view": {
     "title": "Budget",
@@ -42,9 +43,10 @@ remain readable and migrate to version 2 in memory.
 The root fields are:
 
 - `format`: exactly `"rixcel"`.
-- `version`: currently `2`.
+- `version`: currently `3`.
 - `id`: a non-empty document-owned sheet identity.
-- `shape`: one or more positive safe integers.
+- `initialShape`: base dimensions before structural events.
+- `shape`: active dimensions after the first `cursor` events; validated against history.
 - `view`: JSON-safe presentation metadata before replayed view events.
 - `defaultSlot`: source, assignment mode, and view metadata inherited by every
   coordinate that has no active edit event. `_` is RiX's null value.
@@ -93,7 +95,7 @@ document.SetAxisLabel(2, 1, "Revenue")
 Multi-cell paste and fill use one `slot:batch` event containing ordered slot
 edits rather than one history event per cell. Its canonical command is an
 executable RiX block of `SetSource` calls, so one undo step reverts the entire
-operation. Future structural operations can add further compact event types.
+operation. Structural edits use the `axis:insert` event described below.
 
 ## Replay and branching
 
@@ -102,10 +104,10 @@ document `view`. Events after `cursor` are redo history. Appending an edit after
 undo truncates that inactive redo suffix and assigns the next canonical event
 identity.
 
-Slot IDs remain stable and derivable as:
+Original slot IDs derive from their base (pre-insertion) coordinate:
 
 ```text
-${documentId}:slot:${index.join(":")}
+${documentId}:slot:${originalIndex.join(":")}
 ```
 
 Event IDs are:
@@ -190,11 +192,50 @@ import {
 Version 1 stored one dense slot record for every coordinate. Import validates
 that dense schema exactly, then converts every non-default slot to a
 `slot:set` event. Draft version 0 fields (`kind`, `code`, `op`, and `style`) are
-first migrated to version 1 and then to version 2. Newer unsupported versions
+first migrated to version 1 and then to version 3. Newer unsupported versions
 are rejected.
 
 ## Delimited interchange
 
 CSV and TSV remain value interchange formats rather than document formats.
 Foreign formulas beginning with `=` remain inert metadata. Import converts the
-result to a version 2 event log; export emits current computed values only.
+result to a version 3 event log; export emits current computed values only.
+
+## Atomic structural events (version 3)
+
+`{ "type":"axis:insert", "axis":1, "coordinate":2, "count":1 }` inserts
+before a one-based coordinate (or appends at axis length + 1). Axes are rank-N;
+count is 1–1,000,000, the resulting shape product must remain a safe integer, and
+history is capped at 10,000 events. `initialShape` and the base `view` never change;
+each prefix derives its current shape, labels, slice coordinates and formulas.
+Versions 0–2 have no structural events and migrate with their old shape as the base.
+Legacy command strings are regenerated from authoritative source during migration.
+
+Sparse replay rewrites literal `grid[...]` and `near[...]` references with the
+existing tokenizer. Dynamic references, aliases of `grid`/`near`, and reference-
+dependent implicit defaults reject insertion rather than silently changing targets.
+Unresolved drafts must be fixed or removed before a structural edit or structural
+undo/redo. Quoted strings and comments are preserved. Canonical commands use RiX
+string delimiters rather than JavaScript escape syntax, including multiline source.
+
+Original cell IDs follow their pre-insertion coordinates. Newly inserted cells use
+an insertion-event identity plus their creation coordinate. This rule also applies
+to untouched implicit cells, without allocating IDs for the entire grid. Runtime
+export preserves imported structural history and appends edits; computed caches
+are never serialized. Host candidates compile/evaluate privately before replacing
+the visible model, so a failed edit leaves the committed sheet intact.
+
+`sheet.InsertAxis(axis, coordinate, count=1)` returns a new FormulaSheet, leaving
+the old sheet unchanged. Its canonical event command rebinds `document` explicitly.
+`replayRixCelDocument` returns sparse `{document, view, slots}` for host adapters;
+`materializeRixCelDocument` is the existing explicitly dense compatibility API.
+
+```{.rix exec=true}
+sheet := .FormulaSheet([[@{ 2/3 }, @{ grid[1,1]*3 }]]);
+oldid := sheet.Slot(1,2).id;
+sheet := sheet.InsertAxis(2,2);
+sheet[1,3] ##@ == 2;
+sheet.Slot(1,3).id ##@ == oldid;
+saved := .RiXCelExport(sheet);
+.RiXCelImport(saved)[1,3] ##@ == 2;
+```

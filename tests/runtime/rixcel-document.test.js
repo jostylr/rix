@@ -196,7 +196,7 @@ describe("RiXCel documents", () => {
             ],
         };
         const migrated = parseRixCelDocument(draft);
-        expect(migrated.version).toBe(2);
+        expect(migrated.version).toBe(RIXCEL_VERSION);
         expect(migrated.events).toHaveLength(2);
         expect(migrated.events[0]).toMatchObject({
             index: [1, 1], source: "5", assignmentMode: "::=", view: { emphasis: true },
@@ -238,8 +238,8 @@ describe("RiXCel documents", () => {
             }],
         })).toThrow("canonical RiX command");
         expect(() => parseRixCelDocument({ ...base, cursor: 1 })).toThrow("from 0 through 0");
-        expect(() => parseRixCelDocument({ ...base, version: 3 }))
-            .toThrow("Unsupported RiXCel document version 3");
+        expect(() => parseRixCelDocument({ ...base, version: RIXCEL_VERSION + 1 }))
+            .toThrow(`Unsupported RiXCel document version ${RIXCEL_VERSION + 1}`);
         expect(() => parseRixCelDocument("{ definitely not JSON"))
             .toThrow("Invalid RiXCel JSON");
     });

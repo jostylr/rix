@@ -1,0 +1,309 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/rixcel-document/v3.schema.json",
+  "title": "Canonical RiXCel document v3",
+  "description": "Sparse source-authoritative structural history. Runtime parsing/replay validates shape products, active-prefix dimensions, unique edits, canonical commands, rewrites and stable IDs. Schema validation does not execute formulas. Versions 0\u20132 migrate in the runtime.",
+  "type": "object",
+  "required": [
+    "format",
+    "version",
+    "id",
+    "initialShape",
+    "shape",
+    "view",
+    "defaultSlot",
+    "events",
+    "cursor",
+    "drafts"
+  ],
+  "properties": {
+    "format": {
+      "const": "rixcel"
+    },
+    "version": {
+      "const": 3
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "initialShape": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 9007199254740991
+      }
+    },
+    "shape": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 9007199254740991
+      }
+    },
+    "view": {
+      "type": "object"
+    },
+    "defaultSlot": {
+      "type": "object",
+      "required": [
+        "source",
+        "assignmentMode",
+        "view"
+      ],
+      "properties": {
+        "source": {
+          "type": "string",
+          "minLength": 1
+        },
+        "assignmentMode": {
+          "enum": [
+            "=",
+            ":=",
+            "~=",
+            "::=",
+            "~~="
+          ]
+        },
+        "view": {
+          "type": "object"
+        }
+      }
+    },
+    "events": {
+      "type": "array",
+      "maxItems": 10000,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "sequence",
+          "type",
+          "command"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sequence": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "type": {
+            "enum": [
+              "slot:set",
+              "slot:batch",
+              "view:axis-label",
+              "axis:insert"
+            ]
+          },
+          "command": {
+            "type": "string",
+            "minLength": 1
+          },
+          "index": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          "axis": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "coordinate": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000000
+          },
+          "label": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source": {
+            "type": "string",
+            "minLength": 1
+          },
+          "assignmentMode": {
+            "enum": [
+              "=",
+              ":=",
+              "~=",
+              "::=",
+              "~~="
+            ]
+          },
+          "view": {
+            "type": "object"
+          },
+          "edits": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": [
+                "source",
+                "assignmentMode",
+                "view",
+                "index"
+              ],
+              "properties": {
+                "source": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "assignmentMode": {
+                  "enum": [
+                    "=",
+                    ":=",
+                    "~=",
+                    "::=",
+                    "~~="
+                  ]
+                },
+                "view": {
+                  "type": "object"
+                },
+                "index": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  }
+                }
+              }
+            }
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "slot:set"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "index",
+                "source",
+                "assignmentMode",
+                "view"
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "slot:batch"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "edits"
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "view:axis-label"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "axis",
+                "coordinate",
+                "label"
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "axis:insert"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "axis",
+                "coordinate",
+                "count"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "cursor": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 10000
+    },
+    "drafts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "index",
+          "source",
+          "assignmentMode",
+          "kind",
+          "message"
+        ],
+        "properties": {
+          "index": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          "source": {
+            "type": "string"
+          },
+          "assignmentMode": {
+            "enum": [
+              "=",
+              ":=",
+              "~=",
+              "::=",
+              "~~="
+            ]
+          },
+          "kind": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

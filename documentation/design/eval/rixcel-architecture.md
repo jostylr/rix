@@ -28,7 +28,7 @@ successful epochs. It is a coordinate adapter over the general
 `.ReactiveGraph(...)` runtime, exposed as `formulaSheet.Graph()`. Named scalar
 computations can therefore join the same graph as formula slots.
 `.Sheet(formulaSheet)` stages current results and editable formula source for
-display. Sparse rank-N `.rixcel` version-2 documents now round-trip
+display. Sparse rank-N `.rixcel` documents (now version 3, with v0–2 migration) round-trip
 authoritative source and executable-style edit history. The standalone editor
 uses that log for recovery and undo/redo. See [the format](rixcel-format.md) and
 [the checklist](rixcel-todo.md).
@@ -461,7 +461,7 @@ A tensor-valued slot does not automatically occupy neighboring slots. It
 renders as an embedded value until explicit spill/materialization semantics
 are designed.
 
-Row and column insertion requires a shape-changing history event; rewriting a
+Row and column insertion now uses a version-3 shape-changing history event; rewriting a
 snapshot in place would make cursor undo/redo inconsistent. The reference
 rewriter tokenizes authoritative formula source and changes only literal
 coordinates in contextual `grid[...]` and `near[...]` reads. Strings, comments,

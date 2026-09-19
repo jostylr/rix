@@ -192,6 +192,7 @@ function method(name, impl) {
 
 function formulaSheetMethods() {
     return new Map([
+        ["INSERTAXIS", method("InsertAxis", ([target, axis, coordinate, count = new Integer(1n)]) => target.insertAxis(axis,coordinate,count))],
         ["GETFORMULA", method("GetFormula", ([target, ...index]) => target.getFormula(index))],
         ["SETFORMULA", method("SetFormula", ([target, ...args]) => {
             if (args.length < 2) throw new Error("FormulaSheet.SetFormula requires indices and a deferred formula");
@@ -273,6 +274,7 @@ export function createFormulaSheet(formulasValue, options = {}) {
     const id = options.id === null || options.id === undefined
         ? `formula-sheet-${nextFormulaSheetId++}`
         : formulaSheetId(options.id);
+    const identityFor = index => options.slotIdentity ? options.slotIdentity(index) : slotIdFor(id,index);
     const defaultAssignmentMode = assignmentMode(options.assignmentMode ?? ":=");
     const providedSlotMetadata = options.slotMetadata instanceof Map
         ? options.slotMetadata
@@ -288,9 +290,9 @@ export function createFormulaSheet(formulasValue, options = {}) {
     const slotMetadata = new Map(formulas.entries.map(({ index, formula }) => {
         const provided = providedSlotMetadata.get(slotKey(index)) ?? {};
         const source = provided.source ?? options.formulaSource?.(formula) ?? null;
-        const idForSlot = provided.id ?? slotIdFor(id, index);
-        if (idForSlot !== slotIdFor(id, index)) {
-            throw new Error(`FormulaSheet slot id must be ${slotIdFor(id, index)}`);
+        const idForSlot = provided.id ?? identityFor(index);
+        if (idForSlot !== identityFor(index)) {
+            throw new Error(`FormulaSheet slot id must be ${identityFor(index)}`);
         }
         return [slotKey(index), {
             id: idForSlot,
@@ -390,6 +392,10 @@ export function createFormulaSheet(formulasValue, options = {}) {
             visitLogicalIndices(shape, (index) => sheet.get(index));
             return sheet;
         },
+        insertAxis(axis, coordinate, count = 1) {
+            if (typeof options.insertAxis !== "function") throw new Error("FormulaSheet structural editing requires a document host");
+            return options.insertAxis(sheet, exactIndex(axis), exactIndex(coordinate), exactIndex(count));
+        },
         getFormula(index) {
             const normalized = normalizeIndex(index, shape);
             ensureSlot(normalized);
@@ -467,7 +473,7 @@ export function createFormulaSheet(formulasValue, options = {}) {
                 parts = formulaSourceParts(source, mode);
                 formula = options.compileFormula(parts.source);
             } catch (error) {
-                const record = slotMetadata.get(slotKey(normalized));
+                const record = slotMetadataFor(normalized);
                 const message = error instanceof Error ? error.message : String(error);
                 const attemptedSource = parts?.source
                     ?? (source?.type === "string" ? source.value : String(source ?? ""));
@@ -630,7 +636,7 @@ export function createFormulaSheet(formulasValue, options = {}) {
         const key = slotKey(index);
         let metadata = slotMetadata.get(key);
         if (metadata) return metadata;
-        const idForSlot = slotIdFor(id, index);
+        const idForSlot = identityFor(index);
         metadata = {
             id: idForSlot,
             source: defaultSlotDefinition.source,

@@ -63,7 +63,8 @@ export function rewriteRixCelReferences(source, options = {}) {
     for (let offset = 0; offset < tokens.length; offset += 1) {
         const token = tokens[offset];
         if (token.type !== "Identifier" || !["grid", "near"].includes(token.value)) continue;
-        if (tokens[offset - 1]?.value === "." || tokens[offset + 1]?.value !== "[") continue;
+        if (tokens[offset - 1]?.value === ".") continue;
+        if (tokens[offset + 1]?.value !== "[") { dynamic.push({ kind: token.value, position: token.pos[1] }); continue; }
         const reference = numericReference(tokens, offset);
         if (!reference) {
             dynamic.push({ kind: token.value, position: token.pos[1] });
