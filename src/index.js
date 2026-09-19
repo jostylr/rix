@@ -107,6 +107,7 @@ export {
     sheetDisplayAddress,
     sheetPlaneKey,
 } from "./tools/sheet-view.js";
+export { exactExplorationInterval, boundedExactExplorationInterval, createExactNumberLineGraphic, traceExactArithmetic } from "./tools/exact-exploration.js";
 export { WidgetSession, GraphicWidgetSession, ControlPanelWidgetSession, createWidgetSession } from "./tools/widget-session.js";
 export {
     createGraphicDensityPlan, enhanceGraphicViews, graphicPointFromClient,

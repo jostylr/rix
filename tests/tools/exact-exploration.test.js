@@ -13,6 +13,7 @@ test("number-line normalization is exact for huge/narrow values and preserves or
     expect(svg).toContain("Retained Tiny reversed interval");
     expect(svg).toContain(String(reversed.start));
     expect(svg).toContain("reversed");
+    expect(renderGraphicSvg(graphic, () => "rounded presentation")).toContain(String(reversed.end));
     expect(renderOutputHtml(graphic, String)).toContain(String(reversed.end));
     expect(createExactNumberLineGraphic([{ value: new Rational(1) }, { value: new Rational(2) }], { maximum: 1 }).metadata.get("exploration").omitted).toBe(1);
     expect(() => createExactNumberLineGraphic([{ value: new Rational(2n ** 17000n) }])).toThrow("16384-bit limit");
@@ -27,6 +28,8 @@ test("arithmetic trace retains nested evidence, widening and undefined divisor r
     const undefinedTrace = traceExactArithmetic("1 / (-1:1)", parseAndEvaluate);
     expect(undefinedTrace.result.status).toBe("undefined");
     expect(undefinedTrace.result.reason).toContain("contains zero");
+    expect(traceExactArithmetic("1 + (1 / (-1:1))", parseAndEvaluate).result.status).toBe("undefined");
+    expect(traceExactArithmetic("-(1 / (-1:1))", parseAndEvaluate).result.status).toBe("undefined");
 });
 
 test("trace limits preserve partial work and never replay calls or assignments", () => {

@@ -8,7 +8,7 @@ export function exactExplorationInterval(value) {
     return value instanceof Rational ? new RationalInterval(value, value) : null;
 }
 
-function boundedNumber(value) {
+export function boundedExactExplorationInterval(value) {
     const interval = exactExplorationInterval(value);
     if (!interval) return null;
     if ([interval.start, interval.end].some((endpoint) => endpoint.numerator.toString(2).length + endpoint.denominator.toString(2).length > 16384)) {
@@ -19,7 +19,7 @@ function boundedNumber(value) {
 
 export function createExactNumberLineGraphic(records, { title = "Exact number line", maximum = 64 } = {}) {
     if (!Number.isInteger(maximum) || maximum < 1 || maximum > 256) throw new Error("Number-line record limit must be 1–256");
-    const retained = records.slice(0, maximum).map((record, index) => ({ ...record, id: String(record.id || `number-${index + 1}`), value: boundedNumber(record.value) })).filter((record) => record.value);
+    const retained = records.slice(0, maximum).map((record, index) => ({ ...record, id: String(record.id || `number-${index + 1}`), value: boundedExactExplorationInterval(record.value) })).filter((record) => record.value);
     if (!retained.length) throw new Error("Number line requires at least one exact rational or interval");
     let low = retained[0].value.low, high = retained[0].value.high;
     for (const { value } of retained) { if (value.low.lessThan(low)) low = value.low; if (value.high.greaterThan(high)) high = value.high; }
@@ -64,18 +64,19 @@ export function traceExactArithmetic(source, resolve, { maxNodes = 64, maxDepth 
         if (visited >= maxNodes || depth > maxDepth) { exhausted = true; return null; }
         visited += 1;
         if (node.type === "Grouping") return visit(node.expression, depth + 1);
-        if (node.type === "Number" || node.type === "UserIdentifier") {
-            const spelling = node.type === "Number" ? node.value : node.name;
+        if (node.type === "Number" || node.type === "UserIdentifier" || node.type === "ReactiveRef") {
+            const spelling = node.type === "Number" ? node.value : node.type === "ReactiveRef" ? `$${node.name}` : node.name;
             try {
                 const response = resolve(spelling);
                 const value = response?.type === "result" ? response.value : response;
-                if (!boundedNumber(value)) return record(node, spelling, null, "unresolved", "Not a finite exact rational or interval");
+                if (!boundedExactExplorationInterval(value)) return record(node, spelling, null, "unresolved", "Not a finite exact rational or interval");
                 return record(node, spelling, value, value instanceof RationalInterval ? "certified-enclosure" : "exact");
             } catch (error) { return record(node, spelling, null, "unresolved", error.message); }
         }
         if (node.type === "UnaryOperation" && ["+", "-"].includes(node.operator)) {
             const operand = visit(node.operand, depth + 1);
-            if (!operand?.value) return null;
+            if (!operand) return null;
+            if (operand.value === null) return record(node, `${node.operator}(${operand.source})`, null, operand.status, operand.reason, [operand.id]);
             const value = node.operator === "+" ? operand.value : operand.value.negate();
             return record(node, `${node.operator}(${operand.source})`, value, operand.status, null, [operand.id]);
         }
@@ -85,7 +86,10 @@ export function traceExactArithmetic(source, resolve, { maxNodes = 64, maxDepth 
         const left = visit(node.left, depth + 1), right = visit(node.right, depth + 1);
         if (!left || !right) return null;
         const expression = `(${left.source} ${node.operator} ${right.source})`;
-        if (left.value === null || right.value === null) return record(node, expression, null, "unresolved", "An operand is unresolved", [left.id, right.id]);
+        if (left.value === null || right.value === null) {
+            const undefinedOperand = [left, right].find((entry) => entry.status === "undefined");
+            return record(node, expression, null, undefinedOperand ? "undefined" : "unresolved", undefinedOperand ? `Undefined operand: ${undefinedOperand.reason}` : "An operand is unresolved", [left.id, right.id]);
+        }
         try {
             const a = exactExplorationInterval(left.value), b = exactExplorationInterval(right.value);
             if (node.operator === "/" && b.low.lessThanOrEqual(Rational.zero) && b.high.greaterThanOrEqual(Rational.zero)) {
@@ -99,7 +103,7 @@ export function traceExactArithmetic(source, resolve, { maxNodes = 64, maxDepth 
                 const method = { "+": "add", "-": "subtract", "*": "multiply", "/": "divide" }[node.operator];
                 value = left.value instanceof RationalInterval || right.value instanceof RationalInterval ? a[method](b) : a.start[method](b.start);
             }
-            boundedNumber(value);
+            boundedExactExplorationInterval(value);
             const result = record(node, expression, value, value instanceof RationalInterval ? "certified-enclosure" : "exact", null, [left.id, right.id]);
             const before = [left.width, right.width].filter(Boolean);
             result.widened = result.width !== null && before.some((width) => result.width.greaterThan(width));

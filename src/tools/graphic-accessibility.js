@@ -170,8 +170,8 @@ function seriesPlans(plot, format) {
                 index,
                 x,
                 y,
-                xText: valueText(source[0], format),
-                yText: valueText(source[1], format),
+                xText: valueText(source[0], ["exact", "certified-enclosure"].includes(graphicValueExactness(source[0])) ? String : format),
+                yText: valueText(source[1], ["exact", "certified-enclosure"].includes(graphicValueExactness(source[1])) ? String : format),
                 exactness: combinedExactness(source.slice(0, 2)),
             });
         }).filter(Boolean);
@@ -394,7 +394,7 @@ export function createGraphicCoordinateDisclosure(graphic, lowering, format = St
         + `${metadata.approximated} numeric values were approximated; ${collisions.length} distinct-value collision sets. `
         + `Exact geometry uses outward enclosure with radius ${metadata.enclosureRadius} SVG user units; this guarantee does not certify approximate inputs. `
         + (clipping.length ? `${clipping.length} explicit clip regions can hide geometry; retained coordinates remain inspectable.` : "No explicit clip regions; SVG overflow remains visible.");
-    const text = [summary, ...entries.map((entry) => `${entry.path}: source ${entry.exact}; displayed ${entry.lowered}; `
+    const text = [summary, stringValue(mapField(graphic?.metadata, "explorationText")) || "", ...entries.map((entry) => `${entry.path}: source ${entry.exact}; displayed ${entry.lowered}; `
         + (entry.certified ? `bounds ${entry.lower} to ${entry.upper}` : "approximate input, no certified bounds")
         + (entry.presentation ? `; ${entry.presentation} source order` : "")),
     ...collisions.map((entry) => `Collision (${entry.role}): ${entry.exact.join(", ")} display as ${entry.lowered}`),
