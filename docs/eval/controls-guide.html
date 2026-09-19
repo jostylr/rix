@@ -271,6 +271,10 @@ ul.task-list li input[type="checkbox"] {
 <span class="menu-text">Learn</span></a>
   </li>  
   <li class="nav-item">
+    <a class="nav-link" href="../undergraduate-probability-statistics-data-analysis.html"> 
+<span class="menu-text">Probability &amp; statistics</span></a>
+  </li>  
+  <li class="nav-item">
     <a class="nav-link" href="../eval/syntax-guide.html"> 
 <span class="menu-text">Reference</span></a>
   </li>  
@@ -413,6 +417,11 @@ $$view := .Fragment([
 <td>map form recommended</td>
 <td><code>target</code>, <code>action</code>, <code>label</code></td>
 </tr>
+<tr class="even">
+<td>Hold</td>
+<td>map form recommended</td>
+<td><code>target</code>, <code>key</code>, <code>pressed</code>, <code>released</code></td>
+</tr>
 </tbody>
 </table>
 <p>Choice options can be raw values or <code>{= value=..., label="..." }</code> maps. An Action receives the current target value and returns its replacement:</p>
@@ -422,6 +431,13 @@ $$view := .Fragment([
     target=$$history,
     action=items -&gt; items ++ [$a],
     label="Save a"
+})</code></pre>
+<p>Input controls normally evaluate committed text as a RiX expression before replacing their target. Set <code>inputMode=:text</code> when the target itself is source text, a search query, a label, or another literal string. The host then commits the typed characters without evaluating them:</p>
+<pre class="rix"><code>$$formulaSource := "x^2 - 1/2";
+.Controls.Input({=
+    target=$$formulaSource,
+    label="Formula in x",
+    inputMode=:text
 })</code></pre>
 </section>
 <section id="controlpanel" class="level2">
@@ -461,10 +477,14 @@ $$view := .Fragment([
 <td>Block local edits.</td>
 </tr>
 <tr class="even">
+<td><code>shortcut</code></td>
+<td>Action-only <code>KeyboardEvent.key</code> shorthand such as <code>"ArrowLeft"</code>.</td>
+</tr>
+<tr class="odd">
 <td><code>style</code></td>
 <td>Renderer-neutral presentation hints.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>metadata</code></td>
 <td>Opaque renderer/plugin data.</td>
 </tr>
@@ -473,15 +493,41 @@ $$view := .Fragment([
 </section>
 <section id="styling" class="level2">
 <h2 class="anchored" data-anchor-id="styling">Styling</h2>
-<p>The bundled HTML renderer understands <code>style</code> values <code>variant</code> (<code>"primary"</code>, <code>"danger"</code>, <code>"quiet"</code>), <code>density</code> (<code>"compact"</code>, <code>"comfortable"</code>), and <code>width</code> (<code>"auto"</code>, <code>"compact"</code>, <code>"full"</code>). Panel styles apply in this order: <code>all</code>, <code>kinds</code>, <code>ids</code>, then the individual control’s style.</p>
+<p>The bundled HTML renderer understands <code>style</code> values <code>variant</code> (<code>"primary"</code>, <code>"danger"</code>, <code>"quiet"</code>), <code>density</code> (<code>"compact"</code>, <code>"comfortable"</code>), and <code>width</code> (<code>"auto"</code>, <code>"compact"</code>, <code>"full"</code>). Controls in a grid panel may also use integer <code>row</code> and <code>column</code> positions from 1 through 4. Panel styles apply in this order: <code>all</code>, <code>kinds</code>, <code>ids</code>, then the individual control’s style.</p>
 <pre class="rix"><code>.ControlPanel({=
     style={=
+        layout="grid",
+        columns=3,
         all={= density="compact" },
         kinds={= action={= variant="primary" } },
-        ids={= ("delete")={= variant="danger" } }
+        ids={=
+            parent={= row=1, column=2 },
+            left={= row=2, column=1 },
+            right={= row=2, column=3 }
+        }
     },
     controls=[...]
 })</code></pre>
+<p>An Action opts into root-scoped keyboard navigation by naming <code>shortcut</code>:</p>
+<pre class="rix"><code>.Controls.Action({=
+    id="left",
+    target=$$current,
+    action=value -&gt; LeftChild(value),
+    label="Left child",
+    shortcut="ArrowLeft"
+})</code></pre>
+<p>The generated-page host routes shortcuts through the rendered button, so the same validation, widget event, reactive update, and focus-restoration path is used. Shortcuts are ignored while the user is editing an input, select, textarea, or content-editable region. The root containing the mounted output is the shortcut scope; a host using the low-level helpers can install the same behavior once with <code>enhanceControlShortcuts(root)</code>.</p>
+<p>For a temporary state that lasts only while a key is down, use a Hold control:</p>
+<pre class="rix"><code>$$decimalPreview := _;
+.Controls.Hold({=
+    id="decimal-preview",
+    target=$$decimalPreview,
+    key="ArrowDown",
+    pressed=1,
+    released=_,
+    label="Hold ↓ for decimals"
+})</code></pre>
+<p>The browser host commits <code>pressed</code> once on keydown and <code>released</code> on keyup, even when the pressed-state update rerenders the panel. Key-repeat events do not produce repeated commits. Like Action shortcuts, Hold keys are ignored while the event target is an input, select, textarea, or content-editable region. The key is declarative <code>KeyboardEvent.key</code> data; other hosts can map the same two exact values to touch, pointer, controller, or assistive input.</p>
 <p>Unknown style and metadata fields remain on the portable control output for other hosts/plugins to interpret.</p>
 </section>
 <section id="mutable-collections-and-.touch" class="level2">

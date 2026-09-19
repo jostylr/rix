@@ -271,6 +271,10 @@ ul.task-list li input[type="checkbox"] {
 <span class="menu-text">Learn</span></a>
   </li>  
   <li class="nav-item">
+    <a class="nav-link" href="../undergraduate-probability-statistics-data-analysis.html"> 
+<span class="menu-text">Probability &amp; statistics</span></a>
+  </li>  
+  <li class="nav-item">
     <a class="nav-link" href="../eval/syntax-guide.html"> 
 <span class="menu-text">Reference</span></a>
   </li>  
@@ -333,6 +337,7 @@ ul.task-list li input[type="checkbox"] {
   <li><a href="#reactive-collection-boundary" id="toc-reactive-collection-boundary" class="nav-link" data-scroll-target="#reactive-collection-boundary">Reactive collection boundary</a></li>
   </ul></li>
   <li><a href="#snapshots-materialized-scene-lists" id="toc-snapshots-materialized-scene-lists" class="nav-link" data-scroll-target="#snapshots-materialized-scene-lists">Snapshots: materialized scene lists</a></li>
+  <li><a href="#retained-graphics-navigation-and-alternatives" id="toc-retained-graphics-navigation-and-alternatives" class="nav-link" data-scroll-target="#retained-graphics-navigation-and-alternatives">Retained graphics navigation and alternatives</a></li>
   <li><a href="#timeline" id="toc-timeline" class="nav-link" data-scroll-target="#timeline">Timeline</a></li>
   </ul></li>
   </ul>
@@ -424,16 +429,30 @@ ul.task-list li input[type="checkbox"] {
 })</code></pre>
 <p>The result is a block output value and can be placed inside <code>.Fragment</code>, <code>.Figure</code>, slides, or <code>.Out</code>. The bundled HTML host renders it as a linear list. A grid, comic-strip, or PDF renderer can choose its own grouping from <code>origin["entry"]</code> and <code>origin["state"]</code>; the quadratic example declares the same ordered data as <code>comic.html</code>.</p>
 </section>
+<section id="retained-graphics-navigation-and-alternatives" class="level2">
+<h2 class="anchored" data-anchor-id="retained-graphics-navigation-and-alternatives">Retained graphics navigation and alternatives</h2>
+<p>The HTML host projects every <code>Graphic</code> through shared <code>rix.viewport@1</code> and <code>rix.selection@1</code> state. In addition to pan, zoom, type filters, and direct selection, the host searches retained identities/descriptions, performs Alt-arrow spatial traversal from retained object anchors, and exposes bounded pointer hit-area choices. Plot <code>preferencesKey</code> opts into namespaced browser persistence; it does not become evaluator state.</p>
+<p><code>rix.graphics.text@1</code> includes semantic objects, proof-bearing scalar-field evidence, uncertainty, and geometry construction dependencies. <code>rix.audio-trace@1</code> reuses those labels and accepts renderer-neutral tempo, pitch-range, and exactness cue-palette defaults from a plot’s <code>audio</code> map. The browser can choose detailed, minimal, or disabled cues and persists audio transport/presentation choices separately under the same optional key. Audio continues to require an explicit user play action and performs no evaluator I/O.</p>
+</section>
 <section id="timeline" class="level2">
 <h2 class="anchored" data-anchor-id="timeline">Timeline</h2>
-<p><code>.Timeline.Sequence</code> accepts the same scene tuples and materializes the same provenance-carrying ordered frame records. <code>.Timeline.Render(timeline, frame)</code> selects a one-based frame for static renderers. <code>duration</code>, <code>easing</code>, and <code>title</code> remain part of the portable timeline descriptor.</p>
+<p><code>.Timeline.Sequence</code> accepts the same scene tuples and materializes the same provenance-carrying ordered frame records. <code>.Timeline.Render(timeline, frame)</code> selects a one-based frame for static renderers. <code>duration</code> or exact <code>frameDurations</code>, <code>markers</code>, semantic <code>tracks</code>, <code>preferencesKey</code>, <code>easing</code>, <code>transition</code>, and <code>title</code> remain part of the portable timeline descriptor.</p>
 <pre class="rix"><code>motion := .Timeline.Sequence({=
-    duration=2,
-    easing="linear",
+    frameDurations=[1/2,1,1/2],
+    markers=[{= frame=1,label="start" },{= frame=2,label="center" }],
+    preferencesKey="center-motion",
+    tracks=[.Timeline.Track({=
+        id="captions",kind="caption",
+        keyframes=[{= frame=1,value="start"},{= frame=2,value="center"}]
+    })],
+    easing="ease-in-out",
+    transition={= mode=:crossfade, duration=1/5, properties=[:opacity,:position,:fill,:stroke] },
     entries=[{: scene, [{= center=-3}, {= center=0}, {= center=3}]}]
 });
 .Timeline.Render(motion, 2)</code></pre>
-<p>The bundled HTML renderer intentionally displays the selected frame; it does not yet play or scrub. A browser animation plugin can consume <code>timeline</code> values to add a transport bar or frame recording, while a Manim-style plugin can lower the same exact frames to video. A future <code>.Out("name.pdf", value)</code> backend should handle <code>snapshots</code> and <code>timeline_render</code> as static print layout; it is not implemented by the CLI yet.</p>
+<p>The bundled HTML host turns a <code>timeline</code> value into a keyboard-accessible transport with play/pause, stepping, scrubbing, speed, loop, playback-range, previous/chosen/onion comparison, marker navigation, exact-frame recording, deterministic JSON export, and keyed preference persistence. The current-frame inspector and complete text track always report the retained exact state and exact frame output. Stable <code>data-rix-semantic-id</code> values are matched between adjacent frames for host inspection.</p>
+<p><code>rix.timeline-track@1</code> supports stable camera, caption, narration, and state tracks with ordered exact keyframes and step, linear, or cubic interpolation intent. Caption and narration tracks are deliberately stepwise. The HTML host publishes every retained keyframe and displays the latest applicable textual cue without changing the discrete exact frame model.</p>
+<p>The <code>rix.timeline-transition@1</code> contract defaults to discrete changes and declares opacity, position, fill, and stroke safe for presentation-only <code>crossfade</code> animation between same-kind objects with a matching semantic id. Unrecognized properties are rejected instead of being silently interpolated. A diagnostic track reports semantic objects that appear, disappear, or change kind. Exact values and the text track always change discretely. A reduced-motion preference disables the visual crossfade while leaving user-directed discrete playback available. Static renderers continue to use <code>.Timeline.Render</code>; recording and video plugins can consume the same exact frames. A future <code>.Out("name.pdf", value)</code> backend should handle <code>snapshots</code> and <code>timeline_render</code> as static print layout; it is not implemented by the CLI yet.</p>
 
 
 </section>

@@ -307,6 +307,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span class="menu-text">Learn</span></a>
   </li>  
   <li class="nav-item">
+    <a class="nav-link" href="../../undergraduate-probability-statistics-data-analysis.html"> 
+<span class="menu-text">Probability &amp; statistics</span></a>
+  </li>  
+  <li class="nav-item">
     <a class="nav-link" href="../../eval/syntax-guide.html"> 
 <span class="menu-text">Reference</span></a>
   </li>  
@@ -552,12 +556,12 @@ Q := {#x# x^2 + 1 }
 </section>
 <section id="plugin-consumption-contract" class="level2">
 <h2 class="anchored" data-anchor-id="plugin-consumption-contract">Plugin consumption contract</h2>
-<p>A RiX-level plugin can consume <code>.InspectSpec(value)</code> for the inert statement IR and <code>.SpecRoles(value, optionalRoles)</code> for direction. A JavaScript plugin can use the corresponding public helpers from <code>rix/eval</code>:</p>
+<p>A RiX-level plugin can consume <code>.InspectSpec(value)</code> for the inert statement IR and <code>.SpecRoles(value, optionalRoles)</code> for direction. A JavaScript plugin can use the corresponding public helpers from <code>@ratmath/rix/eval</code>:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> {</span>
 <span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>  getAttachedSpec<span class="op">,</span></span>
 <span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>  inspectSymbolicSpec<span class="op">,</span></span>
 <span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>  resolveSymbolicRoles<span class="op">,</span></span>
-<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>} <span class="im">from</span> <span class="st">"rix/eval"</span><span class="op">;</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>} <span class="im">from</span> <span class="st">"@ratmath/rix/eval"</span><span class="op">;</span></span>
 <span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> spec <span class="op">=</span> <span class="fu">getAttachedSpec</span>(value)<span class="op">;</span></span>
 <span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="op">!</span>spec) <span class="cf">throw</span> <span class="kw">new</span> <span class="bu">Error</span>(<span class="st">"Expected a symbolic spec"</span>)<span class="op">;</span></span>

@@ -41,6 +41,10 @@
         {
           "text": "Sheet views",
           "href": "eval/sheet-guide.html"
+        },
+        {
+          "text": "Diagnostic guards and early returns",
+          "href": "eval/function-returns.html"
         }
       ]
     },
@@ -103,8 +107,8 @@
               "href": "eval/objects/tuple.html"
             },
             {
-              "text": "Tensor",
-              "href": "eval/objects/tensor.html"
+              "text": "Shaped",
+              "href": "eval/objects/shaped.html"
             },
             {
               "text": "Deferred",
@@ -198,7 +202,7 @@
           "href": "parser/embedded-parsing.html"
         },
         {
-          "text": "Matrices and tensors",
+          "text": "Shaped literals",
           "href": "parser/matrix-tensor-implementation.html"
         }
       ]

@@ -307,6 +307,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span class="menu-text">Learn</span></a>
   </li>  
   <li class="nav-item">
+    <a class="nav-link" href="./undergraduate-probability-statistics-data-analysis.html"> 
+<span class="menu-text">Probability &amp; statistics</span></a>
+  </li>  
+  <li class="nav-item">
     <a class="nav-link" href="./eval/syntax-guide.html"> 
 <span class="menu-text">Reference</span></a>
   </li>  
@@ -401,7 +405,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </header>
 
 
-<p>RiX currently lives in the RatMath workspace and uses Bun. The package is an active alpha and is not yet presented as a stable registry release; the workspace is the supported way to run it today.</p>
+<p>RiX uses Bun. The package is an active alpha and is not yet presented as a stable registry release: the public npm name <code>rix</code> belongs to an unrelated project. Standalone development installs the compatible <code>@ratmath/core</code> 0.4 release.</p>
 <section id="requirements" class="level2">
 <h2 class="anchored" data-anchor-id="requirements">Requirements</h2>
 <ul>
@@ -416,7 +420,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> ratmath</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> install</span>
 <span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> <span class="at">--cwd</span> rix test</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The RiX test suite exercises tokenizer, parser, lowering, evaluator, runtime, CLI, examples, exact values, types, methods, tensors, generators, and diagnostics.</p>
+<p>The standalone repository supports <code>bun install</code> and <code>bun test</code>; the RatMath umbrella workspace instead links its local Core checkout.</p>
+<p>The RiX test suite exercises tokenizer, parser, lowering, evaluator, runtime, CLI, examples, exact values, types, methods, Shaped storage, mathematical tensors, generators, and diagnostics.</p>
 </section>
 <section id="open-the-repl" class="level2">
 <h2 class="anchored" data-anchor-id="open-the-repl">Open the REPL</h2>
@@ -451,7 +456,7 @@ half = x -&gt; x / 2
 <p>RiX keeps CLI configuration under <code>$XDG_CONFIG_HOME/rix</code>, falling back to <code>~/.config/rix</code>. Set <code>RIX_CONFIG_DIR</code> to use another location. Create or update the configuration with:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ex">rix</span> setup <span class="at">--plugins</span><span class="op">=</span>full</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="ex">rix</span> setup <span class="at">--plugins</span><span class="op">=</span>float,renderers</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Plugin names and plugin groups are case-insensitive. <code>full</code> selects the standard first-party plugin set; <code>renderers</code> selects the SVG, Canvas-plan, TikZ, PNG, Markdown, HTML, Quarto, LaTeX, PDF, and glTF target plugins. <code>.draw</code>, <code>.plot</code>, <code>.scene3d</code>, and <code>.nd</code> are producers and remain in their own groups. RiX stores the selectors rather than expanding groups permanently, so new standard plugins or group members can join later releases. The proposed <code>oracle</code> package remains specification-only and cannot be selected until it has an executable plugin manifest.</p>
+<p>Plugin names and plugin groups are case-insensitive. <code>full</code> selects the standard first-party plugin set; <code>renderers</code> selects Terminal ASCII, SVG, Canvas-plan, TikZ, PNG, Markdown, HTML, Quarto, LaTeX, PDF, GIF, glTF, and CSV. <code>.draw</code>, <code>.plot</code>, <code>.scene3d</code>, and <code>.nd</code> are producers and remain in their own groups. RiX stores the selectors rather than expanding groups permanently, so new standard plugins or group members can join later releases. Specialist plugins outside <code>full</code> remain available by ID; for example, <code>--plugin=oracle</code> loads the implemented exact Oracle plugin.</p>
 <p><code>rix setup</code> also creates <code>cli-preamble.rix</code> in the configuration directory. Its leading YAML comment can request more plugins or operator files, and its RiX body runs before each REPL starts:</p>
 <pre class="rix"><code>/**
 plugins: [float]
@@ -482,7 +487,7 @@ digits := 50;</code></pre>
 <span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>  createDefaultRegistry<span class="op">,</span></span>
 <span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>  createDefaultSystemContext<span class="op">,</span></span>
 <span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>  parseAndEvaluate<span class="op">,</span></span>
-<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>} <span class="im">from</span> <span class="st">"rix"</span><span class="op">;</span></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>} <span class="im">from</span> <span class="st">"@ratmath/rix"</span><span class="op">;</span></span>
 <span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> context <span class="op">=</span> <span class="kw">new</span> <span class="fu">Context</span>()<span class="op">;</span></span>
 <span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> registry <span class="op">=</span> <span class="fu">createDefaultRegistry</span>()<span class="op">;</span></span>
@@ -493,7 +498,7 @@ digits := 50;</code></pre>
 <span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a>  registry<span class="op">,</span></span>
 <span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a>  systemContext<span class="op">,</span></span>
 <span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a>})<span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The public package also exports narrower entry points from <code>rix/parser</code>, <code>rix/eval</code>, and <code>rix/runtime</code>. See the <a href="./developer-guide.html">developer guide</a> for the pipeline and extension boundaries.</p>
+<p>The public package also exports narrower entry points from <code>@ratmath/rix/parser</code>, <code>@ratmath/rix/eval</code>, and <code>@ratmath/rix/runtime</code>. See the <a href="./developer-guide.html">developer guide</a> for the pipeline and extension boundaries.</p>
 </section>
 <section id="build-this-documentation" class="level2">
 <h2 class="anchored" data-anchor-id="build-this-documentation">Build this documentation</h2>

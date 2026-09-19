@@ -306,6 +306,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span class="menu-text">Learn</span></a>
   </li>  
   <li class="nav-item">
+    <a class="nav-link" href="../undergraduate-probability-statistics-data-analysis.html"> 
+<span class="menu-text">Probability &amp; statistics</span></a>
+  </li>  
+  <li class="nav-item">
     <a class="nav-link" href="../eval/syntax-guide.html"> 
 <span class="menu-text">Reference</span></a>
   </li>  
@@ -368,12 +372,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#target-matrix" id="toc-target-matrix" class="nav-link" data-scroll-target="#target-matrix">Target matrix</a></li>
   <li><a href="#graphics-targets" id="toc-graphics-targets" class="nav-link" data-scroll-target="#graphics-targets">Graphics targets</a>
   <ul class="collapse">
+  <li><a href="#terminal-ascii" id="toc-terminal-ascii" class="nav-link" data-scroll-target="#terminal-ascii">Terminal ASCII</a></li>
   <li><a href="#svg" id="toc-svg" class="nav-link" data-scroll-target="#svg">SVG</a></li>
   <li><a href="#canvas" id="toc-canvas" class="nav-link" data-scroll-target="#canvas">Canvas</a></li>
   <li><a href="#tikz" id="toc-tikz" class="nav-link" data-scroll-target="#tikz">TikZ</a></li>
   <li><a href="#png" id="toc-png" class="nav-link" data-scroll-target="#png">PNG</a></li>
   <li><a href="#gif" id="toc-gif" class="nav-link" data-scroll-target="#gif">GIF</a></li>
   <li><a href="#gltf" id="toc-gltf" class="nav-link" data-scroll-target="#gltf">glTF</a></li>
+  <li><a href="#csv-and-tsv" id="toc-csv-and-tsv" class="nav-link" data-scroll-target="#csv-and-tsv">CSV and TSV</a></li>
   </ul></li>
   <li><a href="#document-targets" id="toc-document-targets" class="nav-link" data-scroll-target="#document-targets">Document targets</a>
   <ul class="collapse">
@@ -410,7 +416,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 targets := .Renderer.List();
 svg := .Renderer.Info("image/svg+xml");</code></pre>
 <pre class="rix"><code>/**
-plugins: [svg, canvas, tikz, png, markdown, html, quarto, latex, pdf, gif, gltf, csv]
+plugins: [terminal-ascii, svg, canvas, tikz, png, markdown, html, quarto, latex, pdf, gif, gltf, csv]
 **/</code></pre>
 <p>The CLI also accepts <code>--plugins=renderers</code>, and <code>rix setup --plugins=renderers</code> can make the group part of the local CLI configuration. <code>.Renderer.Info(target)</code> reports the canonical target, MIME type, extension, accepted input kinds, aliases, and determinism claim.</p>
 </section>
@@ -502,79 +508,93 @@ source := result.Get("content");</code></pre>
 </thead>
 <tbody>
 <tr class="odd">
+<td><code>terminal-ascii</code></td>
+<td>Table, Grid, Fragment, simple Graphic</td>
+<td><code>.txt</code>, <code>text/plain</code></td>
+<td>Full</td>
+<td>None</td>
+</tr>
+<tr class="even">
 <td><code>svg</code></td>
 <td>Graphic, graphic Figure</td>
 <td><code>.svg</code>, <code>image/svg+xml</code></td>
 <td>Full</td>
 <td>None</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>canvas</code></td>
 <td>Graphic, graphic Figure</td>
 <td><code>.canvas.json</code>, <code>application/vnd.rix.canvas+json</code></td>
 <td>Full</td>
 <td>None</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>tikz</code></td>
 <td>Graphic, graphic Figure</td>
 <td><code>.tikz</code>, <code>text/x-tikz</code></td>
 <td>Source generation</td>
 <td>None</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>png</code></td>
 <td>Graphic, graphic Figure</td>
 <td><code>.png</code>, <code>image/png</code></td>
 <td>Contract only</td>
 <td><code>rsvg-convert</code> or <code>magick</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>markdown</code></td>
 <td>Document/output trees</td>
 <td><code>.md</code>, <code>text/markdown</code></td>
 <td>Full</td>
 <td>None</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>html</code></td>
 <td>Any portable output</td>
 <td><code>.html</code>, <code>text/html</code></td>
 <td>Full</td>
 <td>None</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>quarto</code></td>
 <td>Documents and slides</td>
 <td><code>.qmd</code>, <code>text/x-quarto</code></td>
 <td>Source generation</td>
 <td>None</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>latex</code></td>
 <td>Documents, figures, slides</td>
 <td><code>.tex</code>, <code>text/x-tex</code></td>
 <td>Source generation</td>
 <td>None</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>pdf</code></td>
 <td>Documents, figures, static slides</td>
 <td><code>.pdf</code>, <code>application/pdf</code></td>
 <td>Contract only</td>
 <td><code>pdflatex</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>gif</code></td>
 <td>Slides, Timeline, Snapshots</td>
 <td><code>.gif</code>, <code>image/gif</code></td>
 <td>Contract only</td>
 <td>PNG rasterizer plus ImageMagick</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>gltf</code></td>
 <td>retained Scene3D</td>
 <td><code>.gltf</code>, <code>model/gltf+json</code></td>
+<td>Full</td>
+<td>None</td>
+</tr>
+<tr class="odd">
+<td><code>csv</code></td>
+<td>Table, data Relation</td>
+<td><code>.csv</code>/<code>.tsv</code>, <code>text/csv</code>/<code>text/tab-separated-values</code></td>
 <td>Full</td>
 <td>None</td>
 </tr>
@@ -584,6 +604,11 @@ source := result.Get("content");</code></pre>
 </section>
 <section id="graphics-targets" class="level2">
 <h2 class="anchored" data-anchor-id="graphics-targets">Graphics targets</h2>
+<section id="terminal-ascii" class="level3">
+<h3 class="anchored" data-anchor-id="terminal-ascii">Terminal ASCII</h3>
+<p>Terminal ASCII provides a strict seven-bit fallback for tables, grids, fragments, and simple Graphics. It is useful in logs, terminals, diffs, and hosts that cannot display richer output; unsupported scene detail is reported rather than silently invented.</p>
+<p>Learn interactively in the <a href="https://rix.ratmath.com/tutorial/plugin-terminal-ascii.html">Terminal ASCII tutorial</a>.</p>
+</section>
 <section id="svg" class="level3">
 <h3 class="anchored" data-anchor-id="svg">SVG</h3>
 <p>SVG traverses paths and curve commands, groups, transforms, rectangular clips, text, rectangles, circles, and drag-point metadata. Output is standalone and deterministic. The <code>alt</code> option adds an accessible <code>&lt;title&gt;</code> and <code>aria-label</code>.</p>
@@ -599,6 +624,7 @@ source := result.Get("content");</code></pre>
 <section id="tikz" class="level3">
 <h3 class="anchored" data-anchor-id="tikz">TikZ</h3>
 <p>TikZ emits editable TikZ/PGF. Coordinates use <code>x=1pt,y=-1pt</code> so orientation matches SVG and Canvas. Set <code>standalone=1</code> to wrap the picture in a compilable document; the default is a <code>tikzpicture</code> fragment. Endpoint-form SVG arc commands currently fail visibly because their geometric conversion is not yet defined.</p>
+<p>Versioned <code>rix.scene3d.snapshot@1</code> records and <code>Timeline.Render</code> values are accepted directly. For a Timeline, Slides, or Snapshots sequence, <code>frame=2</code> selects the second retained frame (default 1). <code>metadata.staticFrame</code> preserves exact state, origin, semantic tracks, and Scene3D projection/evidence. Exact rational coordinates remain in the editable source; large expressions request the <code>xfp</code> package while TeX supplies final display precision.</p>
 <pre class="rix"><code>.tikz.Render(graphic, {= standalone=1 });</code></pre>
 <p>Learn interactively in the <a href="https://rix.ratmath.com/tutorial/plugin-tikz.html">TikZ renderer tutorial</a>.</p>
 </section>
@@ -610,14 +636,20 @@ source := result.Get("content");</code></pre>
 </section>
 <section id="gif" class="level3">
 <h3 class="anchored" data-anchor-id="gif">GIF</h3>
-<p>GIF expands <code>Slides</code>, <code>Timeline</code>, or <code>Snapshots</code> deterministically, delegates each Graphic frame to PNG, and then asks the CLI host to encode the ordered PNGs. <code>duration</code> is measured in seconds, <code>delays</code> supplies one seconds value per frame, and the RenderResult records integer-centisecond delays and loop count. Phase 1 frames must resolve to a single Graphic or graphic Figure.</p>
+<p>GIF expands <code>Slides</code>, <code>Timeline</code>, or <code>Snapshots</code> deterministically, delegates each Graphic frame to PNG, and then asks the CLI host to encode the ordered PNGs. <code>duration</code> is measured in seconds, <code>delays</code> supplies one seconds value per frame, and the RenderResult records integer-centisecond delays and loop count. Exact Timeline <code>frameDurations</code> are respected. Frames must resolve to a single Graphic, graphic Figure, or versioned Scene3D snapshot.</p>
 <pre class="rix"><code>.gif.Render(timeline, {= duration=1/2, loop=0 });</code></pre>
-<p>The browser exposes the contract and portable timeline preview but reports <code>gif-encoder-unavailable</code>. See the <a href="https://rix.ratmath.com/tutorial/plugin-gif.html">GIF tutorial</a>.</p>
+<p>Each successful GIF also returns retained SVG frames, exact JSON evidence, captions/timing text, and an HTML contact sheet in a deterministic asset directory. These preserve exact state and requested duration separately from the GIF’s quantized timing and display interpolation.</p>
+<p>The browser reports <code>gif-encoder-unavailable</code> for binary encoding. The portable <code>.Render(timeline,"gif-frames")</code> contact-sheet target needs no external tools, works with a single retained frame, and can be written with <code>.Out("frames.html",result)</code>. See the <a href="https://rix.ratmath.com/tutorial/plugin-gif.html">GIF tutorial</a>.</p>
 </section>
 <section id="gltf" class="level3">
 <h3 class="anchored" data-anchor-id="gltf">glTF</h3>
 <p>glTF accepts the retained <code>rix.scene3d@1</code> scene rather than a projected Graphic. It converts RiX’s right-handed Z-up coordinates to glTF’s right-handed Y-up convention and embeds a base64 geometry buffer in glTF 2.0 JSON. Mesh triangles, lines, points, basic colors, and opacity are supported. Exact positions become Float32 at this explicit export boundary. Cameras, lights, textures, animation, and GLB remain follow-up work.</p>
 <p>Learn interactively in the <a href="https://rix.ratmath.com/tutorial/plugin-gltf.html">glTF renderer tutorial</a>.</p>
+</section>
+<section id="csv-and-tsv" class="level3">
+<h3 class="anchored" data-anchor-id="csv-and-tsv">CSV and TSV</h3>
+<p>CSV exports portable Tables and <code>.data</code> Relations with exact scalar text. Choose TSV through the <code>.tsv</code> extension or target alias. Nested output and presentation layout are rejected because delimited data is a data interchange format, not a document renderer.</p>
+<p>Learn interactively in the <a href="https://rix.ratmath.com/tutorial/plugin-csv.html">CSV renderer tutorial</a>.</p>
 </section>
 </section>
 <section id="document-targets" class="level2">
@@ -707,7 +739,7 @@ source := result.Get("content");</code></pre>
 </section>
 <section id="d-boundary" class="level2">
 <h2 class="anchored" data-anchor-id="d-boundary">3D boundary</h2>
-<p>The initial retained <code>rix.scene3d@1</code> schema, deterministic wireframe snapshot, and glTF JSON exporter are implemented. Scene3D owns cameras and projection; SVG/Canvas/TikZ still consume only the Graphic returned by <code>.scene3d.Snapshot</code>. The snapshot does not claim hidden-line removal or lighting. OBJ/MTL, STL, PLY, USD/USDZ, GLB, adaptive surfaces, and interactive orbit controls remain future adapters or refiners. See the complete <a href="../eval/scene3d-guide.html">3D and n-dimensional guide</a>.</p>
+<p>The retained <code>rix.scene3d@1</code> schema, versioned wireframe and flat-lit snapshots, and glTF JSON exporter are implemented. Scene3D owns cameras and projection. Canvas, TikZ, PNG, and GIF frame export accept the versioned snapshot directly; SVG can render its <code>value</code> Graphic. Browser Scene3D supports retained orbit, projection, picking, and annotation controls. Static snapshots preserve their projection and approximation evidence; they do not claim certified visibility. OBJ/MTL, STL, PLY, USD/USDZ, and GLB remain later format work. See the complete <a href="../eval/scene3d-guide.html">3D and n-dimensional guide</a>.</p>
 
 
 </section>

@@ -49,6 +49,7 @@ project:
     - eval/objects/exact-cartesian.md
     - eval/objects/cayley.md
     - eval/document-persistence.md
+    - eval/graphic-coordinate-disclosure.md
     - eval/types-and-traits-guide.md
     - reference/system-reference.md
     - plugin-catalog.md

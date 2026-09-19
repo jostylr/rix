@@ -306,6 +306,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span class="menu-text">Learn</span></a>
   </li>  
   <li class="nav-item">
+    <a class="nav-link" href="./undergraduate-probability-statistics-data-analysis.html"> 
+<span class="menu-text">Probability &amp; statistics</span></a>
+  </li>  
+  <li class="nav-item">
     <a class="nav-link" href="./eval/syntax-guide.html"> 
 <span class="menu-text">Reference</span></a>
   </li>  
@@ -413,7 +417,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li>Signature help, selection ranges, range formatting, and LSP cancellation are not implemented yet.</li>
 <li>Inline checks appear in Test Explorer, but <code>.Test</code> group discovery is still pending.</li>
 <li>The first worker emits scalar/text results and check/log diagnostics. Rich preview, artifacts, external renderers, full HTML, and plugin CSS are not enabled.</li>
-<li>Forced timeout restarts the worker; cooperative evaluator cancellation and resource budgets beyond time/capability containment remain future work.</li>
+<li>Execution requests accept cooperative cancellation and are bounded by evaluator step and wall-clock budgets. A host should still terminate and replace the worker when non-cooperative host JavaScript or memory pressure prevents cooperative cancellation from running.</li>
 </ul>
 
 

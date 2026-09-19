@@ -271,6 +271,10 @@ ul.task-list li input[type="checkbox"] {
 <span class="menu-text">Learn</span></a>
   </li>  
   <li class="nav-item">
+    <a class="nav-link" href="../undergraduate-probability-statistics-data-analysis.html"> 
+<span class="menu-text">Probability &amp; statistics</span></a>
+  </li>  
+  <li class="nav-item">
     <a class="nav-link" href="../eval/syntax-guide.html"> 
 <span class="menu-text">Reference</span></a>
   </li>  
@@ -327,9 +331,9 @@ ul.task-list li input[type="checkbox"] {
   <ul>
   <li><a href="#sheet-views" id="toc-sheet-views" class="nav-link active" data-scroll-target="#sheet-views">Sheet views</a>
   <ul class="collapse">
-  <li><a href="#basic-tensor-view" id="toc-basic-tensor-view" class="nav-link" data-scroll-target="#basic-tensor-view">Basic tensor view</a></li>
+  <li><a href="#basic-shaped-view" id="toc-basic-shaped-view" class="nav-link" data-scroll-target="#basic-shaped-view">Basic shaped view</a></li>
   <li><a href="#options" id="toc-options" class="nav-link" data-scroll-target="#options">Options</a></li>
-  <li><a href="#rank-n-tensor-planes" id="toc-rank-n-tensor-planes" class="nav-link" data-scroll-target="#rank-n-tensor-planes">Rank-N tensor planes</a></li>
+  <li><a href="#rank-n-shaped-planes" id="toc-rank-n-shaped-planes" class="nav-link" data-scroll-target="#rank-n-shaped-planes">Rank-N shaped planes</a></li>
   <li><a href="#vectors-matrices-and-sequences" id="toc-vectors-matrices-and-sequences" class="nav-link" data-scroll-target="#vectors-matrices-and-sequences">Vectors, matrices, and sequences</a></li>
   <li><a href="#snapshot-and-live-view-boundary" id="toc-snapshot-and-live-view-boundary" class="nav-link" data-scroll-target="#snapshot-and-live-view-boundary">Snapshot and live-view boundary</a></li>
   <li><a href="#formula-backed-prototype" id="toc-formula-backed-prototype" class="nav-link" data-scroll-target="#formula-backed-prototype">Formula-backed prototype</a></li>
@@ -348,21 +352,21 @@ ul.task-list li input[type="checkbox"] {
 
 <section id="sheet-views" class="level1">
 <h1>Sheet views</h1>
-<p><code>.Sheet</code> creates a portable two-dimensional view of a RiX tensor, matrix, array, tuple, or sequence. It is part of the structured-output model: the result retains exact RiX values and can be rendered as text or HTML without depending on a browser DOM.</p>
+<p><code>.Sheet</code> creates a portable two-dimensional view of a RiX Shaped value, Matrix, array, tuple, or sequence. It is part of the structured-output model: the result retains exact RiX values and can be rendered as text or HTML without depending on a browser DOM.</p>
 <p><code>.Sheet(value)</code> is an immutable snapshot. <code>.Sheet(.Bind(variable))</code> opts into a live view whose semantic edits are handled by a host-owned widget session. <code>.Sheet(.FormulaSheet(...))</code> displays the current results of a separate formula-backed model. Formula source can be persisted in the versioned <a href="../design/eval/rixcel-format.html">RiXCel document format</a>.</p>
-<section id="basic-tensor-view" class="level2">
-<h2 class="anchored" data-anchor-id="basic-tensor-view">Basic tensor view</h2>
+<section id="basic-shaped-view" class="level2">
+<h2 class="anchored" data-anchor-id="basic-shaped-view">Basic shaped view</h2>
 <pre class="rix"><code>m := {:2x3: 1, 2, 3; 4, 5, 6}
 .Sheet(m)</code></pre>
-<p>The visible rows and columns correspond to tensor axes 1 and 2. Each rendered entry retains a canonical RiX address:</p>
+<p>The visible rows and columns correspond to shaped axes 1 and 2. Each rendered entry retains a canonical RiX address:</p>
 <pre class="text"><code>grid[1,1]  grid[1,2]  grid[1,3]
 grid[2,1]  grid[2,2]  grid[2,3]</code></pre>
 <p>HTML renderers expose the address as <code>data-rix-address</code> and as the cell title. RiX Web and the RiX notebook enhance this markup with pointer and keyboard selection. Selecting an entry shows <code>C2 · grid[2,3]</code> without parsing a display label back into RiX source.</p>
 <p><code>grid</code> is the default address-base string stored by the Sheet; <code>.Sheet</code> does not create a <code>grid</code> binding and <code>grid</code> is not a property of the Sheet. If an activated address should evaluate immediately, either name the source value <code>grid</code> or set <code>address</code> to its actual binding name:</p>
 <pre class="rix"><code>m := {:2x3: 1, 2, 3; 4, 5, 6}
 .Sheet(m, {= address="m" })</code></pre>
-<p>Use the arrow keys, Home, and End to move around a focused sheet. In a read-only Sheet, Enter or a double-click activates the selected address. In RiX Web this inserts the canonical address into the formula input; in the notebook it inserts the address at the current editor selection. Selection never mutates the source tensor.</p>
-<p>By default, column headers use a dual display such as <code>C · 3</code>. The letter is a familiar spreadsheet label; the number is the RiX tensor coordinate.</p>
+<p>Use the arrow keys, Home, and End to move around a focused sheet. In a read-only Sheet, Enter or a double-click activates the selected address. In RiX Web this inserts the canonical address into the formula input; in the notebook it inserts the address at the current editor selection. Selection never mutates the source shaped.</p>
+<p>By default, column headers use a dual display such as <code>C · 3</code>. The letter is a familiar spreadsheet label; the number is the RiX shaped coordinate.</p>
 </section>
 <section id="options" class="level2">
 <h2 class="anchored" data-anchor-id="options">Options</h2>
@@ -403,7 +407,7 @@ grid[2,1]  grid[2,2]  grid[2,3]</code></pre>
 </tr>
 <tr class="odd">
 <td><code>viewAxes</code></td>
-<td>Visible tensor axes, using 1-based RiX indices</td>
+<td>Visible shaped axes, using 1-based RiX indices</td>
 <td><code>[1,2]</code></td>
 </tr>
 <tr class="even">
@@ -451,8 +455,8 @@ named.Index({=
 }) # ( 2, 2, 2 )</code></pre>
 <p><code>At</code> returns the exact value and <code>Index</code> returns the canonical numeric tuple. Every axis must be supplied. Axis names and coordinate labels match exactly, with an unambiguous case-insensitive fallback. Duplicate cosmetic labels remain valid for display but produce an ambiguity error when used for lookup.</p>
 </section>
-<section id="rank-n-tensor-planes" class="level2">
-<h2 class="anchored" data-anchor-id="rank-n-tensor-planes">Rank-N tensor planes</h2>
+<section id="rank-n-shaped-planes" class="level2">
+<h2 class="anchored" data-anchor-id="rank-n-shaped-planes">Rank-N shaped planes</h2>
 <p>A <code>Sheet</code> always presents at most two axes. Other axes select a plane:</p>
 <pre class="rix"><code>t := {:2x3x2:
     1, 2, 3; 4, 5, 6 ;;
@@ -464,15 +468,15 @@ depth2 := .Sheet(t, {=
     slice = [_, _, 2],
     address = "cube"
 })</code></pre>
-<p>The top-right visible entry has value <code>9</code>, tensor index <code>[1,3,2]</code>, and address <code>cube[1,3,2]</code>.</p>
-<p>RiX Web and the notebook render a selector for every hidden axis. Changing a selector swaps the visible plane in the immutable snapshot; it does not mutate the tensor. The portable Sheet value retains one plane record for every hidden axis combination so this interaction also works in static and live notebook output without re-evaluation.</p>
+<p>The top-right visible entry has value <code>9</code>, shaped index <code>[1,3,2]</code>, and address <code>cube[1,3,2]</code>.</p>
+<p>RiX Web and the notebook render a selector for every hidden axis. Changing a selector swaps the visible plane in the immutable snapshot; it does not mutate the shaped. The portable Sheet value retains one plane record for every hidden axis combination so this interaction also works in static and live notebook output without re-evaluation.</p>
 <p>Any two axes may be visible:</p>
 <pre class="rix"><code>rowByDepth := .Sheet(t, {=
     viewAxes = [1, 3],
     slice = [_, 2, _],
     columnLabels = :numbers
 })</code></pre>
-<p>This fixes tensor axis 2 at index 2 and displays rows against depth.</p>
+<p>This fixes shaped axis 2 at index 2 and displays rows against depth.</p>
 </section>
 <section id="vectors-matrices-and-sequences" class="level2">
 <h2 class="anchored" data-anchor-id="vectors-matrices-and-sequences">Vectors, matrices, and sequences</h2>
@@ -494,7 +498,7 @@ depth2 := .Sheet(t, {=
 lens.At(2, 3).Get()
 lens.At(2, 3).Set(5 / 7)</code></pre>
 <p>A Binding captures the RiX <code>Cell</code> behind the name. If <code>m</code> is later rebound with <code>:=</code>, an existing Binding continues to refer to the original Cell instead of silently switching targets.</p>
-<p>RiX Web and the editable notebook result pane translate edits into semantic <code>sheet:set</code> events containing a full 1-based tensor index and a RiX value. A host-owned <code>WidgetSession</code> validates the index, updates the Binding, increments its revision, and creates a refreshed Sheet. The browser DOM is never stored in the Binding or Sheet.</p>
+<p>RiX Web and the editable notebook result pane translate edits into semantic <code>sheet:set</code> events containing a full 1-based shaped index and a RiX value. A host-owned <code>WidgetSession</code> validates the index, updates the Binding, increments its revision, and creates a refreshed Sheet. The browser DOM is never stored in the Binding or Sheet.</p>
 <p>The editor accepts RiX expressions, not untyped display text. Use quotes for strings. On a live cell, Enter, F2, or double-click begins editing. Enter commits the edit and returns focus to the same highlighted cell; Escape returns without committing. Arrow navigation can then continue from that cell.</p>
 <p>Live Binding handles are runtime-only. <code>WidgetSession.snapshot()</code> detaches the current Sheet with <code>binding=null</code> and <code>editable=false</code>; persisted and static exports therefore retain the current exact values but cannot write back into a dead evaluation context.</p>
 </section>
@@ -508,7 +512,7 @@ lens.At(2, 3).Set(5 / 7)</code></pre>
 
 model[2,2]  # 5
 .Sheet(model, {= title="Formula results" })</code></pre>
-<p>Tensor notation is preferred because its shape is explicit and extends to rank-N FormulaSheets. A rectangular nested array remains accepted for rank 2. Every entry must be a deferred RiX body. Formula evaluation has an isolated context containing:</p>
+<p>Shaped notation is preferred because its shape is explicit and extends to rank-N FormulaSheets. A rectangular nested array remains accepted for rank 2. Every entry must be a deferred RiX body. Formula evaluation has an isolated context containing:</p>
 <table class="caption-top table">
 <thead>
 <tr class="header">

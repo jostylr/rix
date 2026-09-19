@@ -306,6 +306,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span class="menu-text">Learn</span></a>
   </li>  
   <li class="nav-item">
+    <a class="nav-link" href="../undergraduate-probability-statistics-data-analysis.html"> 
+<span class="menu-text">Probability &amp; statistics</span></a>
+  </li>  
+  <li class="nav-item">
     <a class="nav-link" href="../eval/syntax-guide.html"> 
 <span class="menu-text">Reference</span></a>
   </li>  
@@ -384,13 +388,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>RiX separates concrete runtime facts from sticky semantic interpretation.</p>
 <p>Runtime metadata is ephemeral:</p>
 <ul>
-<li><code>._type</code> names the current concrete runtime shape, such as <code>Integer</code>, <code>Rational</code>, <code>RationalInterval</code>, <code>array</code>, or <code>tensor</code>.</li>
+<li><code>._type</code> names the current concrete runtime shape, such as <code>Integer</code>, <code>Rational</code>, <code>RationalInterval</code>, <code>array</code>, or <code>shaped</code>.</li>
 <li><code>._proto</code> is the built-in/runtime method layer.</li>
 </ul>
 <p>Semantic metadata is sticky:</p>
 <ul>
 <li><code>.__name</code> is an optional semantic name.</li>
-<li><code>.__type</code> is the requested semantic type, such as <code>:Rational</code>, <code>:RationalInterval</code>, or <code>:Tensor</code>.</li>
+<li><code>.__type</code> is the requested semantic type, such as <code>:Rational</code>, <code>:Shaped</code>, <code>:Matrix</code>, or mathematical <code>:Tensor</code>.</li>
 <li><code>.__traits</code> is the materialized set of semantic traits.</li>
 <li><code>.__proto</code> contains semantic method layers.</li>
 </ul>
@@ -426,6 +430,10 @@ x ? :rational</code></pre>
 <li><code>:Array</code></li>
 <li><code>:Tuple</code></li>
 <li><code>:Map</code></li>
+<li><code>:Shaped</code></li>
+<li><code>:Matrix</code></li>
+<li><code>:Vector</code></li>
+<li><code>:Covector</code></li>
 <li><code>:Tensor</code></li>
 <li><code>:Set</code></li>
 <li><code>:Function</code></li>
@@ -434,7 +442,7 @@ x ? :rational</code></pre>
 <li><code>:Hole</code></li>
 </ul>
 <p><code>CertifiedApproximation</code> has <code>:number</code>, <code>:approximate</code>, <code>:enclosed</code>, and <code>:orderInquiry</code> traits. It is a scalar rather than an interval collection. <code>Undecided</code> has the <code>:decision</code> trait and is the singleton value written <code>?</code>. Type export/import preserves both values; copies of an approximation retain source identity so <code>x == x</code> remains certifiably true.</p>
-<p>Lowercase aliases such as <code>:rational</code>, <code>:interval</code>, and <code>:tensor</code> remain supported for compatibility. New code should prefer registered semantic names such as <code>:Rational</code>.</p>
+<p>All semantic type and trait names are case-insensitive. Registrations retain one canonical spelling, which is stored in <code>.__type</code>, used in diagnostics, and written by export. Thus <code>:matrix</code>, <code>:MATRIX</code>, and <code>:Matrix</code> all resolve to the canonical <code>Matrix</code> type; this is the language rule, not a compatibility alias.</p>
 </section>
 <section id="conversion" class="level2">
 <h2 class="anchored" data-anchor-id="conversion">Conversion</h2>
@@ -483,8 +491,9 @@ r == r2</code></pre>
 <li><code>POW</code>, <code>POWPROD</code></li>
 <li><code>NEG</code></li>
 <li><code>EQ</code>, <code>LT</code>, <code>GT</code>, <code>LTE</code>, <code>GTE</code></li>
-<li><code>ABS</code>, <code>SQRT</code></li>
+<li><code>ABS</code></li>
 </ul>
+<p>Approximate or certified real-valued functions are plugin-owned. For example, <code>.float.Sqrt</code> is approximate and <code>.numerics.Sqrt</code> is a certified algorithm real; core does not expose <code>.Sqrt</code> for exact Rationals.</p>
 <p>Built-in type installation currently installs Rational arithmetic/comparison variants before native fallback. Type install order is dispatch order; fallback remains last.</p>
 <p><code>^</code> lowers to <code>POW</code>. <code>**</code> lowers to <code>POWPROD</code>. Both currently share native behavior, but they are distinct system functions and operator aliases:</p>
 <pre class="rix"><code>@^    ## .POW

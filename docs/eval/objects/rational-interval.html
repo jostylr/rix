@@ -271,6 +271,10 @@ ul.task-list li input[type="checkbox"] {
 <span class="menu-text">Learn</span></a>
   </li>  
   <li class="nav-item">
+    <a class="nav-link" href="../../undergraduate-probability-statistics-data-analysis.html"> 
+<span class="menu-text">Probability &amp; statistics</span></a>
+  </li>  
+  <li class="nav-item">
     <a class="nav-link" href="../../eval/syntax-guide.html"> 
 <span class="menu-text">Reference</span></a>
   </li>  
@@ -432,13 +436,23 @@ ul.task-list li input[type="checkbox"] {
 </tr>
 <tr class="odd">
 <td><code>interval.Intersection(other)</code></td>
-<td><code>RationalInterval \| null</code></td>
-<td>Return the shared interval.</td>
+<td><code>RationalIntervalSet</code></td>
+<td>Return the exact shared set, possibly empty.</td>
 </tr>
 <tr class="even">
 <td><code>interval.Union(other)</code></td>
-<td><code>RationalInterval</code></td>
-<td>Return the covering interval.</td>
+<td><code>RationalIntervalSet</code></td>
+<td>Return the exact normalized union, preserving gaps.</td>
+</tr>
+<tr class="odd">
+<td><code>interval.Hull(other?)</code></td>
+<td><code>RationalInterval \| RationalIntervalSet</code></td>
+<td>Return the smallest exact covering range. Closed bounded inputs return a <code>RationalInterval</code>.</td>
+</tr>
+<tr class="even">
+<td><code>interval.Split()</code></td>
+<td><code>Array&lt;RationalIntervalSet&gt;</code></td>
+<td>Return the interval as its single connected component. Split specifications are reserved for a future extension.</td>
 </tr>
 <tr class="odd">
 <td><code>interval.ShortestDecimal(base?)</code></td>
@@ -510,6 +524,7 @@ ul.task-list li input[type="checkbox"] {
 </section>
 <section id="bounds-and-interval-operations" class="level2">
 <h2 class="anchored" data-anchor-id="bounds-and-interval-operations">Bounds and interval operations</h2>
+<p>Copies preserve source endpoint order: copying <code>3:1</code> keeps <code>Start()==3</code>, <code>End()==1</code>, and <code>IsAscending()==_</code>. <code>Low()</code> and <code>High()</code> remain sorted bounds.</p>
 <pre id="rational-interval-operations" class="rix" data-exec="true"><code>i := 1/4:3/4;
 j := 1/2:1;
 i.Start() ##@ == 1/4;
@@ -526,8 +541,9 @@ i.Overlaps(j) ##@ == 1;
 (0:1).Contains(i) ##@ == 1;
 i.ContainsValue(1/2) ##@ == 1;
 (-1:2).ContainsZero() ##@ == 1;
-i.Intersection(j) ##@ == 1/2:3/4;
-i.Union(j) ##@ == 1/4:1;</code></pre>
+i.Intersection(j).ToRationalInterval() ##@ == 1/2:3/4;
+i.Union(j).ToRationalInterval() ##@ == 1/4:1;
+i.Hull(j) ##@ == 1/4:1;</code></pre>
 </section>
 <section id="grids-random-sampling-and-formatting" class="level2">
 <h2 class="anchored" data-anchor-id="grids-random-sampling-and-formatting">Grids, random sampling, and formatting</h2>

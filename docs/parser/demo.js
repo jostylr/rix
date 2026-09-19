@@ -8,6 +8,7 @@ var symbols = [
   ":>:",
   ":<:",
   ":->",
+  "|\\/|",
   "\\/=",
   "/\\=",
   "\\/",
@@ -17,6 +18,8 @@ var symbols = [
   "?!-",
   "?-",
   "^=>",
+  "?/\\",
+  "!/\\",
   "?&",
   "!!",
   "!?",
@@ -25,12 +28,16 @@ var symbols = [
   "<<",
   ">>",
   "<>",
+  "_>!",
   "_>",
   "~>",
   "<_",
+  "*>",
+  "<*",
   "||>",
   "~~=",
   "::=",
+  ":::",
   "//=",
   "**=",
   "/^=",
@@ -89,6 +96,8 @@ var symbols = [
   "=>",
   "**",
   "?=",
+  "?_>",
+  "??>",
   "?_",
   "??",
   "?:",
@@ -174,6 +183,9 @@ function tokenize(input) {
     token = tryMatchPostfixCheck(input, position);
     if (!token) {
       token = tryMatchComment(input, position);
+    }
+    if (!token) {
+      token = tryMatchActiveBaseNumber(input, position);
     }
     if (!token) {
       token = tryMatchNumber(input, position);
@@ -495,6 +507,15 @@ function tryMatchNumber(input, position) {
       pos: [position, position, position + match[0].length]
     };
   }
+  match = remaining.match(/^-?(?:0z\[\d+\]|0[a-zA-Z])[0-9a-zA-Z]+(?:\.[0-9a-zA-Z]*)?#[0-9a-zA-Z]+/);
+  if (match) {
+    return {
+      type: "Number",
+      original: match[0],
+      value: match[0],
+      pos: [position, position, position + match[0].length]
+    };
+  }
   match = remaining.match(/^-?0[A-Z]"(?:[^"\\]|\\.)*"/);
   if (match) {
     return {
@@ -631,6 +652,81 @@ function tryMatchNumber(input, position) {
     };
   }
   return null;
+}
+function tryMatchActiveBaseNumber(input, position) {
+  if (input[position] !== "#" || input[position + 1] === "#")
+    return null;
+  const remaining = input.slice(position);
+  const consumeMethodLikeSuffix = (spelling) => {
+    const suffix = remaining.slice(spelling.length).match(/^\.[\p{L}\p{N}_@&]+/u)?.[0] || "";
+    return spelling + suffix;
+  };
+  const quotedComponent = "#`(?:[^`\\\\]|\\\\.)+`";
+  const quotedMixed = new RegExp(`^(${quotedComponent})\\.\\.(${quotedComponent})\\/(${quotedComponent})`, "u");
+  const quotedContinued = new RegExp(`^(${quotedComponent})\\.~(${quotedComponent}(?:~${quotedComponent})*)`, "u");
+  const composite = remaining.match(quotedMixed) || remaining.match(quotedContinued);
+  if (composite) {
+    const original2 = consumeMethodLikeSuffix(composite[0]);
+    if (original2 !== composite[0]) {
+      return {
+        type: "ActiveBaseNumber",
+        original: original2,
+        value: original2,
+        quoted: false,
+        pos: [position, position, position + original2.length]
+      };
+    }
+    const components = [...composite[0].matchAll(/#`((?:[^`\\]|\\.)+)`/gu)].map((part) => part[1].replace(/\\`/g, "`").replace(/\\\\/g, "\\"));
+    return {
+      type: "ActiveBaseNumber",
+      original: composite[0],
+      value: {
+        form: composite[0].includes("..") ? "mixed" : "continued",
+        components
+      },
+      quoted: true,
+      pos: [position, position, position + composite[0].length]
+    };
+  }
+  const quoted = remaining.match(/^#`((?:[^`\\]|\\.)+)`/u);
+  if (quoted) {
+    const original2 = consumeMethodLikeSuffix(quoted[0]);
+    if (original2 !== quoted[0]) {
+      return {
+        type: "ActiveBaseNumber",
+        original: original2,
+        value: original2,
+        quoted: false,
+        pos: [position, position, position + original2.length]
+      };
+    }
+    return {
+      type: "ActiveBaseNumber",
+      original: quoted[0],
+      value: quoted[1].replace(/\\`/g, "`").replace(/\\\\/g, "\\"),
+      quoted: true,
+      pos: [position, position, position + quoted[0].length]
+    };
+  }
+  const digit = "[\\p{L}\\p{N}_@&]";
+  const digits = `${digit}+`;
+  const active = `#${digits}`;
+  const component = `${digits}(?:\\.${digit}*)?(?:#${digits})?`;
+  const mixed = new RegExp(`^#${digits}\\.\\.#?${digits}\\/#?${digits}`, "u");
+  const explicitContinued = new RegExp(`^#~-?${digits}\\.~#?${digits}(?:~#?${digits})*`, "u");
+  const continued = new RegExp(`^#${digits}\\.~#?${digits}(?:~#?${digits})*`, "u");
+  const ordinary = new RegExp(`^#${component}`, "u");
+  const match = remaining.match(mixed) || remaining.match(explicitContinued) || remaining.match(continued) || remaining.match(ordinary);
+  if (!match)
+    return null;
+  const original = consumeMethodLikeSuffix(match[0]);
+  return {
+    type: "ActiveBaseNumber",
+    original,
+    value: original,
+    quoted: false,
+    pos: [position, position, position + original.length]
+  };
 }
 function tryMatchSystemFunctionRef(input, position) {
   const remaining = input.slice(position);
@@ -873,7 +969,7 @@ function tryMatchBrace(input, position) {
       const after = input[cursor + 1];
       if (!isWhitespace(after) && after !== "/" && after !== "}") {
         const { line: line2, col: col2 } = posToLineCol(input, position);
-        throw new Error(`Brace tensor alias '{=:${name}:' must be followed by a space, header, or '}' at line ${line2}:${col2}`);
+        throw new Error(`Brace shaped alias '{=:${name}:' must be followed by a space, header, or '}' at line ${line2}:${col2}`);
       }
       return makeAdvancedConstructorToken("{:", position, cursor + 1, {
         containerName: name.toLowerCase(),
@@ -905,7 +1001,7 @@ function tryMatchBrace(input, position) {
       };
     }
   }
-  const sigilChars = new Set(["@", ";", "|", ":", "=", "?", "$", "#", "^", ">", "~"]);
+  const sigilChars = new Set(["@", ";", "|", ":", "=", "?", "$", "#", "^", ">", "~", "&"]);
   if (sigilChars.has(ch)) {
     const sigil = ch;
     const after = input[position + 2];
@@ -1520,6 +1616,7 @@ function mergeOperatorDefinitions(...collections) {
 // src/parser/parser.js
 var PRECEDENCE = {
   STATEMENT: 0,
+  RETURN_GUARD: 8,
   ASSIGNMENT: 10,
   PIPE: 20,
   ARROW: 25,
@@ -1542,6 +1639,8 @@ var PRECEDENCE = {
 var JUXTAPOSITION_PRECEDENCE = 95;
 var IMPLICIT_APPLICATION_PRECEDENCE = 97;
 var SYMBOL_TABLE = {
+  "?_>": { precedence: PRECEDENCE.RETURN_GUARD, associativity: "left", type: "infix" },
+  "??>": { precedence: PRECEDENCE.RETURN_GUARD, associativity: "left", type: "infix" },
   ":=": {
     precedence: PRECEDENCE.ASSIGNMENT,
     associativity: "right",
@@ -1656,6 +1755,16 @@ var SYMBOL_TABLE = {
     associativity: "left",
     type: "infix"
   },
+  "?/\\": {
+    precedence: PRECEDENCE.COMPARISON,
+    associativity: "left",
+    type: "infix"
+  },
+  "!/\\": {
+    precedence: PRECEDENCE.COMPARISON,
+    associativity: "left",
+    type: "infix"
+  },
   "!?": {
     precedence: PRECEDENCE.COMPARISON,
     associativity: "left",
@@ -1748,6 +1857,11 @@ var SYMBOL_TABLE = {
     associativity: "left",
     type: "infix"
   },
+  "|\\/|": {
+    precedence: PRECEDENCE.ADDITION,
+    associativity: "left",
+    type: "infix"
+  },
   "++": {
     precedence: PRECEDENCE.ADDITION,
     associativity: "left",
@@ -1759,6 +1873,11 @@ var SYMBOL_TABLE = {
     type: "infix"
   },
   "_>": {
+    precedence: PRECEDENCE.CONVERSION,
+    associativity: "left",
+    type: "infix"
+  },
+  "_>!": {
     precedence: PRECEDENCE.CONVERSION,
     associativity: "left",
     type: "infix"
@@ -1932,6 +2051,8 @@ var SYMBOL_TABLE = {
   "{^": { precedence: 0, type: "brace_sigil" },
   "{>": { precedence: 0, type: "brace_sigil" },
   "{~": { precedence: 0, type: "brace_sigil" },
+  "{&": { precedence: 0, type: "brace_sigil" },
+  "&": { precedence: 0, type: "separator" },
   "{!": { precedence: 0, type: "brace_sigil" },
   "..": { precedence: PRECEDENCE.PROPERTY, associativity: "left", type: "infix" },
   ".|": { precedence: PRECEDENCE.PROPERTY, associativity: "left", type: "postfix" },
@@ -1944,6 +2065,23 @@ var SYMBOL_TABLE = {
   "|": { precedence: 0, type: "separator" },
   "|}": { precedence: 0, type: "separator" }
 };
+
+class RixParseError extends Error {
+  constructor(message, options = {}) {
+    const offset = Number.isInteger(options.offset) ? options.offset : 0;
+    const source = options.source || "";
+    const { line, col } = source ? posToLineCol(source, offset) : { line: 1, col: offset + 1 };
+    super(source ? `Parse error at line ${line}, column ${col} (position ${offset}): ${message}` : `Parse error at position ${offset}: ${message}`);
+    this.name = "RixParseError";
+    this.code = options.code || "RXP1000";
+    this.offset = offset;
+    this.endOffset = Number.isInteger(options.endOffset) ? Math.max(offset, options.endOffset) : offset;
+    this.line = line;
+    this.column = col;
+    this.reason = message;
+    this.token = options.token || null;
+  }
+}
 
 class Parser {
   constructor(tokens, systemLookup, source = "", customOperators = new Map) {
@@ -2000,11 +2138,14 @@ class Parser {
   }
   error(message) {
     const pos = this.current ? this.current.pos : [0, 0, 0];
-    if (this.source) {
-      const { line, col } = posToLineCol(this.source, pos[0]);
-      throw new Error(`Parse error at line ${line}, column ${col} (position ${pos[0]}): ${message}`);
-    }
-    throw new Error(`Parse error at position ${pos[0]}: ${message}`);
+    const offset = Number.isInteger(pos?.[1]) ? pos[1] : pos?.[0] || 0;
+    const endOffset = Number.isInteger(pos?.[2]) ? pos[2] : offset;
+    throw new RixParseError(message, {
+      source: this.source,
+      offset,
+      endOffset,
+      token: this.current
+    });
   }
   getSymbolInfo(token) {
     if (token.type === "CustomOperator") {
@@ -2104,7 +2245,7 @@ class Parser {
     const t = this.current;
     if (t.type === "End")
       return false;
-    if (t.type === "Number")
+    if (t.type === "Number" || t.type === "ActiveBaseNumber")
       return true;
     if (t.type === "Identifier") {
       if (t.kind === "System") {
@@ -2126,6 +2267,9 @@ class Parser {
   }
   parseExpression(minPrec = 0) {
     const left = this.parsePrefix();
+    if (!left) {
+      this.error("Expected an expression");
+    }
     return this.parseExpressionRec(left, minPrec, false);
   }
   parseDecisionBranchExpression() {
@@ -2163,6 +2307,13 @@ class Parser {
         this.advance();
         return this.createNode("Number", {
           value: token.value,
+          original: token.original
+        });
+      case "ActiveBaseNumber":
+        this.advance();
+        return this.createNode("ActiveBaseNumber", {
+          value: token.value,
+          quoted: token.quoted === true,
           original: token.original
         });
       case "String":
@@ -2217,6 +2368,15 @@ class Parser {
           original: token.original
         });
       case "Symbol":
+        if (token.value === "<*" || token.value === "*>") {
+          this.advance();
+          const value = this.parseExpression(PRECEDENCE.ASSIGNMENT + 1);
+          return this.createNode("NumberConfigDirective", {
+            setting: token.value === "<*" ? "input" : "display",
+            value,
+            original: token.original + (value.original || "")
+          });
+        }
         if (token.value === "?") {
           this.advance();
           return this.createNode("UndecidedLiteral", {
@@ -2240,6 +2400,10 @@ class Parser {
           return this.parseAngleForm();
         } else if (token.value === "{") {
           return this.parseBraceContainer();
+        } else if (token.value === "{&") {
+          return this.parseMathematicalContext();
+        } else if (token.value === ":::") {
+          return this.parseSymbolicVariable(false);
         } else if (token.value === "{=" || token.value === "{?" || token.value === "{;" || token.value === "{|" || token.value === "{:" || token.value === "{@" || token.value === "{#" || token.value === "{.." || token.value === "{>" || token.value === "{~" || token.value === "{^" || token.value === "{$" || token.value === "{$$") {
           if (token.value === "{#") {
             return this.parseSystemSpecLiteral();
@@ -2269,6 +2433,8 @@ class Parser {
           });
         } else if (token.value === "@") {
           this.advance();
+          if (this.current.value === "::")
+            return this.parseSymbolicVariable(true, token);
           if (this.current.type === "String" && this.current.kind === "quote") {
             const template = this.current;
             this.advance();
@@ -2390,6 +2556,8 @@ class Parser {
           return this.createNode("SystemObject", {
             original: token.original
           });
+        } else if (token.value === "::") {
+          return this.parseSymbolicVariable(false);
         } else if (token.value === "_") {
           this.advance();
           return this.createNode("NULL", {
@@ -2454,6 +2622,17 @@ class Parser {
   }
   parseInfix(left, symbolInfo) {
     const operator = this.current;
+    if (operator.value === "?_>" || operator.value === "??>") {
+      this.advance();
+      const value = this.parseExpression(PRECEDENCE.RETURN_GUARD + 1);
+      return this.createNode("ReturnGuard", {
+        condition: left,
+        decision: operator.value === "?_>" ? "null" : "undecided",
+        value,
+        pos: left.pos,
+        original: (left.original || "") + operator.original + (value.original || "")
+      });
+    }
     if (symbolInfo.type === "postfix" && (operator.value === "!" || operator.value === "!!")) {
       this.advance();
       return this.createNode(operator.value === "!" ? "Factorial" : "DoubleFactorial", {
@@ -2582,6 +2761,47 @@ class Parser {
         original: left.original + operator.original
       });
     } else if (operator.value === "[" && symbolInfo.type === "postfix") {
+      if (left.type === "SystemAccess" && /^[a-z]/.test(left.property) && this.current.value === ":" && this.peek().type === "Identifier") {
+        const selections = [];
+        do {
+          this.advance();
+          if (this.current.type !== "Identifier") {
+            this.error("Plugin import selectors must be colon-prefixed identifiers");
+          }
+          const local = this.current.original;
+          this.advance();
+          let source = local;
+          if (this.current.value === "=") {
+            this.advance();
+            if (this.current.value !== ":") {
+              this.error("Plugin import aliases must name their source with a colon-prefixed identifier");
+            }
+            this.advance();
+            if (this.current.type !== "Identifier") {
+              this.error("Plugin import alias sources must be colon-prefixed identifiers");
+            }
+            source = this.current.original;
+            this.advance();
+          }
+          selections.push({ local, source });
+          if (this.current.value !== ",")
+            break;
+          this.advance();
+          if (this.current.value !== ":") {
+            this.error("Plugin import selectors must each begin with ':'");
+          }
+        } while (this.current.type !== "End");
+        if (this.current.value !== "]") {
+          this.error("Expected ] after plugin import selectors");
+        }
+        this.advance();
+        return this.createNode("PluginImportSelection", {
+          object: left,
+          selections,
+          pos: left.pos,
+          original: left.original + operator.original
+        });
+      }
       if (this.current.value === ":" && ["Identifier", "Number", "String"].includes(this.peek().type)) {
         this.advance();
         const keyName = this.current.value;
@@ -2614,36 +2834,7 @@ class Parser {
       if (operator.value === "=>" || operator.value === "^=>") {
         this.error("Append/prepend syntax requires a named function signature like F(x) => body");
       }
-    } else if (operator.value === "->") {
-      right = this.parseExpression(rightPrec);
-      if (left.type === "Grouping" && left.expression && left.expression.type === "ParameterList") {
-        return this.createNode("FunctionLambda", {
-          parameters: left.expression.parameters,
-          prep: null,
-          prepStrict: false,
-          body: right,
-          pos: left.pos,
-          original: left.original + operator.original
-        });
-      }
-      const lambdaParameters = this.extractLambdaParameters(left);
-      if (lambdaParameters) {
-        return this.createNode("FunctionLambda", {
-          parameters: lambdaParameters,
-          prep: null,
-          prepStrict: false,
-          body: right,
-          pos: left.pos,
-          original: left.original + operator.original
-        });
-      }
-      return this.createNode("BinaryOperation", {
-        operator: operator.value,
-        left,
-        right,
-        pos: left.pos,
-        original: left.original + operator.original
-      });
+      this.error("Function arrow requires a named function signature or lambda parameters");
     } else if (operator.value === "|>_") {
       right = this.parseExpression(rightPrec);
       return this.createNode("ForEachPipe", {
@@ -3443,14 +3634,14 @@ class Parser {
     const metadataMap = {};
     let nonMetadataCount = 0;
     let hasSemicolons = false;
-    let matrixStructure = [];
+    let shapedStructure = [];
     let currentRow = [];
     if (this.current.value !== "]") {
       do {
         if (this.current.value === ";" || this.current.type === "SemicolonSequence") {
           hasSemicolons = true;
           const semicolonCount = this.consumeSemicolonSequence();
-          matrixStructure.push({
+          shapedStructure.push({
             row: [],
             separatorLevel: semicolonCount
           });
@@ -3469,7 +3660,7 @@ class Parser {
         }
         if (element.type === "BinaryOperation" && element.operator === ":=") {
           if (hasSemicolons) {
-            this.error("Cannot mix matrix/tensor syntax with metadata - use nested array syntax");
+            this.error("Cannot mix Shaped syntax with metadata - use nested array syntax");
           }
           hasMetadata = true;
           let key;
@@ -3504,11 +3695,11 @@ class Parser {
           }
         } else if (this.current.value === ";" || this.current.type === "SemicolonSequence") {
           if (hasMetadata) {
-            this.error("Cannot mix matrix/tensor syntax with metadata");
+            this.error("Cannot mix Shaped syntax with metadata");
           }
           hasSemicolons = true;
           const semicolonCount = this.consumeSemicolonSequence();
-          matrixStructure.push({
+          shapedStructure.push({
             row: [...currentRow],
             separatorLevel: semicolonCount
           });
@@ -3519,7 +3710,7 @@ class Parser {
       } while (this.current.value !== "]" && this.current.type !== "End");
     }
     if (currentRow.length > 0 || hasSemicolons) {
-      matrixStructure.push({
+      shapedStructure.push({
         row: currentRow,
         separatorLevel: 0
       });
@@ -3540,7 +3731,7 @@ class Parser {
       });
     }
     if (hasSemicolons) {
-      return this.buildMatrixTensor(matrixStructure, startToken);
+      return this.buildShaped(shapedStructure, startToken);
     }
     return this.createNode("Array", {
       elements,
@@ -3548,26 +3739,21 @@ class Parser {
       original: startToken.original
     });
   }
-  buildMatrixTensor(matrixStructure, startToken) {
-    const maxSeparatorLevel = Math.max(...matrixStructure.map((item) => item.separatorLevel));
+  buildShaped(shapedStructure, startToken) {
+    const maxSeparatorLevel = Math.max(...shapedStructure.map((item) => item.separatorLevel));
     if (maxSeparatorLevel === 1) {
-      const rows = [];
-      for (const item of matrixStructure) {
-        rows.push(item.row);
-      }
-      return this.createNode("Matrix", {
-        rows,
-        pos: startToken.pos,
-        original: startToken.original
-      });
-    } else {
-      return this.createNode("Tensor", {
-        structure: matrixStructure,
-        maxDimension: maxSeparatorLevel + 1,
+      return this.createNode("Shaped", {
+        rows: shapedStructure.map((item) => item.row),
         pos: startToken.pos,
         original: startToken.original
       });
     }
+    return this.createNode("Shaped", {
+      structure: shapedStructure,
+      maxDimension: maxSeparatorLevel + 1,
+      pos: startToken.pos,
+      original: startToken.original
+    });
   }
   isDirectAssignmentOperator(value) {
     return value === "=" || value === ":=" || value === "~=" || value === "::=" || value === "~~=";
@@ -3755,13 +3941,13 @@ class Parser {
         entries,
         rest
       }, current);
-    } else if (current?.type === "TensorLiteral") {
+    } else if (current?.type === "ShapedLiteral") {
       if (current.shape.length !== 2) {
-        this.error("Tensor destructuring currently supports rank-2 patterns only");
+        this.error("Shaped destructuring currently supports rank-2 patterns only");
       }
       const [rows, cols] = current.shape;
       if (current.elements.length !== rows * cols) {
-        this.error("Malformed tensor destructure");
+        this.error("Malformed shaped destructure");
       }
       const rowTargets = [];
       for (let row = 0;row < rows; row++) {
@@ -3771,7 +3957,7 @@ class Parser {
         }
         rowTargets.push(rowEntries);
       }
-      target = this.createDestructureTargetNode("DestructureTensorPattern", {
+      target = this.createDestructureTargetNode("DestructureShapedPattern", {
         shape: [...current.shape],
         rows: rowTargets
       }, current);
@@ -4049,7 +4235,7 @@ class Parser {
     this.advance();
     return name;
   }
-  parseSemanticHeader() {
+  parseSemanticHeader(options = {}) {
     if (this.current.value !== "/") {
       return null;
     }
@@ -4058,9 +4244,37 @@ class Parser {
     let captureMode = null;
     let name = null;
     let typeName = null;
+    let slots = null;
     const traits = [];
     let order = 0;
     while (this.current.value !== "/" && this.current.type !== "End") {
+      if (options.compactShapedType && typeName === null && this.current.type === "Identifier") {
+        typeName = this.parseHeaderDirectiveName();
+        if (this.current.value === ":") {
+          this.advance();
+          slots = [];
+          while (this.current.value !== "/" && this.current.type !== "End") {
+            if (this.current.type !== "Identifier" && this.current.type !== "OuterIdentifier") {
+              this.error("Expected a frame name in compact Vector/Covector/Tensor header");
+            }
+            const displayName = this.current.original.trim().replace(/^@/, "");
+            const bindingName = this.current.value.toLowerCase();
+            this.advance();
+            const dual = this.current.value === "*";
+            if (dual)
+              this.advance();
+            slots.push({ displayName, bindingName, dual });
+            if (this.current.value === "@") {
+              this.advance();
+              continue;
+            }
+            if (this.current.type === "OuterIdentifier")
+              continue;
+            break;
+          }
+        }
+        continue;
+      }
       if (this.isConstructorCaptureOperator(this.current.value)) {
         if (captureMode !== null) {
           this.error("Header may only specify one capture mode");
@@ -4075,6 +4289,13 @@ class Parser {
           this.error("Header may only specify one name");
         }
         name = this.parseHeaderDirectiveName();
+        continue;
+      }
+      if (this.current.type === "ActiveBaseNumber" && /^#[A-Za-z][A-Za-z0-9_]*$/.test(this.current.original)) {
+        if (name !== null)
+          this.error("Header may only specify one name");
+        name = this.current.original.slice(1);
+        this.advance();
         continue;
       }
       if (this.current.value === "::") {
@@ -4102,14 +4323,16 @@ class Parser {
     if (this.current.value !== "/") {
       this.error("Unterminated /.../ header");
     }
+    const end = this.current.pos[2];
     this.advance();
     return this.createNode("SemanticHeader", {
       captureMode,
       name,
       typeName,
+      ...slots ? { slots } : {},
       traits,
-      pos: startToken.pos,
-      original: startToken.original
+      pos: [startToken.pos[0], startToken.pos[1], end],
+      original: this.source ? this.source.slice(startToken.pos[0], end) : startToken.original
     });
   }
   parseValueOutfit() {
@@ -4131,11 +4354,11 @@ class Parser {
   parseBraceSigil(sigil, containerName = null, options = {}) {
     const startToken = this.current;
     this.advance();
-    const isTensorShapeSigil = sigil === "{:" && containerName && /^\d+(?:x\d+)*$/.test(containerName);
-    if (isTensorShapeSigil && !options.destructureAlias) {
-      return this.parseTensorLiteral(startToken, containerName);
+    const isShapedShapeSigil = sigil === "{:" && containerName && /^\d+(?:x\d+)*$/.test(containerName);
+    if (isShapedShapeSigil && !options.destructureAlias) {
+      return this.parseShapedLiteral(startToken, containerName);
     }
-    const effectiveSigil = isTensorShapeSigil && options.destructureAlias ? "{.." : sigil;
+    const effectiveSigil = isShapedShapeSigil && options.destructureAlias ? "{.." : sigil;
     const sigilTypeMap = {
       "{..": "ArrayContainer",
       "{=": "MapContainer",
@@ -4242,7 +4465,7 @@ class Parser {
     return this.createNode(nodeType, {
       sigil,
       ...containerName && !options.destructureAlias ? { name: containerName } : {},
-      ...isTensorShapeSigil && options.destructureAlias ? { tensorShape: containerName.split("x").map((part) => Number(part)) } : {},
+      ...isShapedShapeSigil && options.destructureAlias ? { shapedShape: containerName.split("x").map((part) => Number(part)) } : {},
       ...effectiveSigil === "{@" && options.loopMax !== undefined ? { maxIterations: options.loopMax } : {},
       ...effectiveSigil === "{@" && options.loopUnlimited ? { unlimited: true } : {},
       ...effectiveSigil === "{$" && options.asyncLimit !== undefined ? { concurrencyLimit: options.asyncLimit } : {},
@@ -4454,60 +4677,61 @@ class Parser {
       original: startToken.original
     });
   }
-  parseTensorLiteral(startToken, headerText) {
+  parseShapedLiteral(startToken, headerText) {
     const shape = headerText.split("x").map((part) => {
       const dim = Number(part);
       if (!Number.isInteger(dim) || dim < 0) {
-        this.error(`Invalid tensor dimension '${part}'`);
+        this.error(`Invalid shaped dimension '${part}'`);
       }
       return dim;
     });
     const size = shape.reduce((product, dim) => product * dim, 1);
     let elements = [];
-    const header = this.parseSemanticHeader();
+    const header = this.parseSemanticHeader({ compactShapedType: true });
     if (size === 0) {
       if (this.current.value !== "}") {
-        this.error(`Tensor literal shape ${shape.join("x")} has size 0 and must not contain elements`);
+        this.error(`Shaped literal shape ${shape.join("x")} has size 0 and must not contain elements`);
       }
     } else if (this.current.value !== "}") {
       if (shape.length === 2 && this.current.value === "[") {
-        elements = this.parseTensorRowArrayPattern(shape);
+        elements = this.parseShapedRowArrayPattern(shape);
       } else {
-        const displayTree = this.parseTensorDisplayLevel(this.getTensorDisplayLevels(shape), 0, shape);
-        elements = this.flattenTensorDisplayTree(displayTree, shape);
+        const displayTree = this.parseShapedDisplayLevel(this.getShapedDisplayLevels(shape), 0, shape);
+        elements = this.flattenShapedDisplayTree(displayTree, shape);
       }
     }
     if (this.current.value !== "}") {
-      this.error("Expected closing brace for tensor literal");
+      this.error("Expected closing brace for shaped literal");
     }
+    const end = this.current.pos[2];
     this.advance();
-    return this.createNode("TensorLiteral", {
+    return this.createNode("ShapedLiteral", {
       shape,
       ...header ? { header } : {},
       elements,
-      pos: startToken.pos,
-      original: startToken.original
+      pos: [startToken.pos[0], startToken.pos[1], end],
+      original: this.source ? this.source.slice(startToken.pos[0], end) : startToken.original
     });
   }
-  parseTensorRowArrayPattern(shape) {
+  parseShapedRowArrayPattern(shape) {
     const [rows, cols] = shape;
     const elements = [];
     for (let row = 0;row < rows; row++) {
       const rowExpr = this.parseArray();
       if (rowExpr.type !== "Array" || rowExpr.elements.length !== cols) {
-        this.error(`Malformed tensor destructure row: expected [..] with ${cols} entries`);
+        this.error(`Malformed shaped destructure row: expected [..] with ${cols} entries`);
       }
       elements.push(...rowExpr.elements);
       if (row < rows - 1) {
         if (this.current.value !== ",") {
-          this.error(`Tensor destructuring shape ${shape.join("x")} expects ',' between row arrays`);
+          this.error(`Shaped destructuring shape ${shape.join("x")} expects ',' between row arrays`);
         }
         this.advance();
       }
     }
     return elements;
   }
-  getTensorDisplayLevels(shape) {
+  getShapedDisplayLevels(shape) {
     if (shape.length === 0) {
       return [];
     }
@@ -4526,7 +4750,7 @@ class Parser {
     levels.push({ size: shape[1], separatorCount: 0, label: "column" });
     return levels;
   }
-  parseTensorDisplayLevel(levels, levelIndex, shape) {
+  parseShapedDisplayLevel(levels, levelIndex, shape) {
     const level = levels[levelIndex];
     if (!level) {
       return null;
@@ -4537,7 +4761,7 @@ class Parser {
         values.push(this.parseExpression(0));
         if (i < level.size - 1) {
           if (this.current.value !== ",") {
-            this.error(`Tensor literal shape ${shape.join("x")} expects ${level.size} columns per row`);
+            this.error(`Shaped literal shape ${shape.join("x")} expects ${level.size} columns per row`);
           }
           this.advance();
         }
@@ -4546,18 +4770,18 @@ class Parser {
     }
     const groups = [];
     for (let i = 0;i < level.size; i++) {
-      groups.push(this.parseTensorDisplayLevel(levels, levelIndex + 1, shape));
+      groups.push(this.parseShapedDisplayLevel(levels, levelIndex + 1, shape));
       if (i < level.size - 1) {
         const consumed = this.consumeSemicolonSequence();
         if (consumed !== level.separatorCount) {
           const sepText = ";".repeat(level.separatorCount);
-          this.error(`Tensor literal shape ${shape.join("x")} expects '${sepText}' between ${level.label}s`);
+          this.error(`Shaped literal shape ${shape.join("x")} expects '${sepText}' between ${level.label}s`);
         }
       }
     }
     return groups;
   }
-  flattenTensorDisplayTree(tree, shape) {
+  flattenShapedDisplayTree(tree, shape) {
     if (shape.length === 1) {
       return tree;
     }
@@ -4619,6 +4843,55 @@ class Parser {
       pos: left.pos,
       original: left.original + operator.original
     });
+  }
+  parseMathematicalContext() {
+    const start = this.current;
+    if (start.containerName)
+      this.error("Mathematical contexts do not have named headers");
+    this.advance();
+    const header = [], elements = [];
+    while (this.current.value !== "&") {
+      if (this.current.type === "End" || this.current.value === "}")
+        this.error("Expected '&' after mathematical header");
+      const declaration = this.parseExpression(0);
+      let source = null;
+      if (this.current.value === "|") {
+        this.advance();
+        source = this.parseExpression(0);
+      }
+      header.push({ declaration, source });
+      if (this.current.value === ";")
+        this.advance();
+      else if (this.current.value !== "&")
+        this.error("Expected ';' or '&' after mathematical declaration");
+    }
+    this.advance();
+    while (this.current.value !== "}") {
+      if (this.current.type === "End")
+        this.error("Expected '}' after mathematical body");
+      if (this.current.value === ";") {
+        this.advance();
+        continue;
+      }
+      elements.push(this.parseExpression(0));
+      if (this.current.value === ";")
+        this.advance();
+      else if (this.current.value !== "}")
+        this.error("Expected ';' or '}' after mathematical body statement");
+    }
+    this.advance();
+    return this.createNode("MathematicalContext", { header, elements, pos: start.pos, original: start.original });
+  }
+  parseSymbolicVariable(outer, startToken = this.current) {
+    const prefix = this.current;
+    this.advance();
+    if (this.current.type !== "Identifier" || prefix.pos[2] !== this.current.pos[1]) {
+      this.error("Symbolic '::' must be immediately followed by a name");
+    }
+    const name = this.current.value;
+    const original = (outer ? "@::" : prefix.value) + this.current.original;
+    this.advance();
+    return this.createNode(prefix.value === ":::" ? "BoundSymbol" : "SymbolicVariable", { name, outer, pos: startToken.pos, original });
   }
   parseBracketSpec() {
     const token = this.current;

@@ -306,6 +306,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span class="menu-text">Learn</span></a>
   </li>  
   <li class="nav-item">
+    <a class="nav-link" href="../undergraduate-probability-statistics-data-analysis.html"> 
+<span class="menu-text">Probability &amp; statistics</span></a>
+  </li>  
+  <li class="nav-item">
     <a class="nav-link" href="../eval/syntax-guide.html"> 
 <span class="menu-text">Reference</span></a>
   </li>  
@@ -363,7 +367,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#retained-3d-and-n-dimensional-projection" id="toc-retained-3d-and-n-dimensional-projection" class="nav-link active" data-scroll-target="#retained-3d-and-n-dimensional-projection">Retained 3D and n-dimensional projection</a>
   <ul class="collapse">
   <li><a href="#scene3d-values" id="toc-scene3d-values" class="nav-link" data-scroll-target="#scene3d-values">Scene3D values</a></li>
+  <li><a href="#orbit-descriptions-annotations-and-picking" id="toc-orbit-descriptions-annotations-and-picking" class="nav-link" data-scroll-target="#orbit-descriptions-annotations-and-picking">Orbit descriptions, annotations, and picking</a></li>
   <li><a href="#deterministic-snapshots" id="toc-deterministic-snapshots" class="nav-link" data-scroll-target="#deterministic-snapshots">Deterministic snapshots</a></li>
+  <li><a href="#webgl-display" id="toc-webgl-display" class="nav-link" data-scroll-target="#webgl-display">WebGL display</a></li>
   <li><a href="#exact-n-dimensional-projections" id="toc-exact-n-dimensional-projections" class="nav-link" data-scroll-target="#exact-n-dimensional-projections">Exact n-dimensional projections</a></li>
   <li><a href="#gltf-export" id="toc-gltf-export" class="nav-link" data-scroll-target="#gltf-export">glTF export</a></li>
   <li><a href="#runnable-4d-example" id="toc-runnable-4d-example" class="nav-link" data-scroll-target="#runnable-4d-example">Runnable 4D example</a></li>
@@ -397,7 +403,7 @@ camera := .scene3d.PerspectiveCamera([4,4,3], [0,0,0], {=
     up=[0,0,1], fov=50, near=1/100, far=1000
 });
 scene := .scene3d.Scene([mesh], {= camera=camera });</code></pre>
-<p>Initial constructors are:</p>
+<p>Available constructors are:</p>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 50%">
@@ -435,6 +441,30 @@ scene := .scene3d.Scene([mesh], {= camera=camera });</code></pre>
 <td>Exact 3-vectors with display <code>radius</code>.</td>
 </tr>
 <tr class="odd">
+<td><code>ParametricCurve(curve, domain, options?)</code></td>
+<td>Bounded exact sampling to a retained polyline; <code>samples</code> defaults to 33.</td>
+</tr>
+<tr class="even">
+<td><code>ParametricSurface(surface, uDomain, vDomain, options?)</code></td>
+<td>Exact midpoint-tested refinement to a conforming triangle mesh, bounded by <code>maxDepth</code> and <code>maxCells</code>.</td>
+</tr>
+<tr class="odd">
+<td><code>Axes(options?)</code></td>
+<td>Reusable X/Y/Z polylines with optional projected labels and prefixed picking IDs.</td>
+</tr>
+<tr class="even">
+<td><code>Annotation(position, text, options?)</code></td>
+<td>Retained 3D text lowered to a projected core Graphics text mark.</td>
+</tr>
+<tr class="odd">
+<td><code>AnnotationPolicy(options?)</code></td>
+<td>Screen offset/leader behavior plus retained collision, priority, and occlusion requests.</td>
+</tr>
+<tr class="even">
+<td><code>Interaction(options?)</code></td>
+<td>Portable event, cursor, tooltip, selection, and payload intent for an identified leaf.</td>
+</tr>
+<tr class="odd">
 <td><code>Material(options)</code></td>
 <td><code>color</code>, <code>opacity</code>, and wire width hints. A material may be passed in node options.</td>
 </tr>
@@ -458,20 +488,59 @@ scene := .scene3d.Scene([mesh], {= camera=camera });</code></pre>
 <td><code>OrthographicCamera(position, target, options?)</code></td>
 <td>Automatic fit, or explicit vertical <code>scale</code>.</td>
 </tr>
+<tr class="odd">
+<td><code>OrbitCamera(target, options?)</code></td>
+<td>Perspective or orthographic camera with exact Cayley <code>turn</code> and reusable <code>rix.scene3d.orbit@1</code> metadata.</td>
+</tr>
 </tbody>
 </table>
-<p>The initial schema intentionally contains realized geometry. Parametric and implicit surfaces will be adaptive producers of meshes rather than adding unevaluated functions to interchange files.</p>
+<p>The schema intentionally contains realized geometry. <code>ParametricCurve</code> therefore evaluates its function at construction and records the domain, sample count, and exact policy as metadata. <code>ParametricSurface</code> likewise evaluates its two-argument function at construction. It doubles a conforming grid until its exact midpoint-deviation test meets <code>tolerance</code> or a bound stops refinement, then records <code>rix.scene3d.surface-sampling@1</code> metadata with the chosen depth, work, <code>resolved</code>, and <code>limitedBy</code>. The midpoint test is a deterministic sampling policy, not a certificate over unsampled points. Implicit surfaces remain a future bounded producer rather than adding an unevaluated function to interchange files.</p>
+</section>
+<section id="orbit-descriptions-annotations-and-picking" class="level2">
+<h2 class="anchored" data-anchor-id="orbit-descriptions-annotations-and-picking">Orbit descriptions, annotations, and picking</h2>
+<p>Every mesh, polyline, point cloud, curve, or annotation accepts optional <code>id</code>, <code>label</code>, and <code>metadata</code> fields. IDs must be unique among realized leaves. They survive exact hierarchy realization and camera projection:</p>
+<pre class="rix"><code>curve := .scene3d.ParametricCurve(
+    t -&gt; [t, t^2, 0],
+    0:1,
+    {= samples=9, id="parabola", label="y = x²" }
+);
+note := .scene3d.Annotation([1,1,0], "endpoint", {= id="endpoint" });
+camera := .scene3d.OrbitCamera([0,0,0], {=
+    radius=5, height=2, turn=1/3, projection="orthographic", scale=4
+});
+scene := .scene3d.Scene([.scene3d.Axes({= id="basis" }), curve, note], {=
+    camera=camera
+});
+realizedPicking := .scene3d.Realize(scene)["picking"];
+snapshot := .scene3d.Snapshot(scene, {= size=[640,480] });
+projectedPicking := snapshot["picking"];</code></pre>
+<p><code>realizedPicking["parabola"]</code> identifies the exact retained primitive. <code>projectedPicking["parabola"]["indices"]</code> lists its visible projected segment records, which a browser host can associate with its own hit-testing layer. The picking map is also returned by <code>Project</code>. It deliberately describes identity without embedding DOM, Canvas, or WebGL event state in the scene. An identified leaf may attach a <code>.scene3d.Interaction(...)</code> value. Its portable events and presentation hints survive both picking maps for a host to interpret; callbacks and browser objects never enter the scene.</p>
+<p>Annotations may attach <code>.scene3d.AnnotationPolicy(...)</code>. Exact screen offsets and leader lines lower to core Graphics. Priority, collision, and occlusion requests remain in the projected record so capable hosts can implement them; the portable snapshot does not falsely claim collision or occlusion handling.</p>
+<p><code>OrbitCamera</code> places the camera around the Z axis. Its <code>turn</code> is the rational Cayley parameter, with <code>.Complex[:infinity]</code> denoting the half-turn. The resulting camera retains an <code>orbit</code> field with schema <code>rix.scene3d.orbit@1</code>, so an interactive host can update the parameter without guessing how the camera was constructed.</p>
 </section>
 <section id="deterministic-snapshots" class="level2">
 <h2 class="anchored" data-anchor-id="deterministic-snapshots">Deterministic snapshots</h2>
-<p><code>.scene3d.Snapshot</code> projects a retained scene into core <code>.Graphics</code>. Phase 1 implements explicitly named <code>wireframe</code> and <code>lit</code> modes. Wireframe clips perspective segments against the camera’s near/far planes. Lit mode uses deterministic flat Lambert shading and painter’s ordering for mesh triangles; it does not claim certified hidden-surface removal, shadows, triangle clipping, or tessellation.</p>
+<p><code>.scene3d.Snapshot</code> projects a retained scene into core <code>.Graphics</code>. Phase 1 implements explicitly named <code>wireframe</code> and <code>lit</code> modes. Wireframe clips perspective segments against the camera’s near/far planes. Before projection, exact <code>ClipPlane</code> half-spaces filter point clouds, cut line segments, and clip and retriangulate mesh triangles; <code>realized["clipping"]</code> and each affected primitive’s <code>clipRealization</code> record the work. Lit mode uses deterministic flat Lambert shading and painter’s ordering for mesh triangles; it does not claim certified hidden-surface removal, shadows, or certified tessellation.</p>
 <pre class="rix"><code>snapshot := .scene3d.Snapshot(scene, {=
     size=[640,480],
     mode="wireframe"
 });
 graphic := snapshot["value"];</code></pre>
 <p>Lights remain retained scene nodes and affect only an explicitly requested lit snapshot. A wireframe snapshot reports that it ignored present lights instead of silently changing its line rendering.</p>
-<p>The result is an adaptive-result map with <code>value</code>, <code>resolved</code>, <code>uncertainty</code>, <code>work</code>, <code>source</code>, and <code>diagnostics</code>. <code>value</code> is a normal Graphic and therefore works unchanged with SVG, Canvas, TikZ, and PNG.</p>
+<p>The result has <code>type="scene3d_snapshot"</code>, schema <code>rix.scene3d.snapshot@1</code>, and the adaptive-result fields <code>value</code>, <code>resolved</code>, <code>uncertainty</code>, <code>work</code>, <code>source</code>, and <code>diagnostics</code>. <code>value</code> is a normal Graphic. Canvas and PNG also accept the whole snapshot directly so its source and picking provenance survive target lowering.</p>
+<pre class="rix"><code>.Plugin.Load("canvas");
+canvasPlan := .canvas.Render(snapshot);
+
+.Plugin.Load("png");
+pngBytes := .png.Render(snapshot); # requires a host rasterizer</code></pre>
+</section>
+<section id="webgl-display" class="level2">
+<h2 class="anchored" data-anchor-id="webgl-display">WebGL display</h2>
+<p>The browser-safe <code>webgl</code> renderer consumes the retained Scene3D value rather than the projected Graphic. It emits deterministic <code>rix.webgl-plan@1</code> JSON containing camera and light descriptors, triangle/line/point draw calls, picking IDs, interaction policies, and annotation overlays.</p>
+<pre class="rix"><code>.Plugin.Load("webgl");
+plan := .webgl.Render(scene, {= width=640, height=480 });</code></pre>
+<p>A JavaScript host executes the parsed plan with <code>paintWebGLPlan(gl, plan)</code>. The return value includes screen coordinates for accessible DOM or Canvas text overlays. Exact Scene3D coordinates cross to Float32 only during GPU execution, and the plan reports that approximation as a diagnostic.</p>
+<p>RiX Web applies each retained annotation policy after projection. <code>occlusion</code> may be <code>"show"</code>, <code>"fade"</code>, or <code>"hide"</code>; fade and hide compare the annotation anchor with projected mesh depth without removing the semantic annotation from the scene. Its toolbar searches exact picking identities and descriptions and offers precise through extra-large CPU pick areas. Put <code>preferencesKey="name"</code> in the Scene’s <code>metadata</code> map to persist camera, projection, selection, filter, search, and pick tolerance in the browser host. GPU color-buffer picking remains a future optimization for exceptionally dense scenes; the retained <code>pickid</code> contract does not depend on that implementation.</p>
 </section>
 <section id="exact-n-dimensional-projections" class="level2">
 <h2 class="anchored" data-anchor-id="exact-n-dimensional-projections">Exact n-dimensional projections</h2>
@@ -492,12 +561,12 @@ scene := .nd.ToScene3D(projected);</code></pre>
 <pre class="rix"><code>.Plugin.Load("gltf");
 result := .gltf.Render(scene);
 .Out("scene.gltf", scene);</code></pre>
-<p>Phase 1 does not export retained lights, camera nodes, textures, animation, or GLB. glTF line width is not portable and is reported as an informational diagnostic.</p>
+<p>glTF exports Scene3D picking IDs into node <code>extras.rix.pickid</code>. It does not export annotations because core glTF 2.0 has no portable text primitive, and reports <code>gltf-annotations-not-exported</code> instead of silently turning text into a point. Retained lights, camera nodes, textures, animation, and GLB also remain future work. glTF line width is not portable and is reported as an informational diagnostic.</p>
 </section>
 <section id="runnable-4d-example" class="level2">
 <h2 class="anchored" data-anchor-id="runnable-4d-example">Runnable 4D example</h2>
 <p>From <code>rix/</code>:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js <span class="at">--out</span><span class="op">=</span>tmp/tesseract-out examples/geometry/tesseract.rix</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js <span class="at">--out</span><span class="op">=</span>tmp/tesseract-out examples/geometry/tesseract.rix</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>This creates <code>tesseract.svg</code> from a deterministic wireframe snapshot and <code>tesseract.gltf</code> from the same retained 3D scene. The corresponding RiX Web tutorials run the browser-safe parts directly.</p>
 
 

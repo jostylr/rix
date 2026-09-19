@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>cells-assignments – RiX</title>
+<title>Number input and display – RiX</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -23,31 +23,66 @@ ul.task-list li input[type="checkbox"] {
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
 }
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
 </style>
 
 
-<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
-<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
-<script src="../../site_libs/clipboard/clipboard.min.js"></script>
-<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
-<script src="../../site_libs/quarto-search/fuse.min.js"></script>
-<script src="../../site_libs/quarto-search/quarto-search.js"></script>
-<meta name="quarto:offset" content="../../">
-<link href="../../rix-logo.png" rel="icon" type="image/png">
-<script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
-<script src="../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
-<script src="../../site_libs/quarto-html/popper.min.js"></script>
-<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
-<script src="../../site_libs/quarto-html/anchor.min.js"></script>
-<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
-<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-dark-de927ec96a2411cf822331f71755f83e.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
-<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
-<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
-<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../../site_libs/bootstrap/bootstrap-dfa129ac6e33aa8a1407114b8c26932f.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
-<link href="../../site_libs/bootstrap/bootstrap-dark-de8d9ea7065925b465f143946b8defe2.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
-<link href="../../site_libs/bootstrap/bootstrap-dfa129ac6e33aa8a1407114b8c26932f.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<link href="../rix-logo.png" rel="icon" type="image/png">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-de927ec96a2411cf822331f71755f83e.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-dfa129ac6e33aa8a1407114b8c26932f.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-dark-de8d9ea7065925b465f143946b8defe2.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../site_libs/bootstrap/bootstrap-dfa129ac6e33aa8a1407114b8c26932f.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -248,11 +283,11 @@ ul.task-list li input[type="checkbox"] {
     <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
       <div class="navbar-container container-fluid">
       <div class="navbar-brand-container mx-auto">
-    <a href="../../index.html" class="navbar-brand navbar-brand-logo">
-    <img src="../../rix-logo.png" alt="" class="navbar-logo light-content">
-    <img src="../../rix-logo.png" alt="" class="navbar-logo dark-content">
+    <a href="../index.html" class="navbar-brand navbar-brand-logo">
+    <img src="../rix-logo.png" alt="" class="navbar-logo light-content">
+    <img src="../rix-logo.png" alt="" class="navbar-logo dark-content">
     </a>
-    <a class="navbar-brand" href="../../index.html">
+    <a class="navbar-brand" href="../index.html">
     <span class="navbar-title">RiX</span>
     </a>
   </div>
@@ -263,23 +298,23 @@ ul.task-list li input[type="checkbox"] {
           <div class="collapse navbar-collapse" id="navbarCollapse">
             <ul class="navbar-nav navbar-nav-scroll me-auto">
   <li class="nav-item">
-    <a class="nav-link" href="../../getting-started.html"> 
+    <a class="nav-link" href="../getting-started.html"> 
 <span class="menu-text">Start</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="../../language-at-a-glance.html"> 
+    <a class="nav-link" href="../language-at-a-glance.html"> 
 <span class="menu-text">Learn</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="../../undergraduate-probability-statistics-data-analysis.html"> 
+    <a class="nav-link" href="../undergraduate-probability-statistics-data-analysis.html"> 
 <span class="menu-text">Probability &amp; statistics</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="../../eval/syntax-guide.html"> 
+    <a class="nav-link" href="../eval/syntax-guide.html"> 
 <span class="menu-text">Reference</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="../../developer-guide.html"> 
+    <a class="nav-link" href="../developer-guide.html"> 
 <span class="menu-text">Internals</span></a>
   </li>  
 </ul>
@@ -302,7 +337,7 @@ ul.task-list li input[type="checkbox"] {
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
         <a class="flex-grow-1 no-decor" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
-          <h1 class="quarto-secondary-nav-title"></h1>
+          <h1 class="quarto-secondary-nav-title">Number input and display</h1>
         </a>     
     </div>
   </nav>
@@ -315,7 +350,7 @@ ul.task-list li input[type="checkbox"] {
     <ul class="list-unstyled mt-1">
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../index.html" class="sidebar-item-text sidebar-link">
+  <a href="../index.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Loading documentation…</span></a>
   </div>
 </li>
@@ -329,369 +364,178 @@ ul.task-list li input[type="checkbox"] {
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#rix-assignment-and-cell-semantics" id="toc-rix-assignment-and-cell-semantics" class="nav-link active" data-scroll-target="#rix-assignment-and-cell-semantics">RiX Assignment and Cell Semantics</a>
-  <ul class="collapse">
-  <li><a href="#overview" id="toc-overview" class="nav-link" data-scroll-target="#overview">Overview</a></li>
-  </ul></li>
+  <li><a href="#session-shorthand" id="toc-session-shorthand" class="nav-link active" data-scroll-target="#session-shorthand">Session shorthand</a></li>
+  <li><a href="#display-profile-grammar" id="toc-display-profile-grammar" class="nav-link" data-scroll-target="#display-profile-grammar">Display profile grammar</a></li>
+  <li><a href="#strict-active-base-literals" id="toc-strict-active-base-literals" class="nav-link" data-scroll-target="#strict-active-base-literals">Strict active-base literals</a></li>
+  <li><a href="#lossless-output-with-_" id="toc-lossless-output-with-_" class="nav-link" data-scroll-target="#lossless-output-with-_">Lossless output with <code>_&gt;!</code></a></li>
+  <li><a href="#balanced-negative-radix-and-bijective-systems" id="toc-balanced-negative-radix-and-bijective-systems" class="nav-link" data-scroll-target="#balanced-negative-radix-and-bijective-systems">Balanced, negative-radix, and bijective systems</a></li>
+  <li><a href="#host-and-json-configuration" id="toc-host-and-json-configuration" class="nav-link" data-scroll-target="#host-and-json-configuration">Host and JSON configuration</a></li>
   </ul>
-<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/design/eval/cells-assignments.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/number-notation.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
 <!-- main -->
-<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"></header>
+<main class="content" id="quarto-document-content">
+
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title d-none d-lg-block">Number input and display</h1>
+</div>
 
 
 
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
 
 
-<section id="rix-assignment-and-cell-semantics" class="level1">
-<h1>RiX Assignment and Cell Semantics</h1>
-<p>This mini-spec is a design reference for the assignment system. The current <a href="../../eval/syntax-guide.html#assignment--definition">syntax guide</a> is the canonical user-facing operator reference.</p>
-<p>⸻</p>
-<section id="overview" class="level2">
-<h2 class="anchored" data-anchor-id="overview">Overview</h2>
-<p>In RiX, variables refer to cells, not directly to values.</p>
-<p>A cell is the fundamental storage unit:</p>
-<p>Cell = { value, meta }</p>
-<pre><code>•   value is the current stored data.
-•   meta is a map of metadata describing the cell and/or its value.</code></pre>
-<p>Assignment operators control: 1. Whether the lhs name is rebound to a different cell. 2. Whether the existing lhs cell is preserved and its value replaced. 3. Whether the rhs value/meta are copied shallowly or deeply.</p>
-<p>⸻</p>
-<ol type="1">
-<li>Meta Property Classes</li>
-</ol>
-<p>Meta keys fall into three semantic classes.</p>
-<p>1.1 Cell Identity / Policy Meta</p>
-<p>Keys not beginning with _</p>
-<p>Examples:</p>
-<p>.key .mutable .frozen .immutable .origin</p>
-<p>Properties: • Describe the identity or policy of the cell • Survive in-place updates (~= / <sub></sub>=)</p>
-<p>Example:</p>
-<p>x.key = “temperature” x ~= 21</p>
-<p>x.key remains “temperature”.</p>
-<p>⸻</p>
-<p>1.2 Ephemeral Value Meta</p>
-<p>Keys beginning with exactly one underscore</p>
-<p>._spec ._deriv ._source</p>
-<p>Properties: • Describe the current value occupant • Replaced wholesale during ~= / <sub></sub>= updates.</p>
-<p>Example:</p>
-<p>f._spec = “sensor formula” f ~= 21</p>
-<p>f._spec disappears unless the rhs supplies one.</p>
-<p>⸻</p>
-<p>1.3 Sticky Value-Interpretation Meta</p>
-<p>Keys beginning with two underscores</p>
-<p>.__units .__dimension .__frame</p>
-<p>Properties: • Describe interpretation of the value stream • Preserved across updates unless rhs explicitly supplies them.</p>
-<p>Example:</p>
-<p>t.__units = “C” t ~= 21</p>
-<p>.__units remains “C”.</p>
-<p>Example with overwrite:</p>
-<p>a.__units = “C” b.__units = “F” a ~= b</p>
-<p>Result:</p>
-<p>a.__units == “F”</p>
-<p>⸻</p>
-<ol start="2" type="1">
-<li>Primitive Runtime Model</li>
-</ol>
-<p>Environment:</p>
-<p>Env : Name -&gt; Cell</p>
-<p>Evaluation:</p>
-<p>eval(expr, Env) -&gt; Cell</p>
-<p>Some expressions return existing cells (e.g.&nbsp;variable references). Others produce fresh temporary cells (e.g.&nbsp;literals, arithmetic).</p>
-<p>⸻</p>
-<ol start="3" type="1">
-<li>Assignment Operators</li>
-</ol>
-<p>3.1 Alias / Rebinding</p>
-<p>x = expr</p>
-<p>Semantics:</p>
-<p>R = eval(expr) bind(x, R)</p>
-<p>Effects: • x now refers to the same cell as expr. • No copying occurs.</p>
-<p>Example:</p>
-<p>x := 5 y = x x += 1</p>
-<p>Result:</p>
-<p>x == 6 y == 6</p>
-<p>Both names share the same cell.</p>
-<p>⸻</p>
-<p>3.2 Fresh Shallow Copy Assignment</p>
-<p>x := expr</p>
-<p>Semantics:</p>
-<p>R = eval(expr)</p>
-<p>newCell = { value = shallowCopy(R.value) meta = shallowCopy(R.meta) }</p>
-<p>bind(x, newCell)</p>
-<p>Effects: • Creates a new independent cell • Copies value and all meta</p>
-<p>Example:</p>
-<p>x := 5 y := x x += 1</p>
-<p>Result:</p>
-<p>x == 6 y == 5</p>
-<p>⸻</p>
-<p>3.3 In-Place Shallow Update</p>
-<p>x ~= expr</p>
-<p>Semantics (existing x):</p>
-<p>lhs = Env[x] rhs = eval(expr)</p>
-<p>lhs.value = shallowCopy(rhs.value)</p>
-<p>lhs.meta = ordinary(lhs.meta) ∪ ephemeral(rhs.meta) ∪ stickyMerge(lhs.meta, rhs.meta)</p>
-<p>Meta rules:</p>
-<p>meta type behavior ordinary preserved ._* replaced from rhs .__* preserved unless rhs supplies value</p>
-<p>Example:</p>
-<p>t.key = “temperature” t.__units = “C” t._spec = “sensor”</p>
-<p>t ~= 21</p>
-<p>Result:</p>
-<p>t.key == “temperature” t.__units == “C” t._spec absent</p>
-<p>⸻</p>
-<p>3.4 Fresh Deep Copy Assignment</p>
-<p>x ::= expr</p>
-<p>Semantics:</p>
-<p>R = eval(expr)</p>
-<p>newCell = { value = deepCopy(R.value) meta = deepCopy(R.meta) }</p>
-<p>bind(x, newCell)</p>
-<p>Creates a fresh cell with deep-copied value and meta.</p>
-<p>⸻</p>
-<p>3.5 In-Place Deep Update</p>
-<p>x <sub></sub>= expr</p>
-<p>Semantics:</p>
-<p>lhs = Env[x] rhs = eval(expr)</p>
-<p>lhs.value = deepCopy(rhs.value)</p>
-<p>lhs.meta = ordinary(lhs.meta) ∪ deepCopy(ephemeral(rhs.meta)) ∪ stickyMerge(lhs.meta, deepCopy(sticky(rhs.meta)))</p>
-<p>Identical to ~= except value and incoming meta are deep-copied.</p>
-<p>⸻</p>
-<ol start="4" type="1">
-<li>Undefined LHS with ~= or <sub></sub>=</li>
-</ol>
-<p>If the lhs variable does not yet exist:</p>
-<p>x ~= expr</p>
-<p>creates a new cell:</p>
-<p>value = shallowCopy(rhs.value) meta = ephemeral(rhs.meta) ∪ sticky(rhs.meta)</p>
-<p>Ordinary meta from rhs is not inherited.</p>
-<p>This keeps ~= conceptually an update operator, not a cloning operator.</p>
-<p>⸻</p>
-<ol start="5" type="1">
-<li>Combo Assignment Operators</li>
-</ol>
-<p>Compound assignments rewrite to ~= updates.</p>
-<p>x += y</p>
-<p>rewrites to:</p>
-<p>x ~= x + y</p>
-<p>General rule:</p>
-<p>x op= y → x ~= x op y</p>
-<p>Examples:</p>
-<p>x += y → x ~= x + y x -= y → x ~= x - y x <em>= y → x ~= x </em> y x /= y → x ~= x / y x ^= y → x ~= x ^ y</p>
-<p>Effects: • Cell identity preserved • Aliases observe updates</p>
-<p>Example:</p>
-<p>a := 5 b = a a += 1</p>
-<p>Result:</p>
-<p>a == 6 b == 6</p>
-<p>⸻</p>
-<ol start="6" type="1">
-<li>Copy Depth</li>
-</ol>
-<p>operator copy depth := shallow ::= deep ~= shallow <sub></sub>= deep</p>
-<p>⸻</p>
-<ol start="7" type="1">
-<li>Summary Table</li>
-</ol>
-<p>operator cell identity value copy meta behavior = rebind to rhs none rhs meta := new cell shallow copy all ::= new cell deep deep copy ~= preserve lhs cell shallow preserve ordinary, replace ._, merge .__ <sub></sub>= preserve lhs cell deep same meta rules</p>
-<p>⸻</p>
-<ol start="8" type="1">
-<li>Design Rationale</li>
-</ol>
-<p>The assignment system separates three concepts: 1. Cell identity 2. Value replacement 3. Metadata propagation</p>
-<p>This allows: • explicit aliasing (=) • explicit copying (:=, ::=) • explicit in-place updates (~=, <sub></sub>=) • controlled metadata behavior for symbolic or annotated values.</p>
-<p>The system supports: • alias-visible mutation • stable cell identity (.key) • ephemeral value metadata • persistent interpretation metadata (.__units, etc.).</p>
-<p>⸻</p>
-<p>Excellent. These kinds of edge-case tables are where language semantics either prove themselves or reveal hidden gremlins. The goal here is to stress the system in ways real programs will.</p>
-<p>Below are 12 canonical tests that probe aliasing, copy depth, metadata propagation, and assignment edge cases.</p>
-<p>⸻</p>
-<p>RiX Assignment Semantics — Edge Case Examples</p>
-<p>Each example shows: • code • expected result • what semantic rule it validates</p>
-<p>⸻</p>
-<ol type="1">
-<li>Alias propagation through mutation</li>
-</ol>
-<p>x := 5 y = x x += 1</p>
-<p>Expected:</p>
-<p>x == 6 y == 6</p>
-<p>Reason:</p>
-<p>= aliases the same cell.</p>
-<p>+= rewrites to:</p>
-<p>x ~= x + 1</p>
-<p>so the same cell is updated, affecting all aliases.</p>
-<p>⸻</p>
-<ol start="2" type="1">
-<li>Copy isolation with :=</li>
-</ol>
-<p>x := 5 y := x x += 1</p>
-<p>Expected:</p>
-<p>x == 6 y == 5</p>
-<p>Reason:</p>
-<p>:= creates a new cell with copied value/meta.</p>
-<p>⸻</p>
-<ol start="3" type="1">
-<li>Shallow structure sharing</li>
-</ol>
-<p>a := [1,2] b := a a ~= a a[1] = 9</p>
-<p>Expected:</p>
-<p>b[1] == 2</p>
-<p>Reason:</p>
-<p>:= copied the array reference shallowly into a new cell, but the array itself was not deep-copied.</p>
-<p>If the array itself was copied internally depends on your array semantics; this test clarifies that.</p>
-<p>⸻</p>
-<ol start="4" type="1">
-<li>Deep copy isolation</li>
-</ol>
-<p>a := [1,2] b ::= a a[1] = 9</p>
-<p>Expected:</p>
-<p>b[1] == 1</p>
-<p>Reason:</p>
-<p>::= deep-copies the structure.</p>
-<p>⸻</p>
-<ol start="5" type="1">
-<li>Ordinary meta survives ~=</li>
-</ol>
-<p>t.key = “temperature” t.mutable = 1</p>
-<p>t ~= 25</p>
-<p>Expected:</p>
-<p>t.key == “temperature” t.mutable == 1</p>
-<p>Reason:</p>
-<p>ordinary meta is cell identity metadata.</p>
-<p>⸻</p>
-<ol start="6" type="1">
-<li>Ephemeral meta wiped by update</li>
-</ol>
-<p>f._spec = “original spec”</p>
-<p>f ~= 7</p>
-<p>Expected:</p>
-<p>f._spec absent</p>
-<p>Reason:</p>
-<p>._* metadata is replaced wholesale from rhs.</p>
-<p>Since rhs has none, it disappears.</p>
-<p>⸻</p>
-<ol start="7" type="1">
-<li>Ephemeral meta replaced by rhs</li>
-</ol>
-<p>f._spec = “old”</p>
-<p>g._spec = “new”</p>
-<p>f ~= g</p>
-<p>Expected:</p>
-<p>f._spec == “new”</p>
-<p>Reason:</p>
-<p>ephemeral meta replaced from rhs.</p>
-<p>⸻</p>
-<ol start="8" type="1">
-<li>Sticky meta preserved</li>
-</ol>
-<p>t.__units = “C”</p>
-<p>t ~= 21</p>
-<p>Expected:</p>
-<p>t.__units == “C”</p>
-<p>Reason:</p>
-<p>.__* metadata persists unless overwritten.</p>
-<p>⸻</p>
-<ol start="9" type="1">
-<li>Sticky meta overwritten</li>
-</ol>
-<p>a.__units = “C”</p>
-<p>b.__units = “F”</p>
-<p>a ~= b</p>
-<p>Expected:</p>
-<p>a.__units == “F”</p>
-<p>Reason:</p>
-<p>rhs sticky metadata overrides lhs.</p>
-<p>⸻</p>
-<ol start="10" type="1">
-<li>:= copies all meta classes</li>
-</ol>
-<p>x.key = “velocity” x._spec = “formula” x.__units = “m/s”</p>
-<p>y := x</p>
-<p>Expected:</p>
-<p>y.key == “velocity” y._spec == “formula” y.__units == “m/s”</p>
-<p>Reason:</p>
-<p>:= clones all meta.</p>
-<p>⸻</p>
-<ol start="11" type="1">
-<li>~= with undefined lhs</li>
-</ol>
-<p>x ~= 5</p>
-<p>Expected:</p>
-<p>x.value == 5 x.meta contains only value meta copied from rhs</p>
-<p>Meaning: • no ordinary meta • ephemeral copied if rhs had it • sticky copied if rhs had it</p>
-<p>This confirms that ~= creates a fresh cell when needed.</p>
-<p>⸻</p>
-<ol start="12" type="1">
-<li>Alias chain update</li>
-</ol>
-<p>a := 1 b = a c = b</p>
-<p>a += 4</p>
-<p>Expected:</p>
-<p>a == 5 b == 5 c == 5</p>
-<p>Reason:</p>
-<p>all three names reference the same cell.</p>
-<p>⸻</p>
-<ol start="13" type="1">
-<li>Alias broken by rebinding</li>
-</ol>
-<p>a := 5 b = a</p>
-<p>a := 7</p>
-<p>Expected:</p>
-<p>a == 7 b == 5</p>
-<p>Reason:</p>
-<p>:= rebinds a to a new cell, leaving b unchanged.</p>
-<p>⸻</p>
-<ol start="14" type="1">
-<li>In-place update preserves alias</li>
-</ol>
-<p>a := 5 b = a</p>
-<p>a ~= 9</p>
-<p>Expected:</p>
-<p>a == 9 b == 9</p>
-<p>Reason:</p>
-<p>~= mutates the existing cell.</p>
-<p>⸻</p>
-<ol start="15" type="1">
-<li>Deep update preserves alias</li>
-</ol>
-<p>a := [1,2] b = a</p>
-<p>a <sub></sub>= [3,4]</p>
-<p>Expected:</p>
-<p>b == [3,4]</p>
-<p>Reason:</p>
-<p><sub></sub>= preserves cell identity but deep copies rhs value.</p>
-<p>⸻</p>
-<ol start="16" type="1">
-<li>Sticky meta persistence across multiple updates</li>
-</ol>
-<p>t.__units = “C”</p>
-<p>t ~= 10 t ~= 11 t ~= 12</p>
-<p>Expected:</p>
-<p>t.__units == “C”</p>
-<p>Sticky metadata remains stable.</p>
-<p>⸻</p>
-<ol start="17" type="1">
-<li>Sticky overwritten once</li>
-</ol>
-<p>t.__units = “C”</p>
-<p>u.__units = “K”</p>
-<p>t ~= u t ~= 300</p>
-<p>Expected:</p>
-<p>t.__units == “K”</p>
-<p>The overwrite sticks.</p>
-<p>⸻</p>
-<ol start="18" type="1">
-<li>Ephemeral cleared then reintroduced</li>
-</ol>
-<p>f._spec = “old”</p>
-<p>f ~= 5</p>
-<p>g._spec = “new”</p>
-<p>f ~= g</p>
-<p>Expected:</p>
-<p>f._spec == “new”</p>
-<p>Demonstrates ephemeral lifecycle.</p>
-<p>⸻</p>
-<p>Why these tests matter</p>
-<p>These tests collectively verify:</p>
-<p>property tested by alias vs copy 1,2,12,13 cell mutation vs rebinding 13,14 deep vs shallow copy 3,4 meta propagation rules 5–10 sticky meta behavior 8–9,16–17 ephemeral lifecycle 6–7,18 undefined lhs semantics 11</p>
+</header>
 
 
+<p>RiX keeps numeric values separate from their notation. A Rational remains the same exact value whether the session displays it as a decimal, binary expansion, fraction, or several views at once. Ordinary unmarked literals are always decimal RiX source; only literals beginning with <code>#</code> use the session’s active input base.</p>
+<section id="session-shorthand" class="level2">
+<h2 class="anchored" data-anchor-id="session-shorthand">Session shorthand</h2>
+<p><code>*&gt;</code> installs a comma-separated output profile. <code>&lt;*</code> selects the base used by subsequent <code>#</code> literals and, until an explicit display profile is set, also selects that base for output.</p>
+<pre class="rix"><code>*&gt; ".[12],b,..";
+7/4</code></pre>
+<p>The result is displayed as <code>1.75 · 1.11 · 1..3/4</code>: decimal with at most twelve places, binary, and a decimal mixed fraction.</p>
+<pre class="rix"><code>&lt;* "b";
+binary := #101;
+ordinary := 101;
+{: binary, ordinary }</code></pre>
+<p>This produces <code>{: 5, 101 }</code>. Changing the active base never changes the meaning of ordinary decimal source.</p>
+<p>The long forms are useful in generated programs:</p>
+<pre class="rix"><code>.Config.NumInput("x");
+.Config.NumDisplay(".[8],x,/");
+.Config.Number({= input="b", display="b,.." });
+.Config.Current()</code></pre>
 </section>
+<section id="display-profile-grammar" class="level2">
+<h2 class="anchored" data-anchor-id="display-profile-grammar">Display profile grammar</h2>
+<p>A profile is a comma-separated list. Whitespace around entries is ignored.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Entry</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>.[n]</code></td>
+<td>decimal with at most <code>n</code> fractional places; <code>…</code> marks truncation</td>
+</tr>
+<tr class="even">
+<td><code>..</code> or <code>mixed</code></td>
+<td>decimal mixed fraction</td>
+</tr>
+<tr class="odd">
+<td><code>/</code> or <code>fraction</code></td>
+<td>decimal improper fraction</td>
+</tr>
+<tr class="even">
+<td><code>cf</code> or <code>.~</code></td>
+<td>continued fraction</td>
+</tr>
+<tr class="odd">
+<td><code>sci[n]</code></td>
+<td>scientific notation with <code>n</code> significant digits</td>
+</tr>
+<tr class="even">
+<td><code>sci-period[n]</code></td>
+<td>scientific notation with repeating-period information</td>
+</tr>
+<tr class="odd">
+<td><code>b</code>, <code>o</code>, <code>x</code>, <code>u</code></td>
+<td>registered base prefix, without the leading <code>0</code></td>
+</tr>
+<tr class="even">
+<td><code>z[n]</code></td>
+<td>built-in positional base <code>n</code></td>
+</tr>
+<tr class="odd">
+<td><code>b..</code>, <code>x..</code></td>
+<td>mixed fraction in that base</td>
+</tr>
+<tr class="even">
+<td><code>b/</code>, <code>x/</code></td>
+<td>improper fraction in that base</td>
+</tr>
+</tbody>
+</table>
+<p>Display profiles are presentation only. A displayed <code>0.142…</code> is not a RiX number literal and must not be used to reconstruct the value. RiX Web’s result insertion control uses the exact source value (<code>1/7</code>) instead of the displayed text.</p>
+</section>
+<section id="strict-active-base-literals" class="level2">
+<h2 class="anchored" data-anchor-id="strict-active-base-literals">Strict active-base literals</h2>
+<p>A single leading <code>#</code> begins one strict active-base token. Space, an operator, a separator, or the end of input terminates it. The tokenizer keeps radix points, repeat markers, mixed numbers, and continued fractions together:</p>
+<pre class="rix"><code>&lt;* "b";
+{: #101, #101.1#10, #101..11/1100, #101.~11~10 }</code></pre>
+<p>The first <code>#</code> opens the numeral. In <code>#101.1#10</code>, the second <code>#</code> starts the repeating period; it does not select a base. Dedicated <code>..</code> and <code>.~</code> syntax propagates the active base through every following component. Thus the binary continued fraction <code>#101.~11~10</code> has coefficients 5, 3, and 2. An ordinary fraction is division rather than one dedicated literal, so both operands must select the active base: <code>#101/#10</code>.</p>
+<p>As with ordinary continued fractions, a leading <code>~</code> makes a signed first coefficient explicit. It follows the base selector: in a binary session, <code>#~-1.~10</code> represents the coefficients −1 and 2, and therefore the value <code>-1/2</code>. Unary negation of the entire continued fraction remains <code>-(#1.~10)</code>.</p>
+<p>The linter reports a likely accidental mixture such as <code>#101/11</code>. It also reports redundant or inconsistent inner markers such as <code>#101..#11/#1100</code>; the canonical unquoted spelling has just one leading marker.</p>
+<p>The whole payload is validated against the active base. Consequently, <code>#face.ToString()</code> is not property access—it is an invalid hexadecimal numeral. Parenthesize the literal: <code>(#face).ToString()</code>.</p>
+<p>For a digit alphabet containing punctuation, <code>#\</code>…`` captures the payload verbatim. Prefer punctuation-free alphabets when possible because they are easier to read and embed.</p>
+<pre class="rix"><code>0P = {: 2, "0+", 0 };
+&lt;* "P";
+#`++`</code></pre>
+<p>Here <code>+</code> is a digit rather than an addition operator, so the final expression is three. Quoting is required for such a custom alphabet. Lossless <code>_&gt;!</code> output quotes every explicitly prefixed component automatically; for example, <code>(3/2) _&gt;! 0P</code> returns <code>"0P\"++\"/0P\"+0\""</code>.</p>
+<p>Backticks delimit only one integer component. Consequently every component of a composite punctuation-alphabet literal is separately quoted and marked:</p>
+<pre class="rix"><code>mixed := #`++`..#`+`/#`+0`;
+continued := #`++`.~#`+0`;
+{: mixed, continued }</code></pre>
+<p>Both expressions are <code>7/2</code>. The deliberately repetitive spelling makes the boundaries unambiguous even when <code>.</code>, <code>/</code>, <code>~</code>, or an operator is itself a digit.</p>
+<p><code>##</code> remains comment/check syntax, <code>{#...}</code> remains a symbolic system spec, and <code>#name</code> inside a <code>/.../</code> semantic header remains a sticky semantic name. Those contexts are already delimited and therefore do not conflict with a leading active-base numeral.</p>
+</section>
+<section id="lossless-output-with-_" class="level2">
+<h2 class="anchored" data-anchor-id="lossless-output-with-_">Lossless output with <code>_&gt;!</code></h2>
+<p><code>_&gt;</code> returns presentation text. <code>_&gt;!</code> instead requires a string that RiX can parse to recreate the exact value. It adds an explicit registered prefix to every necessary component:</p>
+<pre class="rix"><code>source := (7/4) _&gt;! 0b;
+value := @@source;
+{: source, value }</code></pre>
+<p>Here <code>source</code> is <code>"0b111/0b100"</code>. <code>_&gt;!</code> fails if the requested base has no registered prefix or the requested style has a digit limit. This makes failure preferable to silently turning a display approximation into data.</p>
+</section>
+<section id="balanced-negative-radix-and-bijective-systems" class="level2">
+<h2 class="anchored" data-anchor-id="balanced-negative-radix-and-bijective-systems">Balanced, negative-radix, and bijective systems</h2>
+<p>An uppercase custom prefix may be defined from <code>{: radix, digits, offset }</code>. <code>offset</code> is the numeric value of the first digit.</p>
+<pre class="rix"><code>0T = {: 3, "T01", -1 };  ## T=-1, 0=0, 1=1
+0N = {: -2, "01", 0 };  ## negabinary
+0K = {: 26, "ABCDEFGHIJKLMNOPQRSTUVWXYZ", 1 }; ## bijective base 26</code></pre>
+<p>The codec uses the signed radix and digit values for both parsing and integer formatting:</p>
+<pre class="rix"><code>&lt;* "T";
+balanced := #1T;
+&lt;* "N";
+negative := #1111;
+&lt;* "K";
+bijective := #AA;
+{: balanced, negative, bijective }</code></pre>
+<p>This yields <code>{: 2, -5, 27 }</code>. Fraction and mixed-fraction modes encode their integer components in any generalized system—for example <code>(5/2) _&gt; (0T, "/")</code>. Radix-point and repeating-fraction notation is currently restricted to conventional positive positional systems (<code>radix = digit count</code> and <code>offset = 0</code>); generalized systems report a clear error instead of applying an incorrect conventional-place algorithm. A bijective system has no spelling for zero and likewise reports that fact.</p>
+</section>
+<section id="host-and-json-configuration" class="level2">
+<h2 class="anchored" data-anchor-id="host-and-json-configuration">Host and JSON configuration</h2>
+<p>Hosts can pass the same settings without evaluating a directive:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">parseAndEvaluate</span>(source<span class="op">,</span> {</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>  context<span class="op">,</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">numberConfig</span><span class="op">:</span> { <span class="dt">input</span><span class="op">:</span> <span class="st">"b"</span><span class="op">,</span> <span class="dt">display</span><span class="op">:</span> <span class="st">".[12],b,.."</span> }<span class="op">,</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>})<span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>RiX workspace configuration accepts a <code>numbers</code> section:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode json code-with-copy"><code class="sourceCode json"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"version"</span><span class="fu">:</span> <span class="dv">1</span><span class="fu">,</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"numbers"</span><span class="fu">:</span> <span class="fu">{</span></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"input"</span><span class="fu">:</span> <span class="st">"b"</span><span class="fu">,</span></span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"display"</span><span class="fu">:</span> <span class="st">".[12],b,.."</span></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">}</span></span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The CLI’s persistent <code>config.json</code> accepts the same section. RiX Web exposes it through the <strong>Numbers</strong> panel; settings are session-scoped unless <strong>Remember in this browser</strong> is selected.</p>
+
+
 </section>
 
 <a onclick="window.scrollTo(0, 0); return false;" role="button" id="quarto-back-to-top"><i class="bi bi-arrow-up"></i> Back to top</a></main> <!-- /main -->
@@ -1125,7 +969,7 @@ ul.task-list li input[type="checkbox"] {
 </div>   
     <div class="nav-footer-center">
       &nbsp;
-    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/design/eval/cells-assignments.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/number-notation.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
 <p>Documentation built with <a href="https://quarto.org/">Quarto</a></p>
 </div>
@@ -1135,5 +979,5 @@ ul.task-list li input[type="checkbox"] {
 
 
 
-<script src="../../site_libs/quarto-html/zenscroll-min.js"></script>
+<script src="../site_libs/quarto-html/zenscroll-min.js"></script>
 </body></html>

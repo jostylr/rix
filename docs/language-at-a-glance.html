@@ -272,6 +272,10 @@ ul.task-list li input[type="checkbox"] {
 <span class="menu-text">Learn</span></a>
   </li>  
   <li class="nav-item">
+    <a class="nav-link" href="./undergraduate-probability-statistics-data-analysis.html"> 
+<span class="menu-text">Probability &amp; statistics</span></a>
+  </li>  
+  <li class="nav-item">
     <a class="nav-link" href="./eval/syntax-guide.html"> 
 <span class="menu-text">Reference</span></a>
   </li>  
@@ -371,81 +375,82 @@ ul.task-list li input[type="checkbox"] {
 <p>RiX uses familiar expression syntax, then adds notation for ideas that mathematical programs routinely need: exact values, intervals, structured collections, explicit data flow, units, semantic types, and controlled evaluation.</p>
 <section id="exact-values-first" class="level2">
 <h2 class="anchored" data-anchor-id="exact-values-first">Exact values first</h2>
-<pre class="rix"><code>1/3 + 1/6       ## 1/2
-1..3/4          ## mixed number: 7/4
-0.#3            ## repeating decimal: 1/3
-2:5             ## rational interval
-1.23[56:67]     ## appended bounds: 1.2356:1.2367
-1.23[+5:-6]     ## last-place offsets: 1.17:1.28
-1.2[+-0.1]      ## symmetric offset: 1.19:1.21</code></pre>
+<pre class="rix" data-parse="true"><code>1/3 + 1/6;       ## 1/2
+1..3/4;          ## mixed number: 7/4
+0.#3;            ## repeating decimal: 1/3
+2:5;             ## rational interval
+1.23[56:67];     ## appended bounds: 1.2356:1.2367
+1.23[+5:-6];     ## last-place offsets: 1.17:1.28
+1.2[+-0.1];      ## symmetric offset: 1.19:1.21</code></pre>
 <p>RiX delegates its foundational exact arithmetic to RatMath core types. Approximation is an explicit extension boundary rather than the default numeric model.</p>
 </section>
 <section id="certified-uncertainty-stays-exact" class="level2">
 <h2 class="anchored" data-anchor-id="certified-uncertainty-stays-exact">Certified uncertainty stays exact</h2>
-<pre class="rix"><code>23.456?          ## certified prefix; enclosure 23.456:23.457
-23.456?789       ## 789 is provisional, not part of the guarantee
-3.~7~15?         ## a continued-fraction cylinder, not an exact finite CF
-(1/7).ToDecimalApproximation(5)  ## 0.14285?
-(1/97) ~&gt; ".12"                 ## certified bounded conversion</code></pre>
+<pre class="rix" data-parse="true"><code>23.456?;          ## certified prefix; enclosure 23.456:23.457
+23.456?789;       ## 789 is provisional, not part of the guarantee
+3.~7~15?;         ## a continued-fraction cylinder, not an exact finite CF
+(1/7).ToDecimalApproximation(5); ## 0.14285?
+(1/97) ~&gt; ".12";                ## certified bounded conversion</code></pre>
 <p>Every such value carries exact rational endpoints. Arithmetic propagates the enclosure, while comparisons may produce the undecided decision <code>?</code>:</p>
-<pre class="rix"><code>decision := 23.456? &lt; 23.4565
-decision ?: "yes" ?_ "no" ?? "needs refinement"</code></pre>
+<pre class="rix" data-parse="true"><code>decision := 23.456? &lt; 23.4565;
+decision ?: "yes" ?_ "no" ?? "needs refinement";</code></pre>
 <p>Here <code>1</code> is truth, <code>_</code> is a decided negative/null result, and <code>?</code> means the current information does not decide the question. It is not treated as truth by filters, guards, assertions, cases, or loops.</p>
 <p>Unsigned bracket values append digits to a decimal. Signed values are offsets measured in units of the base’s last visible digit: <code>1.23</code> uses hundredths, while <code>1.2</code> uses tenths. Thus <code>1.23[+5:-6]</code> adds <code>5 × 0.01</code> and subtracts <code>6 × 0.01</code>; <code>1.2[+-0.1]</code> applies <code>0.1 × 0.1 = 0.01</code> in both directions. When a bracket contains two values, colon is the required separator.</p>
 </section>
 <section id="names-reveal-intent" class="level2">
 <h2 class="anchored" data-anchor-id="names-reveal-intent">Names reveal intent</h2>
 <p>Lowercase-leading names are user values. Uppercase-leading names are callable/system-facing values. Adjacency can therefore read mathematically:</p>
-<pre class="rix"><code>x := 7
-Sq(x) -&gt; x^2
+<pre class="rix" data-parse="true"><code>x := 7;
+Sq(x) -&gt; x^2;
 
-3x^2            ## 3 * x^2
-Sq 3x           ## Sq(3*x)</code></pre>
+3x^2;            ## 3 * x^2
+Sq 3x;           ## Sq(3*x)</code></pre>
 <p>Explicit calls are always available. The case convention helps the parser distinguish mathematical multiplication from application.</p>
 </section>
 <section id="functions-can-prepare-their-inputs" class="level2">
 <h2 class="anchored" data-anchor-id="functions-can-prepare-their-inputs">Functions can prepare their inputs</h2>
-<pre class="rix"><code>Positive(x) ?- [x &gt; 0] -&gt; x
-Nonzero(x) ?!- [x != 0] -&gt; x</code></pre>
+<pre class="rix" data-parse="true"><code>Positive(x) ?- [x &gt; 0] -&gt; x;
+Nonzero(x) ?!- [x != 0] -&gt; x;</code></pre>
 <p><code>?-</code> is a soft preparation gate: failure means “this function does not accept that candidate.” <code>?!-</code> is strict and propagates failure. <code>??-</code> additionally lets undecided fall through; <code>??!-</code> throws unless the guard is decided and successful. Ordered variants combine into multifunctions, letting dispatch be written in RiX rather than hidden in host code.</p>
+<p>For an expected rejection that deserves a result, use <code>check ?_&gt; diagnostic</code> on decided negative/null, or <code>check ??&gt; diagnostic</code> on undecided. These return from the active function call, including from prep or a nested block, rather than selecting another variant. They are errors outside a call. See <a href="./eval/function-returns.html">diagnostic guards and early returns</a>.</p>
 </section>
 <section id="containers-announce-what-they-are" class="level2">
 <h2 class="anchored" data-anchor-id="containers-announce-what-they-are">Containers announce what they are</h2>
-<pre class="rix"><code>[1, 2, 3]               ## array
-{| 1, 2, 3 |}           ## set
-{= name = "Ada" }       ## map
-{: 2, 3 }                ## tuple
-{:2x2: 1, 2; 3, 4 }     ## tensor
-{; x := 2; x^3 }         ## execution block
-{? x &gt; 0 ? x; -x }       ## case</code></pre>
+<pre class="rix" data-parse="true"><code>[1, 2, 3];               ## array
+{| 1, 2, 3 |};           ## set
+{= name = "Ada" };       ## map
+{: 2, 3 };                ## tuple
+{:2x2: 1, 2; 3, 4 };     ## tensor
+{; x := 2; x^3 };         ## execution block
+{? x &gt; 0 ? x; -x };       ## case</code></pre>
 <p>The brace sigil is a compact type marker. A reader can tell a block, map, set, tuple, tensor, loop, case, mutation, or symbolic specification apart at its opening delimiter.</p>
 </section>
 <section id="pipes-make-traversal-visible" class="level2">
 <h2 class="anchored" data-anchor-id="pipes-make-traversal-visible">Pipes make traversal visible</h2>
-<pre class="rix"><code>Double(x) -&gt; 2x
-Positive(x) -&gt; x &gt; 0
+<pre class="rix" data-parse="true"><code>Double(x) -&gt; 2x;
+Positive(x) -&gt; x &gt; 0;
 
-[1, -2, 3] |&gt;&gt; Double        ## map
-[1, -2, 3] |&gt;? Positive      ## filter
-[1, 2, 3] |&gt;: @+[2]          ## reduce</code></pre>
+[1, -2, 3] |&gt;&gt; Double;        ## map
+[1, -2, 3] |&gt;? Positive;      ## filter
+[1, 2, 3] |&gt;: @+[2];          ## reduce</code></pre>
 <p>Traversal callbacks can receive <code>(value, locator, source)</code>. The locator is a one-based index for sequences, a key for maps, and an index tuple for tensors.</p>
 </section>
 <section id="generators-can-stay-lazy" class="level2">
 <h2 class="anchored" data-anchor-id="generators-can-stay-lazy">Generators can stay lazy</h2>
-<pre class="rix"><code>finite := [1, |+ 2, |; 6]
-lazy := [1, |+ 2, |^ 6]
-firstFive := [1, |+ 1, |^ _][1:5]</code></pre>
+<pre class="rix" data-parse="true"><code>finite := [1, |+ 2, |; 6];
+lazy := [1, |+ 2, |^ 6];
+firstFive := [1, |+ 1, |^ _][1:5];</code></pre>
 <p>Generator clauses describe seeds, recurrence/history, transforms, filters, and stopping. Lazy sequences compute and cache only what a consumer asks for.</p>
 </section>
 <section id="units-and-exact-generators-compose" class="level2">
 <h2 class="anchored" data-anchor-id="units-and-exact-generators-compose">Units and exact generators compose</h2>
-<pre class="rix"><code>distance := 120~[m]
-elapsed := 30~[s] + 2~[min]
-speed := .ConvertUnit(distance / elapsed, "m/s")
+<pre class="rix" data-parse="true"><code>distance := 120~[m];
+elapsed := 30~[s] + 2~[min];
+speed := .ConvertUnit(distance / elapsed, "m/s");
 
-z := 1 + 1~{i}
-c := .Complex.Cayley(z)
-c.Cartesian()</code></pre>
+z := 1 + 1~{i};
+c := .Complex.Cayley(z);
+c.Cartesian();</code></pre>
 <p>Scientific unit sugar (<code>~[...]</code>) resolves through the configurable <code>.Units</code> collection. Mathematical/exact generator sugar (<code>~{...}</code>) resolves through <code>.Exact</code>. Both participate in ordinary arithmetic dispatch.</p>
 </section>
 <section id="assignment-says-whether-identity-matters" class="level2">
@@ -485,9 +490,9 @@ c.Cartesian()</code></pre>
 </section>
 <section id="the-system-object-is-explicit" class="level2">
 <h2 class="anchored" data-anchor-id="the-system-object-is-explicit">The system object is explicit</h2>
-<pre class="rix"><code>.Len([10, 20, 30])
-.Warn("large interval", {= width = 12 })
-.Units[:degC](20)</code></pre>
+<pre class="rix" data-parse="true"><code>.Len([10, 20, 30]);
+.Warn("large interval", {= width = 12 });
+.Units[:degC](20);</code></pre>
 <p>The leading dot is the system capability object. Hosts can construct and freeze it, add capabilities, or withhold groups for imported scripts. Operator functions are first-class too: <code>@+</code> names addition, and <code>@+[2]</code> caps it to two incoming arguments.</p>
 </section>
 <section id="three-ways-to-keep-learning" class="level2">

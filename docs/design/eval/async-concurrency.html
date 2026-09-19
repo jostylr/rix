@@ -336,6 +336,10 @@ window.Quarto = {
 <span class="menu-text">Learn</span></a>
   </li>  
   <li class="nav-item">
+    <a class="nav-link" href="../../undergraduate-probability-statistics-data-analysis.html"> 
+<span class="menu-text">Probability &amp; statistics</span></a>
+  </li>  
+  <li class="nav-item">
     <a class="nav-link" href="../../eval/syntax-guide.html"> 
 <span class="menu-text">Reference</span></a>
   </li>  
@@ -495,6 +499,7 @@ window.Quarto = {
 
 <section id="status" class="level1">
 <h1>Status</h1>
+<p>Reconciled 2026-09-19. The umbrella <code>ratmath/WORK_PLAN.md</code> tasks R1–R4 and H2 order the remaining work. Existing host/editor execution workers are not a scheduler-owned CPU worker pool; Section 8 still tracks that separate feature. Notebook async integration is also still outstanding. Historical delivery slices below do not re-open completed foundations.</p>
 <p>This is the normative design and implementation tracker. The current runtime slice includes syntax and IR, code-block import headers, async host APIs, grouped FIFO bounded scheduling, nested scope-limit composition, concurrent arrays/maps/tuples/sets/matrices/tensors, fused <code>|&gt;&gt;</code> and <code>|&gt;?</code>, ordered <code>|&gt;||</code> and <code>|&gt;&amp;&amp;</code>, promise-aware reduce/sort/slice/split/chunk barriers, named async breaks, lexical function fan-out, group cancellation signals, and supervised/drainable <code>{$$ ... }</code> tasks. It also includes timeout headers, typed operational-fault recovery, LIFO <code>##_</code> cleanup, a <code>2L</code> ordered publication window, task-local ordinary snapshots/write rejection, and strict detached import capture. It also includes first-class linear <code>async_stream</code> values, cold and hot source infrastructure, lazy stream stages, explicit terminals, structured stream consumption, and prefix method lifting. <code>{# ... }</code> remains the inert symbolic-system form.</p>
 <p>The event-loop implementation now also supplies bounded pull for legacy lazy sources when an explicit async terminal consumes them, ordered early cancellation for both <code>|&gt;||</code> and <code>|&gt;&amp;&amp;</code>, loop/pull/stage cancellation checkpoints, promise-aware script imports and selective control forms, and deterministic seeded random substreams per source branch. Still planned are async callbacks inside recurrence generators, capability safety/serialization metadata, worker execution, and complete structural task-path diagnostics.</p>
 <p>The proposal deliberately separates two operations:</p>

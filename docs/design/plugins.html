@@ -271,6 +271,10 @@ ul.task-list li input[type="checkbox"] {
 <span class="menu-text">Learn</span></a>
   </li>  
   <li class="nav-item">
+    <a class="nav-link" href="../undergraduate-probability-statistics-data-analysis.html"> 
+<span class="menu-text">Probability &amp; statistics</span></a>
+  </li>  
+  <li class="nav-item">
     <a class="nav-link" href="../eval/syntax-guide.html"> 
 <span class="menu-text">Reference</span></a>
   </li>  
@@ -451,6 +455,21 @@ ul.task-list li input[type="checkbox"] {
 <td>Implemented</td>
 <td><code>{#}</code> retains definitions, constraints, all symbols, and advisory input/output roles; <code>.InspectSpec</code> and <code>.SpecRoles</code> expose them to plugins.</td>
 </tr>
+<tr class="odd">
+<td><code>.linalg</code></td>
+<td>Implemented Phase 1</td>
+<td>Exact dense matrix systems and coordinate-aware tensor basis transformations with identity-preserving lineage.</td>
+</tr>
+<tr class="even">
+<td><code>.optimize</code></td>
+<td>Implemented Phase 1</td>
+<td>Exact standard-form linear programs and deterministic primal simplex.</td>
+</tr>
+<tr class="odd">
+<td><code>.solve</code></td>
+<td>Implemented Phase 1</td>
+<td>Exact affine symbolic equality systems delegated to <code>.linalg</code>; broader dispatch remains future work.</td>
+</tr>
 </tbody>
 </table>
 <p>First-party plugins may live in the main RiX repository and be installed selectively by the CLI, notebook, or web host. Independently developed plugins can already use the catalog format; the remaining work is to mature its compatibility, serialization, and permission policies. The operational details are in <a href="../plugin-catalog.html">Plugin catalog</a>.</p>
@@ -494,7 +513,7 @@ ul.task-list li input[type="checkbox"] {
 <section id="consuming-from-a-plugin" class="level2">
 <h2 class="anchored" data-anchor-id="consuming-from-a-plugin">Consuming <code>{#}</code> from a plugin</h2>
 <p>Use <code>{#}</code> to receive a symbolic description without assuming that the language has solved it. A direction-neutral plugin consumes <code>.SpecRoles(spec).symbols</code>. A direction-aware plugin should accept an optional <code>{= inputs=..., outputs=... }</code> argument and otherwise use the roles attached to the spec header. The detailed ordered definitions, constraints, and serialized IR are available through <code>.InspectSpec(spec)</code>.</p>
-<p>JavaScript plugins can import <code>getAttachedSpec</code> and <code>resolveSymbolicRoles</code> from <code>rix/eval</code>. The latter returns ordinary arrays for <code>symbols</code>, <code>inputs</code>, <code>outputs</code>, and <code>unassigned</code>, defaulting to the attached roles when no override is provided. Plugins are responsible for validating supported IR, choosing direction and algorithms, reporting approximation/certification, and returning diagnostics for any unsupported constraint.</p>
+<p>JavaScript plugins can import <code>getAttachedSpec</code> and <code>resolveSymbolicRoles</code> from <code>@ratmath/rix/eval</code>. The latter returns ordinary arrays for <code>symbols</code>, <code>inputs</code>, <code>outputs</code>, and <code>unassigned</code>, defaulting to the attached roles when no override is provided. Plugins are responsible for validating supported IR, choosing direction and algorithms, reporting approximation/certification, and returning diagnostics for any unsupported constraint.</p>
 </section>
 <section id="candidate-plugin-roadmap" class="level2">
 <h2 class="anchored" data-anchor-id="candidate-plugin-roadmap">Candidate plugin roadmap</h2>
@@ -565,14 +584,14 @@ ul.task-list li input[type="checkbox"] {
 </tr>
 <tr class="odd">
 <td>Later</td>
-<td><code>.numerics</code></td>
-<td>Root isolation, integration, ODEs, optimization, certified-real adapters.</td>
-<td>Supplies certified or explicitly approximate values to <code>.geometry</code> and <code>.plot</code>; it should surface error bounds.</td>
+<td><code>.numerics</code> expansion</td>
+<td>Root isolation, integration, ODEs, nonlinear optimization, certified-real adapters.</td>
+<td>Supplies certified or explicitly approximate values to <code>.geometry</code>, <code>.plot</code>, <code>.optimize</code>, and <code>.solve</code>; it should surface error bounds.</td>
 </tr>
 <tr class="even">
 <td>Later</td>
-<td><code>.solve</code></td>
-<td>Polynomial systems, constraints, symbolic/numeric solving.</td>
+<td><code>.solve</code> expansion</td>
+<td>Polynomial systems, inequalities, constraints, and nonlinear symbolic/numeric solving beyond the implemented affine slice.</td>
 <td>Returns solution objects and isolating boxes; <code>.geometry</code> can visualize them.</td>
 </tr>
 <tr class="odd">

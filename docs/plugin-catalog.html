@@ -271,6 +271,10 @@ ul.task-list li input[type="checkbox"] {
 <span class="menu-text">Learn</span></a>
   </li>  
   <li class="nav-item">
+    <a class="nav-link" href="./undergraduate-probability-statistics-data-analysis.html"> 
+<span class="menu-text">Probability &amp; statistics</span></a>
+  </li>  
+  <li class="nav-item">
     <a class="nav-link" href="./eval/syntax-guide.html"> 
 <span class="menu-text">Reference</span></a>
   </li>  
@@ -360,7 +364,7 @@ defaultEnabled: false
 .Host.Register("stats", (values) -&gt; values, "Statistics plugin", ["Statistics"])</code></pre>
 <p>Use <code>.Host.RegisterValue(...)</code> for a namespace value. A pure RiX package whose root is both callable and has receiver-style namespace methods can use <code>.Host.RegisterCallableValue(...)</code>; Ball and Continued Fraction use this to support both <code>.ball(...)</code>/<code>.continuedFraction(...)</code> and dotted helpers.</p>
 <p>The catalog scans only configured <code>plugins/</code> roots. It reads headers and declares disabled host mounts so static path checking can recognize a known surface, but a disabled mount errors when called.</p>
-<p>Plugins can additionally declare array-valued <code>aliases</code>, <code>requires</code>, <code>optional</code>, <code>provides</code>, <code>schemas</code>, and <code>targets</code> fields plus Boolean <code>snapshot</code> and <code>deterministic</code> claims. Discovery exposes <code>aliases</code>, <code>requires</code>, <code>provides</code>, <code>targets</code>, <code>snapshot</code>, and <code>deterministic</code> through <code>.Plugin.Info</code> without executing the plugin. Every alias is a camelCase name for the same mounted capability—not a copy or a second activation—and <code>.Plugin.Info</code> reports the alias list.</p>
+<p>Plugins can additionally declare array-valued <code>aliases</code>, <code>requires</code>, <code>optional</code>, <code>provides</code>, <code>schemas</code>, and <code>targets</code> fields plus Boolean <code>snapshot</code> and <code>deterministic</code> claims. Discovery exposes <code>aliases</code>, <code>requires</code>, <code>provides</code>, <code>schemas</code>, <code>targets</code>, <code>snapshot</code>, and <code>deterministic</code> through <code>.Plugin.Info</code> without executing the plugin. Every alias is a camelCase name for the same mounted capability—not a copy or a second activation—and <code>.Plugin.Info</code> reports the alias list.</p>
 <p>Loading resolves each <code>requires</code> entry first. A requirement may name an exact plugin ID or a service in another plugin’s <code>provides</code> list. A unique provider loads automatically; no provider, multiple providers, or a dependency cycle is an error. Repeated direct or transitive loads are idempotent. Version-range selection remains future work.</p>
 <p>Set <code>ignore: true</code> in an otherwise valid header to keep an unfinished or alternate source file out of discovery. An ignored entry is absent from <code>.Plugin.List()</code> and does not reserve its ID.</p>
 <p>For future candidate packages and the contract used by output-producing plugins, see <a href="./design/plugins.html">Plugin Roadmap and Rendering Contracts</a>. The current targets, options, results, diagnostics, and host support are specified by the <a href="./eval/renderer-guide.html">Renderer Plugins reference</a>.</p>
@@ -377,6 +381,19 @@ defaultEnabled: false
 .Plugin.Load("exact-statistics")
 .stats.Mean([1, 2, 3])</code></pre>
 <p><code>.Plugin("id")</code> is shorthand for <code>.Plugin.Load("id")</code>. A load can choose a different camelCase mount with <code>{= as = "otherStats" }</code>; the capability is renamed after activation and manifest aliases are suppressed for that remount. A rename is principally intended for a REPL or a plugin-selection prelude because a complete script is statically checked before its first expression executes.</p>
+<p>After loading, a plugin namespace can selectively open declared exports as ordinary lexical callables:</p>
+<pre class="rix"><code>.Plugin.Load("numerics");
+.numerics[:Pow, :E=:Exp, :Log];
+
+value := E(3, 4);         ## 64</code></pre>
+<p>The colon names must appear in the plugin manifest’s <code>exports</code> list. Selection aliases use <code>:local=:export</code>, following the scoped-import convention that the local name is on the left. Thus <code>:E=:Exp</code> binds exported <code>Exp</code> as <code>E</code>, while <code>:Exp</code> is shorthand for <code>:Exp=:Exp</code>. Selection is atomic and refuses to replace a binding already present in the immediate scope. At script top level the bare names remain available for that script or REPL session. Selection inside a block is local to that block:</p>
+<pre class="rix"><code>.Plugin.Load("numerics");
+answer := {;
+    .numerics[:Pow];
+    Pow(27/8, 2/3)
+};
+## Pow is not defined here.</code></pre>
+<p>Plugin activation and namespace mounting remain host-level and idempotent; only the selected bare bindings are lexical. Dependencies are not opened implicitly.</p>
 <p>The CLI also resolves manifest <code>groups</code> as selectors. For example, <code>rix --plugins=renderers</code> loads every discovered member of the <code>Renderers</code> group, while <code>rix setup --plugins=renderers</code> makes that selection the default for future REPL sessions. An exact plugin ID takes precedence over a group with the same case-insensitive name.</p>
 </section>
 <section id="bundled-exact-algebras" class="level2">

@@ -271,6 +271,10 @@ ul.task-list li input[type="checkbox"] {
 <span class="menu-text">Learn</span></a>
   </li>  
   <li class="nav-item">
+    <a class="nav-link" href="../undergraduate-probability-statistics-data-analysis.html"> 
+<span class="menu-text">Probability &amp; statistics</span></a>
+  </li>  
+  <li class="nav-item">
     <a class="nav-link" href="../eval/syntax-guide.html"> 
 <span class="menu-text">Reference</span></a>
   </li>  
@@ -328,12 +332,14 @@ ul.task-list li input[type="checkbox"] {
   <li><a href="#rix-methods-overview" id="toc-rix-methods-overview" class="nav-link active" data-scroll-target="#rix-methods-overview">RiX methods overview</a>
   <ul class="collapse">
   <li><a href="#how-method-calls-work" id="toc-how-method-calls-work" class="nav-link" data-scroll-target="#how-method-calls-work">How method calls work</a></li>
+  <li><a href="#callback-methods-and-asynchronous-evaluation" id="toc-callback-methods-and-asynchronous-evaluation" class="nav-link" data-scroll-target="#callback-methods-and-asynchronous-evaluation">Callback methods and asynchronous evaluation</a></li>
   <li><a href="#object-type-index" id="toc-object-type-index" class="nav-link" data-scroll-target="#object-type-index">Object type index</a></li>
   <li><a href="#complete-method-lists" id="toc-complete-method-lists" class="nav-link" data-scroll-target="#complete-method-lists">Complete method lists</a>
   <ul class="collapse">
   <li><a href="#integer" id="toc-integer" class="nav-link" data-scroll-target="#integer">Integer</a></li>
   <li><a href="#rational" id="toc-rational" class="nav-link" data-scroll-target="#rational">Rational</a></li>
   <li><a href="#rationalinterval" id="toc-rationalinterval" class="nav-link" data-scroll-target="#rationalinterval">RationalInterval</a></li>
+  <li><a href="#rationalintervalset" id="toc-rationalintervalset" class="nav-link" data-scroll-target="#rationalintervalset">RationalIntervalSet</a></li>
   <li><a href="#certifiedapproximation" id="toc-certifiedapproximation" class="nav-link" data-scroll-target="#certifiedapproximation">CertifiedApproximation</a></li>
   <li><a href="#array" id="toc-array" class="nav-link" data-scroll-target="#array">Array</a></li>
   <li><a href="#lazysequence" id="toc-lazysequence" class="nav-link" data-scroll-target="#lazysequence">LazySequence</a></li>
@@ -343,7 +349,7 @@ ul.task-list li input[type="checkbox"] {
   <li><a href="#set" id="toc-set" class="nav-link" data-scroll-target="#set">Set</a></li>
   <li><a href="#string" id="toc-string" class="nav-link" data-scroll-target="#string">String</a></li>
   <li><a href="#tuple" id="toc-tuple" class="nav-link" data-scroll-target="#tuple">Tuple</a></li>
-  <li><a href="#tensor" id="toc-tensor" class="nav-link" data-scroll-target="#tensor">Tensor</a></li>
+  <li><a href="#shaped" id="toc-shaped" class="nav-link" data-scroll-target="#shaped">Shaped</a></li>
   <li><a href="#deferred" id="toc-deferred" class="nav-link" data-scroll-target="#deferred">Deferred</a></li>
   <li><a href="#structural-values" id="toc-structural-values" class="nav-link" data-scroll-target="#structural-values">Structural values</a></li>
   <li><a href="#exact-generators-and-exact-expressions" id="toc-exact-generators-and-exact-expressions" class="nav-link" data-scroll-target="#exact-generators-and-exact-expressions">Exact generators and exact expressions</a></li>
@@ -385,6 +391,20 @@ object.Method!(argument1, argument2)</code></pre>
 </ul>
 <p>Built-in prototypes are frozen and do not chain. Lookup checks direct value metadata, semantic trait and type methods, active plugin extensions, and finally the built-in prototype. See the <a href="../eval/types-and-traits-guide.html">types and traits guide</a> for the semantic layers.</p>
 </section>
+<section id="callback-methods-and-asynchronous-evaluation" class="level2">
+<h2 class="anchored" data-anchor-id="callback-methods-and-asynchronous-evaluation">Callback methods and asynchronous evaluation</h2>
+<p>Ordinary eager receiver methods run their callbacks in iteration order, one at a time. Under the promise-aware evaluator, each callback is awaited before its result is tested, stored, or passed to the next callback. This applies to mapping, filtering, searching, counting, reductions, map updates, shaped maps, and structural <code>MapArguments</code>, where those methods are available.</p>
+<p><code>Any</code>, <code>All</code>, <code>Find</code>, and <code>FindIndex</code> stop as soon as their answer is known. A callback error propagates and prevents later callbacks from starting. <code>Update!</code> stores its replacement only after its callback succeeds; changes performed by the callback itself are not rolled back. Callback value/key/source positions and the existing predicate truth convention are unchanged. These methods do not implicitly introduce parallel work; AsyncStream and explicit concurrency facilities have their own contracts.</p>
+<pre class="rix" data-exec="true"><code>kept := [1,2,3].Filter((value)-&gt;{;
+    value&gt;1 ?_&gt; _;
+    1;
+});
+total := kept.Reduce((acc,value)-&gt;acc+value,0);
+total==5 ?: 1 ?_ .Error("Expected only 2 and 3 to contribute");
+{: kept,total };</code></pre>
+<p>The guard returns from the predicate invocation, not from the whole traversal. The result is <code>[2,3]</code> and <code>5</code> in either evaluator.</p>
+<p>Registered RiX capabilities and receiver methods likewise use the evaluator of the current call, not the evaluator that registered them. An asynchronous call keeps its function and embedded-caller scopes alive until completion, including when the registered function returns through a diagnostic guard.</p>
+</section>
 <section id="object-type-index" class="level2">
 <h2 class="anchored" data-anchor-id="object-type-index">Object type index</h2>
 <table class="caption-top table">
@@ -412,71 +432,76 @@ object.Method!(argument1, argument2)</code></pre>
 <td>Exact bounded rational intervals</td>
 </tr>
 <tr class="even">
+<td>RationalIntervalSet</td>
+<td><a href="./objects/rational-interval-set.md">RationalIntervalSet methods</a></td>
+<td>Exact normalized finite unions of rational intervals</td>
+</tr>
+<tr class="odd">
 <td>CertifiedApproximation</td>
 <td><a href="../eval/objects/certified-approximation.html">Certified approximation methods</a></td>
 <td>Uncertain scalars with exact rational enclosures</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>Array</td>
 <td><a href="../eval/objects/array.html">Array methods</a></td>
 <td>Mutable eager sequences</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>LazySequence</td>
 <td><a href="../eval/objects/lazy-sequence.html">LazySequence methods</a></td>
 <td>Cached on-demand sequences</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>AsyncStream</td>
 <td><a href="../eval/objects/async-stream.html">AsyncStream methods</a></td>
 <td>Linear asynchronous pull streams</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>Iterator</td>
 <td><a href="../eval/objects/iterator.html">Iterator methods</a></td>
 <td>Stateful collection cursors</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>Map</td>
 <td><a href="../eval/objects/map.html">Map methods</a></td>
 <td>Insertion-ordered keyed collections</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>Set</td>
 <td><a href="../eval/objects/set.html">Set methods</a></td>
 <td>Insertion-ordered distinct collections</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>String</td>
 <td><a href="../eval/objects/string.html">String methods</a></td>
 <td>Immutable Unicode text</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>Tuple</td>
 <td><a href="../eval/objects/tuple.html">Tuple methods</a></td>
 <td>Fixed-arity ordered values</td>
 </tr>
-<tr class="odd">
-<td>Tensor</td>
-<td><a href="../eval/objects/tensor.html">Tensor methods</a></td>
-<td>Rectangular rank-N collections</td>
-</tr>
 <tr class="even">
+<td>Shaped</td>
+<td><a href="../eval/objects/shaped.html">Shaped methods</a></td>
+<td>Rectangular rank-N component storage</td>
+</tr>
+<tr class="odd">
 <td>Deferred</td>
 <td><a href="../eval/objects/deferred.html">Deferred methods</a></td>
 <td>Stored lowered RiX code</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>Structural values</td>
 <td><a href="../eval/objects/structural-values.html">Structural value methods</a></td>
 <td>Structural symbols, literals, forms, and algebras</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>Exact generator / expression</td>
 <td><a href="../eval/objects/exact-cartesian.html">Exact Cartesian methods</a></td>
 <td>Exact Cartesian complex expressions</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>Cayley</td>
 <td><a href="../eval/objects/cayley.html">Cayley methods</a></td>
 <td>Exact magnitude/direction complex values</td>
@@ -497,8 +522,12 @@ object.Method!(argument1, argument2)</code></pre>
 </section>
 <section id="rationalinterval" class="level3">
 <h3 class="anchored" data-anchor-id="rationalinterval">RationalInterval</h3>
-<p><code>Start</code>, <code>End</code>, <code>Low</code>, <code>High</code>, <code>Width</code>, <code>IsAscending</code>, <code>Midpoint</code>, <code>Mediant</code>, <code>Negate</code>, <code>Reciprocal</code>, <code>Overlaps</code>, <code>Contains</code>, <code>ContainsValue</code>, <code>ContainsZero</code>, <code>Intersection</code>, <code>Union</code>, <code>ShortestDecimal</code>, <code>DenominatorInterval</code>, <code>Random</code>, <code>RandomPartition</code>, <code>E</code>, <code>BitLength</code>, <code>ToMixedString</code>, <code>ToRepeatingDecimal</code>, <code>ToCompactDecimal</code>, <code>ToRelativeMidDecimal</code>, <code>ToRelativeDecimal</code>, <code>ToString</code>, <code>CheckTraits</code></p>
+<p><code>Start</code>, <code>End</code>, <code>Low</code>, <code>High</code>, <code>Width</code>, <code>IsAscending</code>, <code>Midpoint</code>, <code>Mediant</code>, <code>Negate</code>, <code>Reciprocal</code>, <code>Overlaps</code>, <code>Contains</code>, <code>ContainsValue</code>, <code>ContainsZero</code>, <code>Intersection</code>, <code>Union</code>, <code>Hull</code>, <code>Split</code>, <code>ShortestDecimal</code>, <code>DenominatorInterval</code>, <code>Random</code>, <code>RandomPartition</code>, <code>E</code>, <code>BitLength</code>, <code>ToMixedString</code>, <code>ToRepeatingDecimal</code>, <code>ToCompactDecimal</code>, <code>ToRelativeMidDecimal</code>, <code>ToRelativeDecimal</code>, <code>ToString</code>, <code>CheckTraits</code></p>
 <p><code>Random(parameters)</code> and <code>RandomPartition(parameters)</code> consume the RNG selected by <code>.RNG</code>. Their parameter tuple matches the interval <code>:%</code> and <code>:/%</code> operators: count, optional fixed denominator, and optional tolerance.</p>
+</section>
+<section id="rationalintervalset" class="level3">
+<h3 class="anchored" data-anchor-id="rationalintervalset">RationalIntervalSet</h3>
+<p><code>Components</code>, <code>Split</code>, <code>Union</code>, <code>Intersection</code>, <code>Contains</code>, <code>ContainsValue</code>, <code>Hull</code>, <code>ToRationalInterval</code>, <code>ToString</code>, <code>CheckTraits</code></p>
 </section>
 <section id="certifiedapproximation" class="level3">
 <h3 class="anchored" data-anchor-id="certifiedapproximation">CertifiedApproximation</h3>
@@ -525,7 +554,7 @@ object.Method!(argument1, argument2)</code></pre>
 <section id="iterator" class="level3">
 <h3 class="anchored" data-anchor-id="iterator">Iterator</h3>
 <p><code>Next</code>, <code>Peek</code>, <code>Done</code>, <code>Index</code>, <code>Reset</code>, <code>CheckTraits</code></p>
-<p>Arrays, LazySequences, Tuples, Strings, Tensors, Maps, and Sets provide <code>Iterator()</code>. A new cursor starts at index <code>0</code>, before the first one-based item.</p>
+<p>Arrays, LazySequences, Tuples, Strings, Shaped values, Maps, and Sets provide <code>Iterator()</code>. A new cursor starts at index <code>0</code>, before the first one-based item.</p>
 </section>
 <section id="map" class="level3">
 <h3 class="anchored" data-anchor-id="map">Map</h3>
@@ -549,11 +578,11 @@ object.Method!(argument1, argument2)</code></pre>
 <p><code>Len</code>, <code>Get</code>, <code>First</code>, <code>Last</code>, <code>Slice</code>, <code>Set</code>, <code>ToArray</code>, <code>Reduce</code>, <code>Iterator</code>, <code>CheckTraits</code></p>
 <p>Tuple methods do not mutate the receiver. <code>Set</code> returns a new tuple.</p>
 </section>
-<section id="tensor" class="level3">
-<h3 class="anchored" data-anchor-id="tensor">Tensor</h3>
-<p>Read-only and copying: <code>Shape</code>, <code>Rank</code>, <code>Size</code>, <code>Get</code>, <code>Set</code>, <code>Reshape</code>, <code>Flatten</code>, <code>Transpose</code>, <code>Permute</code>, <code>Map</code>, <code>Sum</code>, <code>Mean</code>, <code>Dot</code>, <code>MatMul</code>, <code>Reduce</code>, <code>Iterator</code>, <code>CheckTraits</code></p>
-<p>Mutating: <code>Set!</code>, <code>Fill!</code></p>
-<p>Tensor callbacks receive <code>(value, indexTuple, tensor)</code>. <code>Transpose</code> is rank-2 only; <code>Permute</code> accepts a tuple containing every one-based axis exactly once.</p>
+<section id="shaped" class="level3">
+<h3 class="anchored" data-anchor-id="shaped">Shaped</h3>
+<p>Read-only and copying: <code>Shape</code>, <code>Rank</code>, <code>Size</code>, <code>ScalarDomain</code>, <code>WithScalarDomain</code>, <code>Get</code>, <code>Set</code>, <code>Reshape</code>, <code>Flatten</code>, <code>Transpose</code>, <code>Permute</code>, <code>Map</code>, <code>Sum</code>, <code>Mean</code>, <code>Reduce</code>, <code>Iterator</code>, <code>CheckTraits</code></p>
+<p>Mutating: <code>Set!</code>, <code>Fill!</code>, <code>SetScalarDomain!</code></p>
+<p>Shaped callbacks receive <code>(value, indexTuple, shaped)</code>. <code>Transpose</code> is rank-2 only; <code>Permute</code> accepts a tuple containing every one-based axis exactly once.</p>
 </section>
 <section id="deferred" class="level3">
 <h3 class="anchored" data-anchor-id="deferred">Deferred</h3>
@@ -608,8 +637,8 @@ object.Method!(argument1, argument2)</code></pre>
 <td>Same-arity mutable tuple filled with holes</td>
 </tr>
 <tr class="even">
-<td>Tensor</td>
-<td>Same-shape mutable tensor filled with holes</td>
+<td>Shaped</td>
+<td>Same-shape mutable storage filled with holes</td>
 </tr>
 </tbody>
 </table>

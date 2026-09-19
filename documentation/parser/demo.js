@@ -8,6 +8,7 @@ var symbols = [
   ":>:",
   ":<:",
   ":->",
+  "|\\/|",
   "\\/=",
   "/\\=",
   "\\/",
@@ -17,6 +18,8 @@ var symbols = [
   "?!-",
   "?-",
   "^=>",
+  "?/\\",
+  "!/\\",
   "?&",
   "!!",
   "!?",
@@ -34,6 +37,7 @@ var symbols = [
   "||>",
   "~~=",
   "::=",
+  ":::",
   "//=",
   "**=",
   "/^=",
@@ -92,6 +96,8 @@ var symbols = [
   "=>",
   "**",
   "?=",
+  "?_>",
+  "??>",
   "?_",
   "??",
   "?:",
@@ -995,7 +1001,7 @@ function tryMatchBrace(input, position) {
       };
     }
   }
-  const sigilChars = new Set(["@", ";", "|", ":", "=", "?", "$", "#", "^", ">", "~"]);
+  const sigilChars = new Set(["@", ";", "|", ":", "=", "?", "$", "#", "^", ">", "~", "&"]);
   if (sigilChars.has(ch)) {
     const sigil = ch;
     const after = input[position + 2];
@@ -1610,6 +1616,7 @@ function mergeOperatorDefinitions(...collections) {
 // src/parser/parser.js
 var PRECEDENCE = {
   STATEMENT: 0,
+  RETURN_GUARD: 8,
   ASSIGNMENT: 10,
   PIPE: 20,
   ARROW: 25,
@@ -1632,6 +1639,8 @@ var PRECEDENCE = {
 var JUXTAPOSITION_PRECEDENCE = 95;
 var IMPLICIT_APPLICATION_PRECEDENCE = 97;
 var SYMBOL_TABLE = {
+  "?_>": { precedence: PRECEDENCE.RETURN_GUARD, associativity: "left", type: "infix" },
+  "??>": { precedence: PRECEDENCE.RETURN_GUARD, associativity: "left", type: "infix" },
   ":=": {
     precedence: PRECEDENCE.ASSIGNMENT,
     associativity: "right",
@@ -1746,6 +1755,16 @@ var SYMBOL_TABLE = {
     associativity: "left",
     type: "infix"
   },
+  "?/\\": {
+    precedence: PRECEDENCE.COMPARISON,
+    associativity: "left",
+    type: "infix"
+  },
+  "!/\\": {
+    precedence: PRECEDENCE.COMPARISON,
+    associativity: "left",
+    type: "infix"
+  },
   "!?": {
     precedence: PRECEDENCE.COMPARISON,
     associativity: "left",
@@ -1834,6 +1853,11 @@ var SYMBOL_TABLE = {
     type: "infix"
   },
   "\\/": {
+    precedence: PRECEDENCE.ADDITION,
+    associativity: "left",
+    type: "infix"
+  },
+  "|\\/|": {
     precedence: PRECEDENCE.ADDITION,
     associativity: "left",
     type: "infix"
@@ -2027,6 +2051,8 @@ var SYMBOL_TABLE = {
   "{^": { precedence: 0, type: "brace_sigil" },
   "{>": { precedence: 0, type: "brace_sigil" },
   "{~": { precedence: 0, type: "brace_sigil" },
+  "{&": { precedence: 0, type: "brace_sigil" },
+  "&": { precedence: 0, type: "separator" },
   "{!": { precedence: 0, type: "brace_sigil" },
   "..": { precedence: PRECEDENCE.PROPERTY, associativity: "left", type: "infix" },
   ".|": { precedence: PRECEDENCE.PROPERTY, associativity: "left", type: "postfix" },
@@ -2374,6 +2400,10 @@ class Parser {
           return this.parseAngleForm();
         } else if (token.value === "{") {
           return this.parseBraceContainer();
+        } else if (token.value === "{&") {
+          return this.parseMathematicalContext();
+        } else if (token.value === ":::") {
+          return this.parseSymbolicVariable(false);
         } else if (token.value === "{=" || token.value === "{?" || token.value === "{;" || token.value === "{|" || token.value === "{:" || token.value === "{@" || token.value === "{#" || token.value === "{.." || token.value === "{>" || token.value === "{~" || token.value === "{^" || token.value === "{$" || token.value === "{$$") {
           if (token.value === "{#") {
             return this.parseSystemSpecLiteral();
@@ -2403,6 +2433,8 @@ class Parser {
           });
         } else if (token.value === "@") {
           this.advance();
+          if (this.current.value === "::")
+            return this.parseSymbolicVariable(true, token);
           if (this.current.type === "String" && this.current.kind === "quote") {
             const template = this.current;
             this.advance();
@@ -2524,6 +2556,8 @@ class Parser {
           return this.createNode("SystemObject", {
             original: token.original
           });
+        } else if (token.value === "::") {
+          return this.parseSymbolicVariable(false);
         } else if (token.value === "_") {
           this.advance();
           return this.createNode("NULL", {
@@ -2588,6 +2622,17 @@ class Parser {
   }
   parseInfix(left, symbolInfo) {
     const operator = this.current;
+    if (operator.value === "?_>" || operator.value === "??>") {
+      this.advance();
+      const value = this.parseExpression(PRECEDENCE.RETURN_GUARD + 1);
+      return this.createNode("ReturnGuard", {
+        condition: left,
+        decision: operator.value === "?_>" ? "null" : "undecided",
+        value,
+        pos: left.pos,
+        original: (left.original || "") + operator.original + (value.original || "")
+      });
+    }
     if (symbolInfo.type === "postfix" && (operator.value === "!" || operator.value === "!!")) {
       this.advance();
       return this.createNode(operator.value === "!" ? "Factorial" : "DoubleFactorial", {
@@ -4278,6 +4323,7 @@ class Parser {
     if (this.current.value !== "/") {
       this.error("Unterminated /.../ header");
     }
+    const end = this.current.pos[2];
     this.advance();
     return this.createNode("SemanticHeader", {
       captureMode,
@@ -4285,8 +4331,8 @@ class Parser {
       typeName,
       ...slots ? { slots } : {},
       traits,
-      pos: startToken.pos,
-      original: startToken.original
+      pos: [startToken.pos[0], startToken.pos[1], end],
+      original: this.source ? this.source.slice(startToken.pos[0], end) : startToken.original
     });
   }
   parseValueOutfit() {
@@ -4657,13 +4703,14 @@ class Parser {
     if (this.current.value !== "}") {
       this.error("Expected closing brace for shaped literal");
     }
+    const end = this.current.pos[2];
     this.advance();
     return this.createNode("ShapedLiteral", {
       shape,
       ...header ? { header } : {},
       elements,
-      pos: startToken.pos,
-      original: startToken.original
+      pos: [startToken.pos[0], startToken.pos[1], end],
+      original: this.source ? this.source.slice(startToken.pos[0], end) : startToken.original
     });
   }
   parseShapedRowArrayPattern(shape) {
@@ -4796,6 +4843,55 @@ class Parser {
       pos: left.pos,
       original: left.original + operator.original
     });
+  }
+  parseMathematicalContext() {
+    const start = this.current;
+    if (start.containerName)
+      this.error("Mathematical contexts do not have named headers");
+    this.advance();
+    const header = [], elements = [];
+    while (this.current.value !== "&") {
+      if (this.current.type === "End" || this.current.value === "}")
+        this.error("Expected '&' after mathematical header");
+      const declaration = this.parseExpression(0);
+      let source = null;
+      if (this.current.value === "|") {
+        this.advance();
+        source = this.parseExpression(0);
+      }
+      header.push({ declaration, source });
+      if (this.current.value === ";")
+        this.advance();
+      else if (this.current.value !== "&")
+        this.error("Expected ';' or '&' after mathematical declaration");
+    }
+    this.advance();
+    while (this.current.value !== "}") {
+      if (this.current.type === "End")
+        this.error("Expected '}' after mathematical body");
+      if (this.current.value === ";") {
+        this.advance();
+        continue;
+      }
+      elements.push(this.parseExpression(0));
+      if (this.current.value === ";")
+        this.advance();
+      else if (this.current.value !== "}")
+        this.error("Expected ';' or '}' after mathematical body statement");
+    }
+    this.advance();
+    return this.createNode("MathematicalContext", { header, elements, pos: start.pos, original: start.original });
+  }
+  parseSymbolicVariable(outer, startToken = this.current) {
+    const prefix = this.current;
+    this.advance();
+    if (this.current.type !== "Identifier" || prefix.pos[2] !== this.current.pos[1]) {
+      this.error("Symbolic '::' must be immediately followed by a name");
+    }
+    const name = this.current.value;
+    const original = (outer ? "@::" : prefix.value) + this.current.original;
+    this.advance();
+    return this.createNode(prefix.value === ":::" ? "BoundSymbol" : "SymbolicVariable", { name, outer, pos: startToken.pos, original });
   }
   parseBracketSpec() {
     const token = this.current;

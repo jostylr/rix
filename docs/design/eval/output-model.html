@@ -306,6 +306,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span class="menu-text">Learn</span></a>
   </li>  
   <li class="nav-item">
+    <a class="nav-link" href="../../undergraduate-probability-statistics-data-analysis.html"> 
+<span class="menu-text">Probability &amp; statistics</span></a>
+  </li>  
+  <li class="nav-item">
     <a class="nav-link" href="../../eval/syntax-guide.html"> 
 <span class="menu-text">Reference</span></a>
   </li>  
@@ -642,6 +646,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>A button that restores an explicitly supplied RiX value snapshot.</td>
 </tr>
 <tr class="even">
+<td><code>.Controls.Action</code></td>
+<td>A button whose RiX callback computes the target’s next value, optionally carrying a declarative shortcut.</td>
+</tr>
+<tr class="odd">
+<td><code>.Controls.Hold</code></td>
+<td>A momentary key binding with explicit pressed and released RiX target values.</td>
+</tr>
+<tr class="even">
 <td><code>.Render</code> / <code>value.Render(...)</code></td>
 <td>Resolve a renderer for a target or host context.</td>
 </tr>
@@ -721,7 +733,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 .Controls.Choice({= target = $$name, options = values, label = _, help = _, id = _ })
 .Controls.Toggle({= target = $$name, off = value, on = value, label = _, help = _, id = _ })
 .Controls.Range({= target = $$name, interval = 0:10, step = 1, label = _, help = _, id = _ })
-.Controls.Reset({= target = $$name, initial = value, label = _, help = _, id = _ })</code></pre>
+.Controls.Reset({= target = $$name, initial = value, label = _, help = _, id = _ })
+.Controls.Action({= target = $$name, action = callable, label = _, shortcut = _, id = _ })
+.Controls.Hold({= target = $$name, key = "ArrowDown", pressed = 1, released = _, label = _, id = _ })</code></pre>
 <p>Every control map may also include <code>format</code>, <code>validate</code>, <code>disabled</code>, and <code>readOnly</code>. <code>format</code> is a map from a displayed field name to a unary RiX function. For example:</p>
 <pre class="rix"><code>Mixed(x) -&gt; x _&gt; "..";
 Continued(x) -&gt; x _&gt; ".~";

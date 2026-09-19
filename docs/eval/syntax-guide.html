@@ -306,6 +306,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span class="menu-text">Learn</span></a>
   </li>  
   <li class="nav-item">
+    <a class="nav-link" href="../undergraduate-probability-statistics-data-analysis.html"> 
+<span class="menu-text">Probability &amp; statistics</span></a>
+  </li>  
+  <li class="nav-item">
     <a class="nav-link active" href="../eval/syntax-guide.html" aria-current="page"> 
 <span class="menu-text">Reference</span></a>
   </li>  
@@ -376,6 +380,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#loop-headers-and-break-blocks" id="toc-loop-headers-and-break-blocks" class="nav-link" data-scroll-target="#loop-headers-and-break-blocks">Loop Headers And Break Blocks</a></li>
   <li><a href="#code-blocks-in-construct-positions-scope-sharing" id="toc-code-blocks-in-construct-positions-scope-sharing" class="nav-link" data-scroll-target="#code-blocks-in-construct-positions-scope-sharing">Code Blocks in Construct Positions (Scope Sharing)</a></li>
   <li><a href="#scoped-block-import-headers" id="toc-scoped-block-import-headers" class="nav-link" data-scroll-target="#scoped-block-import-headers">Scoped Block Import Headers</a></li>
+  <li><a href="#lexical-plugin-export-selection" id="toc-lexical-plugin-export-selection" class="nav-link" data-scroll-target="#lexical-plugin-export-selection">Lexical Plugin Export Selection</a></li>
   <li><a href="#script-import-expressions" id="toc-script-import-expressions" class="nav-link" data-scroll-target="#script-import-expressions">Script Import Expressions</a></li>
   <li><a href="#set-interval-algebra" id="toc-set-interval-algebra" class="nav-link" data-scroll-target="#set-interval-algebra">Set &amp; Interval Algebra</a></li>
   <li><a href="#pipe-operators" id="toc-pipe-operators" class="nav-link" data-scroll-target="#pipe-operators">Pipe Operators</a></li>
@@ -621,8 +626,24 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td><code>NEG</code></td>
 <td><code>-x</code></td>
 </tr>
+<tr class="odd">
+<td><code>&lt;* "b"</code></td>
+<td><code>NUM_INPUT</code></td>
+<td>Set the strict <code>#</code> input base for the session</td>
+</tr>
+<tr class="even">
+<td><code>*&gt; ".[12],b,.."</code></td>
+<td><code>NUM_DISPLAY</code></td>
+<td>Install one or more numeric display views</td>
+</tr>
+<tr class="odd">
+<td><code>value _&gt;! 0b</code></td>
+<td><code>TOBASE_EXACT</code></td>
+<td>Return lossless, parseable RiX source or fail</td>
+</tr>
 </tbody>
 </table>
+<p>See <a href="../eval/number-notation.html">Number input and display</a> for strict <code>#</code> literals, display-profile grammar, generalized positional systems, and JSON/host setup.</p>
 </section>
 <section id="implicit-multiplication-callable-application" class="level3">
 <h3 class="anchored" data-anchor-id="implicit-multiplication-callable-application">Implicit Multiplication &amp; Callable Application</h3>
@@ -943,6 +964,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </ul>
 <p>Prep is meant for validation, conversion, destructuring, and local setup. RiX does not currently restrict mutation or IO in prep.</p>
 </section>
+<section id="diagnostic-guards-and-function-returns" class="level4">
+<h4 class="anchored" data-anchor-id="diagnostic-guards-and-function-returns">Diagnostic guards and function returns</h4>
+<p><code>check ?_&gt; result</code> returns from the current function call when the check is decided negative/null; <code>check ??&gt; result</code> returns when it is undecided. Both preserve the check’s value when they do not trigger. They work in prep and function bodies, cross nested block/loop boundaries, and error when evaluated outside an active call. They are not block breaks.</p>
+<pre class="rix"><code>Nonnegative(x) ?!- [x &gt;= 0 ?_&gt; {= status=:rejected,value=x }]
+  -&gt; {= status=:accepted,value=x };</code></pre>
+<p>An explicit return is final for multifunction dispatch, even when its result is <code>_</code> or <code>?</code>. The payload is lazy and can use established prep bindings. Return guards bind below assignment and logical operators; zero is still truthy. See <a href="../eval/function-returns.html">the full reference and runnable tutorial</a> for chaining, call ownership, undecided handling, and cleanup semantics.</p>
+</section>
 <section id="prepared-trial-expressions" class="level4">
 <h4 class="anchored" data-anchor-id="prepared-trial-expressions">Prepared Trial Expressions</h4>
 <p>Expression-level prep evaluates a candidate once and gives it an arm-local binding or destructuring pattern:</p>
@@ -1106,9 +1134,9 @@ x ~!: :rational</code></pre>
 <li>these operators return new outfitted values; they do not mutate the original binding unless assigned back</li>
 </ul>
 <p>Soft conversion warnings are controlled by runtime config:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb20"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>warnings<span class="op">:</span> {</span>
-<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">conversion</span><span class="op">:</span> <span class="kw">true</span></span>
-<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb21"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>warnings<span class="op">:</span> {</span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">conversion</span><span class="op">:</span> <span class="kw">true</span></span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>When <code>warnings.conversion === true</code>, failed <code>~:</code> emits a structured warning before returning <code>_</code>.</p>
 <p>RiX now backs these forms with immutable type and trait registries. Types are protocol bundles: they can define conversion, normalization, validation, default traits, proto methods, export/import hooks, and operator variants. Traits can imply other traits and contribute proto methods. Implied traits are materialized into <code>.__traits</code>, so <code>x ? :trait</code> remains a direct membership check.</p>
 <p>See <code>types-and-traits-guide.md</code> for the full registry, conversion, export/import, and system multifunction installation model.</p>
@@ -1173,7 +1201,7 @@ x ~!: :rational</code></pre>
 {: /::=/ a, b, c}
 {| /==/ item1, item2 |}
 {:2x2: /::=/ a, b; c, d}</code></pre>
-<p><code>[...]</code>, <code>{= ...}</code>, <code>{: ...}</code>, <code>{| ...}</code>, and tensor literals without an explicit constructor header still participate in this model; they simply fall back to the runtime default capture mode.</p>
+<p><code>[...]</code>, <code>{= ...}</code>, <code>{: ...}</code>, <code>{| ...}</code>, and shaped literals without an explicit constructor header still participate in this model; they simply fall back to the runtime default capture mode.</p>
 <p>Value outfitting uses the same header but applies to the resulting value itself after capture:</p>
 <ol type="1">
 <li>evaluate the source expression</li>
@@ -1315,12 +1343,12 @@ u \= {| 2 |}
 <tr class="even">
 <td><code>{\/ a, b, c }</code></td>
 <td><code>NARY_UNION</code></td>
-<td>N-ary set union / interval hull</td>
+<td>N-ary set or exact interval-set union</td>
 </tr>
 <tr class="odd">
 <td><code>{/\ a, b, c }</code></td>
 <td><code>NARY_INTERSECT</code></td>
-<td>N-ary set intersection / interval overlap</td>
+<td>N-ary set or exact interval-set intersection</td>
 </tr>
 <tr class="even">
 <td><code>{++ a, b, c }</code></td>
@@ -1668,6 +1696,14 @@ importSpec :=
 <p>For <code>{# ... }</code>, imports affect symbolic name interpretation only. The spec literal stays symbolic: it does not copy concrete values during creation, and consumers such as <code>.Poly</code> decide how to interpret those references later.</p>
 <p>Errors: - Empty headers are invalid: <code>&lt;&gt;</code> - Duplicate local targets in one header are invalid: <code>&lt; x, x= &gt;</code> - Missing outer sources are errors - Malformed specs such as <code>&lt; a~~x &gt;</code>, <code>&lt; a==x &gt;</code>, or <code>&lt; a~x, &gt;</code> are errors - A header only has meaning in the top-of-block position for supported scoped blocks</p>
 </section>
+<section id="lexical-plugin-export-selection" class="level3">
+<h3 class="anchored" data-anchor-id="lexical-plugin-export-selection">Lexical Plugin Export Selection</h3>
+<p>After a plugin is loaded, select manifest-declared exports from its dotted namespace with colon names:</p>
+<pre class="rix"><code>.Plugin.Load("numerics");
+.numerics[:E=:Exp, :Log, :Pow];
+E(3, 4)</code></pre>
+<p>This creates ordinary bare callable bindings in the immediate lexical scope. As in scoped import headers, the left side of <code>=</code> is the new local name and the right side is the source name: <code>:E=:Exp</code> imports exported <code>Exp</code> as local <code>E</code>. An unaliased <code>:Exp</code> is shorthand for <code>:Exp=:Exp</code>. At top level they last for the script or REPL session. Inside <code>{; ... }</code>, a function body, or another scope, they disappear when that scope exits. Existing immediate bindings are never overwritten, the whole selection fails if any local or exported name is invalid, and required-plugin exports are not imported automatically.</p>
+</section>
 <section id="script-import-expressions" class="level3">
 <h3 class="anchored" data-anchor-id="script-import-expressions">Script Import Expressions</h3>
 <p>Script execution uses the angle-call form:</p>
@@ -1737,44 +1773,56 @@ r := x * x
 <tr class="odd">
 <td><code>A \/ B</code></td>
 <td><code>UNION</code></td>
-<td><code>S1 \/ S2</code></td>
-<td>Set union or interval hull</td>
+<td><code>(1:2) \/ (4:5)</code></td>
+<td>Genuine set union; intervals produce a normalized <code>RationalIntervalSet</code></td>
 </tr>
 <tr class="even">
-<td><code>A /\ B</code></td>
-<td><code>INTERSECT</code></td>
-<td><code>S1 /\ S2</code></td>
-<td>Set intersection or interval overlap</td>
+<td><code>A |\/| B</code></td>
+<td><code>HULL</code></td>
+<td><code>(1:2) |\/| (4:5)</code></td>
+<td>Smallest closed interval covering both ranges</td>
 </tr>
 <tr class="odd">
+<td><code>A /\ B</code></td>
+<td><code>INTERSECT</code></td>
+<td><code>(1:3) /\ (2:4)</code></td>
+<td>Genuine set intersection; intervals produce a <code>RationalIntervalSet</code> (possibly empty)</td>
+</tr>
+<tr class="even">
 <td><code>A \ B</code></td>
 <td><code>SET_DIFF</code></td>
 <td><code>S1 \ S2</code></td>
 <td>Set/Map difference</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>A &lt;&gt; B</code></td>
 <td><code>SET_SYMDIFF</code></td>
 <td><code>S1 &lt;&gt; S2</code></td>
 <td>Symmetric difference</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>x ? S</code></td>
 <td><code>MEMBER</code></td>
-<td><code>5 ? 1:10</code>, <code>"a" ? m</code></td>
-<td>Membership test (sets/intervals) or map key existence test</td>
+<td><code>5 ? 1:10</code>, <code>(1:2) ? (0:4)</code></td>
+<td>Scalar membership or whole-range containment; for maps, key existence</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>x !? S</code></td>
 <td><code>NOT_MEMBER</code></td>
 <td><code>x !? S</code></td>
 <td>Non-membership / key absence test</td>
 </tr>
-<tr class="odd">
-<td><code>A ?&amp; B</code></td>
+<tr class="even">
+<td><code>A ?&amp; B</code>, <code>A ?/\ B</code></td>
 <td><code>INTERSECTS</code></td>
-<td><code>A ?&amp; B</code></td>
-<td>Intersects predicate</td>
+<td><code>(1:2) ?/\ (2:3)</code></td>
+<td>Nonempty-intersection predicate</td>
+</tr>
+<tr class="odd">
+<td><code>A !/\ B</code></td>
+<td><code>DISJOINT</code></td>
+<td><code>(1:2) !/\ (3:4)</code></td>
+<td>Disjointness predicate</td>
 </tr>
 <tr class="even">
 <td><code>A ** B</code></td>
@@ -1890,7 +1938,7 @@ r := x * x
 <pre><code>(acc, val, locator, src)</code></pre>
 <p>For sort (<code>|&lt;&gt;</code>), the comparator receives only:</p>
 <pre><code>(a, b)</code></pre>
-<p>The <strong>locator</strong> is the native indexing/key form for the source collection kind: - <strong>sequences and strings</strong>: 1-based integer position - <strong>maps</strong>: the map key (as a canonical string, consistent with <code>KEYOF</code> and <code>INDEX_GET</code>) - <strong>tensors</strong>: 1-based index tuple</p>
+<p>The <strong>locator</strong> is the native indexing/key form for the source collection kind: - <strong>sequences and strings</strong>: 1-based integer position - <strong>maps</strong>: the map key (as a canonical string, consistent with <code>KEYOF</code> and <code>INDEX_GET</code>) - <strong>Shaped values</strong>: 1-based index tuple</p>
 <p>Callbacks that declare fewer parameters simply ignore the extra arguments — existing one-arg and two-arg callbacks continue to work without modification.</p>
 </section>
 <section id="map-specific-behavior" class="level4">
@@ -1906,16 +1954,17 @@ r := x * x
 <li><strong><code>map |:&gt; init &gt;: fn</code></strong> — explicit init; order is unspecified.</li>
 </ul>
 </section>
-<section id="tensor-specific-behavior" class="level4">
-<h4 class="anchored" data-anchor-id="tensor-specific-behavior">Tensor-specific behavior</h4>
+<section id="shaped-specific-behavior" class="level4">
+<h4 class="anchored" data-anchor-id="shaped-specific-behavior">Shaped-specific behavior</h4>
 <ul>
-<li><strong>Tensor literal</strong>: <code>{:d1xd2x...: elems }</code> creates a dense tensor in row-major order. <code>{:d1xd2x...:}</code> creates an empty mutable tensor filled with holes.</li>
-<li><strong>Tensor indexing</strong>: <code>A[i, j]</code>, <code>A[::, 2]</code>, <code>A[-1:1, ::]</code>. Indices are 1-based; negative indices count from the end; <code>0</code> is invalid.</li>
-<li><strong>Tensor slices</strong>: bracket slices are strict, closed, and directed. <code>::</code> is sugar for the full forward slice.</li>
-<li><strong>Transpose</strong>: <code>A^^</code> swaps the two axes of a rank-2 tensor as a view.</li>
-<li><strong><code>tensor |&gt;&gt;</code></strong> — callback receives <code>(value, indexTuple, tensor)</code> and returns a new tensor with the same shape.</li>
-<li><strong><code>tensor |&gt;?</code></strong> — callback receives <code>(value, indexTuple, tensor)</code> and returns a sequence of <code>{: value, indexTuple }</code> pairs for matches.</li>
-<li><strong><code>tensor |&gt;:</code> / <code>tensor |:&gt; init &gt;: fn</code></strong> — reducer receives <code>(acc, value, indexTuple, tensor)</code>.</li>
+<li><strong>Shaped literal</strong>: <code>{:d1xd2x...: elems }</code> creates dense component storage in row-major order. A bare shaped literal has semantic type <code>Shaped</code>.</li>
+<li><strong>Typed header</strong>: <code>/Matrix/</code> gives rank-2 storage matrix arithmetic. With <code>.linalg</code> loaded, <code>/Vector: E/</code>, <code>/Covector: E/</code>, and <code>/Tensor: E@E*/</code> attach ordered <code>Frame</code> slots; <code>*</code> marks the canonical dual slot.</li>
+<li><strong>Inferred semicolon literal</strong>: <code>[1, 2; 3, 4]</code> is the same bare <code>2x2</code> Shaped value as <code>{:2x2: 1, 2; 3, 4}</code>. One <code>;</code> separates rows, <code>;;</code> separates axis-3 slices, <code>;;;</code> separates axis-4 groups, and further consecutive semicolons continue the pattern. The dimensions must be rectangular.</li>
+<li><strong>Indexing and slices</strong>: <code>A[i, j]</code>, <code>A[::, 2]</code>, <code>A[-1:1, ::]</code>. Indices are 1-based; negative indices count from the end; <code>::</code> is the full strict forward slice.</li>
+<li><strong>Transpose</strong>: <code>A^^</code> swaps two axes of rank-2 Shaped or Matrix storage as a view.</li>
+<li><strong><code>shaped |&gt;&gt;</code></strong> — callback receives <code>(value, indexTuple, shaped)</code> and returns Shaped storage with the same shape.</li>
+<li><strong><code>shaped |&gt;?</code></strong> — returns a sequence of <code>{: value, indexTuple }</code> pairs for matches.</li>
+<li><strong><code>shaped |&gt;:</code> / <code>shaped |:&gt; init &gt;: fn</code></strong> — reducer receives <code>(acc, value, indexTuple, shaped)</code>.</li>
 </ul>
 <p>Maps do <strong>not</strong> support <code>|&gt;/|</code> (split), <code>|&gt;#|</code> (chunk), or <code>|&lt;&gt;</code> (sort) — these require ordered sequences.</p>
 <p>Examples:</p>
@@ -2473,7 +2522,7 @@ Constant()            # Fraction(8,4)</code></pre>
 </table>
 <p>Other registered prefixes: <code>0q</code> (Base 4), <code>0f</code> (5), <code>0s</code> (7), <code>0d</code> (12), <code>0v</code> (20), <code>0u</code> (36), <code>0m</code> (60), <code>0y</code> (64).</p>
 <p>Custom uppercase prefixes can be defined at runtime: - <code>0A = "0123456789ABCDEF"</code> - <code>0B = {: 2, "01" }</code></p>
-<p>Base conversion operators: - <code>_&gt;</code>: <code>value _&gt; baseSpec</code> returns a string in that base. - <code>&lt;_</code>: <code>string &lt;_ baseSpec</code> parses into an exact rational/integer.</p>
+<p>Base conversion operators: - <code>_&gt;</code>: <code>value _&gt; baseSpec</code> returns a string in that base. - <code>_&gt;!</code>: <code>value _&gt;! baseSpec</code> returns explicitly prefixed, lossless RiX source and fails rather than truncate. - <code>&lt;_</code>: <code>string &lt;_ baseSpec</code> parses into an exact rational/integer.</p>
 <p>Quoted prefixed literals are also valid: - <code>0A"4A.F"</code></p>
 </section>
 <section id="property-meta-access" class="level3">
@@ -2809,11 +2858,6 @@ Constant()            # Fraction(8,4)</code></pre>
 <td>Absolute value</td>
 <td>—</td>
 </tr>
-<tr class="odd">
-<td><code>SQRT(a)</code></td>
-<td>Square root</td>
-<td>—</td>
-</tr>
 </tbody>
 </table>
 </section>
@@ -3077,9 +3121,9 @@ A := .Integrate({#x# 2*x }, {#x})
 <td><code>{= k=v, ... }</code></td>
 </tr>
 <tr class="odd">
-<td><code>TENSOR_LITERAL(shape, elems...)</code></td>
-<td>Create tensor with explicit shape</td>
-<td><code>{:2x3: 1, 2, 3; 4, 5, 6 }</code></td>
+<td><code>SHAPED_LITERAL(shape, elems...)</code></td>
+<td>Create Shaped storage explicitly or by rectangular semicolon inference</td>
+<td><code>{:2x3: 1, 2, 3; 4, 5, 6 }</code>, <code>[1, 2; 3, 4]</code>, <code>[1,2;3,4 ;; 5,6;7,8]</code></td>
 </tr>
 <tr class="even">
 <td><code>ARRAY_CAPTURE(elems...)</code></td>
@@ -3093,68 +3137,83 @@ A := .Integrate({#x# 2*x }, {#x})
 </tr>
 <tr class="even">
 <td><code>UNION(a, b)</code></td>
-<td>Binary set union / interval hull</td>
+<td>Binary set or exact interval-set union</td>
 <td><code>A \/ B</code></td>
 </tr>
 <tr class="odd">
-<td><code>INTERSECT(a, b)</code></td>
-<td>Binary set intersection / interval overlap</td>
-<td><code>A /\ B</code></td>
+<td><code>HULL(a, b)</code></td>
+<td>Smallest covering closed interval for exact ranges</td>
+<td><code>A |\/| B</code></td>
 </tr>
 <tr class="even">
+<td><code>INTERSECT(a, b)</code></td>
+<td>Binary set or exact interval-set intersection</td>
+<td><code>A /\ B</code></td>
+</tr>
+<tr class="odd">
+<td><code>INTERSECTS(a, b)</code></td>
+<td>Test for a nonempty intersection</td>
+<td><code>A ?&amp; B</code>, <code>A ?/\ B</code></td>
+</tr>
+<tr class="even">
+<td><code>DISJOINT(a, b)</code></td>
+<td>Test for disjoint ranges/sets</td>
+<td><code>A !/\ B</code></td>
+</tr>
+<tr class="odd">
 <td><code>CONCAT(a, b)</code></td>
 <td>Binary concatenation</td>
 <td><code>A ++ B</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>NARY_UNION(args...)</code></td>
-<td>N-ary set union / interval hull</td>
+<td>N-ary set or exact interval-set union</td>
 <td><code>{\/ A, B, C }</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>NARY_INTERSECT(args...)</code></td>
-<td>N-ary set intersection / interval overlap</td>
+<td>N-ary set or exact interval-set intersection</td>
 <td><code>{/\ A, B, C }</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>NARY_CONCAT(args...)</code></td>
 <td>N-ary concatenation</td>
 <td><code>{++ A, B, C }</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>LEN(coll)</code></td>
 <td>Length of collection/string</td>
 <td>—</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>FIRST(coll)</code></td>
 <td>First element</td>
 <td>—</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>LAST(coll)</code></td>
 <td>Last element</td>
 <td>—</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>GETEL(coll, i)</code></td>
 <td>Get element at 1-based index</td>
 <td>—</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>IRANGE(start, end)</code></td>
 <td>Integer range <code>[start, end]</code></td>
 <td>—</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.RAND_NAME(len?, alphabet?)</code></td>
 <td>Random string generator</td>
 <td><code>.RAND_NAME()</code>, <code>.RAND_NAME(8, "abc")</code></td>
 </tr>
-<tr class="even">
-<td><code>.TGEN(shape, fn)</code></td>
-<td>Generate tensor by index tuple</td>
-<td><code>.TGEN({: 2, 3 }, idx -&gt; idx[1] * 10 + idx[2])</code></td>
+<tr class="odd">
+<td><code>.Shaped.Generate(shape, fn)</code></td>
+<td>Generate Shaped storage by index tuple</td>
+<td><code>.Shaped.Generate({: 2, 3 }, idx -&gt; idx[1] * 10 + idx[2])</code></td>
 </tr>
 </tbody>
 </table>
@@ -3560,10 +3619,10 @@ x[1] = 9          ## OK: ._mutable controls index assignment, not .lock</code></
 </tbody>
 </table>
 <p>Default <code>PRINT</code> formatting renders maps, arrays, sets, tuples, and export bundles over multiple lines. Hosts can replace either formatting or output by setting:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb54"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript"><span id="cb54-1"><a href="#cb54-1" aria-hidden="true" tabindex="-1"></a>context<span class="op">.</span><span class="fu">setEnv</span>(<span class="st">"__io__"</span><span class="op">,</span> {</span>
-<span id="cb54-2"><a href="#cb54-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">format</span>(value<span class="op">,</span> helpers) { <span class="cf">return</span> helpers<span class="op">.</span><span class="fu">prettyFormat</span>(value)<span class="op">;</span> }<span class="op">,</span></span>
-<span id="cb54-3"><a href="#cb54-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span>(text<span class="op">,</span> value<span class="op">,</span> helpers) { <span class="bu">console</span><span class="op">.</span><span class="fu">log</span>(text)<span class="op">;</span> }</span>
-<span id="cb54-4"><a href="#cb54-4" aria-hidden="true" tabindex="-1"></a>})<span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb56"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript"><span id="cb56-1"><a href="#cb56-1" aria-hidden="true" tabindex="-1"></a>context<span class="op">.</span><span class="fu">setEnv</span>(<span class="st">"__io__"</span><span class="op">,</span> {</span>
+<span id="cb56-2"><a href="#cb56-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">format</span>(value<span class="op">,</span> helpers) { <span class="cf">return</span> helpers<span class="op">.</span><span class="fu">prettyFormat</span>(value)<span class="op">;</span> }<span class="op">,</span></span>
+<span id="cb56-3"><a href="#cb56-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span>(text<span class="op">,</span> value<span class="op">,</span> helpers) { <span class="bu">console</span><span class="op">.</span><span class="fu">log</span>(text)<span class="op">;</span> }</span>
+<span id="cb56-4"><a href="#cb56-4" aria-hidden="true" tabindex="-1"></a>})<span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="variables" class="level3">
 <h3 class="anchored" data-anchor-id="variables">Variables</h3>
@@ -3694,20 +3753,12 @@ x[1] = 9          ## OK: ._mutable controls index assignment, not .lock</code></
 <td>Lazy unbounded arithmetic sequence (<code>start::+step</code>)</td>
 </tr>
 <tr class="even">
-<td><code>MATRIX(rows...)</code></td>
-<td>Matrix literal</td>
+<td><code>SHAPED_LITERAL(shape, elems...)</code></td>
+<td>Explicit-shape or inferred Shaped literal</td>
 </tr>
 <tr class="odd">
-<td><code>TENSOR(data...)</code></td>
-<td>Legacy tensor constructor</td>
-</tr>
-<tr class="even">
-<td><code>TENSOR_LITERAL(shape, elems...)</code></td>
-<td>Explicit-shape tensor literal</td>
-</tr>
-<tr class="odd">
-<td><code>TENSOR_TRANSPOSE(t)</code></td>
-<td>Rank-2 tensor transpose view</td>
+<td><code>SHAPED_TRANSPOSE(t)</code></td>
+<td>Rank-2 Shaped/Matrix transpose view</td>
 </tr>
 <tr class="even">
 <td><code>UNIT(val, unit)</code></td>

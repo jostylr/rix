@@ -271,6 +271,10 @@ ul.task-list li input[type="checkbox"] {
 <span class="menu-text">Learn</span></a>
   </li>  
   <li class="nav-item">
+    <a class="nav-link" href="../undergraduate-probability-statistics-data-analysis.html"> 
+<span class="menu-text">Probability &amp; statistics</span></a>
+  </li>  
+  <li class="nav-item">
     <a class="nav-link" href="../eval/syntax-guide.html"> 
 <span class="menu-text">Reference</span></a>
   </li>  
@@ -327,7 +331,10 @@ ul.task-list li input[type="checkbox"] {
   <ul>
   <li><a href="#structured-output-and-graphics-reference" id="toc-structured-output-and-graphics-reference" class="nav-link active" data-scroll-target="#structured-output-and-graphics-reference">Structured output and graphics reference</a>
   <ul class="collapse">
-  <li><a href="#composition-and-document-blocks" id="toc-composition-and-document-blocks" class="nav-link" data-scroll-target="#composition-and-document-blocks">Composition and document blocks</a></li>
+  <li><a href="#composition-and-document-blocks" id="toc-composition-and-document-blocks" class="nav-link" data-scroll-target="#composition-and-document-blocks">Composition and document blocks</a>
+  <ul class="collapse">
+  <li><a href="#portable-block-layout" id="toc-portable-block-layout" class="nav-link" data-scroll-target="#portable-block-layout">Portable block layout</a></li>
+  </ul></li>
   <li><a href="#tables-grids-sheets-and-media" id="toc-tables-grids-sheets-and-media" class="nav-link" data-scroll-target="#tables-grids-sheets-and-media">Tables, grids, sheets, and media</a></li>
   <li><a href="#graphics" id="toc-graphics" class="nav-link" data-scroll-target="#graphics">Graphics</a></li>
   <li><a href="#renderer-plugins" id="toc-renderer-plugins" class="nav-link" data-scroll-target="#renderer-plugins">Renderer plugins</a></li>
@@ -421,6 +428,52 @@ ul.task-list li input[type="checkbox"] {
     .Paragraph([.Text("The value is "), .Math("x^2 + 1")]),
     .Callout({= variant="tip", children=[.Paragraph("Values stay exact.")] })
 ])</code></pre>
+<section id="portable-block-layout" class="level3">
+<h3 class="anchored" data-anchor-id="portable-block-layout">Portable block layout</h3>
+<p>Fragment, Section, Figure, Table <code>options</code>, and ControlPanel accept a small renderer-neutral presentation vocabulary. It is intentionally semantic and enumerated; RiX documents do not inject arbitrary HTML classes or CSS.</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Hint</th>
+<th>Values</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>layout</code></td>
+<td><code>"stack"</code>, <code>"cluster"</code>, <code>"grid"</code>, <code>"split"</code></td>
+</tr>
+<tr class="even">
+<td><code>columns</code></td>
+<td>Exact integer from 1 through 4</td>
+</tr>
+<tr class="odd">
+<td><code>gap</code></td>
+<td><code>"compact"</code>, <code>"normal"</code>, <code>"spacious"</code></td>
+</tr>
+<tr class="even">
+<td><code>variant</code></td>
+<td><code>"plain"</code>, <code>"card"</code>, <code>"hero"</code>, <code>"muted"</code></td>
+</tr>
+<tr class="odd">
+<td><code>width</code></td>
+<td><code>"narrow"</code>, <code>"content"</code>, <code>"full"</code></td>
+</tr>
+<tr class="even">
+<td><code>align</code></td>
+<td><code>"start"</code>, <code>"center"</code>, <code>"stretch"</code></td>
+</tr>
+</tbody>
+</table>
+<pre class="rix"><code>.Fragment({=
+    style={= layout="grid", columns=2, gap="spacious", align="start" },
+    children=[
+        .Section({= level=2, title="Controls", style={= variant="card" }, children=[panel] }),
+        .Figure({= content=graphic, caption="Exact scene", style={= variant="card" } })
+    ]
+})</code></pre>
+<p>Text and print renderers preserve content order when a layout has no useful equivalent. HTML renderers lower supported hints to safe <code>data-rix-*</code> attributes and supply responsive defaults.</p>
+</section>
 </section>
 <section id="tables-grids-sheets-and-media" class="level2">
 <h2 class="anchored" data-anchor-id="tables-grids-sheets-and-media">Tables, grids, sheets, and media</h2>
@@ -515,6 +568,10 @@ ul.task-list li input[type="checkbox"] {
 <td>reactive <code>$$</code> target, radius, style, label</td>
 </tr>
 <tr class="odd">
+<td><code>.Graphics.Action</code></td>
+<td>reactive <code>$$</code> target, action callable, child scene nodes, label</td>
+</tr>
+<tr class="even">
 <td><code>.Graphics.Snapshots</code></td>
 <td><code>[scene, states]</code> entries materialized as an ordered snapshot list</td>
 </tr>
@@ -527,6 +584,16 @@ ul.task-list li input[type="checkbox"] {
         .Graphics.Text({= point=[180, 110], text="exact", style={= fill="white" } })
     ]
 })</code></pre>
+<p><code>.Graphics.Action</code> makes a scene subtree focusable and clickable without putting JavaScript in the scene. Its callable receives the target’s current value and returns its replacement:</p>
+<pre class="rix"><code>$$current := 1;
+.Graphics.Action({=
+    id="next",
+    target=$$current,
+    action=value -&gt; value + 1,
+    label="Choose next node",
+    children=[.Graphics.Circle([180, 110], 40, {= fill="#0c7b7f" })]
+})</code></pre>
+<p>An interactive host dispatches a semantic <code>graphic:action</code> record. Browser renderers activate the wrapper by click, Enter, or Space, then the widget session runs the RiX callable and replaces the target identity. Static hosts retain the visible subtree and accessible label without executing it.</p>
 <p>The Plot plugin returns a compatible Graphic. Load it with <code>.Plugin.Load("plot")</code> and use <code>.plot.Polynomial(coefficients, domain, options)</code>.</p>
 </section>
 <section id="renderer-plugins" class="level2">
@@ -550,7 +617,7 @@ same := .svg.Render(graphic);</code></pre>
 <p><code>.Snapshots</code> and <code>.Graphics.Snapshots</code> materialize <code>[scene, states]</code> tuples into an ordered list. Every snapshot retains an immutable one-based <code>origin={= entry=..., state=..., ordinal=... }</code> record. A scene receives that record as its optional second argument, so it can generate its own headings, captions, or metadata:</p>
 <pre class="rix"><code>scene = (state, origin) -&gt; .Paragraph(@"snapshot @{origin[:ordinal]}: state @{state}");
 .Snapshots([{: scene, [1, 2, 3]}])</code></pre>
-<p><code>.Timeline.Sequence</code> accepts the same entries and records ordered frames. Each timeline frame uses the same <code>state</code>, <code>origin</code>, and <code>content</code> record. <code>.Timeline.Render(timeline, frame?)</code> selects one one-based frame for a static renderer. A grid or comic-strip renderer can group the flat list later by <code>origin["entry"]</code> and <code>origin["state"]</code>. See the <a href="https://rix.ratmath.com/tutorial/reactive-scenes-and-snapshots.html">RiX Web reactive scenes tutorial</a> for the full workflow and the <a href="../design/interactive-output-plugins.html">plugin contract</a> for renderer-extension boundaries.</p>
+<p><code>.Timeline.Sequence</code> accepts the same entries and records ordered frames. Each timeline frame uses the same <code>state</code>, <code>origin</code>, and <code>content</code> record. <code>.Timeline.Track({= id, kind, keyframes, interpolation?, target? })</code> adds a retained camera, caption, narration, state, path, construction, or formula track. Keyframes use one-based <code>frame</code> indices and exact RiX <code>value</code>s. Caption, narration, and formula values are strings; caption, narration, construction, and formula tracks remain stepwise for accessible output. Path and camera tracks may declare linear or cubic presentation interpolation without changing the discrete exact frames. <code>.Timeline.Manifest(timeline)</code> materializes <code>rix.timeline-manifest@1</code>: every frame receives a stable id, exact duration, origin, marker, and the active value and source keyframe for each semantic track. This is the deterministic schedule for media renderers and external production tools. <code>.Timeline.Render(timeline, frame?)</code> selects one one-based frame for a static renderer. Browser hosts expose the retained timeline directly with transport, range, comparison, exact inspection, and complete text-track controls. A grid or comic-strip renderer can group the flat list later by <code>origin["entry"]</code> and <code>origin["state"]</code>. See the <a href="https://rix.ratmath.com/tutorial/reactive-scenes-and-snapshots.html">RiX Web reactive scenes tutorial</a> for the full workflow and the <a href="../design/interactive-output-plugins.html">plugin contract</a> for renderer-extension boundaries.</p>
 </section>
 <section id="output-artifacts" class="level2">
 <h2 class="anchored" data-anchor-id="output-artifacts">Output artifacts</h2>

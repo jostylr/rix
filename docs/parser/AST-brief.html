@@ -306,6 +306,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span class="menu-text">Learn</span></a>
   </li>  
   <li class="nav-item">
+    <a class="nav-link" href="../undergraduate-probability-statistics-data-analysis.html"> 
+<span class="menu-text">Probability &amp; statistics</span></a>
+  </li>  
+  <li class="nav-item">
     <a class="nav-link" href="../eval/syntax-guide.html"> 
 <span class="menu-text">Reference</span></a>
   </li>  
@@ -417,8 +421,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#generatoreagerlimit" id="toc-generatoreagerlimit" class="nav-link" data-scroll-target="#generatoreagerlimit">GeneratorEagerLimit</a></li>
   <li><a href="#withmetadata" id="toc-withmetadata" class="nav-link" data-scroll-target="#withmetadata">WithMetadata</a></li>
   <li><a href="#array" id="toc-array" class="nav-link" data-scroll-target="#array">Array</a></li>
-  <li><a href="#matrix" id="toc-matrix" class="nav-link" data-scroll-target="#matrix">Matrix</a></li>
-  <li><a href="#tensor" id="toc-tensor" class="nav-link" data-scroll-target="#tensor">Tensor</a></li>
+  <li><a href="#shaped-rank-2" id="toc-shaped-rank-2" class="nav-link" data-scroll-target="#shaped-rank-2">Shaped (rank 2)</a></li>
+  <li><a href="#shaped-higher-rank" id="toc-shaped-higher-rank" class="nav-link" data-scroll-target="#shaped-higher-rank">Shaped (higher rank)</a></li>
   <li><a href="#set" id="toc-set" class="nav-link" data-scroll-target="#set">Set</a></li>
   <li><a href="#map-1" id="toc-map-1" class="nav-link" data-scroll-target="#map-1">Map</a></li>
   <li><a href="#system" id="toc-system" class="nav-link" data-scroll-target="#system">System</a></li>
@@ -518,8 +522,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="semicolonsequence" class="level3">
 <h3 class="anchored" data-anchor-id="semicolonsequence">SemicolonSequence</h3>
-<p><strong>Purpose:</strong> Represents multiple consecutive semicolons for matrix/tensor separators<br>
-<strong>Syntax:</strong> <code>;;</code>, <code>;;;</code>, <code>;;;;</code></p>
+<p><strong>Purpose:</strong> Represents multiple consecutive semicolons for shaped-literal separators <strong>Syntax:</strong> <code>;;</code>, <code>;;;</code>, <code>;;;;</code></p>
 </section>
 <section id="end" class="level3">
 <h3 class="anchored" data-anchor-id="end">End</h3>
@@ -883,15 +886,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb43-3"><a href="#cb43-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">original</span><span class="op">:</span> string    <span class="co">// Combined original text</span></span>
 <span id="cb43-4"><a href="#cb43-4" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
-<section id="matrix" class="level3">
-<h3 class="anchored" data-anchor-id="matrix">Matrix</h3>
+<section id="shaped-rank-2" class="level3">
+<h3 class="anchored" data-anchor-id="shaped-rank-2">Shaped (rank 2)</h3>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb44"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb44-1"><a href="#cb44-1" aria-hidden="true" tabindex="-1"></a>{</span>
 <span id="cb44-2"><a href="#cb44-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">rows</span><span class="op">:</span> [[ASTNode]]<span class="op">,</span>  <span class="co">// Matrix rows (2D array)</span></span>
 <span id="cb44-3"><a href="#cb44-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">original</span><span class="op">:</span> string    <span class="co">// Combined original text</span></span>
 <span id="cb44-4"><a href="#cb44-4" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
-<section id="tensor" class="level3">
-<h3 class="anchored" data-anchor-id="tensor">Tensor</h3>
+<section id="shaped-higher-rank" class="level3">
+<h3 class="anchored" data-anchor-id="shaped-higher-rank">Shaped (higher rank)</h3>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb45"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb45-1"><a href="#cb45-1" aria-hidden="true" tabindex="-1"></a>{</span>
 <span id="cb45-2"><a href="#cb45-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">structure</span><span class="op">:</span> [object]<span class="op">,</span> <span class="co">// Multi-dimensional structure</span></span>
 <span id="cb45-3"><a href="#cb45-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">maxDimension</span><span class="op">:</span> number<span class="op">,</span> <span class="co">// Highest dimension level</span></span>

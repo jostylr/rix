@@ -8,7 +8,7 @@ toc-depth: 2
 This page is generated from the current RiX implementation by `documentation/scripts/generate-reference.js`. Do not edit it by hand. Descriptions come from registry documentation strings; the narrative [syntax guide](../eval/syntax-guide.md) and [methods guide](../eval/methods-guide.md) provide signatures and examples.
 :::
 
-At this revision RiX exposes **279 named entries** on the default system context and registers **255 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
+At this revision RiX exposes **321 named entries** on the default system context and registers **263 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
 
 ## Public system context
 
@@ -34,6 +34,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.BIND` | lazy function | Output | Capture a live Binding to a RiX variable |
 | `.BLOCK` | lazy function | — | Sequential block execution, returns last value |
 | `.CALCULUSDERIVATIVECHECK` | function | — | Independently recompute and check a primitive Calculus derivative transformation |
+| `.CALCULUSDERIVATIVEPROOF` | function | — | Build and independently check a first-derivative proof record without trusted leaves |
 | `.CALCULUSDERIVATIVESIGN` | function | — | Certify a uniform derivative sign for a checked primitive Calculus transformation |
 | `.CALCULUSGRAPHREWRITE` | function | — | Create and independently check a theorem-named Calculus graph rewrite |
 | `.CALCULUSGRAPHREWRITECHECK` | function | — | Check a Calculus graph rewrite theorem and retained domain obligations |
@@ -79,7 +80,21 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.ERROR` | function | — | Emit an error event and abort: .Error(label, dataMap ?= {=}) |
 | `.EVAL` | lazy function | — | Evaluate a deferred AST node or expression: .Eval(ast, bindings ?= \_, mode ?= :inherit) |
 | `.EXACT` | value | Exact | Canonical RiX exact-generator collection |
+| `.EXPRESSIONAPPLY` | function | — | Construct a mathematical function application |
+| `.EXPRESSIONCONSTANT` | function | — | Construct a mathematical constant from a supported core scalar provider |
+| `.EXPRESSIONCONSTANTINFO` | function | — | Inspect core constant denotation and algebraic laws without refinement |
+| `.EXPRESSIONDEFINITION` | function | — | Inspect a symbol's immutable definition, or null if it has none |
+| `.EXPRESSIONEXPAND` | function | — | Expand immutable symbol definitions without changing identities or applying general simplification |
 | `.EXPRESSIONFROMSPEC` | function | — | Export a symbolic specification through the public Calculus expression schema |
+| `.EXPRESSIONHASEXTENDEDCONSTANTS` | function | — | Recognize constants requiring provider-aware consumers |
+| `.EXPRESSIONHASSCOPEDSYMBOLS` | function | — | Recognize expressions requiring identity-aware mathematical consumers |
+| `.EXPRESSIONKEY` | function | — | Identity-aware structural key, not a proof of mathematical inequality |
+| `.EXPRESSIONOPERATION` | function | — | Construct a validated mathematical arithmetic node |
+| `.EXPRESSIONREAL` | function | — | Adapt a certified singleton provider with one bounded initial refinement |
+| `.EXPRESSIONREFINE` | function | — | Explicitly refine an adapted real constant and check its enclosure |
+| `.EXPRESSIONVARIABLE` | function | — | Construct a mathematical variable expression without loading a plugin |
+| `.EXPRESSIONVARIABLEMATCHES` | function | — | Compare variable identities without conflating same-spelled scoped symbols |
+| `.EXPRESSIONVARIABLESELECTOR` | function | — | Validate an identity-preserving mathematical variable selector |
 | `.FACTORIAL` | function | Arith | Factorial of a non-negative integer |
 | `.FIGURE` | function | Output | Wrap output with figure metadata |
 | `.FILTER` | lazy function | Collections, Arrays | Filter a collection with a predicate — callback receives (val, locator, src) |
@@ -109,10 +124,13 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.INTERSECTS` | function | — | Check if two collections intersect (1 if true, null otherwise) |
 | `.INTERVAL` | function | — | Create an interval [lo, hi] or test betweenness like a:b:c |
 | `.IRANGE` | function | Core, Collections, Arrays | Create an integer range [start, end] |
+| `.ISEXPRESSION` | function | — | Recognize a core mathematical expression |
 | `.JACOBIANBOXRANGE` | function | — | Certify a scalar range on a rational box using checked Jacobian bounds |
 | `.JSCALL` | function | — | Call a named export from a local JavaScript module |
 | `.KEYOF` | function | Core, Maps | Resolve canonical map key string for a value |
 | `.KEYS` | function | Core, Maps | Get the keys of a map as a set (obj.\|) |
+| `.KRAWCZYKBOX` | function | — | Classify and contract a nonlinear rational box with a checked Krawczyk operator |
+| `.KRAWCZYKCHECK` | function | — | Independently recompute a checked Krawczyk classification |
 | `.LAMBDA` | lazy function | — | Create a lambda/anonymous function |
 | `.LAST` | function | Core, Collections, Arrays | Last element of a collection |
 | `.LEN` | function | Core, Collections, Arrays | Length of a collection or string |
@@ -129,6 +147,16 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.MAP` | function | Collections, Maps, Arrays | Create a map from .Pair(key, value) entries |
 | `.MATH` | function | — | Create portable inline TeX math |
 | `.MATHBLOCK` | function | — | Create a display TeX math block |
+| `.MATHBUDGETS` | function | — | Inspect default or overridden per-call mathematical budgets |
+| `.MATHDECODEJSON` | function | — | Load fresh identities and frozen real snapshots without executing code |
+| `.MATHDECODEJSONL` | function | — | Decode independent bounded JSONL documents without executing code |
+| `.MATHENCODEJSON` | function | — | Encode an inert document-local mathematical graph |
+| `.MATHENCODEJSONL` | function | — | Encode independent mathematical documents, one per line |
+| `.MATHEVALUATE` | function | — | Bounded provider evaluation with explicit unresolved context obligations |
+| `.MATHEVALUATECALCULUS` | function | — | Evaluate core calculus transformations while retaining domain and branch obligations |
+| `.MATHINSTANTIATE` | function | — | Instantiate selected local binders while retaining their domains and assumptions |
+| `.MATHPOLYNOMIALCOEFFICIENTS` | function | — | Compile a selected symbolic identity into bounded ascending rational coefficients |
+| `.MATHSUBSTITUTE` | function | — | Simultaneous identity-based free substitution retaining context conditions |
 | `.MAX` | function | — | Maximum over n arguments (ignores nulls) |
 | `.MIN` | function | — | Minimum over n arguments (ignores nulls) |
 | `.MOD` | function | Arith | Floor modulo with a positive divisor |
@@ -189,6 +217,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.RIXCELIMPORTTSV` | function | RiXCel | Import TSV values into a rank-2 FormulaSheet; optional header=1 uses the first row as labels |
 | `.RNG` | function | Random | Install a fresh RNG for the current lexical scope and its subscopes |
 | `.SAMECELL` | lazy function | — | Identity comparison (===) — returns 1 if both sides refer to the same cell, null otherwise |
+| `.SAMESYMBOL` | function | — | Compare symbol identities independently of mathematical equality |
 | `.SAME_CELL` | lazy function | — | Identity comparison (===) — returns 1 if both sides refer to the same cell, null otherwise |
 | `.SARITH` | function | — | Parse structural arithmetic; backticks use this parser by default, with optional Complex/Quaternion/Octonion/Algebra scopes |
 | `.SECTION` | function | — | Create a structural document section |
@@ -205,7 +234,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.SPEC` | function | Symbolic | Analyze a pure function and attach/return its symbolic spec |
 | `.SPECCABILITY` | function | Symbolic | Report whether a pure function can be represented by the exact symbolic subset |
 | `.SPECFRACTIONPARTS` | function | Symbolic | Split a symbolic top-level fraction into numerator and denominator specs |
-| `.SPECFROMEXPRESSION` | function | — | Import a public Calculus expression record as a core symbolic specification |
+| `.SPECFROMEXPRESSION` | function | — | Import an expression with explicit identity-ordered inputs for scoped symbols |
 | `.SPECROLES` | function | Symbolic | Resolve all symbols and input/output roles, with optional role overrides |
 | `.SPLIT` | lazy function | — | Split a collection by a delimiter or predicate |
 | `.STOP` | lazy function | — | Conditional abort: .Stop(label, condition, dataMap ?= {=}) |
@@ -240,25 +269,30 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.WARN` | function | — | Emit a warning event: .Warn(label, dataMap ?= {=}) |
 | `.algebra` | function | — | Exact Polynomial and RationalFunction algorithms with checked presentations. |
 | `.algebraicreal` | function | — | Exact real algebraic roots certified by canonical Polynomial values and Sturm isolating intervals. |
-| `.analysis` | function | — | Calculus-backed function sequences with explicit convergence modes and certified geometric uniform-tail evidence. |
+| `.analysis` | function | — | Effective scalar and function limits, infinite series, Cauchy criteria, and justified limit exchanges over portable Calculus functions. |
 | `.ar` | function | — | Exact real algebraic roots certified by canonical Polynomial values and Sturm isolating intervals. |
 | `.ball` | function | — | Certified real and complex rational balls with precision-negotiated elementary functions. |
 | `.bessel` | function | — | Clearly named Bessel-function namespace backed by certified universal Numerics algorithms. |
 | `.calculus` | function | — | Portable abstract functions, obligation-bearing higher differentiation, and provenance-recording evaluation through semantic-ID implementation links. |
 | `.canvas` | function | — | Serializable Canvas 2D drawing plans for core Graphics scenes. |
+| `.cas` | function | — | Browser-safe course-level symbolic simplification, polynomial forms, and exact integration with checked replay. |
 | `.cauchy` | function | — | Rational Cauchy sequences with explicit certified tail bounds and moduli. |
+| `.cayley` | function | — | Scalar-generic Cayley-Dickson values with certified component enclosures. |
 | `.cf` | function | — | Finite, lazy, transduced, and certified-extracted simple continued fractions. |
+| `.comb` | function | Combinatorics | Lazy finite Cartesian products, permutations, combinations, and exact counting. |
+| `.combinatorics` | function | Combinatorics | Lazy finite Cartesian products, permutations, combinations, and exact counting. |
 | `.complex` | function | — | Representation-generic certified complex singletons over RiX real backends. |
-| `.complexviz` | function | — | Exact domain-color sampling for complex functions rendered as portable Graphics. |
+| `.complexviz` | function | — | Certified complex coloring, enclosure-aware surfaces, and Riemann-sphere scenes. |
 | `.continuedfraction` | function | — | Finite, lazy, transduced, and certified-extracted simple continued fractions. |
-| `.csv` | function | — | Deterministic CSV and TSV export for portable Tables and typed data Relations. |
-| `.data` | function | — | Immutable typed relations with deterministic projection, filtering, sorting, and Table views. |
-| `.document` | function | — | Numbered portable reports with labels, forward references, captions, and small semantic themes. |
-| `.domaincoloring` | function | — | Exact domain-color sampling for complex functions rendered as portable Graphics. |
+| `.csv` | function | — | Schema-aware CSV/TSV import and export with exact numeric, sidecar, and streaming-row policies. |
+| `.data` | function | — | Immutable typed relations with joins, grouping, exact aggregation, missing-data policy, and bounded row sources. |
+| `.document` | function | — | Portable report templates with citations, assets, numbering policies, and safe target-specific nodes. |
+| `.domaincoloring` | function | — | Certified complex coloring, enclosure-aware surfaces, and Riemann-sphere scenes. |
 | `.draw` | function | Draw | Convenient 2D drawing helpers that produce core Graphics nodes. |
 | `.exactalgebras` | function | Exact | Exact rational quaternion and octonion values. |
 | `.f` | function | — | Representation-sensitive fractions, fraction intervals, mediants, and exact classroom policies. |
 | `.ff` | function | — | Form-preserving callable polynomial and rational expressions with explicit transformations and canonical projections. |
+| `.float` | function | — | Configurable IEEE-754 binary32/binary64 conversion, diagnostics, and optional approximate math. |
 | `.frac` | function | — | Representation-sensitive fractions, fraction intervals, mediants, and exact classroom policies. |
 | `.fracfun` | function | — | Form-preserving callable polynomial and rational expressions with explicit transformations and canonical projections. |
 | `.fractals` | function | — | Pure-RiX iteration, bifurcation, cobweb, and escape-time mathematics with portable Graphics lowering. |
@@ -267,13 +301,17 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.geometry` | function | — | Pure-RiX exact geometry, transformations, conics, constraints, and bounded portable Graphics refinement. |
 | `.gif` | function | — | Deterministic animated GIF rendering from Slides, Timelines, or Snapshots through PNG frames. |
 | `.gltf` | function | — | Browser-safe glTF 2.0 JSON exporter for retained Scene3D values. |
+| `.graph` | function | Graph | Exact validated weighted graphs with shortest paths, traversal, components, and topological sorting. |
 | `.html` | function | — | Standalone semantic HTML renderer for portable RiX output trees. |
 | `.latex` | function | — | Standalone LaTeX renderer for portable RiX documents and figures. |
 | `.linalg` | function | — | Pure-RiX exact dense linear algebra and coordinate-aware tensor transformations. |
+| `.logic` | function | — | Portable propositional formulas, bounded truth tables, checked normal forms, scoped natural deduction, and educational tree views. |
 | `.markdown` | function | — | CommonMark-oriented renderer for portable RiX documents. |
 | `.nd` | function | — | Pure-RiX exact n-dimensional geometry with affine and Cayley projection records and explicit Scene3D adaptation. |
 | `.numerics` | function | — | Backend-neutral bounded enclosure and refinement orchestration. |
-| `.optimize` | function | — | Pure-RiX exact linear-program models and deterministic Phase 1 simplex optimization. |
+| `.octonion` | function | — | Certified octonion facade with explicit nonassociativity and intrinsic one-variable functions. |
+| `.ode` | function | — | Portable initial-value problems, vector trajectories, adaptive demonstrations, checked Picard and configurable-order Taylor tubes, and certified event isolation. |
+| `.optimize` | function | — | Pure-RiX exact general linear programs, two-phase simplex, and checkable certificates. |
 | `.oracle` | function | — | Exact rational-betweenness oracles, certified refinement funnels, and coarse eta-resolution models. |
 | `.p` | function | — | Semantic callable univariate polynomials with structural and symbolic entry forms. |
 | `.pdf` | function | — | PDF document and figure renderer orchestrated through LaTeX. |
@@ -281,19 +319,22 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.png` | function | — | PNG snapshot renderer for core Graphics through a host rasterizer. |
 | `.poly` | function | — | Semantic callable univariate polynomials with structural and symbolic entry forms. |
 | `.polynomial` | function | — | Semantic callable univariate polynomials with structural and symbolic entry forms. |
+| `.prob` | function | — | Exact finite probability, certified undergraduate distribution functions, and replayable simulation with explicit approximation policies. |
+| `.probability` | function | Probability | Exact finite probability, certified undergraduate distribution functions, and replayable simulation with explicit approximation policies. |
 | `.quarto` | function | — | Quarto Markdown renderer with front matter and portable figure lowering. |
-| `.radix` | function | — | Bounded exact positional expansions, configurable formatting, and repeating-period analysis for rational values. |
+| `.quaternion` | function | — | Certified quaternion facade with order-aware arithmetic and intrinsic slice functions. |
+| `.radix` | function | — | Exact positional expansions, cloneable lazy digit streams, configurable formatting, and bounded period analysis. |
 | `.ratfun` | function | — | Canonical callable univariate rational functions with exact cancellation and Polynomial interoperability. |
 | `.rationalfunction` | function | — | Canonical callable univariate rational functions with exact cancellation and Polynomial interoperability. |
 | `.rf` | function | — | Canonical callable univariate rational functions with exact cancellation and Polynomial interoperability. |
 | `.scene3d` | function | — | Pure-RiX exact retained 3D scenes, explicit realization and projection, and portable Graphics snapshots. |
-| `.solve` | function | — | Pure-RiX exact Phase 1 linear-system classification and symbolic-spec solving. |
-| `.statistics` | function | — | Exact descriptive statistics plus certified normal-distribution functions and portable plots. |
-| `.stats` | function | — | Exact descriptive statistics plus certified normal-distribution functions and portable plots. |
+| `.solve` | function | — | Domain-dispatched exact/certified solution objects for linear, optimization, polynomial, and scalar numerical problems. |
+| `.statistics` | function | — | Exact descriptive statistics, undergraduate hypothesis tests, confidence objects, linear regression, certified distribution functions, and portable diagnostics. |
+| `.stats` | function | — | Exact descriptive statistics, undergraduate hypothesis tests, confidence objects, linear regression, certified distribution functions, and portable diagnostics. |
 | `.sternbrocot` | function | — | Pure RiX Stern-Brocot and Farey records, bounded trees, exact paths, and classroom grids. |
 | `.svg` | function | — | Portable SVG renderer with outward-safe exact-coordinate lowering. |
 | `.symbolic` | function | — | Meta-plugin joining representation-sensitive FractionFunction work with portable abstract Calculus expressions. |
-| `.terminalascii` | function | — | Deterministic strict-ASCII fallback for tables, grids, fragments, and simple Graphics. |
+| `.terminalascii` | function | — | Deterministic terminal rendering with strict ASCII and explicit Unicode/ANSI profiles. |
 | `.tikz` | function | — | Editable TikZ/PGF source renderer for core Graphics scenes. |
 | `.webgl` | function | — | Executable WebGL drawing plans for retained Scene3D values. |
 
@@ -392,7 +433,7 @@ Imported scripts can add or withhold named groups. Permission-like names are int
 | `Core` | `LEN`, `FIRST`, `LAST`, `GETEL`, `IRANGE`, `IF`, `LOOP`, `MULTI`, `RAND_NAME`, `PRINT`, `Shaped`, `KEYOF`, `KEYS`, `VALUES`, `REGISTERMETHOD`, `CertifiedApproximation`, `Undecided`, `RefinementRequest`, `RefinementEffectiveLimits`, `RefinementSupports`, `RefinementCheck`, `RefinementUnsupported`, `TypeKnown`, `ImmutableValue` |
 | `Methods` | `REGISTERMETHOD` |
 | `Arith` | `ADD`, `SUB`, `MUL`, `DIV`, `INTDIV`, `DIVMOD`, `MOD`, `POW`, `FACTORIAL`, `DOUBLEFACTORIAL`, `RANGE_POLICY`, `RANGE_EVIDENCE`, `RANGE_ADD`, `RANGE_SUBTRACT`, `RANGE_MULTIPLY`, `RANGE_DIVIDE`, `RANGE_NEGATE`, `RANGE_ABSOLUTE_VALUE`, `RANGE_RECIPROCAL`, `RANGE_INTEGER_POWER`, `CALCULUS_RANGE`, `CALCULUS_RANGE_CHECK`, `CALCULUS_RANGE_RECOGNIZE`, `CALCULUS_GRAPH_SIMPLIFY`, `CALCULUS_GRAPH_SIMPLIFICATION_CHECK`, `CALCULUS_DERIVATIVE_CHECK`, `CALCULUS_DERIVATIVE_SIGN`, `CALCULUS_LIPSCHITZ_RANGE`, `CALCULUS_TAYLOR_RANGE` |
-| `Logic` | `EQ`, `NEQ`, `LT`, `GT`, `LTE`, `GTE`, `AND`, `OR`, `NOT` |
+| `Logic` | `EQ`, `NEQ`, `LT`, `GT`, `LTE`, `GTE`, `AND`, `OR`, `NOT`, `GUARD_RETURN` |
 | `Collections` | `LEN`, `FIRST`, `LAST`, `GETEL`, `IRANGE`, `MAP`, `FILTER`, `REDUCE`, `Shaped`, `Stream` |
 | `Async` | `Stream`, `Retry` |
 | `Background` | `BACKGROUND` |
@@ -405,9 +446,17 @@ Imported scripts can add or withhold named groups. Permission-like names are int
 | `Files` | `FILES` |
 | `Units` | `UNITS`, `Units`, `CONVERTUNIT`, `ConvertUnit`, `DEFINEUNIT`, `DefineUnit` |
 | `Exact` | `EXACT`, `Exact`, `COMPLEX`, `Complex`, `DEFINEEXACTGENERATOR`, `DefineExactGenerator`, `exactalgebras` |
-| `Symbolic` | `POLY`, `DERIV`, `INTEGRATE`, `TRANSFORM`, `SIMPLIFY`, `SPEC`, `SPECCABILITY`, `INSPECTSPEC`, `SPECROLES`, `SPECFRACTIONPARTS`, `SArith` |
+| `Symbolic` | `POLY`, `DERIV`, `INTEGRATE`, `TRANSFORM`, `SIMPLIFY`, `SPEC`, `SPECCABILITY`, `INSPECTSPEC`, `SPECROLES`, `SPECFRACTIONPARTS`, `SArith`, `ExpressionVariable`, `ExpressionConstant`, `ExpressionOperation`, `ExpressionApply`, `IsExpression`, `ExpressionKey`, `ExpressionHasScopedSymbols`, `SameSymbol`, `SYMBOL_RETRIEVE`, `SYMBOL_DEFINE`, `ExpressionDefinition`, `ExpressionExpand`, `ExpressionVariableSelector`, `ExpressionVariableMatches` |
+| `MathematicalContexts` | `MATH_CONTEXT`, `BOUND_SYMBOL` |
+| `MathematicalProof` | `CALCULUS_DERIVATIVE_PROOF` |
+| `MathematicalSerialization` | `MathEncodeJSON`, `MathDecodeJSON`, `MathEncodeJSONL`, `MathDecodeJSONL` |
+| `MathematicalLocalization` | `MathSubstitute`, `MathEvaluate`, `MathInstantiate`, `MathBudgets`, `MathEvaluateCalculus`, `MathPolynomialCoefficients` |
+| `SymbolicConstants` | `ExpressionConstantInfo`, `ExpressionHasExtendedConstants`, `ExpressionReal`, `ExpressionRefine` |
 | `Notation` | `SArith`, `Poly`, `NotationParser` |
 | `Random` | `RNG`, `RANDOMSEED`, `RandomSeed`, `RAND_NAME` |
+| `Probability` | `probability` |
+| `Graph` | `graph` |
+| `Combinatorics` | `combinatorics`, `comb` |
 | `RiXCel` | `FORMULASHEET`, `REACTIVEGRAPH`, `RIXCELEXPORT`, `RIXCELIMPORT`, `RIXCELIMPORTCSV`, `RIXCELIMPORTTSV`, `RIXCELEXPORTCSV`, `RIXCELEXPORTTSV` |
 
 Default script policy includes all functions and the `IMPORTS` permission. Recognized permission names are `IMPORTS`, `NET`, `FILES`, `PLUGINS`, `BACKGROUND`. The default loop limit is 10,000 iterations and the default constructor capture mode is `deep_copy`.
@@ -440,10 +489,12 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `BIND` | lazy, effectful/unspecified | Capture a live Binding to a RiX variable |
 | `BINOP` | eager, pure | Fallback for unrecognized binary operators |
 | `BLOCK` | lazy, effectful/unspecified | Sequential block execution, returns last value |
+| `BOUND_SYMBOL` | lazy, effectful/unspecified | — |
 | `BRACKET_GET` | lazy, effectful/unspecified | Shaped-aware bracket indexing and slicing |
 | `BRACKET_SET` | lazy, effectful/unspecified | Shaped-aware bracket assignment |
 | `BREAK` | lazy, effectful/unspecified | Structured break block that exits the nearest matching breakable construct |
 | `CALCULUS_DERIVATIVE_CHECK` | eager, pure | Independently recompute and check a primitive Calculus derivative transformation |
+| `CALCULUS_DERIVATIVE_PROOF` | eager, pure | Build and independently check a first-derivative proof record without trusted leaves |
 | `CALCULUS_DERIVATIVE_SIGN` | eager, pure | Certify a uniform derivative sign for a checked primitive Calculus transformation |
 | `CALCULUS_GRAPH_REWRITE` | eager, pure | Create and independently check a theorem-named Calculus graph rewrite |
 | `CALCULUS_GRAPH_REWRITE_CHECK` | eager, pure | Check a Calculus graph rewrite theorem and retained domain obligations |
@@ -497,6 +548,7 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `GRID` | eager, pure | Create a mathematical layout grid |
 | `GT` | eager, effectful/unspecified, multifunction | Greater than — returns 1 or null |
 | `GTE` | eager, effectful/unspecified, multifunction | Greater than or equal — returns 1 or null |
+| `GUARD_RETURN` | lazy, effectful/unspecified | Return from the active function on a null or undecided decision |
 | `HALO` | eager, pure | Construct a halo neighborhood for bounded-refinement comparison |
 | `HEADING` | eager, pure | Create a portable document heading |
 | `HOLE` | eager, pure | Internal hole/undefined sentinel — represents an explicitly omitted value |
@@ -517,6 +569,8 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `JS_CALL` | eager, effectful/unspecified | Call a named export from a local JavaScript module |
 | `KEYOF` | eager, pure | Resolve canonical map key string for a value |
 | `KEYS` | eager, pure | Get the keys of a map as a set (obj.\|) |
+| `KRAWCZYK_BOX` | eager, pure | Classify and contract a nonlinear rational box with a checked Krawczyk operator |
+| `KRAWCZYK_CHECK` | eager, pure | Independently recompute a checked Krawczyk classification |
 | `KWARG` | eager, pure | Keyword argument wrapper |
 | `LAMBDA` | lazy, effectful/unspecified | Create a lambda/anonymous function |
 | `LINEBREAK` | eager, pure | Create an intentional inline line break |
@@ -532,6 +586,7 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `MATH` | eager, pure | Create portable inline TeX math |
 | `MATHBLOCK` | eager, pure | Create a display TeX math block |
 | `MATHUNIT` | eager, pure | Resolve exact-generator sugar through the active Exact RiX collection |
+| `MATH_CONTEXT` | lazy, effectful/unspecified | — |
 | `MAX` | eager, pure, multifunction | Maximum over n arguments (ignores nulls) |
 | `MEDIANTS` | eager, pure | Return nested levels of exact mediants |
 | `MEDIANT_PARTITION` | eager, pure | Partition an interval using exact mediant boundaries |
@@ -648,6 +703,8 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `STRING` | eager, pure | Create a string value |
 | `STRONG` | eager, pure | Create semantic inline strong content |
 | `SUB` | eager, pure, multifunction | Subtraction |
+| `SYMBOL_DEFINE` | lazy, effectful/unspecified | — |
+| `SYMBOL_RETRIEVE` | lazy, effectful/unspecified | — |
 | `SYSREF` | eager, pure | Reference to a system function |
 | `SYSTEM` | lazy, effectful/unspecified | Mathematical system container, currently evaluates as a block |
 | `SYSTEM_SPEC` | lazy, pure | Create a first-class symbolic system specification |

@@ -23,41 +23,6 @@ ul.task-list li input[type="checkbox"] {
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
 }
-/* CSS for syntax highlighting */
-html { -webkit-text-size-adjust: 100%; }
-pre > code.sourceCode { white-space: pre; position: relative; }
-pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
-pre > code.sourceCode > span:empty { height: 1.2em; }
-.sourceCode { overflow: visible; }
-code.sourceCode > span { color: inherit; text-decoration: inherit; }
-div.sourceCode { margin: 1em 0; }
-pre.sourceCode { margin: 0; }
-@media screen {
-div.sourceCode { overflow: auto; }
-}
-@media print {
-pre > code.sourceCode { white-space: pre-wrap; }
-pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
-}
-pre.numberSource code
-  { counter-reset: source-line 0; }
-pre.numberSource code > span
-  { position: relative; left: -4em; counter-increment: source-line; }
-pre.numberSource code > span > a:first-child::before
-  { content: counter(source-line);
-    position: relative; left: -1em; text-align: right; vertical-align: baseline;
-    border: none; display: inline-block;
-    -webkit-touch-callout: none; -webkit-user-select: none;
-    -khtml-user-select: none; -moz-user-select: none;
-    -ms-user-select: none; user-select: none;
-    padding: 0 4px; width: 4em;
-  }
-pre.numberSource { margin-left: 3em;  padding-left: 4px; }
-div.sourceCode
-  {   }
-@media screen {
-pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
-}
 </style>
 
 
@@ -306,6 +271,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span class="menu-text">Learn</span></a>
   </li>  
   <li class="nav-item">
+    <a class="nav-link" href="../undergraduate-probability-statistics-data-analysis.html"> 
+<span class="menu-text">Probability &amp; statistics</span></a>
+  </li>  
+  <li class="nav-item">
     <a class="nav-link" href="../eval/syntax-guide.html"> 
 <span class="menu-text">Reference</span></a>
   </li>  
@@ -360,35 +329,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#matrix-and-tensor-implementation" id="toc-matrix-and-tensor-implementation" class="nav-link active" data-scroll-target="#matrix-and-tensor-implementation">Matrix and Tensor Implementation</a>
+  <li><a href="#shaped-literal-implementation" id="toc-shaped-literal-implementation" class="nav-link active" data-scroll-target="#shaped-literal-implementation">Shaped Literal Implementation</a>
   <ul class="collapse">
-  <li><a href="#overview" id="toc-overview" class="nav-link" data-scroll-target="#overview">Overview</a></li>
-  <li><a href="#syntax" id="toc-syntax" class="nav-link" data-scroll-target="#syntax">Syntax</a>
-  <ul class="collapse">
-  <li><a href="#basic-rules" id="toc-basic-rules" class="nav-link" data-scroll-target="#basic-rules">Basic Rules</a></li>
-  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
-  </ul></li>
-  <li><a href="#implementation-details" id="toc-implementation-details" class="nav-link" data-scroll-target="#implementation-details">Implementation Details</a>
-  <ul class="collapse">
-  <li><a href="#tokenizer-changes" id="toc-tokenizer-changes" class="nav-link" data-scroll-target="#tokenizer-changes">Tokenizer Changes</a></li>
-  <li><a href="#parser-changes" id="toc-parser-changes" class="nav-link" data-scroll-target="#parser-changes">Parser Changes</a></li>
-  <li><a href="#ast-node-types" id="toc-ast-node-types" class="nav-link" data-scroll-target="#ast-node-types">AST Node Types</a></li>
-  </ul></li>
-  <li><a href="#key-features" id="toc-key-features" class="nav-link" data-scroll-target="#key-features">Key Features</a>
-  <ul class="collapse">
-  <li><a href="#dimension-detection" id="toc-dimension-detection" class="nav-link" data-scroll-target="#dimension-detection">Dimension Detection</a></li>
-  <li><a href="#error-handling" id="toc-error-handling" class="nav-link" data-scroll-target="#error-handling">Error Handling</a></li>
-  <li><a href="#edge-case-handling" id="toc-edge-case-handling" class="nav-link" data-scroll-target="#edge-case-handling">Edge Case Handling</a></li>
-  </ul></li>
-  <li><a href="#testing" id="toc-testing" class="nav-link" data-scroll-target="#testing">Testing</a></li>
-  <li><a href="#examples-1" id="toc-examples-1" class="nav-link" data-scroll-target="#examples-1">Examples</a></li>
-  <li><a href="#integration-notes" id="toc-integration-notes" class="nav-link" data-scroll-target="#integration-notes">Integration Notes</a>
-  <ul class="collapse">
-  <li><a href="#backward-compatibility" id="toc-backward-compatibility" class="nav-link" data-scroll-target="#backward-compatibility">Backward Compatibility</a></li>
-  <li><a href="#post-processing" id="toc-post-processing" class="nav-link" data-scroll-target="#post-processing">Post-Processing</a></li>
-  <li><a href="#performance" id="toc-performance" class="nav-link" data-scroll-target="#performance">Performance</a></li>
-  </ul></li>
-  <li><a href="#future-enhancements" id="toc-future-enhancements" class="nav-link" data-scroll-target="#future-enhancements">Future Enhancements</a></li>
+  <li><a href="#source-and-ast-contract" id="toc-source-and-ast-contract" class="nav-link" data-scroll-target="#source-and-ast-contract">Source and AST contract</a></li>
+  <li><a href="#lowering-and-runtime-semantics" id="toc-lowering-and-runtime-semantics" class="nav-link" data-scroll-target="#lowering-and-runtime-semantics">Lowering and runtime semantics</a></li>
+  <li><a href="#verification-and-examples" id="toc-verification-and-examples" class="nav-link" data-scroll-target="#verification-and-examples">Verification and examples</a></li>
   </ul></li>
   </ul>
 <div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/parser/matrix-tensor-implementation.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
@@ -400,200 +345,38 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 
 
-<section id="matrix-and-tensor-implementation" class="level1">
-<h1>Matrix and Tensor Implementation</h1>
-<section id="overview" class="level2">
-<h2 class="anchored" data-anchor-id="overview">Overview</h2>
-<p>This document describes the implementation of matrix and tensor parsing in the RiX language parser. The feature extends the existing array syntax with semicolon separators to support multi-dimensional data structures.</p>
+<section id="shaped-literal-implementation" class="level1">
+<h1>Shaped Literal Implementation</h1>
+<p>RiX uses one rectangular storage representation for inferred semicolon literals and explicit shape constructors. Both default to <code>Shaped</code>. Matrix algebra is an explicit interpretation; mathematical Vector, Covector and Tensor values need Frames from the linalg plugin.</p>
+<section id="source-and-ast-contract" class="level2">
+<h2 class="anchored" data-anchor-id="source-and-ast-contract">Source and AST contract</h2>
+<p>Commas separate columns, <code>;</code> separates rows, and <code>;;</code>, <code>;;;</code>, and higher semicolon runs separate higher-axis display slices. The tokenizer emits a <code>Symbol</code> for <code>;</code> and <code>SemicolonSequence</code> for longer runs. Arrays without semicolons remain arrays.</p>
+<pre class="rix"><code>[1, 2; 3, 4]                         ## Shaped, shape 2x2
+[1, 2; 3, 4 ;; 5, 6; 7, 8]         ## Shaped, shape 2x2x2
+{:2x2: 1, 2; 3, 4}                  ## explicit Shaped
+{:2x2: /Matrix/ 1, 2; 3, 4}          ## explicit Matrix
+{:2x2: /::Matrix/ 1, 2; 3, 4}        ## general semantic-header spelling</code></pre>
+<p><code>src/parser/parser.js</code> emits <code>Shaped</code> for inferred semicolon notation. Rank-2 nodes have <code>rows</code>; higher-rank nodes have <code>structure</code> (rows with following <code>separatorLevel</code>) and <code>maxDimension</code>. Explicit dimensions produce <code>ShapedLiteral</code> with <code>shape</code>, <code>elements</code>, and an optional <code>SemanticHeader</code>. There are no legacy <code>Matrix</code>, <code>Tensor</code>, or <code>TensorLiteral</code> AST adapters.</p>
+<p>A compact header retains <code>typeName</code>, optional ordered <code>slots</code>, and normal capture/name/trait directives. Each slot has <code>displayName</code>, normalized <code>bindingName</code>, and <code>dual</code>. <code>/Tensor: E@F*/</code> selects frames <code>e</code> and the canonical dual of <code>f</code>; it does not imply that the spaces have the same dimension. The complete explicit literal and header have source spans. The language formatter preserves each semantic header as a unit, including dual marks.</p>
 </section>
-<section id="syntax" class="level2">
-<h2 class="anchored" data-anchor-id="syntax">Syntax</h2>
-<section id="basic-rules" class="level3">
-<h3 class="anchored" data-anchor-id="basic-rules">Basic Rules</h3>
+<section id="lowering-and-runtime-semantics" class="level2">
+<h2 class="anchored" data-anchor-id="lowering-and-runtime-semantics">Lowering and runtime semantics</h2>
+<p><code>src/eval/lower.js</code> infers rectangular shape, rejects ragged rows or slices, and reorders display slices into row-major axis storage. Inferred and explicit constructors lower to <code>SHAPED_LITERAL</code>; its arguments are shape plus cells, or constructor metadata followed by shape plus cells. Runtime storage uses <code>type: "shaped"</code> and <code>src/runtime/shaped.js</code>.</p>
+<p>Bare Shaped arithmetic is elementwise and requires identical shapes. Scalars apply entrywise within the declared scalar domain. Matrix multiplication contracts rows and columns; <code>Hadamard</code> requests its entrywise counterpart. Mixed Shaped/Matrix operations diagnose the required explicit conversion: <code>value ~!: :Matrix</code>. A rank-2 Shaped value does not acquire Matrix methods merely because its dimensions happen to fit.</p>
+<p><code>.Shaped.Generate(shape, callback)</code>, <code>Map</code>, <code>Reshape</code>, and <code>Permute</code> provide explicit shape construction. They do not broadcast. New repetition/padding syntax remains deferred in the umbrella plan’s D2 register.</p>
+<p><code>.linalg</code> and <code>.optimize</code> accept rectangular Shaped inputs as data and convert them explicitly to Matrix inside their validated adapters. Matrix-valued outputs in linalg, optimize and solve are explicitly typed. Rank-1 coordinate storage remains Shaped, while mathematical tensors retain their distinct Frames, slots and identity records.</p>
+</section>
+<section id="verification-and-examples" class="level2">
+<h2 class="anchored" data-anchor-id="verification-and-examples">Verification and examples</h2>
 <ul>
-<li><strong>Commas (<code>,</code>)</strong> separate elements within a row</li>
-<li><strong>Single semicolon (<code>;</code>)</strong> separates rows within a 2D matrix<br>
-</li>
-<li><strong>Multiple semicolons (<code>;;</code>, <code>;;;</code>, etc.)</strong> indicate higher-dimensional separators</li>
-<li><strong>Spaces between semicolons</strong> create separate separator tokens</li>
-<li><strong>Empty rows/slices</strong> are preserved in the structure</li>
+<li><code>tests/parser/parser.test.js</code>: inferred/explicit constructors, malformed shapes, compact headers, slots and source spans.</li>
+<li><code>tests/eval/shaped.test.js</code>: indexing/views, scalar domains, explicit shape operations, Matrix products and conversion diagnostics.</li>
+<li><code>tests/eval/linalg-optimize-solve-plugin.test.js</code>: matrix adapters and mathematical coordinate semantics.</li>
+<li><code>tests/tools/codemirror.test.js</code>, <code>language-service.test.js</code>, and <code>execution-worker.test.js</code>: highlighting, formatting and worker execution.</li>
+<li>Web REPL and Notebook engine tests exercise the same migrated constructors.</li>
+<li><code>examples/parser/simple-matrices.js</code>, <code>matrix-tensor-demo.js</code>, and <code>matrix-error-cases.js</code> demonstrate parser structures. Their historical filenames are retained so existing links continue to work.</li>
 </ul>
-</section>
-<section id="examples" class="level3">
-<h3 class="anchored" data-anchor-id="examples">Examples</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co">// 2D Matrix</span></span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>[<span class="dv">1</span><span class="op">,</span> <span class="dv">2</span><span class="op">;</span> <span class="dv">3</span><span class="op">,</span> <span class="dv">4</span>]           <span class="co">// 2x2 matrix</span></span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>[<span class="dv">1</span><span class="op">,</span> <span class="dv">2</span><span class="op">,</span> <span class="dv">3</span><span class="op">;</span> <span class="dv">4</span><span class="op">,</span> <span class="dv">5</span><span class="op">,</span> <span class="dv">6</span>]     <span class="co">// 2x3 matrix</span></span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>[<span class="dv">1</span><span class="op">;</span> <span class="dv">2</span><span class="op">;</span> <span class="dv">3</span>]              <span class="co">// 3x1 column vector</span></span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="co">// 3D Tensor  </span></span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>[<span class="dv">1</span><span class="op">,</span> <span class="dv">2</span><span class="op">;</span> <span class="dv">3</span><span class="op">,</span> <span class="dv">4</span> <span class="op">;;</span> <span class="dv">5</span><span class="op">,</span> <span class="dv">6</span><span class="op">;</span> <span class="dv">7</span><span class="op">,</span> <span class="dv">8</span>]    <span class="co">// 2x2x2 tensor</span></span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="co">// 4D Tensor</span></span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>[<span class="dv">1</span><span class="op">;</span> <span class="dv">2</span> <span class="op">;;</span> <span class="dv">3</span><span class="op">;</span> <span class="dv">4</span> <span class="op">;;;</span> <span class="dv">5</span><span class="op">;</span> <span class="dv">6</span> <span class="op">;;</span> <span class="dv">7</span><span class="op">;</span> <span class="dv">8</span>]   <span class="co">// 4D structure</span></span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="co">// Edge Cases</span></span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>[<span class="op">;</span> <span class="dv">1</span><span class="op">,</span> <span class="dv">2</span>]               <span class="co">// Matrix starting with empty row</span></span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>[<span class="dv">1</span><span class="op">,</span> <span class="dv">2</span><span class="op">;</span> ]               <span class="co">// Matrix ending with empty row</span></span>
-<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>[<span class="op">;;</span>]                   <span class="co">// Empty tensor structure</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</section>
-</section>
-<section id="implementation-details" class="level2">
-<h2 class="anchored" data-anchor-id="implementation-details">Implementation Details</h2>
-<section id="tokenizer-changes" class="level3">
-<h3 class="anchored" data-anchor-id="tokenizer-changes">Tokenizer Changes</h3>
-<p>Modified <code>src/tokenizer.js</code> to recognize consecutive semicolons as single tokens:</p>
-<ul>
-<li>Added <code>tryMatchSemicolonSequence()</code> function</li>
-<li>Creates <code>SemicolonSequence</code> tokens with <code>count</code> property only for multiple consecutive semicolons (<code>;;</code>, <code>;;;</code>, etc.)</li>
-<li>Single semicolons (<code>;</code>) remain as regular <code>Symbol</code> tokens</li>
-<li>Preserves backward compatibility with existing semicolon usage</li>
-</ul>
-</section>
-<section id="parser-changes" class="level3">
-<h3 class="anchored" data-anchor-id="parser-changes">Parser Changes</h3>
-<p>Modified <code>src/parser.js</code> with several key changes:</p>
-<ol type="1">
-<li><strong>New token handling in <code>getSymbolInfo()</code></strong>:
-<ul>
-<li><code>SemicolonSequence</code> tokens get <code>type: 'separator'</code></li>
-<li>Prevents them from being treated as binary operators</li>
-</ul></li>
-<li><strong>Enhanced <code>parseExpression()</code></strong>:
-<ul>
-<li>Breaks on both <code>Symbol</code> semicolons and <code>SemicolonSequence</code> tokens</li>
-<li>Treats separators like statement terminators</li>
-</ul></li>
-<li><strong>New <code>parseMatrixOrArray()</code> method</strong>:
-<ul>
-<li>Detects semicolon usage to determine if structure is matrix/tensor</li>
-<li>Builds <code>matrixStructure</code> array with separator levels</li>
-<li>Handles empty rows and edge cases</li>
-<li>Supports both single semicolons and semicolon sequences</li>
-</ul></li>
-<li><strong>New <code>buildMatrixTensor()</code> method</strong>:
-<ul>
-<li>Determines if result should be Matrix (2D) or Tensor (3D+)</li>
-<li>Creates appropriate AST nodes</li>
-</ul></li>
-<li><strong>New <code>consumeSemicolonSequence()</code> method</strong>:
-<ul>
-<li>Handles both <code>Symbol</code> (single <code>;</code>) and <code>SemicolonSequence</code> (multiple <code>;;+</code>) tokens</li>
-<li>Returns the correct count for dimension detection</li>
-</ul></li>
-</ol>
-</section>
-<section id="ast-node-types" class="level3">
-<h3 class="anchored" data-anchor-id="ast-node-types">AST Node Types</h3>
-<section id="matrix-node" class="level4">
-<h4 class="anchored" data-anchor-id="matrix-node">Matrix Node</h4>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>{</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    <span class="dt">type</span><span class="op">:</span> <span class="st">"Matrix"</span><span class="op">,</span></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    <span class="dt">rows</span><span class="op">:</span> [[ASTNode]]<span class="op">,</span>      <span class="co">// Array of rows, each row is array of elements</span></span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    <span class="dt">pos</span><span class="op">:</span> [start<span class="op">,</span> delim<span class="op">,</span> end]<span class="op">,</span></span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    <span class="dt">original</span><span class="op">:</span> string</span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</section>
-<section id="tensor-node" class="level4">
-<h4 class="anchored" data-anchor-id="tensor-node">Tensor Node</h4>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>{</span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    <span class="dt">type</span><span class="op">:</span> <span class="st">"Tensor"</span><span class="op">,</span> </span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    <span class="dt">structure</span><span class="op">:</span> [{</span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>        <span class="dt">row</span><span class="op">:</span> [ASTNode]<span class="op">,</span>         <span class="co">// Array of elements in this row</span></span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>        <span class="dt">separatorLevel</span><span class="op">:</span> number  <span class="co">// Number of semicolons that follow this row</span></span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>    }]<span class="op">,</span></span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>    <span class="dt">maxDimension</span><span class="op">:</span> number<span class="op">,</span>       <span class="co">// Highest dimension level (separatorLevel + 1)</span></span>
-<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>    <span class="dt">pos</span><span class="op">:</span> [start<span class="op">,</span> delim<span class="op">,</span> end]<span class="op">,</span></span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>    <span class="dt">original</span><span class="op">:</span> string</span>
-<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</section>
-</section>
-</section>
-<section id="key-features" class="level2">
-<h2 class="anchored" data-anchor-id="key-features">Key Features</h2>
-<section id="dimension-detection" class="level3">
-<h3 class="anchored" data-anchor-id="dimension-detection">Dimension Detection</h3>
-<ul>
-<li><strong>Matrix</strong>: When <code>maxSeparatorLevel === 1</code></li>
-<li><strong>Tensor</strong>: When <code>maxSeparatorLevel &gt; 1</code></li>
-<li><strong>Array</strong>: When no semicolons are present</li>
-</ul>
-</section>
-<section id="error-handling" class="level3">
-<h3 class="anchored" data-anchor-id="error-handling">Error Handling</h3>
-<ul>
-<li><strong>Metadata conflicts</strong>: Matrix/tensor syntax cannot be mixed with <code>:=</code> metadata annotations</li>
-<li><strong>Proper error messages</strong>: Clear error messages for invalid combinations</li>
-</ul>
-</section>
-<section id="edge-case-handling" class="level3">
-<h3 class="anchored" data-anchor-id="edge-case-handling">Edge Case Handling</h3>
-<ul>
-<li><strong>Empty rows</strong>: Preserved as empty arrays in structure</li>
-<li><strong>Leading semicolons</strong>: Create empty rows at the beginning</li>
-<li><strong>Trailing semicolons</strong>: Create empty rows at the end</li>
-<li><strong>Only separators</strong>: Create valid tensor structures with empty rows</li>
-</ul>
-</section>
-</section>
-<section id="testing" class="level2">
-<h2 class="anchored" data-anchor-id="testing">Testing</h2>
-<p>Comprehensive test suite in <code>tests/parser.test.js</code> covers:</p>
-<ul>
-<li>Basic 2D matrices</li>
-<li>3D tensors with double semicolons</li>
-<li>4D+ tensors with multiple semicolon levels</li>
-<li>Edge cases (empty rows, leading/trailing semicolons)</li>
-<li>Error conditions (metadata mixing)</li>
-<li>Complex expressions within matrices</li>
-<li>Position tracking</li>
-</ul>
-</section>
-<section id="examples-1" class="level2">
-<h2 class="anchored" data-anchor-id="examples-1">Examples</h2>
-<p>Three example files demonstrate usage:</p>
-<ol type="1">
-<li><strong><code>examples/simple-matrices.js</code></strong>: Basic usage examples</li>
-<li><strong><code>examples/matrix-tensor-demo.js</code></strong>: Comprehensive demonstration</li>
-<li><strong><code>examples/matrix-error-cases.js</code></strong>: Edge cases and error handling</li>
-</ol>
-</section>
-<section id="integration-notes" class="level2">
-<h2 class="anchored" data-anchor-id="integration-notes">Integration Notes</h2>
-<section id="backward-compatibility" class="level3">
-<h3 class="anchored" data-anchor-id="backward-compatibility">Backward Compatibility</h3>
-<ul>
-<li>Regular arrays <code>[1, 2, 3]</code> remain unchanged</li>
-<li>Single semicolons in statements (<code>a := 1; b := 2;</code>) work as before</li>
-<li>System expressions with semicolons (<code>{x :=: 1; y :=: 2}</code>) work as before</li>
-<li>Existing functionality is fully preserved</li>
-<li>Only affects bracket expressions containing semicolons</li>
-</ul>
-</section>
-<section id="post-processing" class="level3">
-<h3 class="anchored" data-anchor-id="post-processing">Post-Processing</h3>
-<p>The parser creates the structural representation. Actual dimensional analysis and tensor operations are intended for post-processing stages.</p>
-</section>
-<section id="performance" class="level3">
-<h3 class="anchored" data-anchor-id="performance">Performance</h3>
-<ul>
-<li>Minimal impact on existing parsing performance</li>
-<li>Semicolon sequence detection is efficient with regex matching</li>
-<li>Single semicolons processed normally through existing symbol tokenization</li>
-<li>Parser complexity increased only for bracket expressions</li>
-<li>Tokenizer properly distinguishes between consecutive (<code>;;</code>) and separated (<code>; ;</code>) semicolons</li>
-</ul>
-</section>
-</section>
-<section id="future-enhancements" class="level2">
-<h2 class="anchored" data-anchor-id="future-enhancements">Future Enhancements</h2>
-<p>Potential areas for extension:</p>
-<ol type="1">
-<li><strong>Tensor algebra operations</strong>: Matrix multiplication, element-wise operations</li>
-<li><strong>Dimension validation</strong>: Ensure consistent shapes within slices</li>
-<li><strong>Sparse matrix support</strong>: Special handling for sparse structures</li>
-<li><strong>Broadcasting rules</strong>: Define behavior for operations between different-sized tensors</li>
-</ol>
+<p>See <a href="../eval/objects/shaped.html">Shaped methods</a> for runnable method examples and <a href="../design/eval/shaped-array-matrix-tensor-plan.md">the migration record</a> for the separate finite tensor work tracked by T1–T3 in the umbrella execution plan.</p>
 
 
 </section>
