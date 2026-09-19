@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RiX linked retained graphics panel metadata v1",
+  "type": "object",
+  "description": "Renderer-neutral metadata. Native/RiX field names are case insensitive. IDs are namespaced per panel, and overlapping selection groups are transitively merged. No selection adds a mathematical claim.",
+  "required": [
+    "schema",
+    "linkedSelection",
+    "panels",
+    "selectionMeaning",
+    "displayAddsCertification"
+  ],
+  "properties": {
+    "schema": {
+      "const": "rix.graphics.linked-views@1"
+    },
+    "linkedSelection": {
+      "type": "array",
+      "maxItems": 4096,
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "panels": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "items": {
+        "type": "object",
+        "required": [
+          "panel",
+          "ids",
+          "sourceMetadata",
+          "snapshot"
+        ]
+      }
+    },
+    "selectionMeaning": {
+      "const": "explicitSharedRetainedObjects"
+    },
+    "displayAddsCertification": {}
+  },
+  "additionalProperties": true
+}

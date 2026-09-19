@@ -1,0 +1,181 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RiX bounded scene source adapters v1",
+  "description": "Native/RiX field names are case insensitive; exact numeric values retain their native representations. These adapters preserve source claims, not certify projected pixels. Exact unit quaternion records require independent norm verification. Cell meshes are conservative box boundaries, not reconstructed surface topology.",
+  "oneOf": [
+    {
+      "type": "object",
+      "required": [
+        "schema",
+        "source",
+        "records",
+        "uncertainty",
+        "omitted",
+        "work",
+        "displayAddsCertification",
+        "topology"
+      ],
+      "properties": {
+        "schema": {
+          "const": "rix.scene3d.implicit-view@1"
+        }
+      },
+      "additionalProperties": true
+    },
+    {
+      "type": "object",
+      "required": [
+        "schema",
+        "region",
+        "interpretation",
+        "topology"
+      ],
+      "properties": {
+        "schema": {
+          "const": "rix.scene3d.volume@1"
+        }
+      },
+      "additionalProperties": true
+    },
+    {
+      "type": "object",
+      "required": [
+        "schema",
+        "source",
+        "axis",
+        "coordinate",
+        "region",
+        "interpretation",
+        "projection"
+      ],
+      "properties": {
+        "schema": {
+          "const": "rix.scene3d.volume-slice@1"
+        }
+      },
+      "additionalProperties": true
+    },
+    {
+      "type": "object",
+      "required": [
+        "schema",
+        "source",
+        "axes",
+        "records",
+        "uncertainty",
+        "omitted",
+        "events",
+        "work",
+        "displayAddsCertification"
+      ],
+      "properties": {
+        "schema": {
+          "const": "rix.scene3d.trajectory@1"
+        }
+      },
+      "additionalProperties": true
+    },
+    {
+      "type": "object",
+      "required": [
+        "schema",
+        "event",
+        "sourceIndex",
+        "axes",
+        "displayAddsCertification"
+      ],
+      "properties": {
+        "schema": {
+          "const": "rix.scene3d.event-overlay@1"
+        }
+      },
+      "additionalProperties": true
+    },
+    {
+      "type": "object",
+      "required": [
+        "schema",
+        "components",
+        "normSquared",
+        "certified",
+        "evidence"
+      ],
+      "properties": {
+        "schema": {
+          "const": "rix.scene3d.unit-quaternion@1"
+        }
+      },
+      "additionalProperties": true
+    },
+    {
+      "type": "object",
+      "required": [
+        "schema",
+        "status",
+        "first",
+        "last",
+        "parameter",
+        "certified"
+      ],
+      "properties": {
+        "schema": {
+          "const": "rix.scene3d.quaternion-interpolation@1"
+        }
+      },
+      "additionalProperties": true
+    },
+    {
+      "type": "object",
+      "required": [
+        "schema",
+        "unitQuaternion",
+        "certified",
+        "meaning"
+      ],
+      "properties": {
+        "schema": {
+          "const": "rix.scene3d.quaternion-transform@1"
+        }
+      },
+      "additionalProperties": true
+    },
+    {
+      "type": "object",
+      "required": [
+        "schema",
+        "source",
+        "uncertainty",
+        "omitted",
+        "work",
+        "projectionAddsCertification",
+        "topology"
+      ],
+      "properties": {
+        "schema": {
+          "const": "rix.nd.region-view@1"
+        }
+      },
+      "additionalProperties": true
+    },
+    {
+      "type": "object",
+      "required": [
+        "schema",
+        "source",
+        "projection",
+        "records",
+        "uncertainty",
+        "omitted",
+        "unsampledCertified",
+        "topology",
+        "work"
+      ],
+      "properties": {
+        "schema": {
+          "const": "rix.complex-viz.projected4d@1"
+        }
+      },
+      "additionalProperties": true
+    }
+  ]
+}

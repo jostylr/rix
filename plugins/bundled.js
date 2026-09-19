@@ -219,8 +219,8 @@ const BUNDLED_PLUGINS = [
         metadata: {
             id: "svg", description: "Portable SVG renderer with outward-safe exact-coordinate lowering.",
             kind: "host", mount: "svg", exports: ["Render"], groups: ["Renderers"], permissions: [],
-            provides: ["rix.renderer.svg@1", "rix.renderer.svg@2", "rix.svg.coordinate-lowering@1", "rix.svg.optimization@1", "rix.viewport@1", "rix.selection@1"],
-            schemas: ["rix.svg.coordinate-lowering@1", "rix.svg.optimization@1", "rix.viewport@1", "rix.selection@1"], targets: ["svg", "image/svg+xml"],
+            provides: ["rix.graphics.source-evidence@1", "rix.renderer.svg@1", "rix.renderer.svg@2", "rix.svg.coordinate-lowering@1", "rix.svg.optimization@1", "rix.viewport@1", "rix.selection@1"],
+            schemas: ["rix.graphics.source-evidence@1", "rix.svg.coordinate-lowering@1", "rix.svg.optimization@1", "rix.viewport@1", "rix.selection@1"], targets: ["svg", "image/svg+xml"],
             snapshot: true, deterministic: true, defaultEnabled: false,
         },
         install: installSvgPlugin,

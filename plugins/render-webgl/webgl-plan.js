@@ -10,6 +10,8 @@ import {
     sequence,
 } from "../renderers/common.js";
 
+import { createFrameSerializer } from "../renderers/static-frames.js";
+
 const SCENE_SCHEMA = "rix.scene3d@1";
 const REALIZED_SCHEMA = "rix.scene3d.realized@1";
 
@@ -58,7 +60,7 @@ function clipPlane(value, index) {
     };
 }
 
-function primitive(value, index) {
+function primitive(value, index, serialize) {
     const kind = text(field(value, "kind"));
     const points = sequence(field(value, "points"), `Scene3D primitive ${index + 1} points`)
         .map((point, pointIndex) => vector(point, 3, `Scene3D primitive ${index + 1} point ${pointIndex + 1}`));
@@ -72,6 +74,8 @@ function primitive(value, index) {
         style: style(field(value, "style")),
         pickId: text(field(value, "pickid")),
         label: text(field(value, "label")),
+        metadata: serialize(field(value, "metadata")),
+        transformProvenance: serialize(field(value, "transformprovenance")),
         interaction: plainValue(field(value, "interaction")),
         annotationPolicy: plainValue(field(value, "annotationpolicy")),
         clipPlanes: sequence(field(value, "clipplanes", { type: "sequence", values: [] }), `Scene3D primitive ${index + 1} clip planes`).map(clipPlane),
@@ -118,7 +122,9 @@ export function createWebGLPlan(scene, options = null) {
     if (width <= 0 || height <= 0) throw new Error("WebGL viewport dimensions must be positive");
     const mode = text(option(options, "mode", "solid"), "solid");
     if (!["solid", "wireframe"].includes(mode)) throw new Error("WebGL mode must be 'solid' or 'wireframe'");
-    const primitives = sequence(field(realized, "primitives"), "Scene3D realized primitives").map(primitive);
+    const serialize = createFrameSerializer();
+    const sourceMetadata = serialize(field(scene, "metadata"));
+    const primitives = sequence(field(realized, "primitives"), "Scene3D realized primitives").map((value,index)=>primitive(value,index,serialize));
     const annotations = [];
     const drawCalls = [];
     const picking = {};
@@ -136,9 +142,11 @@ export function createWebGLPlan(scene, options = null) {
                 label: entry.label,
                 interaction: entry.interaction,
                 policy: entry.annotationPolicy,
+                metadata: entry.metadata,
+                transformProvenance: entry.transformProvenance,
             };
             annotations.push(annotation);
-            if (entry.pickId) picking[entry.pickId] = { kind: "annotation", index: annotations.length - 1, label: entry.label, interaction: entry.interaction };
+            if (entry.pickId) picking[entry.pickId] = { kind: "annotation", index: annotations.length - 1, label: entry.label, interaction: entry.interaction, metadata: entry.metadata, transformProvenance: entry.transformProvenance };
             return;
         }
         let drawMode;
@@ -164,6 +172,8 @@ export function createWebGLPlan(scene, options = null) {
             pickId: entry.pickId,
             label: entry.label,
             interaction: entry.interaction,
+            metadata: entry.metadata,
+            transformProvenance: entry.transformProvenance,
             material: {
                 schema: "rix.scene3d.material@1",
                 roughness: entry.style.roughness,
@@ -173,7 +183,7 @@ export function createWebGLPlan(scene, options = null) {
             clipPlanes: entry.clipPlanes,
         };
         drawCalls.push(call);
-        if (entry.pickId) picking[entry.pickId] = { kind: "drawCall", index: drawCalls.length - 1, label: entry.label, interaction: entry.interaction };
+        if (entry.pickId) picking[entry.pickId] = { kind: "drawCall", index: drawCalls.length - 1, label: entry.label, interaction: entry.interaction, metadata: entry.metadata, transformProvenance: entry.transformProvenance };
     });
     const diagnostics = [];
     if (approximated) diagnostics.push(diagnostic(
@@ -209,6 +219,8 @@ export function createWebGLPlan(scene, options = null) {
     return {
         schema: "rix.webgl-plan@1",
         sourceSchema: SCENE_SCHEMA,
+        sourceMetadata,
+        projectionAddsCertification: false,
         viewport: { width, height },
         background: color(option(options, "background", "#ffffff"), "#ffffff"),
         coordinateSystem: plainValue(field(realized, "coordinatesystem")),

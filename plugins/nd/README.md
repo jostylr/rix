@@ -39,3 +39,10 @@ See the [3D/ND guide](../../documentation/eval/scene3d-guide.md), the
 [`nd-dimension-lab.rix`](../../examples/geometry/nd-dimension-lab.rix),
 [`nd-slice-lab.rix`](../../examples/geometry/nd-slice-lab.rix), and
 [`tesseract.rix`](../../examples/geometry/tesseract.rix) examples.
+
+`ImplicitRegion`, `CheckRegion`, and `RefineRegion` provide bounded whole-box
+covers. `ImplicitSlice` applies an existing affine parameter section;
+`ProjectRegion` preserves exact interval images and source IDs. `RegionScene`
+and `LinkedRegions` show two/three-coordinate covers with explicit unresolved
+and omitted cells. Projections can overlap and do not certify topology. See
+[validated scene views](../../documentation/eval/validated-scene-views.md).

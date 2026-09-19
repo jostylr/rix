@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RiX bounded inert Graphics source evidence v1",
+  "description": "Portable source metadata embedded in SVG under data-rix-source-evidence=rix.graphics.source-evidence@1. Exact numerical values use source strings; fields retain case. Cycles and depth/node/text exhaustion are rejected by the shared static serializer. This record preserves source claims and adds no certificate to pixels.",
+  "type": ["object", "null"],
+  "additionalProperties": true
+}

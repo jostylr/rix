@@ -63,3 +63,12 @@ sphere := .complexViz.RiemannSphere([
 
 Scene3D renderers consume these scenes without learning any private complex
 sampling convention.
+
+`Graph4D`, `Slice4D`, `Project4D`, and `Linked4D` retain bounded samples in
+`(Re z, Im z, Re f, Im f)` and link input/output views. Exact values, enclosure
+boxes, poles, unknown output positions, and omitted samples remain distinct.
+Sampling does not certify unsampled behavior or graph topology. The
+[validated scene views guide](../../documentation/eval/validated-scene-views.md)
+lists budgets and API details. Existing `DomainColoring` and `Surface` now use
+`maxSamples=4096` by default (hard maximum 16384); surface grids require at
+least two rows and columns.

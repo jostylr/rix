@@ -150,3 +150,30 @@ scene := .scene3d.Scene([mesh], {=
 });
 .scene3d.Snapshot(scene, {= size=[360,240], mode="lit" })["value"];
 ```
+
+## Preserve unknown cells in a bounded volume slice
+
+```rix
+.Plugin.Load("scene3d");
+.Plugin.Load("calculus");
+x := .calculus.Variable(:x); y := .calculus.Variable(:y); z := .calculus.Variable(:z);
+volume := .scene3d.Volume(x^2+y^2+z^2-1,{= x=(-1):1,y=(-1):1,z=(-1):1 },{= maxCells=7 });
+section := .scene3d.Slice(volume,:z,0,{= maxCells=7 });
+.scene3d.Snapshot(.scene3d.RegionView(section[:region],{= maxVisibleCells=4 }),{= size=[320,240] });
+```
+
+Amber cells remain unresolved, and the gray box covers omitted display cells.
+The section is exact; these cell boundaries do not reconstruct surface topology.
+
+## Rotate and interpolate exact unit quaternions
+
+```rix
+.Plugin.Load("scene3d");
+rotation := .scene3d.QuaternionBlend([1,0,0,0],[0,0,0,1],1/2);
+line := .scene3d.Polyline([[0,0,0],[1,0,0]],{= id="arm" });
+scene := .scene3d.Scene([.scene3d.QuaternionTransform([line],rotation[:quaternion])]);
+[rotation[:components],.scene3d.Snapshot(scene,{= size=[240,180] })];
+```
+
+The components are `[3/5,0,0,4/5]` with exact unit norm. This rational Cayley
+curve is not constant-speed interpolation; an antipodal endpoint is diagnosed.

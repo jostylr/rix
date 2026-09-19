@@ -96,6 +96,7 @@ export function normalizeGraphicFrame(value, label = "Static frame", serialize =
     if (outputKind(current) !== "graphic") throw new UnsupportedRenderError(`${label} must resolve to one Graphic or graphic Figure; received ${outputKind(current)}`, { code: "static-frame-layout-unsupported" });
     // Validate before recursive label extraction or any SVG/TikZ/raster lowering.
     serialize(current);
+    metadata.graphicSource = field(current, "metadata");
     serialize(metadata);
     const labels = (node) => outputKind(node) === "text_mark" ? [rixString(field(node, "text"))].filter(Boolean)
         : (field(node, "children", []) || []).flatMap(labels);

@@ -10,6 +10,8 @@ import { formatValue } from "../format.js";
 import {calculusDerivativeProofValue} from '../../runtime/calculus-proof.js';
 import { executeRangeOperation, rangeEvidence } from "../../runtime/range-arithmetic.js";
 import { validatedBoxValue, validatedClaimKey } from "../../runtime/validated-boxes.js";
+import { createLinkedViews } from "../../runtime/linked-views.js";
+import { implicitRegionValue } from "../../runtime/implicit-region.js";
 import { implicitTraceValue } from "../../runtime/implicit-geometry.js";
 import {
     calculusGraphRangeValue,
@@ -214,6 +216,19 @@ export const arithmeticFunctions = {
         doc: "Independently recompute a checked Krawczyk classification",
     },
 
+    LINKED_VIEWS: { impl(args) { if(args.length<2||args.length>3)throw new Error("LinkedViews expects views, selection groups, and optional options");return createLinkedViews(...args); },pure:true,doc:"Compose retained Graphics/snapshot panels with explicit linked semantic IDs" },
+    IMPLICIT_REGION: {
+        impl(args,context) { if(args.length<2||args.length>3)throw new Error("ImplicitRegion expects expression, box, and optional options");return implicitRegionValue("region",args,context); },
+        pure:true,doc:"Bound an implicit set by a complete classified box cover without asserting surface topology",
+    },
+    IMPLICIT_REGION_CHECK: {
+        impl(args,context) { if(args.length!==1)throw new Error("ImplicitRegionCheck expects one result");return implicitRegionValue("check",args,context); },
+        pure:true,doc:"Replay implicit-region classifications and complete coverage",
+    },
+    IMPLICIT_REGION_REFINE: {
+        impl(args,context) { if(args.length<1||args.length>2)throw new Error("ImplicitRegionRefine expects result and optional work limits");return implicitRegionValue("refine",args,context); },
+        pure:true,doc:"Recheck and refine an implicit region under bounded work limits",
+    },
     IMPLICIT_TRACE: {
         impl(args, context) {
             if(args.length<3||args.length>4) throw new Error("ImplicitTrace expects expression, checked gradient, box, and optional options");

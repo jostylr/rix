@@ -82,3 +82,16 @@ sphere := .complexViz.RiemannSphere([
 The surface retains vertex colors plus branch/unresolved metadata. The sphere
 uses exact rational inverse-stereographic coordinates until a renderer chooses
 its numeric lowering.
+
+## Link inputs and outputs of a bounded complex graph sample
+
+```rix
+.Plugin.Load("complex-viz");
+F := .complexViz.RationalFunction((z)->.Complex.FromParts(1,0),(z)->z);
+graph := .complexViz.Graph4D({= fn=F,points=[[0,0],[1,0],[0,1],[-1,0],[0,-1]] });
+.complexViz.Linked4D(graph,{= size=[280,210],legendOffset=[0,80] });
+```
+
+The pole has a visible input location and an explicitly unknown output location.
+Other samples link across panels by ID. No line between samples or unsampled
+root, branch, or connectivity claim is inferred.

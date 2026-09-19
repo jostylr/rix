@@ -185,3 +185,6 @@ export { decodeRefinableReal, encodeRefinableReal, inspectRefinableReal, refineI
 export { createTimerAsyncStream, createSubscriptionAsyncStream, createReactiveAsyncStream, createUIEventAsyncStream,
     createStreamHostServices, createHttpAsyncStream, createFileAsyncStream, createWebSocketAsyncStream } from "./runtime/async-stream-adapters.js";
 export { ASYNC_STREAM_CLOCK_ENV, defaultStreamClock } from "./runtime/async-stream-clock.js";
+
+export { IMPLICIT_REGION_SCHEMA, IMPLICIT_REGION_CHECKER, evaluateImplicitRegion, checkImplicitRegion, refineImplicitRegion } from "./runtime/implicit-region.js";
+export { createLinkedViews } from "./runtime/linked-views.js";

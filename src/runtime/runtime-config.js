@@ -24,9 +24,9 @@ export const runtimeDefaults = Object.freeze({
   capabilityGroups: Object.freeze({
     Output: Object.freeze(["OUT", "BIND", "LIVEVIEW", "TEXT", "PARAGRAPH", "HEADING", "FRAGMENT", "SNAPSHOTS", "TABLE", "GRID", "SHEET", "CONTROLPANEL", "FIGURE", "SLIDE", "SLIDES", "Algebra", "Timeline"]),
     Controls: Object.freeze(["CONTROLPANEL", "Controls"]),
-    Graphics: Object.freeze(["Graphics"]),
+    Graphics: Object.freeze(["Graphics", "LinkedViews"]),
     Radix: Object.freeze(["NumeralSystem", "NumeralParse", "NumeralFormat", "NumeralPlaces", "NumeralLocale"]),
-    Geometry: Object.freeze(["ImplicitTrace", "ImplicitTraceCheck", "ImplicitTraceRefine"]),
+    Geometry: Object.freeze(["ImplicitRegion", "ImplicitRegionCheck", "ImplicitRegionRefine", "ImplicitTrace", "ImplicitTraceCheck", "ImplicitTraceRefine"]),
     Draw: Object.freeze(["draw"]),
     Plot: Object.freeze(["plot"]),
     Core: Object.freeze(["LEN", "FIRST", "LAST", "GETEL", "IRANGE", "IF", "LOOP", "MULTI", "RAND_NAME", "PRINT", "Shaped", "KEYOF", "KEYS", "VALUES", "REGISTERMETHOD", "CertifiedApproximation", "Undecided", "RefinementRequest", "RefinementEffectiveLimits", "RefinementSupports", "RefinementCheck", "RefinementUnsupported", "TypeKnown", "ImmutableValue"]),

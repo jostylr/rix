@@ -340,3 +340,6 @@ export { ASYNC_LIMITS, asyncLimits, capabilityAsyncPolicy } from "./async-policy
 export { createTimerAsyncStream, createSubscriptionAsyncStream, createReactiveAsyncStream, createUIEventAsyncStream,
     createStreamHostServices, createHttpAsyncStream, createFileAsyncStream, createWebSocketAsyncStream } from "./async-stream-adapters.js";
 export { ASYNC_STREAM_CLOCK_ENV, defaultStreamClock } from "./async-stream-clock.js";
+
+export { IMPLICIT_REGION_SCHEMA, IMPLICIT_REGION_CHECKER, evaluateImplicitRegion, checkImplicitRegion, refineImplicitRegion } from "./implicit-region.js";
+export { createLinkedViews } from "./linked-views.js";

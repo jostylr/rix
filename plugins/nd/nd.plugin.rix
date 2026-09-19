@@ -3,12 +3,12 @@ id: nd
 description: Pure-RiX exact n-dimensional geometry with affine and Cayley projection records and explicit Scene3D adaptation.
 kind: rix
 mount: nd
-exports: [Point, Polyline, Polytope, Hypercube, Projection, CoordinateProjection, CayleyRotation, Compose, Project, Field, Evaluate, SampleField, AffineSlice, Parameterize, Hyperplane, Section, Fiber, ProjectionFamily, ProjectionAt, ToPlot, ToScene3D]
+exports: [ImplicitRegion, CheckRegion, RefineRegion, ImplicitSlice, ProjectRegion, RegionScene, LinkedRegions, Point, Polyline, Polytope, Hypercube, Projection, CoordinateProjection, CayleyRotation, Compose, Project, Field, Evaluate, SampleField, AffineSlice, Parameterize, Hyperplane, Section, Fiber, ProjectionFamily, ProjectionAt, ToPlot, ToScene3D]
 groups: [Geometry, Scene3D, Exact]
 permissions: []
 requires: [rix.scene3d@1, rix.plot@1]
-provides: [rix.nd@1, rix.nd@2, rix.nd.projection@1, rix.nd.field@1, rix.nd.slice@1, rix.nd.fiber@1, rix.nd.projection-family@1]
-schemas: [rix.nd@1, rix.nd.projection@1, rix.nd.field@1, rix.nd.slice@1, rix.nd.hyperplane@1, rix.nd.fiber@1, rix.nd.projection-family@1]
+provides: [rix.geometry.implicit-region@1, rix.nd.projected-region@1, rix.nd.region-view@1, rix.nd@1, rix.nd@2, rix.nd.projection@1, rix.nd.field@1, rix.nd.slice@1, rix.nd.fiber@1, rix.nd.projection-family@1]
+schemas: [rix.geometry.implicit-region@1, rix.nd.projected-region@1, rix.nd.region-view@1, rix.nd@1, rix.nd.projection@1, rix.nd.field@1, rix.nd.slice@1, rix.nd.hyperplane@1, rix.nd.fiber@1, rix.nd.projection-family@1]
 snapshot: true
 deterministic: true
 defaultEnabled: false
@@ -80,7 +80,7 @@ NDProjectionValue(matrix,offset,method,provenance ?= [])->{;
 NDProjection(matrix,offset ?= _,options ?= {= })->{;
     settings=matrix ? :Map ?: matrix ?_ options.Merge({= matrix=matrix,offset=offset });
     rows=settings[:matrix]; zeroOffset=rows.Map((row)->0);
-    NDProjectionValue(rows,NDOption(settings,"offset",zeroOffset),NDOption(settings,"method","affine"),NDProvenance(settings));
+    NDProjectionValue(rows,NDOption(settings,"offset",zeroOffset)==_ ?: zeroOffset ?_ NDOption(settings,"offset",zeroOffset),NDOption(settings,"method","affine"),NDProvenance(settings));
 };
 
 NDCoordinateProjection(sourceDimension,axes ?= _)->{;
@@ -371,8 +371,73 @@ NDToScene3D(geometry,options ?= {= })->{;
     .scene3d.Scene([.scene3d.Group(children)],sceneOptions);
 };
 
+## Whole-box implicit evidence, affine sections, and conservative projected covers.
+NDImplicitSlice(expression,variables,slice,box,options ?= {= })->{;
+    selected=NDSliceRequire(slice);
+    variables.Len()==selected[:sourceDimension] ?_> .Error("nd.ImplicitSlice variable dimension differs from slice");
+    .ImplicitRegion(expression,box,options.Merge({= affine={= variables=variables,matrix=selected[:inclusion][:matrix],offset=selected[:origin] } }));
+};
+NDProjectRegion(region,projection)->{;
+    .ImplicitRegionCheck(region)[:accepted]==1 ?_> .Error("nd.ProjectRegion requires replayed implicit evidence");
+    NDIsProjection(projection) ?_> .Error("nd.ProjectRegion requires an affine projection");
+    projection[:sourceDimension]==region[:variables].Len()&&projection[:targetDimension]<=8 ?_> .Error("nd.ProjectRegion projection dimension mismatch or budget exceeded");
+    .ValidatedClaimEqual(projection,projection);
+    leaves=region[:inside].Concat(region[:excluded]).Concat(region[:unresolved]);
+    cells=leaves.Map((leaf)->{;
+        bounds=@region[:variables].Map((name)->leaf[:box][:axes][name].ToRationalInterval());
+        {= id=leaf[:id],bounds=NDApply(@projection[:matrix],bounds,@projection[:offset]),classification=leaf[:classification],source=leaf,
+            enclosureCertified=1,sourceCertified=NDOption(leaf,"certified",_),rootExistence=_,topology=:unproved };
+    });
+    result=.ImmutableValue({= schema="rix.nd.projected-region@1",source=region,projection=projection,dimension=projection[:targetDimension],cells=cells,
+        certified=1,meaning=:affineEnclosureOfSourceCells,possibleOverlap=1,projectionAddsRootExistence=_,topology=:unproved });
+    .ValidatedClaimEqual(result,result);result;
+};
+NDRegionScene(projected,options ?= {= })->{;
+    projected[:schema]=="rix.nd.projected-region@1" ?_> .Error("nd.RegionScene requires a projected region");
+    .ValidatedClaimEqual(projected,NDProjectRegion(projected[:source],projected[:projection])) ?_> .Error("nd.RegionScene projected evidence changed");
+    projected[:dimension]==2||projected[:dimension]==3 ?_> .Error("nd.RegionScene requires a two or three dimensional projection");
+    maximum=NDInteger(NDOption(options,"maxvisiblecells",64),"nd.RegionScene maxVisibleCells");maximum>=1&&maximum<=256 ?_> .Error("nd.RegionScene visible-cell budget exceeded");
+    id=NDOption(options,"id","region");cells=projected[:cells].Filter((cell)->cell[:classification]!=:excluded||NDOption(@options,"showexcluded",_));
+    children:=[];uncertainty:=[];omitted:=[];
+    {@ index=1;index<=@cells.Len();{;
+        cell=@cells[index];bounds=cell[:bounds].Map((bound)->bound ? :RationalInterval ?: bound ?_ (bound:bound));
+        bounds=bounds.Len()==2 ?: bounds.Push(0:0) ?_ bounds;
+        (cell[:classification]!=:inside&&cell[:classification]!=:excluded) ?: {; @uncertainty~=@uncertainty.Push(@cell); } ?_ _;
+        index<=@maximum ?: {;
+            color=@cell[:classification]==:inside ?: "#047857" ?_ "#d97706";
+            @children~=@children.Push(.scene3d.CellBox(@bounds,{= id=@"@{@id}.@{@cell[:id]}",color=color,opacity=1/4,metadata=@cell,label=@"@{@cell[:classification]} projected enclosure" }));
+        } ?_ {; @omitted~=@omitted.Push(@cell.Merge({= displayBounds=@bounds })); };
+    };index+=1};
+    omitted.Len()>0 ?: {;
+        hull=[1,2,3].Map((axis)->@omitted.Reduce((range,cell)->.Min(range.Low(),cell[:displayBounds][@axis].Low()):.Max(range.High(),cell[:displayBounds][@axis].High()),@omitted[1][:displayBounds][axis]));
+        @children~=@children.Push(.scene3d.CellBox(hull,{= id=@"@{@id}.omitted",color="#64748b",opacity=1/5,metadata={= cells=@omitted,meaning=:omittedProjectedCover } }));
+    } ?_ _;
+    children~=children.Push(.scene3d.Annotation([0,0,0],@"Projected cell cover: @{uncertainty.Len()} unresolved, @{omitted.Len()} omitted",{= id=@"@{id}.legend",size=11,policy=.scene3d.AnnotationPolicy({= offset=NDOption(options,"legendoffset",[0,0]) }) }));
+    .scene3d.Scene(children,options.Merge({= metadata={= schema="rix.nd.region-view@1",source=projected,uncertainty=uncertainty,omitted=omitted,
+        work={= visibleCells=.Min(maximum,cells.Len()),maxVisibleCells=maximum,omittedCells=omitted.Len() },projectionAddsCertification=_,topology=:unproved } }));
+};
+NDLinkedRegions(region,projections,options ?= {= })->{;
+    projections.Len()>=1&&projections.Len()<=8 ?_> .Error("nd.LinkedRegions requires one through eight projections");
+    id=NDOption(options,"id","region");
+    scenes=projections.Map((projection)->NDRegionScene(NDProjectRegion(@region,projection),@options));
+    cells=region[:inside].Concat(NDOption(options,"showexcluded",_) ?: region[:excluded] ?_ []).Concat(region[:unresolved]);maximum=NDOption(options,"maxvisiblecells",64);
+    groups:=[];
+    {@ index=1;index<=.Min(@maximum,@cells.Len());{;
+        selectors:=[];{@ panel=1;panel<=@projections.Len();{; @selectors~=@selectors.Push({= panel=panel,id=@"@{@id}.@{@cells[@index][:id]}" }); };panel+=1};
+        @groups~=@groups.Push(selectors);
+    };index+=1};
+    .scene3d.LinkedViews(scenes,groups,options);
+};
+
 ndNamespace={= };
 ndNamespace._proto={=
+    ImplicitRegion=(self,expression,box,options ?= {= })->.ImplicitRegion(expression,box,options),
+    CheckRegion=(self,region)->.ImplicitRegionCheck(region),
+    RefineRegion=(self,region,options ?= {= })->.ImplicitRegionRefine(region,options),
+    ImplicitSlice=(self,expression,variables,slice,box,options ?= {= })->NDImplicitSlice(expression,variables,slice,box,options),
+    ProjectRegion=(self,region,projection)->NDProjectRegion(region,projection),
+    RegionScene=(self,projected,options ?= {= })->NDRegionScene(projected,options),
+    LinkedRegions=(self,region,projections,options ?= {= })->NDLinkedRegions(region,projections,options),
     Point=(self,coordinates,options ?= {= })->NDPoint(coordinates,options),
     Polyline=(self,points,options ?= {= })->NDPolyline(points,options),
     Polytope=(self,vertices,edges ?= _,options ?= {= })->NDPolytope(vertices,edges,options),

@@ -1,0 +1,11 @@
+## Two affine views of one bounded four-dimensional whole-box cover.
+.Plugin.Load("nd");
+.Plugin.Load("calculus");
+x := .calculus.Variable(:x); y := .calculus.Variable(:y);
+z := .calculus.Variable(:z); w := .calculus.Variable(:w);
+region := .nd.ImplicitRegion(x^2+y^2+z^2+w^2-1,
+    {= x=(-1):1,y=(-1):1,z=(-1):1,w=(-1):1 },
+    {= maxCells=7,maxDepth=3 });
+.nd.LinkedRegions(region,
+    [.nd.CoordinateProjection(4,[1,2,3]),.nd.CoordinateProjection(4,[1,3,4])],
+    {= maxVisibleCells=3,size=[320,240],gap=24,legendOffset=[0,94] });

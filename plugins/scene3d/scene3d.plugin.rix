@@ -3,12 +3,12 @@ id: scene3d
 description: Pure-RiX exact retained 3D scenes, explicit realization and projection, and portable Graphics snapshots.
 kind: rix
 mount: scene3d
-exports: [Scene, Group, Transform, ClipPlane, Clip, Mesh, Polyline, PointCloud, ParametricCurve, ParametricSurface, Axes, Annotation, AnnotationPolicy, Interaction, Material, AmbientLight, DirectionalLight, PointLight, PerspectiveCamera, OrthographicCamera, OrbitCamera, Realize, Project, Snapshot]
+exports: [Trajectory, EventTrajectory, RegionView, ImplicitSurface, Volume, VolumeView, Slice, CellBox, UnitQuaternion, QuaternionBlend, QuaternionTransform, LinkedViews, Scene, Group, Transform, ClipPlane, Clip, Mesh, Polyline, PointCloud, ParametricCurve, ParametricSurface, Axes, Annotation, AnnotationPolicy, Interaction, Material, AmbientLight, DirectionalLight, PointLight, PerspectiveCamera, OrthographicCamera, OrbitCamera, Realize, Project, Snapshot]
 groups: [Scene3D, Graphics, Exact]
 permissions: []
-requires: [rix.numerics@1]
-provides: [rix.scene3d@1, rix.scene3d.realized@1, rix.scene3d.projected@1, rix.scene3d.snapshot@1, rix.scene3d.orbit@1, rix.scene3d.interaction@1, rix.scene3d.annotation-policy@1, rix.scene3d.surface-sampling@1, rix.scene3d.clip-plane@1, rix.scene3d.material@1]
-schemas: [rix.scene3d@1, rix.scene3d.realized@1, rix.scene3d.projected@1, rix.scene3d.snapshot@1, rix.scene3d.orbit@1, rix.scene3d.interaction@1, rix.scene3d.annotation-policy@1, rix.scene3d.surface-sampling@1, rix.scene3d.clip-plane@1, rix.scene3d.material@1]
+requires: [rix.numerics@2]
+provides: [rix.geometry.implicit-region@1, rix.scene3d.implicit-view@1, rix.scene3d.volume@1, rix.scene3d.volume-slice@1, rix.scene3d.trajectory@1, rix.scene3d.event-overlay@1, rix.scene3d.unit-quaternion@1, rix.scene3d.quaternion-interpolation@1, rix.scene3d.quaternion-transform@1, rix.graphics.linked-views@1, rix.scene3d@1, rix.scene3d.realized@1, rix.scene3d.projected@1, rix.scene3d.snapshot@1, rix.scene3d.orbit@1, rix.scene3d.interaction@1, rix.scene3d.annotation-policy@1, rix.scene3d.surface-sampling@1, rix.scene3d.clip-plane@1, rix.scene3d.material@1]
+schemas: [rix.geometry.implicit-region@1, rix.scene3d.implicit-view@1, rix.scene3d.volume@1, rix.scene3d.volume-slice@1, rix.scene3d.trajectory@1, rix.scene3d.event-overlay@1, rix.scene3d.unit-quaternion@1, rix.scene3d.quaternion-interpolation@1, rix.scene3d.quaternion-transform@1, rix.graphics.linked-views@1, rix.scene3d@1, rix.scene3d.realized@1, rix.scene3d.projected@1, rix.scene3d.snapshot@1, rix.scene3d.orbit@1, rix.scene3d.interaction@1, rix.scene3d.annotation-policy@1, rix.scene3d.surface-sampling@1, rix.scene3d.clip-plane@1, rix.scene3d.material@1]
 snapshot: true
 deterministic: true
 defaultEnabled: false
@@ -549,32 +549,32 @@ S3MeshSegments(triangles) -> {;
     segments;
 };
 
-S3PrimitiveFields(child,clipPlanes ?= []) -> {=
+S3PrimitiveFields(child,clipPlanes ?= [],transformProvenance ?= []) -> {=
     pickid=S3Option(child,"pickid"),
     label=S3Option(child,"label"),
     metadata=S3Option(child,"metadata"),
     interaction=S3Option(child,"interaction"),
-    annotationPolicy=S3Option(child,"annotationpolicy"),clipPlanes=clipPlanes
+    annotationPolicy=S3Option(child,"annotationpolicy"),clipPlanes=clipPlanes,transformProvenance=transformProvenance
 };
 
-S3Collect(children, parent, clipPlanes ?= []) -> {;
+S3Collect(children, parent, clipPlanes ?= [],transformProvenance ?= []) -> {;
     result := [];
     {@ index = 1; index <= @children.Len(); {;
         child = @children[index];
         kind = child[:kind];
         kind == :group
-          ?: {; @result ~= @result.Concat(S3Collect(@child[:children], @parent, @clipPlanes)); }
+          ?: {; @result ~= @result.Concat(S3Collect(@child[:children], @parent, @clipPlanes,@transformProvenance)); }
           ?_ kind == :transform
-               ?: {; @result ~= @result.Concat(S3Collect(@child[:children], S3Multiply4(@parent, @child[:matrix]), @clipPlanes)); }
+               ?: {; @result ~= @result.Concat(S3Collect(@child[:children], S3Multiply4(@parent, @child[:matrix]), @clipPlanes,@transformProvenance.Push({= matrix=@child[:matrix],metadata=@child[:metadata] }))); }
                ?_ kind == :clip
-                    ?: {; @result ~= @result.Concat(S3Collect(@child[:children],@parent,@clipPlanes.Concat(@child[:planes]))); }
+                    ?: {; @result ~= @result.Concat(S3Collect(@child[:children],@parent,@clipPlanes.Concat(@child[:planes]),@transformProvenance)); }
                ?_ kind == :mesh
                     ?: {;
                         points = @child[:vertices].Map((point) -> S3TransformPoint(@parent, point));
                         @result ~= @result.Push(.DeepMutable({=
                             kind=:mesh, points=points, segments=S3MeshSegments(@child[:triangles]),
                             triangles=@child[:triangles], style=@child[:style]
-                        }.Merge(S3PrimitiveFields(@child,@clipPlanes)), _));
+                        }.Merge(S3PrimitiveFields(@child,@clipPlanes,@transformProvenance)), _));
                     }
                     ?_ kind == :polyline
                          ?: {;
@@ -584,18 +584,18 @@ S3Collect(children, parent, clipPlanes ?= []) -> {;
                                  @segments ~= @segments.Push([pointIndex, pointIndex+1]);
                              }; pointIndex += 1 };
                              (@child[:closed]==1 && points.Len() > 2) ?: {; @segments ~= @segments.Push([@points.Len(),1]); } ?_ _;
-                             @result ~= @result.Push(.DeepMutable({= kind=:lines, points=points, segments=segments, style=@child[:style] }.Merge(S3PrimitiveFields(@child,@clipPlanes)), _));
+                             @result ~= @result.Push(.DeepMutable({= kind=:lines, points=points, segments=segments, style=@child[:style] }.Merge(S3PrimitiveFields(@child,@clipPlanes,@transformProvenance)), _));
                          }
                          ?_ kind == :point_cloud
                               ?: {; @result ~= @result.Push(.DeepMutable({=
                                   kind=:points, points=@child[:points].Map((point) -> S3TransformPoint(@parent, point)),
                                   radius=@child[:radius], style=@child[:style]
-                              }.Merge(S3PrimitiveFields(@child,@clipPlanes)), _)); }
+                              }.Merge(S3PrimitiveFields(@child,@clipPlanes,@transformProvenance)), _)); }
                               ?_ kind == :annotation
                                    ?: {; @result ~= @result.Push(.DeepMutable({=
                                        kind=:annotation,points=[S3TransformPoint(@parent,@child[:position])],
                                        text=@child[:text],style=@child[:style]
-                                   }.Merge(S3PrimitiveFields(@child,@clipPlanes)),_)); }
+                                   }.Merge(S3PrimitiveFields(@child,@clipPlanes,@transformProvenance)),_)); }
                               ?_ ((kind == :material || kind == :camera || kind == :clip_plane)
                                   ?: _
                                   ?_ .Error(@"Unsupported Scene3D node '@{kind}'"));
@@ -724,7 +724,7 @@ S3Picking(primitives) -> {;
         id != _ ?: {;
             @result.Has(@id) ?: .Error(@"Duplicate Scene3D picking id '@{@id}'") ?_ _;
             @result ~= @result.Set(@id,{=
-                primitive=@index,kind=@primitive[:kind],label=@primitive[:label],interaction=@primitive[:interaction]
+                primitive=@index,kind=@primitive[:kind],label=@primitive[:label],interaction=@primitive[:interaction],metadata=@primitive[:metadata],transformProvenance=@primitive[:transformProvenance]
             });
         } ?_ _;
     }; index+=1 };
@@ -862,7 +862,9 @@ S3HexByte(value) -> {;
 };
 
 S3LitColor(style, triangle, lights) -> {;
-    normal = S3Normalize(S3Cross(S3Subtract(triangle[2],triangle[1]),S3Subtract(triangle[3],triangle[1])), "Scene3D triangle");
+    cross=S3Cross(S3Subtract(triangle[2],triangle[1]),S3Subtract(triangle[3],triangle[1]));
+    S3Dot(cross,cross)>0 ?_> style[:color];
+    normal = S3Normalize(cross, "Scene3D triangle");
     center = [1,2,3].Map((coordinate) -> (triangle[1][coordinate]+triangle[2][coordinate]+triangle[3][coordinate])/3);
     illumination := [0,0,0];
     active = lights.Len()>0 ?: lights ?_ [S3AmbientLight()];
@@ -884,7 +886,7 @@ S3LitColor(style, triangle, lights) -> {;
 
 S3ProjectedFields(primitive, sourcePrimitive) -> {=
     pickid=primitive[:pickid],label=primitive[:label],sourcePrimitive=sourcePrimitive,
-    metadata=primitive[:metadata],interaction=primitive[:interaction],annotationPolicy=primitive[:annotationPolicy]
+    metadata=primitive[:metadata],interaction=primitive[:interaction],annotationPolicy=primitive[:annotationPolicy],transformProvenance=primitive[:transformProvenance]
 };
 
 S3ProjectedPicking(primitives) -> {;
@@ -896,7 +898,7 @@ S3ProjectedPicking(primitives) -> {;
             existing = @result.Has(@id) ?: @result[@id] ?_ {= indices=[],kind=@primitive[:kind],label=@primitive[:label] };
             @result ~= @result.Set(@id,existing.Merge({=
                 indices=existing[:indices].Push(@index),
-                interaction=@primitive[:interaction]
+                interaction=@primitive[:interaction],metadata=@primitive[:metadata],transformProvenance=@primitive[:transformProvenance]
             }));
         } ?_ _;
     }; index+=1 };
@@ -1002,17 +1004,21 @@ S3Project(scene, options ?= {= }) -> {;
     }, _);
 };
 
+S3SnapshotStyle(primitive,fill ?= _,color ?= _)->{;
+    style=S3StyleMap(primitive[:style],fill,color);
+    primitive[:pickid]==_ ?: style ?_ style.Merge({= hitId=primitive[:pickid] });
+};
 S3Snapshot(scene, options ?= {= }) -> {;
     projected=S3Project(scene,options);
     children := [];
     {@ index=1; index<=@projected[:primitives].Len(); {;
         primitive=@projected[:primitives][index];
         primitive[:kind]==:face
-          ?: {; color=S3LitColor(@primitive[:style],@primitive[:worldPoints],@scene[:lights]); @children ~= @children.Push(.Graphics.Path(@primitive[:points],S3StyleMap(@primitive[:style],1,color))); }
+          ?: {; color=S3LitColor(@primitive[:style],@primitive[:worldPoints],@scene[:lights]); @children ~= @children.Push(.Graphics.Path(@primitive[:points],S3SnapshotStyle(@primitive,1,color))); }
           ?_ primitive[:kind]==:segment
-               ?: {; @children ~= @children.Push(.Graphics.Path(@primitive[:points],S3StyleMap(@primitive[:style]))); }
+               ?: {; @children ~= @children.Push(.Graphics.Path(@primitive[:points],S3SnapshotStyle(@primitive))); }
                ?_ primitive[:kind]==:point
-                    ?: {; @children ~= @children.Push(.Graphics.Circle(@primitive[:point],@primitive[:radius],S3StyleMap(@primitive[:style],1))); }
+                    ?: {; @children ~= @children.Push(.Graphics.Circle(@primitive[:point],@primitive[:radius],S3SnapshotStyle(@primitive,1))); }
                     ?_ primitive[:kind]==:annotation
                          ?: {;
                              policy=@primitive[:annotationpolicy];
@@ -1022,25 +1028,191 @@ S3Snapshot(scene, options ?= {= }) -> {;
                                  }));
                              } ?_ _;
                              @children ~= @children.Push(.Graphics.Text(@primitive[:point],@primitive[:text],{=
-                                 fill=@primitive[:style][:color],size=@primitive[:style][:size],anchor=@primitive[:style][:anchor],weight=@primitive[:style][:weight]
+                                 fill=@primitive[:style][:color],size=@primitive[:style][:size],anchor=@primitive[:style][:anchor],weight=@primitive[:style][:weight],hitId=@primitive[:pickid]
                              }));
                          }
                     ?_ _;
     }; index+=1 };
+    retainedPicking=scene[:realized][:picking];
+    retainedPicking.Reduce((ignored,pick,id)->projected[:picking].Has(id) ?: _ ?_ {;
+        @children~=@children.Push(.Graphics.Group([],{= hitId=@id },{= sourcePicking=@pick,visibility=:outsideProjection }));
+    },_);
     diagnostic=(projected[:mode]=="wireframe"&&scene[:lights].Len()>0)
       ?: [{= level="info",code="scene3d-wireframe-ignores-lights",message="Wireframe snapshots do not evaluate Scene3D lights." }]
       ?_ [];
+    metadata=S3Option(scene,"metadata",{= });metadata=metadata==_ ?: {= } ?_ metadata;
+    uncertainty=S3Option(metadata,"uncertainty",[]).Concat(S3Option(metadata,"omitted",[]).Map((record)->{= classification=:displayOmission,source=record }));
+    uncertainty.Len()>0 ?: {; @diagnostic~=@diagnostic.Push({= level="warning",code="scene3d-unresolved-source",message="This view retains unresolved source regions; projection adds no mathematical certificate." }); } ?_ _;
     {=
         type="scene3d_snapshot", schema="rix.scene3d.snapshot@1",
-        value=.Graphics.Graphic(projected[:size],children,{= schema="rix.graphics@1",source="rix.scene3d@1",mode=projected[:mode] }),
-        resolved=1, uncertainty=[], work=projected[:work],
+        value=.Graphics.Graphic(projected[:size],children,{= schema="rix.graphics@1",source="rix.scene3d@1",mode=projected[:mode],sceneMetadata=metadata,picking=projected[:picking],retainedPicking=retainedPicking,uncertainty=uncertainty,projectionAddsCertification=_ }),
+        resolved=uncertainty.Len()==0, uncertainty=uncertainty, work=projected[:work],
         source={= schema="rix.scene3d@1",projection=projected[:camera][:projection],mode=projected[:mode],approximation=projected[:approximation] },
         diagnostics=diagnostic, picking=projected[:picking], projected=projected
     };
 };
 
+## Certified source adapters retain whole enclosures; projection adds no certificate.
+S3Limit(value,label,maximum ?= 1024) -> {; count=S3Integer(value,label);count>=1&&count<=maximum ?_> .Error(@"@{label} is outside the work budget");count; };
+S3Interval(value)-> value ? :RationalInterval ?: value ?_ {; exact=S3Exact(@value,"Scene3D enclosure");exact:exact; };
+S3BoxMesh(bounds,options ?= {= })->{;
+    bounds.Len()==3 ?_> .Error("Scene3D CellBox requires three intervals");
+    ranges=bounds.Map((value)->S3Interval(value));.ValidatedClaimEqual(ranges,ranges);vertices:=[];
+    {@ corner=0;corner<8;{;
+        @vertices~=@vertices.Push([1,2,3].Map((axis)->(corner//(2^(axis-1)))%2==0 ?: @ranges[axis].Low() ?_ @ranges[axis].High()));
+    };corner+=1};
+    S3Mesh(vertices,[[1,2,4],[1,4,3],[5,7,8],[5,8,6],[1,5,6],[1,6,2],[3,4,8],[3,8,7],[1,3,7],[1,7,5],[2,6,8],[2,8,4]],options);
+};
+S3BoundsHull(boxes)->[1,2,3].Map((axis)->boxes.Reduce((range,bounds)->.Min(range.Low(),bounds[@axis].Low()):.Max(range.High(),bounds[@axis].High()),boxes[1][axis]));
+S3RegionView(region,options ?= {= })->{;
+    .ImplicitRegionCheck(region)[:accepted]==1 ?_> .Error("Scene3D region evidence must replay before viewing");
+    region[:variables].Len()==3 ?_> .Error("Scene3D region view requires three explicit coordinates");
+    maximum=S3Limit(S3Option(options,"maxvisiblecells",64),"Scene3D maxVisibleCells",256);
+    id=S3Option(options,"id","region");
+    leaves=region[:inside].Concat(region[:unresolved]);
+    showExcluded=S3Option(options,"showexcluded",_);leaves=showExcluded ?: leaves.Concat(region[:excluded]) ?_ leaves;
+    children:=[];records:=[];omitted:=[];
+    {@ index=1;index<=@leaves.Len();{;
+        leaf=@leaves[index];bounds=@region[:variables].Map((name)->leaf[:box][:axes][name].ToRationalInterval());
+        semantic=@"@{@id}.@{leaf[:id]}";classification=leaf[:classification];
+        record={= id=semantic,sourceId=leaf[:id],bounds=bounds,classification=classification,certified=S3Option(leaf,"certified",_),sourceAddsRootExistence=_,topology=:unproved };
+        @records~=@records.Push(record);
+        index<=@maximum ?: {;
+            color=@classification==:inside ?: "#047857" ?_ (@classification==:excluded ?: "#cbd5e1" ?_ "#d97706");
+            @children~=@children.Push(S3BoxMesh(@bounds,{= id=@semantic,color=color,opacity=1/4,label=@"@{@classification}: @{@leaf[:id]}",metadata=@record,
+                interaction=S3InteractionPolicy({= events=["select"],selection="single",payload=@record }) }));
+        } ?_ {; @omitted~=@omitted.Push(@record); };
+    };index+=1};
+    omitted.Len()>0 ?: {;
+        hull=S3BoundsHull(@omitted.Map((record)->record[:bounds]));
+        @children~=@children.Push(S3BoxMesh(hull,{= id=@"@{@id}.omitted",color="#64748b",opacity=1/5,
+            label=@"Conservative cover of @{@omitted.Len()} omitted cells",metadata={= classification=:omittedCover,records=@omitted,bounds=hull,certified=1 } }));
+    } ?_ _;
+    rootBounds=region[:variables].Map((name)->region[:inputBox][:axes][name].ToRationalInterval());
+    children~=children.Push(S3Annotation(rootBounds.Map((range)->range.High()),"Green: inside; amber: unresolved; gray: omitted cover",{= id=@"@{id}.legend",size=11,policy=S3AnnotationPolicy({= offset=S3Option(options,"legendoffset",[0,0]) }) }));
+    metadata={= schema="rix.scene3d.implicit-view@1",source=region,records=records,uncertainty=region[:unresolved],
+        unresolvedCount=region[:unresolved].Len(),omitted=omitted,displayAddsCertification=_,topology=:unproved,
+        work={= visibleCells=.Min(maximum,leaves.Len()),maxVisibleCells=maximum,omittedCells=omitted.Len(),triangles=12*(.Min(maximum,leaves.Len())+(omitted.Len()>0 ?: 1 ?_ 0)) } };
+    S3Scene(children,options.Merge({= metadata=metadata }));
+};
+S3ImplicitSurface(expression,box,options ?= {= })->S3RegionView(.ImplicitRegion(expression,box,options.Merge({= relation=:eq })),options);
+S3Volume(expression,box,options ?= {= })->{;
+    region=.ImplicitRegion(expression,box,options.Merge({= relation=S3Option(options,"relation",:le) }));
+    region[:variables].Len()==3 ?_> .Error("Scene3D Volume requires three coordinates");
+    .ImmutableValue({= schema="rix.scene3d.volume@1",region=region,interpretation=:implicitSetCover,topology=:unproved });
+};
+S3VolumeView(volume,options ?= {= })->{;
+    volume[:schema]=="rix.scene3d.volume@1" ?_> .Error("Scene3D VolumeView requires a volume record");S3RegionView(volume[:region],options);
+};
+S3VolumeSlice(volume,axis,coordinate,options ?= {= })->{;
+    volume[:schema]=="rix.scene3d.volume@1" ?_> .Error("Scene3D Slice requires a volume record");
+    region=volume[:region];.ImplicitRegionCheck(region)[:accepted]==1 ?_> .Error("Scene3D volume evidence changed");
+    region[:variables].Includes(axis) ?_> .Error("Scene3D slice axis is not a volume coordinate");
+    value=S3Exact(coordinate,"Scene3D slice coordinate");range=region[:inputBox][:axes][axis].ToRationalInterval();
+    value>=range.Low()&&value<=range.High() ?_> .Error("Scene3D slice coordinate is outside the original volume");
+    source=region[:inputBox][:axes].Set(axis,value:value);settings=region[:evidence][:options].Merge(options);
+    sliced=.ImplicitRegion(region[:evidence][:expression],source,settings);
+    .ImmutableValue({= schema="rix.scene3d.volume-slice@1",source=volume,axis=axis,coordinate=value,region=sliced,interpretation=:coordinateSection,projection=_ });
+};
+S3TrajectoryAxes(solution,options)->{;
+    dimension=solution[:stateNames].Len();fallback=dimension>=3 ?: [1,2,3] ?_ (dimension==2 ?: [0,1,2] ?_ [0,1,_]);
+    axes=S3Option(options,"axes",fallback);axes.Len()==3 ?_> .Error("Scene3D trajectory axes must have three entries");
+    axes.Map((axis)->axis==_ ?: _ ?_ {; exact=S3Integer(@axis,"Scene3D trajectory axis");exact>=0&&exact<=@dimension ?_> .Error("Scene3D trajectory axis is out of range");exact; });
+};
+S3TrajectoryBounds(segment,axes)->axes.Map((axis)->axis==_ ?: (0:0) ?_ (axis==0 ?: segment[:tStart]:segment[:tEnd] ?_ segment[:tube][axis]));
+S3TrajectoryPoint(time,state,axes)->axes.Map((axis)->axis==_ ?: 0 ?_ (axis==0 ?: time ?_ state[axis]));
+S3Trajectory(solution,options ?= {= },events ?= [])->{;
+    solution[:schema]=="rix.ode.solution@1" ?_> .Error("Scene3D Trajectory requires an ODE solution");
+    .ValidatedClaimEqual(solution,solution);.ValidatedClaimEqual(events,events);axes=S3TrajectoryAxes(solution,options);
+    maximum=S3Limit(S3Option(options,"maxsegments",128),"Scene3D maxSegments",1024);
+    id=S3Option(options,"id","trajectory");children:=[];records:=[];uncertainty:=[];omitted:=[];
+    {@ index=1;index<=@solution[:segments].Len();{;
+        segment=@solution[:segments][index];semantic=@"@{@id}.segment.@{index}";
+        certified=segment[:certified]==1;approximate=segment[:segmentKind]==:approximate;
+        classification=certified ?: :certifiedTube ?_ (approximate ?: :approximatePath ?_ :unresolvedTrajectory);
+        record={= id=semantic,sourceIndex=index,classification=classification,certified=certified,interval=segment[:tStart]:segment[:tEnd],axes=@axes,displayAddsCertification=_ };
+        @records~=@records.Push(record);
+        index<=@maximum ?: {;
+            @certified ?: {;
+                bounds=S3TrajectoryBounds(@segment,@axes);
+                @children~=@children.Push(S3BoxMesh(bounds,{= id=@semantic,color="#047857",opacity=1/4,label=@"Certified source tube @{@index}",metadata=@record.Merge({= bounds=bounds }) }));
+            } ?_ (@approximate ?: {;
+                points=[S3TrajectoryPoint(@segment[:tStart],@segment[:stateStart],@axes),S3TrajectoryPoint(@segment[:tEnd],@segment[:stateEnd],@axes)];
+                @children~=@children.Push(S3Polyline(points,{= id=@semantic,color="#7c3aed",width=2,label=@"Approximate source segment @{@index}",metadata=@record }));
+            } ?_ {; @uncertainty~=@uncertainty.Push(@record); });
+        } ?_ {; @omitted~=@omitted.Push(@record);@uncertainty~=@uncertainty.Push(@record); };
+    };index+=1};
+    solution[:status]==:partial ?: {; @uncertainty~=@uncertainty.Push({= classification=:unresolvedTimeSuffix,interval=@solution[:coveredInterval].End():@solution[:interval].End(),spatialBound=_ }); } ?_ _;
+    eventCount=events.Reduce((count,event)->count+event[:candidates].Len(),0);
+    eventMaximum=S3Limit(S3Option(options,"maxevents",128),"Scene3D maxEvents",1024);eventCount<=eventMaximum ?_> .Error("Scene3D event overlay budget exceeded; retain event record or increase maxEvents");
+    events.Reduce((ignored,event)->{;
+        .ValidatedClaimEqual(event[:solution],@solution) ?_> .Error("Scene3D event source does not match trajectory");
+        event[:candidates].Reduce((ignored,candidate,index)->{;
+            sourceIndex=candidate[:segment];segment=@solution[:segments][sourceIndex];
+            metadata={= schema="rix.scene3d.event-overlay@1",event=candidate,sourceIndex=sourceIndex,axes=@axes,displayAddsCertification=_ };
+            semantic=@"@{@id}.event.@{@event[:event][:name]}.@{index}";
+            segment[:certified]==1 ?: {;
+                @children~=@children.Push(S3BoxMesh(S3TrajectoryBounds(@segment,@axes),{= id=@semantic,color="#be123c",opacity=1/3,label=@"Event source enclosure @{@index}",metadata=@metadata }));
+            } ?_ {;
+                point=S3TrajectoryPoint(@segment[:tStart],@segment[:stateStart],@axes);
+                @children~=@children.Push(S3Annotation(point,"Observed event candidate",{= id=@semantic,color="#be123c",metadata=@metadata }));
+            };ignored;
+        },_);ignored;
+    },_);
+    uncertainty.Len()>0 ?: {;
+        point=S3TrajectoryPoint(@solution[:problem][:initialTime],@solution[:problem][:initialState].Map((range)->range.Low()),@axes);
+        @children~=@children.Push(S3Annotation(point,@"Unresolved or omitted trajectory regions: @{@uncertainty.Len()}",{= id=@"@{@id}.unresolved",color="#b91c1c",metadata={= uncertainty=@uncertainty } }));
+    } ?_ _;
+    S3Scene(children,options.Merge({= metadata={= schema="rix.scene3d.trajectory@1",source=solution,axes=axes,records=records,uncertainty=uncertainty,
+        unresolvedCount=uncertainty.Len(),omitted=omitted,events=events,work={= maxSegments=maximum,retained=.Min(maximum,solution[:segments].Len()) },displayAddsCertification=_ } }));
+};
+S3EventTrajectory(result,options ?= {= })->{;
+    result[:schema]=="rix.ode.event-result@1" ?_> .Error("Scene3D EventTrajectory requires an ODE event result");S3Trajectory(result[:solution],options,[result]);
+};
+S3UnitQuaternion(value)->{;
+    components=value ? :Array ?: value ?_ value[:components];
+    components.Len()==4 ?_> .Error("Scene3D unit quaternion requires four scalar components");
+    exact=components.Map((entry)->S3Exact(entry,"Scene3D quaternion component"));
+    .ValidatedClaimEqual(exact,exact);
+    norm=exact.Reduce((sum,entry)->sum+entry^2,0);norm==1 ?_> .Error("Scene3D rotation quaternion must have exact unit norm");
+    .ImmutableValue({= schema="rix.scene3d.unit-quaternion@1",components=exact,normSquared=norm,certified=1,evidence=:exactSumOfFourSquares });
+};
+S3QuaternionProduct(a,b)->[
+    a[1]*b[1]-a[2]*b[2]-a[3]*b[3]-a[4]*b[4],a[1]*b[2]+a[2]*b[1]+a[3]*b[4]-a[4]*b[3],
+    a[1]*b[3]-a[2]*b[4]+a[3]*b[1]+a[4]*b[2],a[1]*b[4]+a[2]*b[3]-a[3]*b[2]+a[4]*b[1]
+];
+S3QuaternionBlend(first,last,parameter)->{;
+    a=S3UnitQuaternion(first)[:components];b=S3UnitQuaternion(last)[:components];t=S3Exact(parameter,"Scene3D quaternion parameter");
+    t>=0&&t<=1 ?_> .Error("Scene3D quaternion parameter must be in zero through one");
+    relative=S3QuaternionProduct([a[1],-a[2],-a[3],-a[4]],b);
+    relative[1]!=-1 ?_> .ImmutableValue({= schema="rix.scene3d.quaternion-interpolation@1",status=:unsupported,reason=:antipodalCayleyPole,first=a,last=b,parameter=t,certified=_ });
+    vector=relative.Slice(2).Map((entry)->entry/(1+relative[1]));scaled=vector.Map((entry)->t*entry);square=scaled.Reduce((sum,entry)->sum+entry^2,0);
+    cayley=[(1-square)/(1+square)].Concat(scaled.Map((entry)->2*entry/(1+square)));
+    result=S3UnitQuaternion(S3QuaternionProduct(a,cayley));
+    .ImmutableValue({= schema="rix.scene3d.quaternion-interpolation@1",status=:exact,method=:rationalCayley,constantAngularSpeed=_,first=a,last=b,parameter=t,
+        quaternion=result,components=result[:components],certified=1,evidence={= relative=relative,cayleyVector=vector,denominator=1+square,normSquared=result[:normSquared] } });
+};
+S3QuaternionTransform(children,quaternion,options ?= {= })->{;
+    unit=S3UnitQuaternion(quaternion);q=unit[:components];w=q[1];x=q[2];y=q[3];z=q[4];
+    matrix=[1-2*(y^2+z^2),2*(x*y-z*w),2*(x*z+y*w),0,2*(x*y+z*w),1-2*(x^2+z^2),2*(y*z-x*w),0,2*(x*z-y*w),2*(y*z+x*w),1-2*(x^2+y^2),0,0,0,0,1];
+    S3Option(options,"scale")==_&&S3Option(options,"matrix")==_ ?_> .Error("QuaternionTransform does not accept a second matrix or scale");
+    S3Transform(children,options.Merge({= matrix=matrix,metadata={= schema="rix.scene3d.quaternion-transform@1",unitQuaternion=unit,certified=1,meaning=:exactRigidTransform } }));
+};
+
 scene3dNamespace={= };
 scene3dNamespace._proto={=
+    Trajectory=(self,solution,options ?= {= })->S3Trajectory(solution,options),
+    EventTrajectory=(self,result,options ?= {= })->S3EventTrajectory(result,options),
+    RegionView=(self,region,options ?= {= })->S3RegionView(region,options),
+    ImplicitSurface=(self,expression,box,options ?= {= })->S3ImplicitSurface(expression,box,options),
+    Volume=(self,expression,box,options ?= {= })->S3Volume(expression,box,options),
+    VolumeView=(self,volume,options ?= {= })->S3VolumeView(volume,options),
+    Slice=(self,volume,axis,coordinate,options ?= {= })->S3VolumeSlice(volume,axis,coordinate,options),
+    CellBox=(self,bounds,options ?= {= })->S3BoxMesh(bounds,options),
+    UnitQuaternion=(self,value)->S3UnitQuaternion(value),
+    QuaternionBlend=(self,first,last,parameter)->S3QuaternionBlend(first,last,parameter),
+    QuaternionTransform=(self,children,quaternion,options ?= {= })->S3QuaternionTransform(children,quaternion,options),
+    LinkedViews=(self,views,groups,options ?= {= })->.LinkedViews(views.Map((value)->S3IsScene(value) ?: S3Snapshot(value,options) ?_ value),groups,options),
     Scene=(self,children,options ?= {= })->S3Scene(children,options),
     Group=(self,children,options ?= {= })->S3Group(children,options),
     Transform=(self,children,options ?= {= })->S3Transform(children,options),

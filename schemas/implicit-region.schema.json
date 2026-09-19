@@ -1,0 +1,284 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RiX bounded checked implicit set cover v1",
+  "type": "object",
+  "description": "Normalized native record; exact mathematical values keep their established representations. RiX field names are case insensitive. Leaves cover the full original domain, with closed overlap on split faces. Replay is authoritative; schema validation alone is not proof checking.",
+  "required": [
+    "schema",
+    "valueKind",
+    "status",
+    "certified",
+    "inputBox",
+    "variables",
+    "relation",
+    "level",
+    "transformedExpression",
+    "coverage",
+    "boundaryPolicy",
+    "topology",
+    "work",
+    "evidence",
+    "inside",
+    "excluded",
+    "unresolved",
+    "pending",
+    "nodes"
+  ],
+  "properties": {
+    "schema": {
+      "const": "rix.geometry.implicit-region@1"
+    },
+    "valueKind": {
+      "const": "implicitRegion"
+    },
+    "status": {
+      "enum": [
+        "complete",
+        "partial",
+        "budgetExhausted"
+      ]
+    },
+    "certified": {
+      "type": "boolean",
+      "description": "Checked enclosure and whole-domain cover validity, not root existence or topology in unresolved or pending cells."
+    },
+    "inputBox": {
+      "$ref": "rational-box.schema.json"
+    },
+    "variables": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "items": {
+        "type": "string"
+      }
+    },
+    "relation": {
+      "enum": [
+        "eq",
+        "le",
+        "ge"
+      ]
+    },
+    "level": {},
+    "transformedExpression": {},
+    "coverage": {
+      "const": "completeInputCover"
+    },
+    "boundaryPolicy": {
+      "const": "closedOverlap"
+    },
+    "topology": {
+      "const": "unproved"
+    },
+    "work": {
+      "type": "object",
+      "required": [
+        "processed",
+        "attempted",
+        "graphEvaluations",
+        "maxCells",
+        "maxDepth",
+        "maxWidth",
+        "maxEvidenceText",
+        "outputExhausted",
+        "exhausted"
+      ]
+    },
+    "evidence": {
+      "type": "object",
+      "required": [
+        "kind",
+        "checker",
+        "expression",
+        "source",
+        "options",
+        "conventions"
+      ],
+      "properties": {
+        "kind": {
+          "const": "implicitRegion"
+        },
+        "checker": {
+          "const": "rix.runtime.implicit-region-checker@1"
+        }
+      }
+    },
+    "inside": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "box",
+          "depth",
+          "classification"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^r(?:\\.[01])*$"
+          },
+          "box": {
+            "$ref": "rational-box.schema.json"
+          },
+          "depth": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 64
+          },
+          "classification": {
+            "enum": [
+              "inside",
+              "excluded",
+              "boundaryUnknown",
+              "domainOrRangeUnknown",
+              "unprocessed"
+            ]
+          }
+        }
+      }
+    },
+    "excluded": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "box",
+          "depth",
+          "classification"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^r(?:\\.[01])*$"
+          },
+          "box": {
+            "$ref": "rational-box.schema.json"
+          },
+          "depth": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 64
+          },
+          "classification": {
+            "enum": [
+              "inside",
+              "excluded",
+              "boundaryUnknown",
+              "domainOrRangeUnknown",
+              "unprocessed"
+            ]
+          }
+        }
+      }
+    },
+    "unresolved": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "box",
+          "depth",
+          "classification"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^r(?:\\.[01])*$"
+          },
+          "box": {
+            "$ref": "rational-box.schema.json"
+          },
+          "depth": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 64
+          },
+          "classification": {
+            "enum": [
+              "inside",
+              "excluded",
+              "boundaryUnknown",
+              "domainOrRangeUnknown",
+              "unprocessed"
+            ]
+          }
+        }
+      }
+    },
+    "pending": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "box",
+          "depth",
+          "classification"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^r(?:\\.[01])*$"
+          },
+          "box": {
+            "$ref": "rational-box.schema.json"
+          },
+          "depth": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 64
+          },
+          "classification": {
+            "enum": [
+              "inside",
+              "excluded",
+              "boundaryUnknown",
+              "domainOrRangeUnknown",
+              "unprocessed"
+            ]
+          }
+        }
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "box",
+          "depth",
+          "classification"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^r(?:\\.[01])*$"
+          },
+          "box": {
+            "$ref": "rational-box.schema.json"
+          },
+          "depth": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 64
+          },
+          "classification": {
+            "enum": [
+              "inside",
+              "excluded",
+              "boundaryUnknown",
+              "domainOrRangeUnknown",
+              "unprocessed"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "additionalProperties": true
+}

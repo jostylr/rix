@@ -1,3 +1,4 @@
+import { portableFrameValue } from "../renderers/static-frames.js";
 import { numericFormatter } from "../../src/runtime/numeric-presentation.js";
 import {
     boolValue,
@@ -198,6 +199,7 @@ function canvasAssets(options) {
 
 export function createCanvasPlan(graphic, format, options = {}) {
     format = numericFormatter(format, graphic?.numericPolicy);
+    const sourceMetadata = portableFrameValue(graphic.metadata);
     const commands = [];
     const diagnostics = [];
     const logicalWidth = numberValue(graphic.size[0], "Graphic width");
@@ -219,6 +221,8 @@ export function createCanvasPlan(graphic, format, options = {}) {
     diagnostics.push(diagnostic("canvas-coordinate-approximation", numericPolicy, "info"));
     return {
         schema: "rix.canvas-plan@1",
+        sourceMetadata,
+        projectionAddsCertification: false,
         phase: 2,
         width: logicalWidth,
         height: logicalHeight,

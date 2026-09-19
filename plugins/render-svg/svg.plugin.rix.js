@@ -6,8 +6,8 @@ mount: svg
 exports: [Render]
 groups: [Renderers]
 permissions: []
-provides: [rix.renderer.svg@1, rix.renderer.svg@2, rix.svg.coordinate-lowering@1, rix.svg.optimization@1, rix.viewport@1, rix.selection@1]
-schemas: [rix.svg.coordinate-lowering@1, rix.svg.optimization@1, rix.viewport@1, rix.selection@1]
+provides: [rix.graphics.source-evidence@1, rix.renderer.svg@1, rix.renderer.svg@2, rix.svg.coordinate-lowering@1, rix.svg.optimization@1, rix.viewport@1, rix.selection@1]
+schemas: [rix.graphics.source-evidence@1, rix.svg.coordinate-lowering@1, rix.svg.optimization@1, rix.viewport@1, rix.selection@1]
 targets: [svg, image/svg+xml]
 snapshot: true
 deterministic: true
@@ -17,6 +17,7 @@ defaultEnabled: false
 import { lowerGraphicSvg } from "../../src/runtime/output.js";
 import { escapeHtml, installRendererPlugin, numberValue, option, outputKind, requireOutput, rixString, unwrapFigure } from "../renderers/common.js";
 import { createSelection, createViewport } from "../renderers/interaction.js";
+import { portableFrameValue } from "../renderers/static-frames.js";
 import { optimizeSvgSource } from "./optimize-svg.js";
 
 export const definition = {
@@ -40,6 +41,7 @@ export const definition = {
         const precision = numberValue(rawPrecision, "SVG coordinate precision");
         const rounding = rixString(option(options, "rounding", "nearest")) || option(options, "rounding", "nearest");
         const fontPolicy = rixString(option(options, "fontPolicy", "system")) || option(options, "fontPolicy", "system");
+        const sourceMetadata = portableFrameValue(unwrapped.value.metadata);
         const lowered = lowerGraphicSvg(unwrapped.value, format, { precision, rounding, fontPolicy });
         const viewport = createViewport(options, numberValue(unwrapped.value.size[0], "SVG width"), numberValue(unwrapped.value.size[1], "SVG height"));
         const selection = createSelection(options);
@@ -48,13 +50,14 @@ export const definition = {
             ? optimizeSvgSource(lowered.content) : null;
         let content = optimized?.content ?? lowered.content;
         content = content.replace("<svg ", `<svg data-rix-viewport="${viewport.schema}" data-rix-selection="${escapeHtml(selection.ids.join(","))}" `);
+        if (unwrapped.value.metadata?.size) content = content.replace(/(<svg [^>]+>)/, (_match, opening) => `${opening}<metadata data-rix-source-evidence="rix.graphics.source-evidence@1">${escapeHtml(JSON.stringify(sourceMetadata))}</metadata>`);
         if (alt) {
             content = content.replace(
                 /<svg ([^>]+)>/,
                 `<svg $1 aria-label="${escapeHtml(alt)}"><title>${escapeHtml(alt)}</title>`,
             );
         }
-        return { content, diagnostics: lowered.diagnostics, metadata: { coordinateLowering: lowered.metadata, viewport, selection, ...(optimized ? { optimization: optimized.metadata } : {}) } };
+        return { content, diagnostics: lowered.diagnostics, metadata: { sourceMetadata, coordinateLowering: lowered.metadata, viewport, selection, ...(optimized ? { optimization: optimized.metadata } : {}) } };
     },
 };
 

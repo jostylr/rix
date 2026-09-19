@@ -82,3 +82,20 @@ family := .nd.ProjectionFamily(3,2,
 
 Every selected projection is dimension-checked and retains the family and
 parameter in its provenance.
+
+## Link projections of a bounded four-dimensional cover
+
+```rix
+.Plugin.Load("nd");
+.Plugin.Load("calculus");
+x := .calculus.Variable(:x); y := .calculus.Variable(:y);
+z := .calculus.Variable(:z); w := .calculus.Variable(:w);
+region := .nd.ImplicitRegion(x^2+y^2+z^2+w^2-1,
+  {= x=(-1):1,y=(-1):1,z=(-1):1,w=(-1):1 },{= maxCells=7 });
+.nd.LinkedRegions(region,[.nd.CoordinateProjection(4,[1,2,3]),.nd.CoordinateProjection(4,[1,3,4])],
+  {= maxVisibleCells=3,size=[280,210],legendOffset=[0,80] });
+```
+
+Selecting a visible cell links its retained source ID in both views. Affine
+projection preserves enclosure evidence while allowing overlap and dependence
+loss. Unresolved cells and the hull of omitted cells remain visible.

@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RiX bounded four-coordinate complex graph samples v1",
+  "type": "object",
+  "description": "Exact input samples and exact outputs or supplied enclosure claims; null output bounds mean unknown position. Sampling does not certify unsampled cells, roots, branches, or graph topology. RiX field names are case insensitive.",
+  "required": [
+    "schema",
+    "coordinates",
+    "samples",
+    "source",
+    "work",
+    "coverage",
+    "unsampledCertified",
+    "topology"
+  ],
+  "properties": {
+    "schema": {
+      "const": "rix.complex-viz.graph4d@1"
+    },
+    "coordinates": {
+      "const": [
+        "reZ",
+        "imZ",
+        "reF",
+        "imF"
+      ]
+    },
+    "samples": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 4096,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "index",
+          "input",
+          "output",
+          "bounds",
+          "status",
+          "exactSample",
+          "sourceEnclosure",
+          "unsampledCertified",
+          "topology"
+        ],
+        "properties": {
+          "status": {
+            "enum": [
+              "value",
+              "enclosure",
+              "pole",
+              "unresolved"
+            ]
+          },
+          "bounds": {
+            "type": "array",
+            "minItems": 4,
+            "maxItems": 4
+          },
+          "topology": {
+            "const": "unproved"
+          }
+        }
+      }
+    },
+    "source": {},
+    "work": {
+      "type": "object",
+      "required": [
+        "evaluations",
+        "maxSamples"
+      ]
+    },
+    "coverage": {
+      "const": "sampledInputsOnly"
+    },
+    "unsampledCertified": {},
+    "topology": {
+      "const": "unproved"
+    }
+  },
+  "additionalProperties": true
+}

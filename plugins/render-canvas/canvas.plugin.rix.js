@@ -14,6 +14,7 @@ deterministic: true
 defaultEnabled: false
 **/
 
+import { portableFrameValue } from "../renderers/static-frames.js";
 import { createCanvasPlan } from "./canvas-plan.js";
 import { field, installRendererPlugin, plainValue, requireOutput, unwrapGraphic } from "../renderers/common.js";
 
@@ -32,8 +33,10 @@ export const definition = {
         if (snapshot) {
             plan.scene3d = {
                 schema: "rix.scene3d.snapshot@1",
-                source: plainValue(field(snapshot, "source")),
-                picking: plainValue(field(snapshot, "picking")),
+                source: portableFrameValue(field(snapshot, "source")),
+                picking: portableFrameValue(field(snapshot, "picking")),
+                uncertainty: portableFrameValue(field(snapshot, "uncertainty")),
+                resolved: plainValue(field(snapshot, "resolved")),
             };
             plan.diagnostics.push({
                 level: "info",

@@ -4,12 +4,12 @@ description: Certified complex coloring, enclosure-aware surfaces, and Riemann-s
 kind: rix
 mount: complexViz
 aliases: [domainColoring]
-exports: [DomainColoring, RationalFunction, Sample, Pole, Unresolved, PhaseSector, MagnitudeBand, Color, CayleyColor, Surface, RiemannSphere]
+exports: [Graph4D, Slice4D, Project4D, Linked4D, DomainColoring, RationalFunction, Sample, Pole, Unresolved, PhaseSector, MagnitudeBand, Color, CayleyColor, Surface, RiemannSphere]
 groups: [Graphics, Exact, Algebra]
 permissions: []
-requires: [rix.complex@2, rix.scene3d@1]
-provides: [rix.complex-visualization@1, rix.complex-visualization@2]
-schemas: [rix.complex-viz.sample@1, rix.complex-viz.domain-coloring@1, rix.complex-viz.cayley-color@1, rix.complex-viz.surface@1, rix.complex-viz.riemann-sphere@1]
+requires: [rix.complex@2, rix.scene3d@1, rix.nd@2]
+provides: [rix.complex-viz.graph4d@1, rix.complex-viz.projected4d@1, rix.complex-visualization@1, rix.complex-visualization@2]
+schemas: [rix.complex-viz.graph4d@1, rix.complex-viz.projected4d@1, rix.complex-viz.sample@1, rix.complex-viz.domain-coloring@1, rix.complex-viz.cayley-color@1, rix.complex-viz.surface@1, rix.complex-viz.riemann-sphere@1]
 snapshot: true
 deterministic: true
 defaultEnabled: false
@@ -157,6 +157,8 @@ CVDomainColoring(spec) -> {;
     resolution = CVOption(spec, "resolution", [32, 32]);
     columns = CVPositiveInteger(resolution[1], "DomainColoring columns");
     rows = CVPositiveInteger(resolution[2], "DomainColoring rows");
+    budget=CVPositiveInteger(CVOption(spec,"maxsamples",4096),"DomainColoring maxSamples");
+    budget<=16384&&rows*columns<=budget ?_> .Error("DomainColoring sample budget exceeded");
     size = CVOption(spec, "size", [360, 360]);
     paletteSpec = CVOption(spec, "colorscale", _);
     cellWidth = size[1] / columns;
@@ -214,6 +216,8 @@ CVSurface(spec) -> {;
     fn=spec[:fn]; fn==_ ?: .Error("Surface requires fn") ?_ _;
     domain=CVOption(spec,"domain",{= re=[-2,2],im=[-2,2] }); resolution=CVOption(spec,"resolution",[24,24]);
     columns=CVPositiveInteger(resolution[1],"Surface columns"); rows=CVPositiveInteger(resolution[2],"Surface rows");
+    budget=CVPositiveInteger(CVOption(spec,"maxsamples",4096),"Surface maxSamples");
+    columns>=2&&rows>=2&&budget<=16384&&rows*columns<=budget ?_> .Error("Surface requires two rows/columns within the sample budget");
     kind=CVOption(spec,"height",:magnitudeSquared); re=domain[:re]; im=domain[:im]; reStep=(re[2]-re[1])/(columns-1); imStep=(im[2]-im[1])/(rows-1);
     vertices:=[]; colors:=[]; branchCuts:=[]; unresolved:=0;
     {@ row=1;row<=@rows;{;
@@ -257,8 +261,95 @@ CVRiemannSphere(values,options ?= {= }) -> {;
     });
 };
 
+## A bounded graph sample in (Re z, Im z, Re f, Im f); sampling never proves unsampled behavior.
+CVGraph4D(spec)->{;
+    fn=spec[:fn];fn!=_ ?_> .Error("complexViz.Graph4D requires fn");
+    maximum=CVPositiveInteger(CVOption(spec,"maxsamples",1024),"Graph4D maxSamples");maximum<=4096 ?_> .Error("Graph4D maxSamples exceeds 4096");
+    points:=CVOption(spec,"points",_);domain=CVOption(spec,"domain",{= re=[-1,1],im=[-1,1] });resolution=CVOption(spec,"resolution",[5,5]);
+    points==_ ?: {;
+        columns=CVPositiveInteger(@resolution[1],"Graph4D columns");rows=CVPositiveInteger(@resolution[2],"Graph4D rows");
+        columns>=2&&rows>=2&&columns*rows<=@maximum ?_> .Error("Graph4D grid requires at least two rows/columns within maxSamples");
+        @points~=[];
+        {@ row=1;row<=@rows;{; {@ column=1;column<=@columns;{;
+            @points~=@points.Push([@domain[:re][1]+(column-1)*(@domain[:re][2]-@domain[:re][1])/(@columns-1),@domain[:im][1]+(@row-1)*(@domain[:im][2]-@domain[:im][1])/(@rows-1)]);
+        };column+=1};};row+=1};
+    } ?_ _;
+    points.Len()>=1&&points.Len()<=maximum ?_> .Error("Graph4D sample budget exceeded");
+    inputs=points.Map((point)->{; point.Len()==2 ?_> .Error("Graph4D inputs require two coordinates");point.Map((value)->value ~!: :Rational);});
+    .ValidatedClaimEqual(inputs,inputs);
+    records=inputs.Map((point,index)->{;
+        sample=CVNormalizeSample(.Complex.FromParts(point[1],point[2])|>@fn);status=sample[:status];
+        [:value,:enclosure,:pole,:unresolved].Includes(status) ?_> .Error("Graph4D sample has an unsupported status");
+        output=status==:value ?: [.Complex.Re(sample[:value]) ~!: :Rational,.Complex.Im(sample[:value]) ~!: :Rational]
+          ?_ (status==:enclosure ?: [sample[:enclosure][:realInterval],sample[:enclosure][:imaginaryInterval]] ?_ [_,_]);
+        bounds=point.Map((value)->value:value).Concat(output.Map((value)->value==_ ?: _ ?_ (value ? :RationalInterval ?: value ?_ (value:value))));
+        {= id=@"complex.sample.@{index}",index=index,input=point,output=output,bounds=bounds,status=status,
+            exactSample=status==:value,sourceEnclosure=status==:enclosure ?: sample[:enclosure] ?_ _,
+            branchStatus=CVOption(sample,"branchstatus",_),reason=CVOption(sample,"reason",_),unsampledCertified=_,topology=:unproved };
+    });
+    result=.ImmutableValue({= schema="rix.complex-viz.graph4d@1",coordinates=[:reZ,:imZ,:reF,:imF],samples=records,
+        source={= domain=domain,resolution=resolution,inputSlice=CVOption(spec,"inputslice",_) },
+        work={= evaluations=records.Len(),maxSamples=maximum },coverage=:sampledInputsOnly,unsampledCertified=_,topology=:unproved });
+    .ValidatedClaimEqual(result,result);result;
+};
+CVSlice4D(spec,slice,parameters)->{;
+    slice[:schema]=="rix.nd.slice@1"&&slice[:sourceDimension]==2 ?_> .Error("complexViz.Slice4D requires a two-dimensional input affine slice");
+    parameters.Len()<=CVOption(spec,"maxsamples",1024)&&parameters.Len()<=4096 ?_> .Error("complexViz.Slice4D sample budget exceeded");
+    inputs=parameters.Map((parameter)->.nd.Parameterize(@slice,parameter));
+    CVGraph4D(spec.Merge({= points=inputs,inputSlice={= slice=slice,parameters=parameters,meaning=:sampledInputSection } }));
+};
+CVProjectedBounds(bounds,projection)->{;
+    projection[:matrix].Map((row,index)->{;
+        value:=projection[:offset][index]:projection[:offset][index];known:=1;
+        {@ axis=1;axis<=4;{;
+            @row[axis]!=0 ?: {;
+                @bounds[@axis]==_ ?: {; @known=_; } ?_ {; @value+=@row[@axis]*@bounds[@axis]; };
+            } ?_ _;
+        };axis+=1};known ?: value ?_ _;
+    });
+};
+CVProject4D(graph,projection,options ?= {= })->{;
+    graph[:schema]=="rix.complex-viz.graph4d@1" ?_> .Error("complexViz.Project4D requires Graph4D samples");
+    projection[:schema]=="rix.nd.projection@1"&&projection[:sourceDimension]==4&&(projection[:targetDimension]==2||projection[:targetDimension]==3) ?_> .Error("complexViz.Project4D requires a four-to-two or four-to-three affine projection");
+    .ValidatedClaimEqual(graph,graph);.ValidatedClaimEqual(projection,projection);
+    maximum=CVPositiveInteger(CVOption(options,"maxvisiblesamples",256),"Project4D maxVisibleSamples");maximum<=1024 ?_> .Error("Project4D display budget exceeds 1024");
+    graph[:samples].Len()<=4096 ?_> .Error("Project4D source sample budget exceeded");
+    children:=[];records:=[];uncertainty:=[];omitted:=[];
+    {@ index=1;index<=@graph[:samples].Len();{;
+        sample=@graph[:samples][index];bounds=CVProjectedBounds(sample[:bounds],@projection);
+        known=bounds.All((value)->value!=_);displayBounds=bounds.Len()==2 ?: bounds.Push(0:0) ?_ bounds;
+        record={= id=sample[:id],source=sample,projectedBounds=bounds,known=known,projectionAddsCertification=_ };
+        @records~=@records.Push(record);
+        (sample[:status]!=:value||!known) ?: {; @uncertainty~=@uncertainty.Push(@record); } ?_ _;
+        index<=@maximum ?: {;
+            @known ?: {;
+                point=@displayBounds.All((range)->range.Low()==range.High());
+                color=@sample[:status]==:value ?: "#2563eb" ?_ "#d97706";
+                point ?: {; @children~=@children.Push(.scene3d.PointCloud([@displayBounds.Map((range)->range.Low())],{= id=@sample[:id],radius=CVOption(@options,"radius",1/30),color=@color,metadata=@record,label=@"@{@sample[:status]} source sample" })); }
+                  ?_ {; @children~=@children.Push(.scene3d.CellBox(@displayBounds,{= id=@sample[:id],color=@color,opacity=1/3,metadata=@record,label="Source enclosure at sampled input" })); };
+            } ?_ _;
+        } ?_ {; @omitted~=@omitted.Push(@record); };
+    };index+=1};
+    children~=children.Push(.scene3d.Annotation([0,0,0],@"Finite samples only; @{uncertainty.Len()} uncertain/pole samples, @{omitted.Len()} omitted",{= id="complex.legend",size=11,policy=.scene3d.AnnotationPolicy({= offset=CVOption(options,"legendoffset",[0,0]) }) }));
+    .scene3d.Scene(children,options.Merge({= metadata={= schema="rix.complex-viz.projected4d@1",source=graph,projection=projection,records=records,uncertainty=uncertainty,omitted=omitted,
+        unsampledCertified=_,topology=:unproved,work={= maxVisibleSamples=maximum,sourceSamples=graph[:samples].Len() } } }));
+};
+CVLinked4D(graph,options ?= {= })->{;
+    input=CVProject4D(graph,.nd.CoordinateProjection(4,[1,2]),options);output=CVProject4D(graph,.nd.CoordinateProjection(4,[3,4]),options);
+    maximum=CVOption(options,"maxvisiblesamples",256);groups:=[];
+    {@ index=1;index<=.Min(@maximum,@graph[:samples].Len());{;
+        sample=@graph[:samples][index];
+        (sample[:status]==:value||sample[:status]==:enclosure) ?: {; @groups~=@groups.Push([{= panel=1,id=@sample[:id] },{= panel=2,id=@sample[:id] }]); } ?_ _;
+    };index+=1};
+    .scene3d.LinkedViews([input,output],groups,options);
+};
+
 complexVizNamespace = {= };
 complexVizNamespace._proto = {=
+    Graph4D=(self,spec)->CVGraph4D(spec),
+    Slice4D=(self,spec,slice,parameters)->CVSlice4D(spec,slice,parameters),
+    Project4D=(self,graph,projection,options ?= {= })->CVProject4D(graph,projection,options),
+    Linked4D=(self,graph,options ?= {= })->CVLinked4D(graph,options),
     DomainColoring=(self, spec)->CVDomainColoring(spec),
     RationalFunction=(self, numerator, denominator)->CVRationalFunction(numerator, denominator),
     Sample=(self, value)->CVSample(value),

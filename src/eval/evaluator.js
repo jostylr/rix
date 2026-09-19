@@ -351,6 +351,8 @@ const CORE_SYNTAX_CAPABILITIES = {
     ValidatedClaimEqual: "VALIDATED_CLAIM_EQUAL",
     LogicSequent: "LOGIC_SEQUENT", LogicCheckSequent: "LOGIC_CHECK_SEQUENT", LogicSequentTree: "LOGIC_SEQUENT_TREE",
     LogicExactProposition: "LOGIC_EXACT_PROPOSITION", LogicCheckProposition: "LOGIC_CHECK_PROPOSITION",
+    LinkedViews: "LINKED_VIEWS",
+    ImplicitRegion: "IMPLICIT_REGION", ImplicitRegionCheck: "IMPLICIT_REGION_CHECK", ImplicitRegionRefine: "IMPLICIT_REGION_REFINE",
     ImplicitTrace: "IMPLICIT_TRACE", ImplicitTraceCheck: "IMPLICIT_TRACE_CHECK", ImplicitTraceRefine: "IMPLICIT_TRACE_REFINE",
     MultivariateRangeCheck: "MULTIVARIATE_RANGE_CHECK",
     CalculusRange: "CALCULUS_RANGE", CalculusRangeCheck: "CALCULUS_RANGE_CHECK",

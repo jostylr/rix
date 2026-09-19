@@ -235,3 +235,8 @@ bun bin/rix.js --out=tmp/tesseract-out examples/geometry/tesseract.rix
 This creates `tesseract.svg` from a deterministic wireframe snapshot and
 `tesseract.gltf` from the same retained 3D scene. The corresponding RiX Web
 tutorials run the browser-safe parts directly.
+
+Bounded implicit-region, ODE trajectory/event, ND affine section, linked 4D
+complex-sample, and exact unit-quaternion adapters are documented in
+[validated scene views](validated-scene-views.md). Cell-cover meshes retain
+unknown and omitted regions; they do not assert reconstructed topology.

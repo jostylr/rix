@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RiX affine enclosure of implicit source cells v1",
+  "type": "object",
+  "description": "RiX/native field names are case insensitive. Exact interval images may overlap and lose dependence. The complete checked source and source IDs remain retained.",
+  "required": [
+    "schema",
+    "source",
+    "projection",
+    "dimension",
+    "cells",
+    "certified",
+    "meaning",
+    "possibleOverlap",
+    "projectionAddsRootExistence",
+    "topology"
+  ],
+  "properties": {
+    "schema": {
+      "const": "rix.nd.projected-region@1"
+    },
+    "source": {},
+    "projection": {},
+    "dimension": {
+      "description": "Two/three dimensions for scene display; one through eight for retained projected records."
+    },
+    "cells": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "bounds",
+          "classification",
+          "source",
+          "enclosureCertified",
+          "sourceCertified",
+          "rootExistence",
+          "topology"
+        ]
+      }
+    },
+    "certified": {
+      "description": "Exact affine enclosure validity only."
+    },
+    "meaning": {
+      "const": "affineEnclosureOfSourceCells"
+    },
+    "possibleOverlap": {},
+    "projectionAddsRootExistence": {},
+    "topology": {
+      "const": "unproved"
+    }
+  },
+  "additionalProperties": true
+}

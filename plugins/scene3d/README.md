@@ -34,7 +34,7 @@ deterministic flat Lambert shading and painter's ordering over retained mesh
 triangles. It returns an
 adaptive-result map whose `value` is a core Graphic and whose `work`, `source`,
 `uncertainty`, and `diagnostics` fields make the boundary inspectable. Shadows,
-geometric splitting of triangles that cross retained clip planes, certified hidden-surface removal, implicit surfaces/volumes,
+geometric splitting of triangles that cross retained clip planes, certified hidden-surface removal, reconstructed implicit-surface topology,
 texture, and pointer event handling are not silently approximated; they remain
 future modes or host behavior.
 
@@ -85,3 +85,13 @@ See the [3D/ND guide](../../documentation/eval/scene3d-guide.md), the
 [browser tutorial](tutorial.md), and the runnable
 [`scene3d-studio.rix`](../../examples/geometry/scene3d-studio.rix) and
 [`tesseract.rix`](../../examples/geometry/tesseract.rix) examples.
+
+Bounded source adapters include `Trajectory`, `EventTrajectory`, `RegionView`,
+`ImplicitSurface`, `Volume`, `VolumeView`, `Slice`, and `CellBox`. They retain
+whole source enclosures, unresolved regions, and omitted display detail.
+`UnitQuaternion`, `QuaternionBlend`, and `QuaternionTransform` verify exact
+unit rotations and diagnose the antipodal Cayley pole. `LinkedViews` composes
+scene snapshots and Graphics panels using stable retained IDs. See the
+[validated scene views guide](../../documentation/eval/validated-scene-views.md)
+for limits, provenance, API details, and the distinction between a cell-cover
+mesh and a reconstructed implicit surface.
