@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/optimize-mixed-integer-result/v1.schema.json",
+  "title": "RiX bounded optimization mixed-integer-result v1",
+  "description": "Normalized semantic record before mathematical JSON tagging (RiX map keys are case-insensitive). Exact scalars, Shaped values, expression graphs and LP records use the shared codec. A schema match never certifies a claim; invoke the bounded replay checker. See plugins/optimize/tutorial.md for algorithm/work limits.",
+  "type": "object",
+  "required": [
+    "schema",
+    "program",
+    "integeraxes",
+    "options",
+    "status",
+    "pending",
+    "unresolved",
+    "trace",
+    "incumbent",
+    "bound",
+    "gap",
+    "ray",
+    "processed",
+    "evidencebudgetexceeded"
+  ],
+  "properties": {
+    "schema": {
+      "const": "rix.optimize.mixed-integer-result@1"
+    },
+    "program": {
+      "description": "Exact RiX semantic value; transported using mathematical JSON tags. Runtime replay checks types, limits and the full claim."
+    },
+    "integeraxes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "uniqueItems": true,
+      "items": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 8
+      }
+    },
+    "options": {
+      "description": "Exact RiX semantic value; transported using mathematical JSON tags. Runtime replay checks types, limits and the full claim."
+    },
+    "status": {
+      "enum": [
+        "optimal",
+        "infeasible",
+        "unbounded",
+        "exhausted"
+      ]
+    },
+    "pending": {
+      "type": "array",
+      "maxItems": 256
+    },
+    "unresolved": {
+      "type": "array",
+      "maxItems": 256
+    },
+    "trace": {
+      "type": "array",
+      "maxItems": 256
+    },
+    "incumbent": {
+      "description": "Exact RiX semantic value; transported using mathematical JSON tags. Runtime replay checks types, limits and the full claim."
+    },
+    "bound": {
+      "description": "Exact RiX semantic value; transported using mathematical JSON tags. Runtime replay checks types, limits and the full claim."
+    },
+    "gap": {
+      "description": "Exact RiX semantic value; transported using mathematical JSON tags. Runtime replay checks types, limits and the full claim."
+    },
+    "ray": {
+      "description": "Exact RiX semantic value; transported using mathematical JSON tags. Runtime replay checks types, limits and the full claim."
+    },
+    "processed": {
+      "description": "Exact RiX semantic value; transported using mathematical JSON tags. Runtime replay checks types, limits and the full claim."
+    },
+    "evidencebudgetexceeded": {
+      "description": "Exact RiX semantic value; transported using mathematical JSON tags. Runtime replay checks types, limits and the full claim."
+    }
+  }
+}

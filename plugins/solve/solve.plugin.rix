@@ -3,7 +3,7 @@ id: solve
 description: Domain-dispatched exact/certified solution objects for linear, optimization, polynomial, and scalar numerical problems.
 kind: rix
 mount: solve
-exports: [Classify, Linear, System, Polynomial, Numerical, RootBoxes, FromBoxes, BoxFeasibility, Substitute, Residuals, Check]
+exports: [OptimizeBox, Classify, Linear, System, Polynomial, Numerical, RootBoxes, FromBoxes, BoxFeasibility, Substitute, Residuals, Check]
 groups: [Solve, Symbolic, Exact]
 permissions: []
 requires: [rix.linear-algebra@2, rix.optimization@2, rix.polynomial.algorithms@1, rix.algebraic-real@1, rix.numerics@2]
@@ -129,7 +129,12 @@ SolveResiduals(value,candidate ?= _) -> {;
 };
 
 SolveCheck(value,candidate ?= _) -> {;
+    value[:schema]!="rix.optimize.box-result@1" ?_> {;
+        @candidate==_ ?_> .Error("Box optimization Check replays bounds; it does not certify a supplied point");
+        .optimize.CheckNonlinear(@value);
+    };
     kind=value[:classification];
+    kind!=:optimization ?_> SolveCheckOptimization(value,candidate);
     kind!=:numericalBoxes ?_> SolveCheckRootBoxes(value,candidate);
     kind==:optimization
       ?: value[:program].Evaluate(SolveCandidateVector(value,candidate))[:feasible]
@@ -317,16 +322,43 @@ SolveNamedOptionVector(options,key,outputs,fallback) -> {;
     };
 };
 
+SolveCheckOptimization(value,candidate) -> {;
+    result=value[:optimizationResult];schema=result[:schema];
+    (candidate!=_ || (schema!="rix.optimize.mixed-integer-result@1" && schema!="rix.optimize.quadratic-result@1")) ?_> {
+        @schema=="rix.optimize.mixed-integer-result@1" ?: .optimize.CheckMixedInteger(@result) ?_ .optimize.CheckQuadratic(@result)
+    };
+    vector=SolveCandidateVector(value,candidate);
+    value[:program].Evaluate(vector)[:feasible] ?_> _;
+    schema!="rix.optimize.mixed-integer-result@1" ?_> result[:integerAxes].All(axis->vector[axis]==(vector[axis] ~!: :Rational).Floor());
+    1;
+};
+
 SolveOptimizationResult(spec,roleInfo,outputs,equations,relations,matrix,bounds,options) -> {;
     objective=SolveNamedOptionVector(options,"objective",outputs,0).Map((value)->SolveExact(value,"objective coefficient"));
     lower=SolveNamedOptionVector(options,"lowerbounds",outputs,0);
     upper=SolveNamedOptionVector(options,"upperbounds",outputs,_);
     program=.optimize.LinearProgram(objective,SolveMatrixValue(matrix),bounds,{=
         relations=relations,lowerBounds=lower,upperBounds=upper,
-        sense=SolveOption(options,"sense",:max),name=SolveOption(options,"name",_)
+        sense=SolveOption(options,"sense",SolveOption(options,"hessian",_)==_ ?: :max ?_ :min),name=SolveOption(options,"name",_)
     });
-    optimized=program.Solve(SolveOption(options,"work",{= }));
-    kind=optimized[:status]=="infeasible" ?: :empty ?_ optimized[:status]=="unbounded" ?: :unbounded ?_ :finite;
+    integers=SolveOption(options,"integer",_);hessian=SolveOption(options,"hessian",_);work=SolveOption(options,"work",{= });
+    (integers==_ || hessian==_) ?_> .Error("Combined integer/quadratic optimization is unsupported");
+    optimized={?
+      integers!=_ ? {;
+        @integers ? :Array ?_> .Error("integer must be an Array of output names");
+        axes=@integers.Map(name->{;
+            index=SolveIndexOf(@outputs,name);index!=_ ?_> .Error("Integer variable must name an output");index;
+        });
+        .optimize.MixedInteger(@program,axes,@work);
+      };
+      hessian!=_ ? {;
+        SolveOption(@options,"sense",:min)==:min ?_> .Error("Convex quadratic dispatch requires sense=:min");
+        q=.optimize.Quadratic(@hessian,@objective,@program[:A],@bounds,{= relations=@relations,lowerBounds=@lower,upperBounds=@upper,constant=SolveOption(@options,"constant",0) });
+        .optimize.SolveQuadratic(q,@work);
+      };
+      program.Solve(work)
+    };
+    kind=optimized[:status]=="infeasible" ?: :empty ?_ optimized[:status]=="unbounded" ?: :unbounded ?_ optimized[:status]=="optimal" ?: :finite ?_ :unknown;
     named=optimized[:solution]==_ ?: _ ?_ SolveNamedValues(outputs,optimized[:solution]);
     SolveSolution(kind,optimized[:status],{=
         classification=:optimization,spec=spec,roles=roleInfo[:roles],unknowns=outputs,
@@ -351,7 +383,7 @@ SolveSystemCore(spec,options ?= {= })->{;
     equations.Len()>0 ?: _ ?_ .Error("solve.System found no equations");
     matrix=equations.Map((equation)->equation[:coefficients]);
     bounds=equations.Map((equation)->-equation[:constant]);
-    optimize=relations.Any((relation)->relation!=:eq) || SolveOption(options,"objective",_)!=_;
+    optimize=relations.Any((relation)->relation!=:eq) || SolveOption(options,"objective",_)!=_ || SolveOption(options,"integer",_)!=_ || SolveOption(options,"hessian",_)!=_;
     optimize
       ?: SolveOptimizationResult(spec,roleInfo,outputs,equations,relations,matrix,bounds,options)
       ?_ {;
@@ -456,6 +488,7 @@ SolveBoxFeasibility(expressions,jacobian,box,options ?= {= }) -> {;
 
 solveNamespace={= };
 solveNamespace._proto={=
+    OptimizeBox=(self,objective,constraints,box,options ?= {= })->.optimize.Nonlinear(objective,constraints,box,options),
     Classify=(self,spec)->SolveClassify(spec),
     Linear=(self,matrix,bounds)->SolveLinear(matrix,bounds),
     System=(self,spec,options ?= {= })->SolveSystem(spec,options),

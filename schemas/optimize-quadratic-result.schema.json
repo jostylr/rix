@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/optimize-quadratic-result/v1.schema.json",
+  "title": "RiX bounded optimization quadratic-result v1",
+  "description": "Normalized semantic record before mathematical JSON tagging (RiX map keys are case-insensitive). Exact scalars, Shaped values, expression graphs and LP records use the shared codec. A schema match never certifies a claim; invoke the bounded replay checker. See plugins/optimize/tutorial.md for algorithm/work limits.",
+  "type": "object",
+  "required": [
+    "schema",
+    "model",
+    "options",
+    "status",
+    "convexity",
+    "certified",
+    "scope"
+  ],
+  "properties": {
+    "schema": {
+      "const": "rix.optimize.quadratic-result@1"
+    },
+    "model": {
+      "description": "Exact RiX semantic value; transported using mathematical JSON tags. Runtime replay checks types, limits and the full claim."
+    },
+    "options": {
+      "description": "Exact RiX semantic value; transported using mathematical JSON tags. Runtime replay checks types, limits and the full claim."
+    },
+    "status": {
+      "enum": [
+        "optimal",
+        "infeasible",
+        "unbounded",
+        "unsupportedNonconvex",
+        "unknown"
+      ]
+    },
+    "convexity": {
+      "description": "Exact RiX semantic value; transported using mathematical JSON tags. Runtime replay checks types, limits and the full claim."
+    },
+    "certified": {
+      "description": "Exact RiX semantic value; transported using mathematical JSON tags. Runtime replay checks types, limits and the full claim."
+    },
+    "scope": {
+      "description": "Exact RiX semantic value; transported using mathematical JSON tags. Runtime replay checks types, limits and the full claim."
+    }
+  }
+}

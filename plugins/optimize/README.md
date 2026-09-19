@@ -43,3 +43,12 @@ independently replays/checks the relevant claim.
 record and `.optimize.FromRecord(record)` reconstructs the model. This is a RiX
 value schema, not a vendor solver format. The former JavaScript implementation
 remains only as `optimize.reference.js` for parity comparison.
+
+
+The bounded extension also provides `MixedInteger`, `ResumeMixedInteger`,
+`Quadratic`/`SolveQuadratic`, and `Nonlinear` with retained queues, exact KKT or
+range evidence and explicit exhaustion states. See [the executable tutorial](tutorial.md)
+for scopes, work limits, strict-inequality behavior and replay checks. These are
+pure RiX algorithms over the existing Linalg/Numerics services; no external solver
+is loaded. Mixed-integer quadratics and general nonconvex/global symbolic solving
+remain outside this bounded implementation.

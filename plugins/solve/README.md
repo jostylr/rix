@@ -101,3 +101,12 @@ methods and outer convenience checker annotations are ignored; nested evidence
 is compared. Equality alone is not a mathematical certificate. A root summary that cannot
 fit the shared retained-evidence limits is explicitly rejected before return;
 reduce its work budget or retain the underlying Numerics subdivision directly.
+
+
+Bounded optimization dispatch accepts `integer=[:outputName]` or `hessian=H`
+in `System` options, reusing the affine constraint compiler and exact domain
+bounds. `objective` supplies the linear coefficients; quadratic objectives use
+`xᵀHx/2 + cᵀx + constant` and require minimization. Unproved results have kind
+`unknown`. `OptimizeBox(objective,constraints,box,options)` delegates strict and
+nonlinear constraints to bounded certified range subdivision. See the
+[optimization tutorial](../optimize/tutorial.md) for work limits and replay.

@@ -1,14 +1,14 @@
 /**
 id: optimize
-description: Pure-RiX exact general linear programs, two-phase simplex, and checkable certificates.
+description: Bounded exact LP/MILP, convex quadratic certificates, and global box optimization.
 kind: rix
 mount: optimize
-exports: [LinearProgram, Solve, Evaluate, Maximize, Minimize, FromRecord, CheckCertificate]
+exports: [Nonlinear, CheckNonlinear, Quadratic, SolveQuadratic, CheckQuadratic, MixedInteger, CheckMixedInteger, ResumeMixedInteger, LinearProgram, Solve, Evaluate, Maximize, Minimize, FromRecord, CheckCertificate]
 groups: [Optimization, Exact]
 permissions: []
-requires: [rix.linear-algebra@1]
+requires: [rix.linear-algebra@1, rix.numerics@2]
 provides: [rix.optimization@2, rix.optimization@1, rix.linear-program@2, rix.linear-program@1]
-schemas: [rix.optimize.linear-program@2, rix.optimize.linear-program@1, rix.optimize.result@2, rix.optimize.result@1, rix.optimize.certificate@1, rix.optimize.sensitivity@1]
+schemas: [rix.optimize.mixed-integer-result@1, rix.optimize.quadratic-program@1, rix.optimize.quadratic-result@1, rix.optimize.box-result@1, rix.optimize.linear-program@2, rix.optimize.linear-program@1, rix.optimize.result@2, rix.optimize.result@1, rix.optimize.certificate@1, rix.optimize.sensitivity@1]
 snapshot: false
 deterministic: true
 defaultEnabled: false
@@ -435,7 +435,7 @@ OptimizeRemoveArtificials(phase,artificials) -> {;
           ?: {;
               pivot:=0;
               {@ column=1; column<=@oldColumns && @pivot==0; {;
-                  !@artificials.Includes(column) && @tableau[@row][column]!=0 ?: {; @pivot ~= @column; } ?_ _;
+                  (!(@artificials.Includes(column)) && @tableau[@row][column]!=0) ?: {; @pivot ~= @column; } ?_ _;
               }; column+=1 };
               pivot!=0
                 ?: {; @tableau ~= OptimizePivot(@tableau,@row,@pivot); @basis ~= @basis.Set(@row,@pivot); }
@@ -518,7 +518,7 @@ OptimizeCertificate(kind,program,fields) -> {;
 };
 
 OptimizeCheckCertificate(value) -> {;
-    value ? :Map && value[:schema]=="rix.optimize.certificate@1" ?: _ ?_ .Error("Expected an optimization certificate");
+    ((value ? :Map) && value[:schema]=="rix.optimize.certificate@1") ?_> .Error("Expected an optimization certificate");
     kind=value[:kind]; program=OptimizeRequireProgram(value[:program]);
     {? kind==:optimal ? {;
            evaluation=OptimizeEvaluate(@program,@value[:primal]); replay=OptimizeSolveGeneral(@program,{= maxIterations=10000 });
@@ -526,12 +526,7 @@ OptimizeCheckCertificate(value) -> {;
              && @value[:primalobjective]==@value[:dualobjective]
              && replay[:status]=="optimal" && replay[:objectivevalue]==@value[:objectivevalue];
        };
-       kind==:unbounded ? {;
-           point=OptimizeVector(@value[:point]); direction=OptimizeVector(@value[:direction]);
-           base=OptimizeEvaluate(@program,point); probe=OptimizeEvaluate(@program,point.Map((entry,index)->entry+direction[index]));
-           improvement=@program[:sense]==:max ?: probe[:objectivevalue]>base[:objectivevalue] ?_ probe[:objectivevalue]<base[:objectivevalue];
-           base[:feasible] && probe[:feasible] && improvement;
-       };
+       kind==:unbounded ? OptimizeRayCheck(program,value[:point],value[:direction]);
        kind==:infeasible ? {;
            replay=OptimizeSolveGeneral(@program,{= maxIterations=10000 });
            @value[:phaseoneobjective]<0 && replay[:status]=="infeasible";
@@ -847,8 +842,310 @@ OptimizeConvenience(objective, matrix, bounds, options, sense) -> {;
     OptimizeSolve(OptimizeProgram(objective, matrix, bounds, configured), options);
 };
 
+
+OptimizeFitsClaim={>
+    (value) ?- [ok=.ValidatedClaimEqual(value,value)] -> 1,
+    (value) -> _
+};
+
+### Bounded mixed-integer branch-and-bound over the exact LP solver.
+OptimizeBudget(value,label,ceiling) -> {;
+    exact=value ~!: :Integer;
+    exact>=1 && exact<=ceiling ?_> .Error(@"@{label} must be 1..@{ceiling}");exact;
+};
+OptimizeRayCheck(program,point,direction) -> {;
+    p=OptimizeVector(point);d=OptimizeVector(direction);rows=OptimizeMatrix(program[:A]);
+    d.Len()==p.Len() && p.Len()==program[:variablecount] ?_> _;
+    OptimizeEvaluate(program,p)[:feasible] ?_> _;
+    slopes=rows.Map(row->OptimizeDot(row,d));
+    constraints=slopes.All((s,i)->{? program[:relations][i]==:le ? s<=0;program[:relations][i]==:ge ? s>=0;s==0 });
+    bounds=d.All((s,i)->(program[:lowerbounds][i]==_ || s>=0)&&(program[:upperbounds][i]==_ || s<=0));
+    improvement=OptimizeDot(OptimizeVector(program[:objective]),d);
+    constraints && bounds && (program[:sense]==:min ?: improvement<0 ?_ improvement>0);
+};
+OptimizeMIPAxes(value,n) -> {;
+    value ? :Array ?_> .Error("Integer axes must be an Array of coordinate indices");
+    value.Len()>=1 && value.Len()<=n ?_> .Error("Integer axis count must be 1..dimension");
+    axes=value.Map(axis->OptimizeBudget(axis,"Integer axis",n));
+    axes.All(axis->axes.Filter(other->other==axis).Len()==1) ?_> .Error("Integer axes must be distinct");axes;
+};
+OptimizeMIPNode(program,node) -> OptimizeProgram(program[:objective],program[:A],program[:b],{=
+    relations=program[:relations],sense=program[:sense],lowerBounds=node[:lower],upperBounds=node[:upper],name=program[:name]
+});
+OptimizeMIPBetter(program,left,right) -> program[:sense]==:min ?: left<right ?_ left>right;
+OptimizeMIPBound(program,pending,incumbent) -> {;
+    pending.All(node->node[:bound]!=_) ?_> _;
+    values=pending.Map(node->node[:bound]);
+    incumbent==_ ?: _ ?_ {; @values~=@values.Push(@incumbent[:objective]); };
+    values.Len()>0 ?_> _;
+    values.Reduce((a,b)->OptimizeMIPBetter(program,a,b) ?: a ?_ b,values[1]);
+};
+OptimizeMIPRun(program,axes,options,prior ?= _) -> {;
+    limit=options[:maxnodes];iterations=options[:maxiterations];
+    pending:=prior==_ ?: [{= id="root",lower=program[:lowerbounds],upper=program[:upperbounds],bound=_ }] ?_ prior[:pending];
+    trace:=prior==_ ?: [] ?_ prior[:trace];unresolved:=prior==_ ?: [] ?_ prior[:unresolved];incumbent:=prior==_ ?: _ ?_ prior[:incumbent];ray:=_;evidenceFull:=_;
+    {@ step=@trace.Len();step<@limit && @pending.Len()>0 && @ray==_ && @evidenceFull==_;{;
+        saved=[@pending,@trace,@unresolved,@incumbent,@ray];
+        node=@pending[1];@pending~=@pending.RemoveAt(1);
+        impossible=node[:lower].Any((lower,i)->lower!=_ && node[:upper][i]!=_ && lower>node[:upper][i]);
+        impossible
+          ?: {; @trace~=@trace.Push({= node=@node,decision=:inconsistentBounds }); }
+          ?_ {;
+            model=OptimizeMIPNode(@program,@node);relax=OptimizeSolveGeneral(model,{= maxIterations=@iterations });
+            state=relax[:status];record={= node=@node,status=state,point=relax[:solution],objective=relax[:objectivevalue],certificate=relax[:certificate],iterations=relax[:iterations] };
+            {? state=="infeasible" ? {; @trace~=@trace.Push(@record.Merge({= decision=:infeasible })); };
+               state=="iterationLimit" ? {; @unresolved~=@unresolved.Push(@node);@trace~=@trace.Push(@record.Merge({= decision=:unresolvedRelaxation })); };
+               {;
+                 point=OptimizeVector(@relax[:solution]);fractional=@axes.Filter(axis->@point[axis]!=(@point[axis] ~!: :Rational).Floor());
+                 bound=@state=="unbounded" ?: _ ?_ @relax[:objectivevalue];
+                 prune=@incumbent!=_ && bound!=_ && OptimizeMIPBetter(@program,bound,@incumbent[:objective])==_;
+                 {? prune ? {; @trace~=@trace.Push(@record.Merge({= decision=:boundPruned })); };
+                    fractional.Len()==0 ? {;
+                      @state=="unbounded"
+                        ?: {;
+                            direction=OptimizeVector(@relax[:certificate][:direction]);
+                            scale=@axes.Reduce((multiple,axis)->multiple*(@direction[axis] ~!: :Rational).Denominator(),1);
+                            direction=direction.Map(entry->entry*scale);
+                            OptimizeRayCheck(@model,@point,direction) ?_> .Error("Integer improving ray verification failed");
+                            @ray={= point=@point,direction=direction,node=@node,certificate=@relax[:certificate] };
+                          }
+                        ?_ {; @incumbent={= point=@point,objective=@relax[:objectivevalue],nodeId=@node[:id] }; };
+                      @trace~=@trace.Push(@record.Merge({= decision=@state=="unbounded" ?: :integerRay ?_ :incumbent }));
+                    };
+                    {;
+                      axis=@fractional[1];cut=(@point[axis] ~!: :Rational).Floor();
+                      low=@node[:lower][axis];high=@node[:upper][axis];
+                      left={= id=@"@{@node[:id]}L",lower=@node[:lower],upper=@node[:upper].Set(axis,high==_ ?: cut ?_ .Min(high,cut)),bound=@bound };
+                      right={= id=@"@{@node[:id]}R",lower=@node[:lower].Set(axis,low==_ ?: cut+1 ?_ .Max(low,cut+1)),upper=@node[:upper],bound=@bound };
+                      @pending~=@pending.Concat([left,right]);
+                      @trace~=@trace.Push(@record.Merge({= decision=:split,axis=axis,cut=cut,children=[left[:id],right[:id]] }));
+                    }
+                 };
+               }
+            };
+          };
+        retained=[OptimizeProgramRecord(@program),@axes,@options,@pending,@trace,@unresolved,@incumbent,@ray];
+        OptimizeFitsClaim([retained,retained]) ?: _ ?_ {;
+            @pending~=@saved[1];@trace~=@saved[2];@unresolved~=@saved[3];@incumbent~=@saved[4];@ray~=@saved[5];@evidenceFull~=1;
+        };
+    };step+=1};
+    remaining=pending.Concat(unresolved);bound=OptimizeMIPBound(program,remaining,incumbent);
+    status=ray!=_ ?: :unbounded ?_ remaining.Len()>0 ?: :exhausted ?_ incumbent==_ ?: :infeasible ?_ :optimal;
+    .ImmutableValue({= schema="rix.optimize.mixed-integer-result@1",program=OptimizeProgramRecord(program),integerAxes=axes,options=options,
+        status=status,exact=1,certified=status!=:exhausted,solution=incumbent==_ ?: _ ?_ OptimizeVectorStorage(incumbent[:point]),
+        objectiveValue=incumbent==_ ?: _ ?_ incumbent[:objective],incumbent=incumbent,bound=bound,
+        lowerBound=program[:sense]==:min ?: bound ?_ (incumbent==_ ?: _ ?_ incumbent[:objective]),
+        upperBound=program[:sense]==:max ?: bound ?_ (incumbent==_ ?: _ ?_ incumbent[:objective]),
+        gap=(incumbent==_ || bound==_) ?: _ ?_ (incumbent[:objective]-bound).Abs(),
+        pending=pending,unresolved=unresolved,trace=trace,ray=ray,processed=trace.Len(),scope=:globalLinearIntegerProgram,evidenceBudgetExceeded=evidenceFull });
+};
+OptimizeMixedInteger(value,integerAxes,options ?= {= }) -> {;
+    program=OptimizeRequireProgram(value);program[:variablecount]<=8 && program[:constraintcount]<=32 ?_> .Error("MixedInteger supports at most eight variables and 32 constraints");
+    axes=OptimizeMIPAxes(integerAxes,program[:variablecount]);
+    limits={= maxNodes=OptimizeBudget(OptimizeOption(options,"maxnodes",64),"maxNodes",256),maxIterations=OptimizeBudget(OptimizeOption(options,"maxiterations",256),"maxIterations",4096) };
+    record=program.Record();.ValidatedClaimEqual([record,record,record,record],[record,record,record,record]);
+    result=OptimizeMIPRun(program,axes,limits);.ValidatedClaimEqual(result,result);result;
+};
+OptimizeCheckMixedInteger(result) -> {;
+    result[:schema]=="rix.optimize.mixed-integer-result@1" ?_> _;
+    .ValidatedClaimEqual(result,OptimizeMixedInteger(OptimizeFromRecord(result[:program]),result[:integeraxes],result[:options]));
+};
+OptimizeResumeMixedInteger(result,additional ?= 64) -> {;
+    OptimizeCheckMixedInteger(result) ?_> .Error("Cannot resume altered mixed-integer evidence");
+    result[:pending].Len()>0 ?_> result;
+    count=OptimizeBudget(additional,"additional nodes",256);total=OptimizeBudget(result[:options][:maxnodes]+count,"total nodes",256);
+    program=OptimizeFromRecord(result[:program]);
+    result[:ray]==_ ?_> result;
+    OptimizeMIPRun(program,result[:integeraxes],result[:options].Set("maxnodes",total),result);
+};
+
+
+### Exact convex quadratics: principal-minor PSD evidence and bounded active sets.
+OptimizeQuadratic(hessian,objective,matrix,bounds,options ?= {= }) -> {;
+    OptimizeSense(OptimizeOption(options,"sense",:min))==:min ?_> .Error("Quadratic requires minimization of a positive semidefinite Hessian");
+    h=OptimizeMatrix(hessian,"Quadratic Hessian");n=h.Len();
+    n<=6 && h.All(row->row.Len()==n) ?_> .Error("Quadratic Hessian must be square with dimension at most six");
+    h.All((row,i)->row.All((entry,j)->entry==h[j][i])) ?_> .Error("Quadratic Hessian must be symmetric");
+    program=OptimizeProgram(objective,matrix,bounds,options.Set("sense",:min));
+    program[:variablecount]==n && program[:constraintcount]<=16 ?_> .Error("Quadratic constraints must match dimension and have at most 16 rows");
+    .ImmutableValue({= schema="rix.optimize.quadratic-program@1",H=OptimizeMatrixValue(h),linear=OptimizeProgramRecord(program),constant=OptimizeExact(OptimizeOption(options,"constant",0),"Quadratic constant") });
+};
+OptimizeMaskIndices(mask,n) -> {;
+    result:=[];{@ i=1;i<=@n;{; (@mask//(2^(i-1)))%2==1 ?: {; @result~=@result.Push(@i); } ?_ _; };i+=1};result;
+};
+OptimizePSD(rows) -> {;
+    total=2^(rows.Len());minors:=[];{@ mask=1;mask<@total;{;
+        axes=OptimizeMaskIndices(mask,@rows.Len());part=axes.Map(i->@axes.Map(j->@rows[i][j]));
+        determinant=.linalg.Determinant(OptimizeMatrixValue(part));@minors~=@minors.Push({= axes=axes,determinant=determinant });
+    };mask+=1};
+    {= positiveSemidefinite=minors.All(item->item[:determinant]>=0),principalMinors=minors };
+};
+OptimizeClosedRows(program) -> {;
+    rows=OptimizeMatrix(program[:A]);b=OptimizeVector(program[:b]);inequalities:=[];equalities:=[];
+    {@ i=1;i<=@rows.Len();{;
+        row=@rows[i];rhs=@b[i];relation=@program[:relations][i];
+        relation==:eq ?: {; @equalities~=@equalities.Push({= row=@row,bound=@rhs }); }
+          ?_ {; sign=@relation==:ge ?: -1 ?_ 1;@inequalities~=@inequalities.Push({= row=@row.Map(entry->entry*sign),bound=sign*@rhs }); };
+    };i+=1};
+    {@ i=1;i<=@program[:variablecount];{;
+        lower=@program[:lowerbounds][i];upper=@program[:upperbounds][i];
+        lower==_ ?: _ ?_ {; @inequalities~=@inequalities.Push({= row=OptimizeIdentityRow(@program[:variablecount],@i).Map(x->-x),bound=-@lower }); };
+        upper==_ ?: _ ?_ {; @inequalities~=@inequalities.Push({= row=OptimizeIdentityRow(@program[:variablecount],@i),bound=@upper }); };
+    };i+=1};
+    inequalities.Len()<=16 ?_> .Error("Quadratic active-set work supports at most 16 inequalities including bounds");
+    {= inequalities=inequalities,equalities=equalities };
+};
+OptimizeQPValue(model,point) -> {;
+    h=OptimizeMatrix(model[:H]);c=OptimizeVector(model[:linear][:objective]);
+    OptimizeDot(point,h.Map(row->OptimizeDot(row,point)))/2+OptimizeDot(c,point)+model[:constant];
+};
+OptimizeKKT(model,program,rows,active,iterations) -> {;
+    h=OptimizeMatrix(model[:H]);n=h.Len();c=OptimizeVector(program[:objective]);
+    selected=rows[:equalities].Concat(active.Map(i->rows[:inequalities][i]));k=selected.Len();
+    matrix=h.Map((row,i)->row.Concat(selected.Map(item->item[:row][i])));bounds=c.Map(x->-x);relations=OptimizeRepeat(:eq,n);
+    matrix=matrix.Concat(selected.Map(item->item[:row].Concat(OptimizeZeros(k))));bounds=bounds.Concat(selected.Map(item->item[:bound]));relations=relations.Concat(OptimizeRepeat(:eq,k));
+    matrix=matrix.Concat(rows[:inequalities].Map(item->item[:row].Concat(OptimizeZeros(k))));bounds=bounds.Concat(rows[:inequalities].Map(item->item[:bound]));relations=relations.Concat(OptimizeRepeat(:le,rows[:inequalities].Len()));
+    lower=OptimizeRepeat(_,n+rows[:equalities].Len()).Concat(OptimizeZeros(active.Len()));
+    system=OptimizeProgram(OptimizeZeros(n+k),OptimizeMatrixValue(matrix),bounds,{= relations=relations,lowerBounds=lower });
+    solved=OptimizeSolveGeneral(system,{= maxIterations=iterations });
+    solved[:status]=="optimal" ?_> {= status=solved[:status] };
+    full=OptimizeVector(solved[:solution]);point=full.Slice(1,n+1);multipliers=full.Slice(n+1,full.Len()+1);
+    gradient=h.Map((row,i)->OptimizeDot(row,point)+c[i]);
+    residual=gradient.Map((entry,i)->entry+selected.Reduce((sum,item,j)->sum+item[:row][i]*multipliers[j],0));
+    residual.All(x->x==0) && OptimizeEvaluate(program,point)[:feasible] && multipliers.Slice(rows[:equalities].Len()+1,multipliers.Len()+1).All(x->x>=0)
+      ?_> .Error("Quadratic KKT verification failed");
+    {= status=:optimal,point=point,objective=OptimizeQPValue(model,point),multipliers=multipliers,active=active,residual=residual,
+        activeResiduals=selected.Map(item->OptimizeDot(item[:row],point)-item[:bound]) };
+};
+OptimizeQuadraticSolve(model,options ?= {= }) -> {;
+    model[:schema]=="rix.optimize.quadratic-program@1" ?_> .Error("Expected a QuadraticProgram");
+    program=OptimizeFromRecord(model[:linear]);h=OptimizeMatrix(model[:H]);
+    expected=OptimizeQuadratic(model[:H],program[:objective],program[:A],program[:b],{= relations=program[:relations],lowerBounds=program[:lowerbounds],upperBounds=program[:upperbounds],constant=model[:constant],name=program[:name] });
+    .ValidatedClaimEqual(model,expected) ?_> .Error("Altered quadratic program");
+    limit=OptimizeBudget(OptimizeOption(options,"maxactivesets",64),"maxActiveSets",256);
+    masks=OptimizeBudget(OptimizeOption(options,"maxmasks",4096),"maxMasks",65536);
+    iterations=OptimizeBudget(OptimizeOption(options,"maxiterations",512),"maxIterations",4096);
+    psd=OptimizePSD(h);psd[:positivesemidefinite] ?_> .ImmutableValue({= schema="rix.optimize.quadratic-result@1",model=model,options=options,status=:unsupportedNonconvex,convexity=psd,certified=_,scope=:unknown });
+    rows=OptimizeClosedRows(program);
+    feasibility=OptimizeSolveGeneral(OptimizeProgram(OptimizeZeros(h.Len()),program[:A],program[:b],{= relations=program[:relations],lowerBounds=program[:lowerbounds],upperBounds=program[:upperbounds] }),{= maxIterations=iterations });
+    feasibility[:status]!="infeasible" ?_> .ImmutableValue({= schema="rix.optimize.quadratic-result@1",model=model,options=options,status=:infeasible,scope=:global,certified=1,convexity=psd,feasibility=feasibility[:certificate] });
+    rayRows=h.Concat(rows[:equalities].Map(item->item[:row])).Concat(rows[:inequalities].Map(item->item[:row])).Push(OptimizeVector(program[:objective]));
+    rayBounds=OptimizeZeros(rayRows.Len()).Set(rayRows.Len(),-1);
+    rayRelations=OptimizeRepeat(:eq,h.Len()+rows[:equalities].Len()).Concat(OptimizeRepeat(:le,rows[:inequalities].Len()+1));
+    rayModel=OptimizeProgram(OptimizeZeros(h.Len()),OptimizeMatrixValue(rayRows),rayBounds,{= relations=rayRelations,lowerBounds=OptimizeRepeat(_,h.Len()) });
+    ray=OptimizeSolveGeneral(rayModel,{= maxIterations=iterations });
+    (ray[:status]!="optimal" || feasibility[:status]!="optimal") ?_> {;
+        direction=OptimizeVector(@ray[:solution]);point=OptimizeVector(@feasibility[:solution]);
+        OptimizeRayCheck(@program,point,direction) && @h.All(row->OptimizeDot(row,direction)==0) ?_> .Error("Quadratic improving ray verification failed");
+        .ImmutableValue({= schema="rix.optimize.quadratic-result@1",model=@model,options=@options,status=:unbounded,scope=:global,certified=1,convexity=@psd,ray={= point=point,direction=direction } });
+    };
+    total=2^(rows[:inequalities].Len());trace:=[];answer:=_;next:=0;
+    {@ mask=0;mask<@total && mask<@masks && @trace.Len()<@limit && @answer==_;{;
+        active=OptimizeMaskIndices(mask,@rows[:inequalities].Len());
+        active.Len()<=@h.Len() ?: {;
+            result=OptimizeKKT(@model,@program,@rows,@active,@iterations);@trace~=@trace.Push({= mask=@mask,status=result[:status] });
+            result[:status]==:optimal ?: {; @answer~=@result; } ?_ _;
+        } ?_ _;
+        @next~=mask+1;
+    };mask+=1};
+    .ImmutableValue({= schema="rix.optimize.quadratic-result@1",model=model,options=options,status=answer==_ ?: :unknown ?_ :optimal,
+        scope=answer==_ ?: :unknown ?_ :global,certified=answer!=_,exact=1,convexity=psd,kkt=answer,
+        solution=answer==_ ?: _ ?_ OptimizeVectorStorage(answer[:point]),objectiveValue=answer==_ ?: _ ?_ answer[:objective],
+        trace=trace,pendingMasks=(answer!=_ || next==total) ?: [] ?_ [{= first=next,last=total-1 }],
+        unresolved=answer==_ ?: [:noVerifiedKKTPointWithinBudget] ?_ [] });
+};
+OptimizeCheckQuadratic(result) -> .ValidatedClaimEqual(result,OptimizeQuadraticSolve(result[:model],result[:options]));
+
+
+### Bounded global objective enclosures over finite Rational boxes.
+OptimizeBoxRelation(relation,range) -> {?
+    relation==:le ? {= excluded=range.Low()>0,inside=range.High()<=0 };
+    relation==:lt ? {= excluded=range.Low()>=0,inside=range.High()<0 };
+    relation==:ge ? {= excluded=range.High()<0,inside=range.Low()>=0 };
+    relation==:gt ? {= excluded=range.High()<=0,inside=range.Low()>0 };
+    relation==:eq ? {= excluded=range.Low()>0 || range.High()<0,inside=range.Low()==0 && range.High()==0 };
+    .Error("Box constraints require :le, :lt, :ge, :gt, or :eq against zero")
+};
+OptimizeSafeRange(range) -> range[:certified]==1 && range[:domainstatus]==:allDefined && (range[:interval] ? :RationalInterval);
+OptimizeBoxAssess(objective,constraints,box,rangeOptions) -> {;
+    goal=.numerics.GraphRange(objective,box,rangeOptions);
+    checks=constraints.Map(constraint->{;
+        range=.numerics.GraphRange(constraint[:expression],box,rangeOptions);
+        OptimizeSafeRange(range) ?_> {= certified=_,excluded=_,inside=_,range=range };
+        OptimizeBoxRelation(constraint[:relation],range[:interval]).Merge({= certified=1,range=range });
+    });
+    {= objective=goal,checks=checks,certified=OptimizeSafeRange(goal) && checks.All(check->check[:certified]==1),
+       excluded=checks.Any(check->check[:excluded]),inside=checks.All(check->check[:inside]) };
+};
+OptimizeNonlinear(objective,constraints,boxValue,options ?= {= }) -> {;
+    .ValidatedClaimEqual([objective,constraints,boxValue,options],[objective,constraints,boxValue,options]);
+    constraints ? :Array ?_> .Error("Nonlinear constraints must be an Array");
+    constraints.Len()<=16 ?_> .Error("Nonlinear optimization supports at most 16 constraints");
+    constraints.Map(item->OptimizeBoxRelation(item[:relation],0:0));
+    box=.numerics.Box(boxValue);names=box[:variables];names.Len()<=8 ?_> .Error("Nonlinear optimization supports at most eight variables");
+    axes=box[:axes].MapValues(axis->axis.ToRationalInterval());limit=OptimizeBudget(OptimizeOption(options,"maxboxes",63),"maxBoxes",256);
+    depth=OptimizeBudget(OptimizeOption(options,"maxdepth",16),"maxDepth",32);
+    tolerance=OptimizeExact(OptimizeOption(options,"tolerance",1/1000),"Objective tolerance");tolerance>=0 ?_> .Error("Objective tolerance must be nonnegative");
+    sense=OptimizeSense(OptimizeOption(options,"sense",:min));
+    effective=sense==:min ?: objective ?_ -objective;
+    rangeOptions={= maxSubintervals=OptimizeBudget(OptimizeOption(options,"rangesubintervals",1),"rangeSubintervals",16) };
+    pending:=[{= id="root",box=axes,depth=0,bound=_ }];trace:=[];leaves:=[];incumbent:=_;evidenceFull:=_;
+    {@ step=0;step<@limit && @pending.Len()>0 && @evidenceFull==_;{;
+        saved=[@pending,@trace,@leaves,@incumbent];
+        node=@pending[1];@pending~=@pending.RemoveAt(1);
+        assessment=OptimizeBoxAssess(@effective,@constraints,node[:box],@rangeOptions);
+        {? assessment[:certified]==_ ? {; @leaves~=@leaves.Push(@node.Merge({= reason=:rangeUnavailable }));@trace~=@trace.Push({= node=@node,decision=:unresolved,assessment=@assessment }); };
+           assessment[:excluded] ? {; @trace~=@trace.Push({= node=@node,decision=:excluded,assessment=@assessment }); };
+           {;
+             bound=@assessment[:objective][:interval].Low();
+             midpoint=@node[:box].MapValues(interval->(interval.Low()+interval.High())/2);
+             sample=OptimizeBoxAssess(@effective,@constraints,midpoint,@rangeOptions);
+             (sample[:certified] && sample[:inside]) ?: {;
+                candidate=@sample[:objective][:interval];
+                (@incumbent==_ || candidate.High()<@incumbent[:upper]) ?: {; @incumbent={= point=@midpoint,upper=@candidate.High(),interval=@candidate,checks=@sample[:checks] }; } ?_ _;
+             } ?_ _;
+             prune=@incumbent!=_ && bound>=@incumbent[:upper];
+             widths=@names.Map(name->@node[:box][name].Width());width=widths.Reduce((a,b)->.Max(a,b),widths[1]);
+             {? prune ? {; @trace~=@trace.Push({= node=@node,decision=:boundPruned,assessment=@assessment,sample=@sample }); };
+                (@node[:depth]>=@depth || width==0) ? {; @leaves~=@leaves.Push(@node.Merge({= bound=@bound,reason=:depthOrPointLimit }));@trace~=@trace.Push({= node=@node,decision=:unresolved,assessment=@assessment,sample=@sample }); };
+                {;
+                  axis=@names[OptimizeIndexOf(@widths,@width)];cut=(@node[:box][axis].Low()+@node[:box][axis].High())/2;
+                  left=@node[:box].Set(axis,@node[:box][axis].Low():cut);right=@node[:box].Set(axis,cut:@node[:box][axis].High());
+                  @pending~=@pending.Concat([{= id=@"@{@node[:id]}L",box=left,depth=@node[:depth]+1,bound=@bound },{= id=@"@{@node[:id]}R",box=right,depth=@node[:depth]+1,bound=@bound }]);
+                  @trace~=@trace.Push({= node=@node,decision=:split,axis=axis,cut=cut,assessment=@assessment,sample=@sample });
+                }
+             };
+           }
+        };
+        retained=[@objective,@constraints,@axes,@options,@pending,@trace,@leaves,@incumbent];
+        OptimizeFitsClaim([retained,retained]) ?: _ ?_ {;
+            @pending~=@saved[1];@trace~=@saved[2];@leaves~=@saved[3];@incumbent~=@saved[4];@evidenceFull~=1;
+        };
+    };step+=1};
+    remaining=pending.Concat(leaves);validBound=remaining.All(node->node[:bound]!=_);
+    candidates=remaining.Map(node->node[:bound]);incumbent==_ ?: _ ?_ {; @candidates~=@candidates.Push(@incumbent[:upper]); };
+    lower=(validBound && candidates.Len()>0) ?: candidates.Reduce((a,b)->.Min(a,b),candidates[1]) ?_ _;
+    gap=(incumbent==_ || lower==_) ?: _ ?_ incumbent[:upper]-lower;
+    status=(remaining.Len()==0 && incumbent==_) ?: :infeasible ?_ gap==0 ?: :optimal ?_ (gap!=_ && gap<=tolerance) ?: :boundedGap ?_ :exhausted;
+    .ImmutableValue({= schema="rix.optimize.box-result@1",objective=objective,constraints=constraints,box=axes,options=options,sense=sense,
+      status=status,scope=(status==:infeasible || status==:optimal || status==:boundedGap) ?: :global ?_ :unknown,
+      lowerBound=sense==:min ?: lower ?_ (incumbent==_ ?: _ ?_ -incumbent[:upper]),
+      upperBound=sense==:min ?: (incumbent==_ ?: _ ?_ incumbent[:upper]) ?_ (lower==_ ?: _ ?_ -lower),
+      gap=gap,incumbent=incumbent,trace=trace,pending=pending,unresolved=leaves,certified=status==:infeasible || status==:optimal || status==:boundedGap,boundsCertified=validBound,
+      derivativeAssumptions=[],method=:certifiedRangeSubdivision,localOptimumClaim=_,processed=trace.Len(),evidenceBudgetExceeded=evidenceFull });
+};
+OptimizeCheckNonlinear(result) -> .ValidatedClaimEqual(result,OptimizeNonlinear(result[:objective],result[:constraints],result[:box],result[:options]));
+
 optimizeNamespace = {= };
 optimizeNamespace._proto = {=
+    Nonlinear=(self,objective,constraints,box,options ?= {= })->OptimizeNonlinear(objective,constraints,box,options),
+    CheckNonlinear=(self,result)->OptimizeCheckNonlinear(result),
+    Quadratic=(self,h,c,a,b,options ?= {= })->OptimizeQuadratic(h,c,a,b,options),
+    SolveQuadratic=(self,model,options ?= {= })->OptimizeQuadraticSolve(model,options),
+    CheckQuadratic=(self,result)->OptimizeCheckQuadratic(result),
+    MixedInteger=(self,program,axes,options ?= {= })->OptimizeMixedInteger(program,axes,options),
+    CheckMixedInteger=(self,result)->OptimizeCheckMixedInteger(result),
+    ResumeMixedInteger=(self,result,additional ?= 64)->OptimizeResumeMixedInteger(result,additional),
     LinearProgram=(self, objective, matrix, bounds, options ?= {= })->OptimizeProgram(objective, matrix, bounds, options),
     Solve=(self, program, options ?= {= })->OptimizeSolve(program, options),
     Evaluate=(self, program, point)->OptimizeEvaluate(program, point),

@@ -49,7 +49,7 @@ phase numbers in the detailed historical sections are not execution priorities.
 | 7 | `.ode` | Boundary-value records and bounded shooting; richer trajectory views | **Ready:** forward/backward certified IVPs and time-component trajectory plots exist; general affine/Taylor-model algebra remains future work |
 | 8 | `.algebra` | Multivariate Polynomial plus Groebner/elimination MVP | **Decision:** start with `Q` coefficients and explicit lex/graded orders |
 | 9 | `.linalg` | Rational characteristic/minimal polynomials and eigenspaces; finite tensor follow-up | **Ready:** Q-only work uses existing univariate polynomials; extension-field forms are later |
-| 10 | `.optimize` | Bounded branch-and-bound integer and mixed-integer linear optimization | **Ready:** preserve partial bounds and unexplored nodes |
+| 10 | `.optimize` | Bounded MILP, convex QP, strict nonlinear box constraints | **Complete M5:** exact replay, resumable integer queues, KKT witnesses and global range bounds |
 | 11 | `.solve` | Certified subdivision consumers; multivariate elimination separately | **Waiting:** numerical consumers need `.numerics` box subdivision; algebraic elimination is explicitly later |
 | 12 | `.fraction` | Portable classroom-derivation and fraction-path evidence | **Complete N2:** bounded replay, views and source-preserving records |
 | 13 | `.fracfun` | Multivariate forms and declared coefficient domains | **Waiting:** multivariate Polynomial/coefficient-domain support |
@@ -732,13 +732,13 @@ tracked in
    - [x] Add revised/simplex factorization reuse and a stable model interchange
      schema.
 3. **Phase 3 — Broader mathematical optimization**
-   - [ ] Add branch-and-bound integer/mixed-integer LP with bounded work and
-     incumbent/gap results.
-   - [ ] Add exact convex quadratic cases plus nonlinear constrained
-     optimization dispatch through Numerics, including gradients, Hessians,
-     KKT residuals, and certified unresolved regions where available.
-   - [ ] Consume symbolic `{#}` constraints and objectives through `.solve`
-     without silently weakening exact constraints.
+   - [x] Add branch-and-bound integer/mixed-integer LP with bounded work,
+     incumbent/gap results, retained queues and checked resumption (M5).
+   - [x] Add exact convex quadratic cases with PSD/Hessian and KKT residual
+     checks; bounded constrained nonlinear optimization uses certified Numerics
+     ranges, explicit empty derivative assumptions and unresolved boxes (M5).
+   - [x] Consume symbolic `{#}` affine constraints/objectives through `.solve`;
+     strict nonlinear constraints use OptimizeBox without weakening domains (M5).
 4. **Phase 4 — Provider ecosystem and large-scale optimization**
    - [ ] Negotiate sparse, parallel, WebAssembly/native, and external solver
      providers with reproducible model snapshots and honest evidence levels.

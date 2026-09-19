@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/optimize-quadratic-program/v1.schema.json",
+  "title": "RiX bounded optimization quadratic-program v1",
+  "description": "Normalized semantic record before mathematical JSON tagging (RiX map keys are case-insensitive). Exact scalars, Shaped values, expression graphs and LP records use the shared codec. A schema match never certifies a claim; invoke the bounded replay checker. See plugins/optimize/tutorial.md for algorithm/work limits.",
+  "type": "object",
+  "required": [
+    "schema",
+    "h",
+    "linear",
+    "constant"
+  ],
+  "properties": {
+    "schema": {
+      "const": "rix.optimize.quadratic-program@1"
+    },
+    "h": {
+      "description": "Exact RiX semantic value; transported using mathematical JSON tags. Runtime replay checks types, limits and the full claim."
+    },
+    "linear": {
+      "description": "Exact RiX semantic value; transported using mathematical JSON tags. Runtime replay checks types, limits and the full claim."
+    },
+    "constant": {
+      "description": "Exact RiX semantic value; transported using mathematical JSON tags. Runtime replay checks types, limits and the full claim."
+    }
+  }
+}
