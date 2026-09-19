@@ -23,7 +23,7 @@ export const STANDARD_CAPABILITY_NAMES = Object.freeze([
     "IntDiv", "INTEGRATE", "Intersect", "Intersects", "Interval", "IntervalLinearSolve", "IntervalNewtonBox", "IRANGE", "IsExpression", "JacobianBoxRange", "KEYOF", "KEYS", "KrawczykBox", "KrawczykCheck", "Lambda",
     "LAST", "LEN", "Less", "LessEqual", "LINEBREAK", "LINK", "LIST", "LISTITEM", "LIVEVIEW",
     "LogicSequent", "LogicCheckSequent", "LogicSequentTree", "LogicExactProposition", "LogicCheckProposition",
-    "Loop", "LT", "LTE", "Map", "MATH", "MATHBLOCK", "MathBudgets", "MathDecodeJSON", "MathDecodeJSONL", "MathEncodeJSON", "MathEncodeJSONL", "MathEvaluate", "MathEvaluateCalculus", "MathInstantiate", "MathPolynomialCoefficients", "MathSubstitute", "Max", "Min", "Mod", "Mul", "MULTI",
+    "Loop", "LT", "LTE", "Map", "MATH", "MATHBLOCK", "MathBudgets", "MathDecodeJSON", "MathDecodeJSONL", "RealImportJSON", "RealExportJSON", "RealImportInfo", "RealRefineImported", "MathEncodeJSON", "MathEncodeJSONL", "MathEvaluate", "MathEvaluateCalculus", "MathInstantiate", "MathPolynomialCoefficients", "MathSubstitute", "Max", "Min", "Mod", "Mul", "MULTI",
     "MultivariateRangeCheck", "MultivariateRangeRequest", "Neg", "NEQ", "Not", "NotationParser", "NotEqual", "Or", "Pair", "PARAGRAPH", "Params",
     "Pipe", "PipeExplicit", "PMap", "Poly", "Pow", "PowProd", "PRINT", "Product", "QUOTE",
     "RAND_NAME", "RANDOMSEED", "RangeAbsoluteValue", "RangeAdd", "RangeDivide", "RangeEvidence",

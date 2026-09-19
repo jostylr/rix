@@ -67,7 +67,7 @@ phase numbers in the detailed historical sections are not execution priorities.
 | 25 | `.quaternion` | Certified rotations/interpolation and Geometry/Scene3D adapters | **Waiting:** common transform adapter; broader analysis is Phase 4 |
 | 26 | `.octonion` | Derivative/function notions and `G2` exploration | **Phase 4:** specialist research program |
 | 27 | `.geometry` | Certified implicit-curve tracing with excluded, unique, and unresolved boxes | **Ready:** consume `.numerics` Krawczyk and `.ode` enclosures |
-| 28 | `.data` | Single-document tagged-JSON relation interchange | **Ready:** reuse the certified-real value envelope |
+| 28 | `.data` | Single-document tagged-JSON relation interchange | **Implemented:** M7 exact JSON/JSONL/CSV documents and frozen-real cells |
 | 29 | `.stats` | Generalized models, resampling, and Bayesian records | **Phase 4:** broad statistical program |
 | 30 | `.probability` | Convolutions, mixtures, and stochastic-process foundations | **Phase 4:** broad probabilistic program |
 | 31 | `.document` | Themes, floats, multicolumn layout, and index records | **Ready:** define technical publication contract using existing themes; plan O5 |
@@ -1311,9 +1311,9 @@ the certified numerical singleton layer; it does not replace the core exact
      and maximum-row policies explicit.
    - [x] Core mathematical JSON supports exact graph identity and frozen
      opaque-real snapshots; `.MathEncodeJSON`/`.MathDecodeJSON` expose it in RiX.
-   - [ ] Add single-document tagged-JSON relation interchange over the shared
-     exact-value contracts. Full standalone refinable-real recipes from
-     `numerics/refinable-real-json.md` remain separate work; imports stay inert.
+   - [x] Add complete tagged JSON/JSONL/CSV relation interchange and bounded
+     standalone real envelopes. M7 adds explicit, installed, version-matched
+     Numerics expression replay; broader recipe families remain inert.
 4. **Phase 4 — Columnar, external, and large data**
    - [ ] Add Arrow/Parquet adapters, chunked column batches, and typed-tensor
      bridges only after a real interoperability or scale requirement justifies
@@ -1705,8 +1705,8 @@ The RiX/host extraction sequence is specified in
 3. **Phase 3 — Text data format family**
    - [x] Coordinate deterministic tagged JSONL import and export with `.data`,
      preserving exact cells and bounded streaming behavior.
-   - [ ] Add the corresponding single-document tagged JSON format after the
-     general RiX value envelope is implemented.
+   - [x] Add single-document exact relation JSON plus schema-preserving CSV and
+     JSONL companions through `.data` (M7).
 4. **Phase 4 — Columnar, large, and external data**
    - [ ] Coordinate Arrow/Parquet export with `.data` after its extension-type
      and optional-dependency policy is justified by a concrete use case.

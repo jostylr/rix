@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/data-relation-document/v1.schema.json",
+  "title": "RiX complete exact relation document",
+  "type": "object",
+  "required": ["schema", "columns", "rows"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": {"const": "rix.data.relation-document@1"},
+    "columns": {"type":"array","minItems":1,"maxItems":256,"items":{"type":"object","required":["id","label","type","nullable"],"additionalProperties":false,"properties":{"id":{"type":"string","minLength":1},"label":{"type":"string"},"type":{"enum":["Any","Integer","Rational","Number","Interval","String"]},"nullable":{"type":"boolean"}}}},
+    "rows": {"type":"array","maxItems":10000,"items":{"type":"array","maxItems":256,"items":{"$ref":"#/$defs/cell"}}}
+  },
+  "$defs": {
+    "cell": {"description":"Exact scalar tags ($integer, $rational, $interval, $intervalDirected), frozen $real envelopes, strings, null, booleans and bounded inert collections; the reader validates component canonicality, schema types and row widths.","anyOf":[{"type":"null"},{"type":"string"},{"type":"boolean"},{"type":"integer"},{"type":"object"},{"type":"array","items":{"$ref":"#/$defs/cell"}}]}
+  }
+}

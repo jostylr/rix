@@ -79,7 +79,7 @@ function sourceUsesAsyncEvaluation(source) {
     const tokens = tokenize(source);
     return tokens.some((token) => token.value === "{$" || token.value === "{$$"
         || token.value === "|>_" || token.value === "|>!")
-        || /\.(?:ForEach|Reduce|Collect|First|Find|Count|Close|Retry)\s*\(/i.test(source);
+        || /\.(?:ForEach|Reduce|Collect|First|Find|Count|Close|Retry|RealRefineImported)\s*\(/i.test(source);
 }
 
 function evaluateSource(source, options) {

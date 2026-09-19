@@ -2,16 +2,18 @@
 title: Certified and refinable real JSON interchange
 description: Versioned inert snapshots and optional safe recipes for reconstructing arbitrarily refinable real values.
 theme: Numbers and numerics
-status: proposed
+status: bounded implementation; broader recipe families proposed
 ---
 
 # Certified and refinable real JSON interchange
 
-Status: Phase 3 design specification for the full format and recipe system.
-The core mathematical graph loader now implements a strict frozen opaque-real
-snapshot subset; see `docs/design/mathematical-json.md`. General standalone
-import and executable recipe restoration are not enabled. Examples here are
-JSON data, not executable tutorial cells.
+Status: the bounded M7 profile is implemented: standalone frozen snapshots,
+embedded evidence, deterministic writing, fresh opaque identities and explicit
+version-matched Numerics expression replay. See
+[the implemented API and limits](../../documentation/eval/safe-interchange.md).
+The sections below also describe future algebraic-root/unique-root, effective
+limit, integral and ODE recipe families; those remain inert on import. Historical
+JSON examples illustrate the wider design and are not executable tutorial cells.
 
 ## 1. Purpose
 

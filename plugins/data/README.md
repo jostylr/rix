@@ -77,3 +77,9 @@ margins, and total.
 The semantic schemas are `rix.data.relation@1`, `rix.data.groups@1`,
 `rix.data.contingency@1`, and `rix.data.row-source@1`. Renderers may consume a relation directly;
 `.data.TableView` is for portable presentation and does not replace it.
+
+Complete schema-preserving document pairs are `EncodeJSON`/`DecodeJSON`,
+`RenderJSONLDocument`/`ParseJSONLDocument`, and `RenderCSV`/`ParseCSV`. They retain
+missing/empty cells, exact scalars, oriented intervals and frozen `$real` cells.
+See [safe interchange](../../documentation/eval/safe-interchange.md) for formats,
+finite limits and the distinction from ordinary display CSV.

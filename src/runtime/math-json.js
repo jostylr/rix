@@ -1,9 +1,10 @@
+import { realJSONCapabilities, encodeRefinableReal, decodeRefinableReal } from "./refinable-real-json.js";
 /** Inert, bounded document-local graph interchange. No evaluator callbacks. */
 import {Integer,Rational,RationalInterval} from "@ratmath/core";
 import {UNDECIDED} from "./decision.js";
 import {attachMathContextMethods} from './math-context-methods.js';
 import {createExactGenerator,exactPi,isExactPi} from "./exact-values.js";
-import {realConstantState,restoreRealSnapshot} from "./math-real.js";
+import {realConstantState} from "./math-real.js";
 import {expressionField as field,isMathExpression,expressionStructuralKey,expressionDefinition,
     freshExpressionSymbol,restoreExpressionDefinition,expressionConstant,expressionOperation,expressionApplication} from "./math-expression.js";
 
@@ -55,6 +56,7 @@ export function encodeMathematicalJSON(root) {
         else if (kind === "operator") Object.assign(node,{kind,operation:field(value,"operation").value,operands:field(value,"operands").values.map(child)});
         else if (kind === "apply") Object.assign(node,{kind,semanticId:field(value,"semanticid").value,name:field(value,"name").value,arguments:field(value,"arguments").values.map(child)});
         else if (value instanceof RationalInterval) Object.assign(node,{kind:"interval",start:child(value.start),end:child(value.end)});
+        else if (real?.interchange) Object.assign(node,{kind:"real",envelope:JSON.parse(encodeRefinableReal(value))});
         else if (real) Object.assign(node,{kind:"real",envelope:{schema:"rix.refinable-real@1",subject:{kind:"opaqueSingleton",stableName:id},
             snapshot:{interval:{$interval:[child(real.interval.low),child(real.interval.high)]},status:real.source ? "certified" : "assumed",
                 evidenceLevel:real.savedEvidence || real.evidence?.value || "declared",verification:"unavailable",evidence:[],
@@ -97,6 +99,9 @@ function validateDocument(source) {
             if (visited.has(id)) return;
             active.add(id);scan(table.get(id),depth+1);active.delete(id);visited.add(id);return;
         }
+        // Real envelopes carry their own inert data; $ref inside a saved recipe
+        // or metadata is not a reference into the surrounding mathematical graph.
+        if (value.kind === "real" && table.get(value.id) === value) return;
         for (const child of Object.values(value)) scan(child,depth+1);
     }
     scan(doc.root);for (const id of table.keys()) scan({$ref:id});
@@ -107,6 +112,15 @@ function validateDocument(source) {
         if (Object.hasOwn(value,"$ref")) {
             if (!weights.has(value.$ref)) weights.set(value.$ref,weight(table.get(value.$ref)));
             return weights.get(value.$ref);
+        }
+        if (value.kind === "real" && table.get(value.id) === value) {
+            function plain(item) {
+                if(!item || typeof item !== "object") return {size:1,height:1};
+                let size=1,height=1;
+                for(const entry of Object.values(item)){const child=plain(entry);size+=child.size;height=Math.max(height,child.height+1);if(size>100000||height>MAX_DEPTH)fail("expanded graph budget exceeded");}
+                return {size,height};
+            }
+            return plain(value);
         }
         let total=1,height=1;
         for (const child of Object.values(value)) {
@@ -179,16 +193,7 @@ export function decodeMathematicalJSON(source) {
                 result={type:"exact_expression",terms};break;
             }
             case "real": {
-                shape("envelope");const e=n.envelope;fields(e,["schema","subject","snapshot","recipe"]);
-                if (e.schema!=="rix.refinable-real@1" || e.recipe!==null) fail("unsupported real envelope or recipe");
-                fields(e.subject,["kind","stableName"]);if (e.subject.kind!=="opaqueSingleton") fail("unsupported real subject");string(e.subject.stableName);
-                const s=e.snapshot;fields(s,["interval","status","evidenceLevel","verification","evidence","achievedWidth","work"]);
-                if (!["certified","assumed","approximate","unresolved"].includes(s.status) || s.verification!=="unavailable" || list(s.evidence).length) fail("unsupported real evidence");
-                fields(s.work,["calls","iterations"]);if (s.work.calls!=="0" || s.work.iterations!=="0") fail("unsupported snapshot work");
-                fields(s.interval,["$interval"]);const endpoints=list(s.interval.$interval);if (endpoints.length!==2) fail("invalid real interval");
-                const interval=new RationalInterval(exact(child(endpoints[0])),exact(child(endpoints[1])));
-                if (!interval.high.subtract(interval.low).equals(exact(child(s.achievedWidth)))) fail("inconsistent snapshot width");
-                result=restoreRealSnapshot(interval,string(s.evidenceLevel));break;
+                shape("envelope");result=decodeRefinableReal(JSON.stringify(n.envelope));break;
             }
             case "tuple": case "sequence": shape("values");result={type:n.kind,values:list(n.values).map(child)};break;
             case "map": {
@@ -212,6 +217,7 @@ export function decodeMathematicalJSON(source) {
 }
 
 export const mathematicalJSONCapabilities={
+    ...realJSONCapabilities,
     MathEncodeJSON:{impl:([value])=>text(encodeMathematicalJSON(value)),pure:false,groups:["Symbolic"],doc:"Encode an inert document-local mathematical graph"},
     MathDecodeJSON:{impl:([value])=>decodeMathematicalJSON(value?.type === "string" ? value.value : value),pure:false,groups:["Symbolic"],doc:"Load fresh identities and frozen real snapshots without executing code"},
     MathEncodeJSONL:{impl:([values])=> {

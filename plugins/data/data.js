@@ -1,3 +1,5 @@
+import { encodeRefinableReal, decodeRefinableReal } from "../../src/runtime/refinable-real-json.js";
+import { parseCsvRecords } from "../render-csv/csv-import.js";
 import { Integer, Rational, RationalInterval } from "@ratmath/core";
 
 const stringValue = (value) => ({ type: "string", value: String(value) });
@@ -761,7 +763,7 @@ export function createRowSource(args) {
 const CANONICAL_INTEGER = /^(?:0|-[1-9][0-9]*|[1-9][0-9]*)$/;
 
 function jsonInteger(value, label) {
-    if (typeof value !== "string" || !CANONICAL_INTEGER.test(value)) {
+    if (typeof value !== "string" || value.length > 4096 || !CANONICAL_INTEGER.test(value)) {
         throw new Error(`${label} must be a canonical decimal Integer string`);
     }
     return BigInt(value);
@@ -771,6 +773,7 @@ function taggedExact(value, label) {
     if (!value || typeof value !== "object" || Array.isArray(value)) return null;
     const keys = Object.keys(value);
     if (keys.length !== 1) return null;
+    if (keys[0] === "$real") return decodeRefinableReal(JSON.stringify(value.$real));
     if (keys[0] === "$integer") return new Integer(jsonInteger(value.$integer, `${label} $integer`));
     if (keys[0] === "$rational") {
         if (!Array.isArray(value.$rational) || value.$rational.length !== 2) {
@@ -780,6 +783,12 @@ function taggedExact(value, label) {
         const denominator = jsonInteger(value.$rational[1], `${label} rational denominator`);
         if (denominator <= 0n) throw new Error(`${label} rational denominator must be positive`);
         return collapseRational(new Rational(numerator, denominator));
+    }
+    if (keys[0] === "$intervalDirected") {
+        if (!Array.isArray(value.$intervalDirected) || value.$intervalDirected.length !== 2) throw new Error(`${label} invalid directed interval`);
+        const endpoints=value.$intervalDirected.map(item=>taggedExact(item,label));
+        if(endpoints.some(item=>!(item instanceof Integer || item instanceof Rational)))throw new Error(`${label} invalid directed endpoint`);
+        return new RationalInterval(...endpoints.map(item=>exactRational(item,label)));
     }
     if (keys[0] === "$interval") {
         if (!Array.isArray(value.$interval) || value.$interval.length !== 2) {
@@ -817,6 +826,7 @@ function decodeJsonValue(value, column, label) {
         return new Integer(BigInt(value));
     }
     if (typeof value === "boolean") return value;
+    if(value && !Array.isArray(value) && Object.keys(value).some(key=>key.startsWith("$")))throw new Error(`${label} unknown or malformed exact tag`);
     if (Array.isArray(value)) return sequenceValue(value.map((entry, index) => decodeJsonValue(entry, { type: "Any" }, `${label}[${index + 1}]`)));
     if (value && typeof value === "object") {
         return mapValue(Object.keys(value).sort().map((key) => [key, decodeJsonValue(value[key], { type: "Any" }, `${label}.${key}`)]));
@@ -824,12 +834,17 @@ function decodeJsonValue(value, column, label) {
     throw new Error(`${label} contains unsupported JSON data`);
 }
 
-function encodeJsonValue(value, label, seen = new WeakSet()) {
+function encodeJsonValue(value, label, seen = new WeakSet(), budget={nodes:0}, depth=0) {
+    if(++budget.nodes>100000||depth>64)throw new Error(`${label} structure budget exceeded`);
+    budget.text=(budget.text??0)+(typeof value==="string"?value.length:value?.type==="string"?value.value.length:0)+4;
+    if(budget.text>2_000_000)throw new Error(`${label} text budget exceeded`);
     if (value === null || value === undefined) return null;
-    if (value instanceof Integer) return { $integer: value.value.toString() };
-    if (value instanceof Rational) return { $rational: [value.numerator.toString(), value.denominator.toString()] };
+    const consume=count=>{budget.text+=count;if(budget.text>2_000_000)throw new Error(`${label} text budget exceeded`);};
+    if (value?.type === "math_real") {const source=encodeRefinableReal(value);consume(source.length);return {$real:JSON.parse(source)};}
+    if (value instanceof Integer) {jsonInteger(value.value.toString(),label);consume(String(value.value).length);return { $integer: value.value.toString() };}
+    if (value instanceof Rational) {if(value.denominator<=0n)throw new Error(`${label} requires finite rational`);jsonInteger(String(value.numerator),label);jsonInteger(String(value.denominator),label);consume(String(value.numerator).length+String(value.denominator).length);return { $rational: [value.numerator.toString(), value.denominator.toString()] };}
     if (value instanceof RationalInterval) {
-        return { $interval: [encodeJsonValue(value.low, `${label}.low`, seen), encodeJsonValue(value.high, `${label}.high`, seen)] };
+        return { [value.start.greaterThan(value.end) ? "$intervalDirected" : "$interval"]: [encodeJsonValue(value.start, `${label}.start`, seen,budget,depth+1), encodeJsonValue(value.end, `${label}.end`, seen,budget,depth+1)] };
     }
     if (value?.type === "string") return value.value;
     if (typeof value === "string" || typeof value === "boolean") return value;
@@ -842,16 +857,17 @@ function encodeJsonValue(value, label, seen = new WeakSet()) {
     seen.add(value);
     try {
         if (Array.isArray(value) || Array.isArray(value?.values)) {
-            return sequence(value, label).map((entry, index) => encodeJsonValue(entry, `${label}[${index + 1}]`, seen));
+            return sequence(value, label).map((entry, index) => encodeJsonValue(entry, `${label}[${index + 1}]`, seen,budget,depth+1));
         }
         const values = value?.type === "map" && value.entries instanceof Map
             ? value.entries
             : value instanceof Map ? value : null;
         if (values) {
+            if([...values.keys()].some(key=>String(key).startsWith("$")))throw new Error(`${label} reserved exact-tag map key`);
             return Object.fromEntries([...values]
                 .map(([key, entry]) => [String(key), entry])
-                .sort(([left], [right]) => left.localeCompare(right))
-                .map(([key, entry]) => [key, encodeJsonValue(entry, `${label}.${key}`, seen)]));
+                .sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0)
+                .map(([key, entry]) => [key, encodeJsonValue(entry, `${label}.${key}`, seen,budget,depth+1)]));
         }
     } finally {
         seen.delete(value);
@@ -883,6 +899,7 @@ export function parseJsonlSource(args) {
     const columns = normalizeColumns(args[0]);
     if (!columns.length) throw new Error("data.ParseJSONL schema must contain at least one column");
     const source = text(args[1], "data.ParseJSONL text");
+    if(source.length>2_000_000)throw new Error("data.ParseJSONL text budget exceeded");
     const blankPolicy = text(option(args[2], "blankLines", stringValue("skip")), "data.ParseJSONL blankLines").replace(/^:/, "").toLowerCase();
     if (!["skip", "error"].includes(blankPolicy)) throw new Error("data.ParseJSONL blankLines must be skip or error");
     const records = jsonlOffsets(source, blankPolicy);
@@ -895,7 +912,7 @@ export function parseJsonlSource(args) {
         if (!record || Number(indexValue.value) > maxRows) return null;
         let parsed;
         try {
-            parsed = JSON.parse(source.slice(record.start, record.end));
+            parsed = dataParse(source.slice(record.start, record.end));
         } catch (error) {
             throw new Error(`data.ParseJSONL invalid JSON at physical line ${record.line}: ${error.message}`);
         }
@@ -1005,4 +1022,82 @@ export function relationRows(args) {
     if (args.length !== 1) throw new Error("data.Rows expects a Relation");
     const relation = requireRelation(args[0], "data.Rows");
     return sequenceValue(relation.rows.map((row) => rowMap(relation, row)));
+}
+
+// Complete relation documents are bounded and self-describing. Existing row-source
+// JSONL remains available for explicit schema plus bounded streaming workflows.
+const RELATION_DOCUMENT = 'rix.data.relation-document@1';
+const DATA_LIMITS = Object.freeze({ text: 2_000_000, nodes: 100000, depth: 64, rows: 10000, columns: 256, digits: 4096 });
+function dataTree(value, depth=0, budget={nodes:0}) {
+    if (++budget.nodes>DATA_LIMITS.nodes || depth>DATA_LIMITS.depth) throw new Error('data interchange structure budget exceeded');
+    if (value && typeof value==='object') for(const item of Object.values(value)) dataTree(item,depth+1,budget);
+}
+function dataParse(source) {
+    if(typeof source!=='string' || source.length>DATA_LIMITS.text) throw new Error('data interchange text budget exceeded');
+    const value=JSON.parse(source); dataTree(value); return value;
+}
+function documentColumns(columns) {
+    if(!Array.isArray(columns)||!columns.length||columns.length>DATA_LIMITS.columns) throw new Error('data interchange column budget exceeded');
+    return sequenceValue(columns.map(column=>{
+        if(!column || Object.keys(column).sort().join(',')!=='id,label,nullable,type' || typeof column.id!=='string'||typeof column.label!=='string'||typeof column.type!=='string'||typeof column.nullable!=='boolean') throw new Error('data interchange invalid column');
+        return mapValue([['id',stringValue(column.id)],['label',stringValue(column.label)],['type',stringValue(column.type)],['nullable',column.nullable?new Integer(1n):null]]);
+    }));
+}
+function relationDocument(value) {
+    const relation=requireRelation(value);
+    if(relation.rows.length>DATA_LIMITS.rows || relation.columns.length>DATA_LIMITS.columns) throw new Error('data interchange relation budget exceeded');
+    const budget={nodes:0,text:0};
+    if(relation.columns.reduce((sum,column)=>sum+column.id.length+column.label.length,0)>DATA_LIMITS.text || relation.columns.some(column=>column.id.length+column.label.length>65536))throw new Error("data interchange column text budget exceeded");
+    const document={schema:RELATION_DOCUMENT,columns:relation.columns.map(column=>({...column})),rows:relation.rows.map((row,i)=>row.map((cell,j)=>encodeJsonValue(cell,`data cell ${i+1},${j+1}`,new WeakSet(),budget)))};
+    dataParse(JSON.stringify(document)); return document;
+}
+function restoreRelationDocument(document) {
+    if(!document || Object.keys(document).sort().join(',')!=='columns,rows,schema' || document.schema!==RELATION_DOCUMENT) throw new Error('data interchange unsupported relation document');
+    const schema=documentColumns(document.columns),columns=normalizeColumns(schema);
+    if(!Array.isArray(document.rows)||document.rows.length>DATA_LIMITS.rows) throw new Error('data interchange row budget exceeded');
+    const rows=document.rows.map((row,i)=>{
+        if(!Array.isArray(row)||row.length!==columns.length) throw new Error(`data interchange row ${i+1} width mismatch`);
+        return sequenceValue(row.map((cell,j)=>decodeJsonValue(cell,columns[j],`data cell ${i+1},${j+1}`)));
+    });
+    return createRelation([schema,sequenceValue(rows)]);
+}
+export function encodeRelationJson(args) {
+    if(args.length!==1) throw new Error('data.EncodeJSON expects one Relation');
+    return stringValue(JSON.stringify(relationDocument(args[0])));
+}
+export function decodeRelationJson(args) {
+    if(args.length!==1) throw new Error('data.DecodeJSON expects one document string');
+    return restoreRelationDocument(dataParse(text(args[0],'data.DecodeJSON')));
+}
+export function renderRelationJsonl(args) {
+    if(args.length!==1) throw new Error('data.RenderJSONLDocument expects one Relation');
+    const doc=relationDocument(args[0]); const source=[{schema:RELATION_DOCUMENT,columns:doc.columns},...doc.rows].map(row=>JSON.stringify(row)).join('\n')+'\n';
+    if(source.length>DATA_LIMITS.text) throw new Error('data interchange text budget exceeded');return stringValue(source);
+}
+export function parseRelationJsonl(args) {
+    if(args.length!==1) throw new Error('data.ParseJSONLDocument expects one document string');
+    const source=text(args[0],'data.ParseJSONLDocument');if(source.length>DATA_LIMITS.text)throw new Error('data interchange text budget exceeded');
+    const lines=source.split(/\r?\n/);if(lines.at(-1)==='')lines.pop();
+    if(lines.length>DATA_LIMITS.rows+1 || lines.some(line=>!line.trim()))throw new Error('data interchange invalid or oversized JSONL');
+    const header=dataParse(lines.shift());if(Object.keys(header).sort().join(',')!=='columns,schema')throw new Error('data interchange invalid JSONL header');
+    const doc={...header,rows:lines.map(dataParse)};dataTree(doc);return restoreRelationDocument(doc);
+}
+const csvField=value=>'"'+String(value).replaceAll('"','""')+'"';
+export function renderRelationCsv(args) {
+    if(args.length!==1)throw new Error('data.RenderCSV expects one Relation');
+    const doc=relationDocument(args[0]);
+    const rows=[['rix.data.csv@1',JSON.stringify({schema:doc.schema,columns:doc.columns})],doc.columns.map(c=>c.id),...doc.rows.map(row=>row.map(cell=>JSON.stringify(cell)))];
+    const source=rows.map(row=>row.map(csvField).join(',')).join('\r\n')+'\r\n';
+    if(source.length>DATA_LIMITS.text)throw new Error('data interchange text budget exceeded');return stringValue(source);
+}
+export function parseRelationCsv(args) {
+    if(args.length!==1)throw new Error('data.ParseCSV expects one document string');
+    const source=text(args[0],'data.ParseCSV');if(source.length>DATA_LIMITS.text)throw new Error('data interchange text budget exceeded');
+    const parsed=parseCsvRecords(source);
+    if(parsed.comments.length || parsed.records.length<2 || parsed.records.length>DATA_LIMITS.rows+2)throw new Error('data interchange invalid or oversized CSV');
+    const rows=parsed.records.map(record=>record.fields),first=rows.shift();
+    if(first.length!==2||first[0]!=='rix.data.csv@1')throw new Error('data interchange missing CSV schema');
+    const header=dataParse(first[1]);if(Object.keys(header).sort().join(',')!=='columns,schema')throw new Error('data interchange invalid CSV header');
+    documentColumns(header.columns);const ids=rows.shift();if(JSON.stringify(ids)!==JSON.stringify(header.columns.map(c=>c.id)))throw new Error('data interchange CSV column mismatch');
+    const doc={...header,rows:rows.map(row=>row.map(dataParse))};dataTree(doc);return restoreRelationDocument(doc);
 }

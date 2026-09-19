@@ -3,53 +3,94 @@
   "$id": "https://rix.ratmath.com/schema/refinable-real/v1.schema.json",
   "title": "RiX certified and refinable real interchange v1",
   "type": "object",
-  "required": ["schema", "subject", "snapshot", "recipe"],
+  "required": [
+    "schema",
+    "subject",
+    "snapshot",
+    "recipe"
+  ],
   "properties": {
-    "schema": { "const": "rix.refinable-real@1" },
-    "id": { "type": "string", "minLength": 1 },
+    "schema": {
+      "const": "rix.refinable-real@1"
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
     "subject": {
       "type": "object",
-      "required": ["kind"],
-      "properties": { "kind": { "type": "string", "minLength": 1 } },
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
       "additionalProperties": true
     },
-    "snapshot": { "$ref": "#/$defs/snapshot" },
+    "snapshot": {
+      "$ref": "#/$defs/snapshot"
+    },
     "recipe": {
       "oneOf": [
-        { "type": "null" },
-        { "$ref": "#/$defs/recipe" }
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/recipe"
+        }
       ]
     },
     "requirements": {
       "type": "array",
-      "items": { "$ref": "#/$defs/requirement" },
-      "default": []
+      "items": {
+        "$ref": "#/$defs/requirement"
+      },
+      "default": [],
+      "maxItems": 128
     },
-    "metadata": { "type": "object", "default": {} }
+    "metadata": {
+      "type": "object",
+      "default": {}
+    }
   },
   "additionalProperties": true,
   "$defs": {
     "canonicalIntegerString": {
       "type": "string",
-      "pattern": "^(0|-[1-9][0-9]*|[1-9][0-9]*)$"
+      "pattern": "^(0|-[1-9][0-9]*|[1-9][0-9]*)$",
+      "maxLength": 4096
     },
     "integer": {
       "type": "object",
-      "required": ["$integer"],
+      "required": [
+        "$integer"
+      ],
       "properties": {
-        "$integer": { "$ref": "#/$defs/canonicalIntegerString" }
+        "$integer": {
+          "$ref": "#/$defs/canonicalIntegerString"
+        }
       },
       "additionalProperties": false
     },
     "rational": {
       "type": "object",
-      "required": ["$rational"],
+      "required": [
+        "$rational"
+      ],
       "properties": {
         "$rational": {
           "type": "array",
           "prefixItems": [
-            { "$ref": "#/$defs/canonicalIntegerString" },
-            { "type": "string", "pattern": "^[1-9][0-9]*$" }
+            {
+              "$ref": "#/$defs/canonicalIntegerString"
+            },
+            {
+              "type": "string",
+              "pattern": "^[1-9][0-9]*$"
+            }
           ],
           "minItems": 2,
           "maxItems": 2
@@ -59,17 +100,25 @@
     },
     "exactScalar": {
       "oneOf": [
-        { "$ref": "#/$defs/integer" },
-        { "$ref": "#/$defs/rational" }
+        {
+          "$ref": "#/$defs/integer"
+        },
+        {
+          "$ref": "#/$defs/rational"
+        }
       ]
     },
     "interval": {
       "type": "object",
-      "required": ["$interval"],
+      "required": [
+        "$interval"
+      ],
       "properties": {
         "$interval": {
           "type": "array",
-          "items": { "$ref": "#/$defs/exactScalar" },
+          "items": {
+            "$ref": "#/$defs/exactScalar"
+          },
           "minItems": 2,
           "maxItems": 2
         }
@@ -79,9 +128,15 @@
     "work": {
       "type": "object",
       "properties": {
-        "calls": { "$ref": "#/$defs/canonicalIntegerString" },
-        "iterations": { "$ref": "#/$defs/canonicalIntegerString" },
-        "exhausted": { "type": "boolean" }
+        "calls": {
+          "$ref": "#/$defs/canonicalIntegerString"
+        },
+        "iterations": {
+          "$ref": "#/$defs/canonicalIntegerString"
+        },
+        "exhausted": {
+          "type": "boolean"
+        }
       },
       "additionalProperties": true
     },
@@ -97,46 +152,124 @@
         "work"
       ],
       "properties": {
-        "interval": { "$ref": "#/$defs/interval" },
+        "interval": {
+          "$ref": "#/$defs/interval"
+        },
         "status": {
-          "enum": ["certified", "assumed", "approximate", "unresolved"]
+          "enum": [
+            "certified",
+            "assumed",
+            "approximate",
+            "unresolved"
+          ]
         },
-        "evidenceLevel": { "type": "string", "minLength": 1 },
+        "evidenceLevel": {
+          "type": "string",
+          "minLength": 1
+        },
         "verification": {
-          "enum": ["checked", "providerChecked", "unavailable", "failed"]
+          "enum": [
+            "checked",
+            "providerChecked",
+            "unavailable",
+            "failed"
+          ]
         },
-        "evidence": { "type": "array", "items": { "type": "object" } },
-        "achievedWidth": { "$ref": "#/$defs/exactScalar" },
-        "work": { "$ref": "#/$defs/work" }
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          },
+          "maxItems": 128
+        },
+        "achievedWidth": {
+          "$ref": "#/$defs/exactScalar"
+        },
+        "work": {
+          "$ref": "#/$defs/work"
+        }
       },
       "additionalProperties": true
     },
     "recipe": {
       "type": "object",
-      "required": ["kind"],
+      "required": [
+        "kind"
+      ],
       "properties": {
         "kind": {
-          "enum": ["builtin", "expression", "root", "ode", "arithmetic"]
+          "enum": [
+            "builtin",
+            "expression",
+            "root",
+            "ode",
+            "arithmetic"
+          ]
         },
-        "provider": { "type": "string", "minLength": 1 },
-        "algorithm": { "type": "string", "minLength": 1 },
-        "algorithmVersion": { "type": "string", "minLength": 1 },
-        "deterministic": { "type": "boolean" },
-        "parameters": { "type": "object" }
+        "provider": {
+          "type": "string",
+          "minLength": 1
+        },
+        "algorithm": {
+          "type": "string",
+          "minLength": 1
+        },
+        "algorithmVersion": {
+          "type": "string",
+          "minLength": 1
+        },
+        "deterministic": {
+          "type": "boolean"
+        },
+        "parameters": {
+          "type": "object"
+        },
+        "providerVersion": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "checker": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "graph": {
+          "type": "object",
+          "description": "Closed supported expression profile; unsupported bounded graphs stay opaque."
+        }
       },
       "additionalProperties": true
     },
     "requirement": {
       "type": "object",
-      "required": ["capability"],
+      "required": [
+        "capability"
+      ],
       "properties": {
-        "capability": { "type": "string", "minLength": 1 },
-        "provider": { "type": "string", "minLength": 1 },
-        "minimumPluginVersion": { "type": "string", "minLength": 1 },
-        "algorithm": { "type": "string", "minLength": 1 },
-        "algorithmVersion": { "type": "string", "minLength": 1 }
+        "capability": {
+          "type": "string",
+          "minLength": 1
+        },
+        "provider": {
+          "type": "string",
+          "minLength": 1
+        },
+        "minimumPluginVersion": {
+          "type": "string",
+          "minLength": 1
+        },
+        "algorithm": {
+          "type": "string",
+          "minLength": 1
+        },
+        "algorithmVersion": {
+          "type": "string",
+          "minLength": 1
+        }
       },
       "additionalProperties": true
     }
-  }
+  },
+  "description": "M7 bounded inert snapshots; explicit provider/checker versions gate recipe revival. Imports always expose unavailable local verification until explicit replay. See documentation/eval/safe-interchange.md for the supported expression profile."
 }

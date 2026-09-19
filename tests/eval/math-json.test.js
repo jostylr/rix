@@ -78,18 +78,20 @@ test("JSON map keys cannot pollute host prototypes",()=> {
 });
 
 test("the design document's complete graph example loads",async()=> {
-    const doc=await Bun.file(new URL("../../docs/design/mathematical-json.md",import.meta.url)).text();
+    const doc=await Bun.file(new URL("../../documentation/design/mathematical-json.md",import.meta.url)).text();
     const source=doc.match(/```json\n([\s\S]*?)```/)[1];
     const value=decodeMathematicalJSON(source);
     expect(value.values[0]).toBe(value.values[2]);
 });
 
-test("real recipes and inconsistent snapshot evidence are never accepted",()=> {
+test("real recipes remain inert and inconsistent snapshot evidence is rejected",()=> {
     const real=parseAndEvaluate('.Plugin.Load("numerics"); .ExpressionReal(.numerics.Sqrt(2));',{context:new Context()});
     const source=encodeMathematicalJSON(real);
     const withRecipe=JSON.parse(source);
     withRecipe.nodes.find(n=>n.kind === "real").envelope.recipe={kind:"builtin",provider:"numerics",algorithm:"squareRoot"};
-    expect(()=>decodeMathematicalJSON(JSON.stringify(withRecipe))).toThrow("recipe");
+    const frozen=decodeMathematicalJSON(JSON.stringify(withRecipe));
+    expect(frozen).toBeDefined();
+    expect(encodeMathematicalJSON(frozen)).toContain("squareRoot");
     const badWidth=JSON.parse(source);
     badWidth.nodes.find(n=>n.kind === "real").envelope.snapshot.achievedWidth={$integer:"0"};
     expect(()=>decodeMathematicalJSON(JSON.stringify(badWidth))).toThrow("width");

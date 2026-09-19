@@ -184,10 +184,10 @@ const BUNDLED_PLUGINS = [
         metadata: {
             id: "data", description: "Immutable typed relations with joins, grouping, exact aggregation, missing-data policy, and bounded row sources.",
             kind: "host", mount: "data",
-            exports: ["Relation", "Project", "Rename", "Distinct", "Filter", "Sort", "Join", "Group", "Aggregate", "Frequency", "Contingency", "Calculate", "Missing", "RowSource", "ParseJSONL", "RenderJSONL", "Collect", "TableView", "Schema", "Rows"],
+            exports: ["Relation", "Project", "Rename", "Distinct", "Filter", "Sort", "Join", "Group", "Aggregate", "Frequency", "Contingency", "Calculate", "Missing", "RowSource", "ParseJSONL", "RenderJSONL", "Collect", "TableView", "Schema", "Rows", "EncodeJSON", "DecodeJSON", "RenderJSONLDocument", "ParseJSONLDocument", "RenderCSV", "ParseCSV"],
             groups: ["Data"], permissions: [],
-            provides: ["rix.data.relation@1", "rix.data.groups@1", "rix.data.contingency@1", "rix.data.row-source@1"],
-            schemas: ["rix.data.relation@1", "rix.data.groups@1", "rix.data.contingency@1", "rix.data.row-source@1"],
+            provides: ["rix.data.relation@1", "rix.data.groups@1", "rix.data.contingency@1", "rix.data.row-source@1", "rix.data.relation-document@1"],
+            schemas: ["rix.data.relation@1", "rix.data.groups@1", "rix.data.contingency@1", "rix.data.row-source@1", "rix.data.relation-document@1"],
             snapshot: false, deterministic: true, defaultEnabled: false,
         },
         install: ({ systemContext }) => installDataPlugin({ systemContext }),

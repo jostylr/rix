@@ -43,11 +43,13 @@ restored := .MathDecodeJSON(.MathEncodeJSON(real));
 ```
 
 Saved reals load as frozen singleton snapshots, retaining enclosures but not
-closures. Refinement reports that no recipe is installed. This is explicit
+closures. Ordinary opaque adapters have no portable recipe. Standalone envelopes can
+retain explicitly versioned recipes; see [safe interchange](safe-interchange.md)
+for explicit refinement and verification. This is explicit
 degradation, not a claim that a saved enclosure proves its subject. Context
 consistency and real evidence are unverified on import. No source code,
 plugins, or refinement run while loading. Callables and unsupported values
 fail serialization rather than disappearing silently.
 
-See the [full format specification](../../docs/design/mathematical-json.md)
+See the [full format specification](../design/mathematical-json.md)
 for node forms, examples, budgets, and the frozen-real envelope profile.
