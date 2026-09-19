@@ -4762,6 +4762,7 @@ export function parseAndEvaluate(code, options = {}) {
     context.setEnv(CURRENT_FILE_ENV_KEY, options.file || "<repl>");
 
     const ast = parse(code, systemLookup, {
+        limits: options.sourceLimits,
         operatorDefinitions: runtime.operatorDefinitions,
         operatorOwner: options.operatorOwner || null,
         file: options.file || "<repl>",
@@ -4851,6 +4852,7 @@ export async function parseAndEvaluateAsync(code, options = {}) {
     context.setEnv(CURRENT_FILE_ENV_KEY, options.file || "<repl>");
 
     const ast = parse(code, systemLookup, {
+        limits: options.sourceLimits,
         operatorDefinitions: runtime.operatorDefinitions,
         operatorOwner: options.operatorOwner || null,
         file: options.file || "<repl>",

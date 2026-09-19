@@ -56,12 +56,13 @@ export class Context {
                 ? initial
                 : new Map(initial ? Object.entries(initial) : []);
         const bindings = new Map();
+        const snapshotMemo = options.snapshot === true ? new WeakMap() : null;
         for (const [k, v] of rawMap) {
             // If already a Cell (e.g. passed from setCell context), share it;
             // otherwise wrap in a new Cell.
             const sourceCell = v instanceof Cell ? v : new Cell(v);
             const cell = options.snapshot === true
-                ? new Cell(deepCopyValue(sourceCell.value))
+                ? new Cell(deepCopyValue(sourceCell.value, snapshotMemo))
                 : sourceCell;
             bindings.set(k, cell);
             if (options.readOnly === true) this.readOnlyCells.add(cell);
@@ -475,8 +476,12 @@ export class Context {
      */
     concurrentChild() {
         const child = new Context();
+        // One isolated value graph per child. Reusing this memo across bindings
+        // preserves aliases and avoids copying shared plugin/provenance graphs
+        // once for every visible name; never reuse it in another child.
+        const snapshotMemo = new WeakMap();
         child.globalScope = new Map([...this.globalScope].map(([name, cell]) => {
-            const snapshot = new Cell(deepCopyValue(cell.value));
+            const snapshot = new Cell(deepCopyValue(cell.value, snapshotMemo));
             child.readOnlyCells.add(snapshot);
             return [name, snapshot];
         }));
@@ -484,7 +489,7 @@ export class Context {
         child.globalScopedEnv = new Map(this.globalScopedEnv);
         child.localScopes = this.localScopes.map((scope) => ({
             bindings: new Map([...scope.bindings].map(([name, cell]) => {
-                const snapshot = new Cell(deepCopyValue(cell.value));
+                const snapshot = new Cell(deepCopyValue(cell.value, snapshotMemo));
                 child.readOnlyCells.add(snapshot);
                 return [name, snapshot];
             })),

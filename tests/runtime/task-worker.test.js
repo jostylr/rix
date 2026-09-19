@@ -147,3 +147,46 @@ test("numeric capture serialization never drops own fields or extension behavior
     runtime.context.set("n", altered); expect(request("n", runtime)).toBeNull();
     expect(invoked).toBe(false);
 });
+
+test("reused worker definitions do not reuse grants, captures or task-local random state", async () => {
+    const pool = new TaskWorkerPool({ workerFactory: () => new Worker(new URL("../../src/runtime/task-worker-entry.js", import.meta.url), { type: "module" }), maxWorkers: 1, maxTimeMs: 10000 });
+    const runtime = state();
+    try {
+        runtime.context.set('x', new Integer(7n));
+        const first = request('.ADD(x,2)', runtime);
+        expect(String(await pool.runTask(first))).toBe('9');
+        const missingGrant = { ...first, grants: [] };
+        await expect(pool.runTask(missingGrant)).rejects.toThrow('capability');
+        const missingCapture = { ...first, captured: encodeTaskValue({ type: 'map', entries: new Map() }) };
+        const missingError = await pool.runTask(missingCapture).then(() => null, (error) => error);
+        expect(missingError?.message).toContain('Undefined variable: x');
+        runtime.context.set('x', new Integer(20n));
+        expect(String(await pool.runTask(request('x+1', runtime)))).toBe('21');
+        parseAndEvaluate('.RandomSeed(42)', runtime);
+        const random = request('(0:1) :% 1', runtime);
+        expect(formatValue(await pool.runTask(random))).toBe(formatValue(await pool.runTask(random)));
+        expect(pool.snapshot().workers).toBe(1);
+    } finally { await pool.dispose(); }
+});
+
+test("a worker announces a reusable slot only after cleanup, including evaluation failures", async () => {
+    const { installTaskWorker } = await import('../../src/runtime/task-worker-entry.js');
+    const runtime = state(); runtime.context.set('x', new Integer(3n));
+    const task = request('x+1', runtime);
+    for (const broken of [false, true]) {
+        let handler;
+        const replies = [], pending = [];
+        const message = (id, task) => ({ protocol: TASK_WORKER_PROTOCOL, kind: 'run', id, task, maxSteps: 1000, maxTimeMs: 10000 });
+        installTaskWorker({
+            addEventListener(name, callback) { if (name === 'message') handler = callback; },
+            postMessage(reply) {
+                replies.push(reply);
+                if (replies.length === 1) pending.push(handler({ data: message(2, task) }));
+            },
+        });
+        await handler({ data: message(1, broken ? { ...task, captured: encodeTaskValue({ type: 'map', entries: new Map() }) } : task) });
+        await Promise.all(pending);
+        expect(replies.map((reply) => reply.kind)).toEqual([broken ? 'error' : 'result', 'result']);
+        expect(replies.map((reply) => reply.id)).toEqual([1, 2]);
+    }
+});

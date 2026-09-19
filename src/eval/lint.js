@@ -360,7 +360,7 @@ function expressionMayBeUndecided(node, scope) {
 
 function sourceOffset(node) {
     if (!Array.isArray(node?.pos)) return 0;
-    return Number.isFinite(node.pos[0]) ? node.pos[0] : 0;
+    return Number.isFinite(node.pos[1]) ? node.pos[1] : Number.isFinite(node.pos[0]) ? node.pos[0] : 0;
 }
 
 function countOuterIdentifiers(node, state = { count: 0, names: new Set(), seen: new Set() }) {

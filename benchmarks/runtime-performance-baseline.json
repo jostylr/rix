@@ -1,0 +1,835 @@
+{
+  "schema": "rix.benchmark.runtime-performance@1",
+  "date": "2026-09-19",
+  "platform": "macOS arm64",
+  "runtime": "Bun 1.4.0",
+  "notes": [
+    "Measurements are informational; no timing assertion or hard memory ceiling.",
+    "ODE baseline is the M3 construction fixture before context graph memoization.",
+    "Worker baseline was measured immediately before per-worker definition reuse.",
+    "Snapshot reference reproduces old per-binding copies; per-child memo intentionally preserves aliases."
+  ],
+  "snapshots": {
+    "schema": "rix.benchmark.runtime-snapshots@1",
+    "runtime": "Bun 1.4.0",
+    "bindings": 50,
+    "sharedExactLeaves": 256,
+    "rows": [
+      {
+        "mode": "per-binding-reference",
+        "milliseconds": 21.859167,
+        "retainedHeapDelta": 17813325,
+        "exactValueParity": true,
+        "copies": 32
+      },
+      {
+        "mode": "isolated-graph-memo",
+        "milliseconds": 1.1628339999999966,
+        "retainedHeapDelta": 604928,
+        "exactValueParity": true,
+        "copies": 32
+      }
+    ],
+    "limitations": "Reference copies each binding independently as the previous implementation did. Heap deltas are GC/runtime observations, not hard memory ceilings. Real ODE and worker benchmarks cover end-to-end behavior."
+  },
+  "ode": {
+    "before": {
+      "schema": "rix.benchmark.ode-construction@1",
+      "fixture": "[y,-x], order 4",
+      "rows": [
+        {
+          "mode": "sync",
+          "cache": false,
+          "milliseconds": 88.34433400000006,
+          "evaluatorSteps": 51453,
+          "partialComputed": 22,
+          "partialCacheHits": 0,
+          "totalComputed": 6,
+          "derivativeParity": true
+        },
+        {
+          "mode": "sync",
+          "cache": true,
+          "milliseconds": 59.12950000000001,
+          "evaluatorSteps": 50508,
+          "partialComputed": 18,
+          "partialCacheHits": 4,
+          "totalComputed": 6,
+          "derivativeParity": true
+        },
+        {
+          "mode": "async",
+          "cache": false,
+          "milliseconds": 11125.832583000001,
+          "evaluatorSteps": 51778,
+          "partialComputed": 22,
+          "partialCacheHits": 0,
+          "totalComputed": 6,
+          "derivativeParity": true
+        },
+        {
+          "mode": "async",
+          "cache": true,
+          "milliseconds": 11047.441124999998,
+          "evaluatorSteps": 50815,
+          "partialComputed": 18,
+          "partialCacheHits": 4,
+          "totalComputed": 6,
+          "derivativeParity": true
+        }
+      ]
+    },
+    "after": {
+      "schema": "rix.benchmark.ode-construction@1",
+      "fixture": "[y,-x], order 4",
+      "rows": [
+        {
+          "mode": "sync",
+          "cache": false,
+          "milliseconds": 92.409625,
+          "evaluatorSteps": 51453,
+          "partialComputed": 22,
+          "partialCacheHits": 0,
+          "totalComputed": 6,
+          "derivativeParity": true
+        },
+        {
+          "mode": "sync",
+          "cache": true,
+          "milliseconds": 59.430000000000064,
+          "evaluatorSteps": 50508,
+          "partialComputed": 18,
+          "partialCacheHits": 4,
+          "totalComputed": 6,
+          "derivativeParity": true
+        },
+        {
+          "mode": "async",
+          "cache": false,
+          "milliseconds": 2895.177334,
+          "evaluatorSteps": 51778,
+          "partialComputed": 22,
+          "partialCacheHits": 0,
+          "totalComputed": 6,
+          "derivativeParity": true
+        },
+        {
+          "mode": "async",
+          "cache": true,
+          "milliseconds": 2984.0594580000006,
+          "evaluatorSteps": 50815,
+          "partialComputed": 18,
+          "partialCacheHits": 4,
+          "totalComputed": 6,
+          "derivativeParity": true
+        }
+      ]
+    }
+  },
+  "workers": {
+    "before": {
+      "schema": "rix.benchmark.async-streams@1",
+      "seed": 0,
+      "items": 16,
+      "exponent": 128,
+      "rounds": 2,
+      "runtime": "Bun 1.4.0",
+      "rows": [
+        {
+          "kind": "io-pipeline",
+          "mode": "event-loop-1",
+          "round": 0,
+          "milliseconds": 37.856041999999945,
+          "firstPublication": 18.400582999999983,
+          "checksum": "97b6b8b8",
+          "evaluatorSteps": 45,
+          "calls": 20,
+          "maxIoActive": 1,
+          "stream": {
+            "event": "stream-close",
+            "stream": "collection stream.map.chunk.map",
+            "segments": 3,
+            "queued": 0,
+            "running": 0,
+            "maxQueued": 3,
+            "maxRunning": 1,
+            "published": 4,
+            "dropped": 0,
+            "buffered": 0,
+            "executor": "scheduler",
+            "cancellation": "complete"
+          }
+        },
+        {
+          "kind": "io-pipeline",
+          "mode": "event-loop-1",
+          "round": 1,
+          "milliseconds": 29.520125000000007,
+          "firstPublication": 11.15625,
+          "checksum": "97b6b8b8",
+          "evaluatorSteps": 45,
+          "calls": 20,
+          "maxIoActive": 1,
+          "stream": {
+            "event": "stream-close",
+            "stream": "collection stream.map.chunk.map",
+            "segments": 3,
+            "queued": 0,
+            "running": 0,
+            "maxQueued": 3,
+            "maxRunning": 1,
+            "published": 4,
+            "dropped": 0,
+            "buffered": 0,
+            "executor": "scheduler",
+            "cancellation": "complete"
+          }
+        },
+        {
+          "kind": "scheduler-overhead",
+          "mode": "event-loop-1",
+          "round": 0,
+          "milliseconds": 4.8110829999999964,
+          "firstPublication": 4.105041000000028,
+          "checksum": "7cd03885",
+          "evaluatorSteps": 97,
+          "calls": 0,
+          "maxIoActive": 0,
+          "stream": {
+            "event": "stream-close",
+            "stream": "collection stream.map.chunk.map",
+            "segments": 3,
+            "queued": 0,
+            "running": 0,
+            "maxQueued": 3,
+            "maxRunning": 1,
+            "published": 4,
+            "dropped": 0,
+            "buffered": 0,
+            "executor": "scheduler",
+            "cancellation": "complete"
+          }
+        },
+        {
+          "kind": "scheduler-overhead",
+          "mode": "event-loop-1",
+          "round": 1,
+          "milliseconds": 2.6784580000000346,
+          "firstPublication": 2.146167000000048,
+          "checksum": "7cd03885",
+          "evaluatorSteps": 97,
+          "calls": 0,
+          "maxIoActive": 0,
+          "stream": {
+            "event": "stream-close",
+            "stream": "collection stream.map.chunk.map",
+            "segments": 3,
+            "queued": 0,
+            "running": 0,
+            "maxQueued": 3,
+            "maxRunning": 1,
+            "published": 4,
+            "dropped": 0,
+            "buffered": 0,
+            "executor": "scheduler",
+            "cancellation": "complete"
+          }
+        },
+        {
+          "kind": "io-pipeline",
+          "mode": "event-loop-4",
+          "round": 0,
+          "milliseconds": 11.024541999999997,
+          "firstPublication": 6.814416999999992,
+          "checksum": "97b6b8b8",
+          "evaluatorSteps": 45,
+          "calls": 20,
+          "maxIoActive": 4,
+          "stream": {
+            "event": "stream-close",
+            "stream": "collection stream.map.chunk.map",
+            "segments": 3,
+            "queued": 0,
+            "running": 0,
+            "maxQueued": 10,
+            "maxRunning": 4,
+            "published": 4,
+            "dropped": 0,
+            "buffered": 0,
+            "executor": "scheduler",
+            "cancellation": "complete"
+          }
+        },
+        {
+          "kind": "io-pipeline",
+          "mode": "event-loop-4",
+          "round": 1,
+          "milliseconds": 9.265750000000025,
+          "firstPublication": 5.313459000000023,
+          "checksum": "97b6b8b8",
+          "evaluatorSteps": 45,
+          "calls": 20,
+          "maxIoActive": 4,
+          "stream": {
+            "event": "stream-close",
+            "stream": "collection stream.map.chunk.map",
+            "segments": 3,
+            "queued": 0,
+            "running": 0,
+            "maxQueued": 10,
+            "maxRunning": 4,
+            "published": 4,
+            "dropped": 0,
+            "buffered": 0,
+            "executor": "scheduler",
+            "cancellation": "complete"
+          }
+        },
+        {
+          "kind": "scheduler-overhead",
+          "mode": "event-loop-4",
+          "round": 0,
+          "milliseconds": 2.2479169999999726,
+          "firstPublication": 1.9686249999999745,
+          "checksum": "7cd03885",
+          "evaluatorSteps": 97,
+          "calls": 0,
+          "maxIoActive": 0,
+          "stream": {
+            "event": "stream-close",
+            "stream": "collection stream.map.chunk.map",
+            "segments": 3,
+            "queued": 0,
+            "running": 0,
+            "maxQueued": 6,
+            "maxRunning": 4,
+            "published": 4,
+            "dropped": 0,
+            "buffered": 0,
+            "executor": "scheduler",
+            "cancellation": "complete"
+          }
+        },
+        {
+          "kind": "scheduler-overhead",
+          "mode": "event-loop-4",
+          "round": 1,
+          "milliseconds": 3.3899999999999864,
+          "firstPublication": 3.1253750000000196,
+          "checksum": "7cd03885",
+          "evaluatorSteps": 97,
+          "calls": 0,
+          "maxIoActive": 0,
+          "stream": {
+            "event": "stream-close",
+            "stream": "collection stream.map.chunk.map",
+            "segments": 3,
+            "queued": 0,
+            "running": 0,
+            "maxQueued": 6,
+            "maxRunning": 4,
+            "published": 4,
+            "dropped": 0,
+            "buffered": 0,
+            "executor": "scheduler",
+            "cancellation": "complete"
+          }
+        },
+        {
+          "kind": "exact-cpu",
+          "mode": "event-loop",
+          "round": 0,
+          "milliseconds": 3.108459000000039,
+          "firstPublication": null,
+          "checksum": "91f60258",
+          "evaluatorSteps": 178,
+          "calls": 0,
+          "maxIoActive": 0
+        },
+        {
+          "kind": "exact-cpu",
+          "mode": "event-loop",
+          "round": 1,
+          "milliseconds": 4.444707999999991,
+          "firstPublication": null,
+          "checksum": "91f60258",
+          "evaluatorSteps": 178,
+          "calls": 0,
+          "maxIoActive": 0
+        },
+        {
+          "kind": "exact-cpu",
+          "mode": "workers-1",
+          "round": 0,
+          "milliseconds": 4929.374417,
+          "firstPublication": null,
+          "checksum": "91f60258",
+          "evaluatorSteps": 210,
+          "calls": 0,
+          "maxIoActive": 0,
+          "worker": {
+            "executor": "task-worker",
+            "workers": 1,
+            "active": 0,
+            "queued": 0,
+            "completed": 16,
+            "terminated": 0,
+            "closed": false
+          }
+        },
+        {
+          "kind": "exact-cpu",
+          "mode": "workers-1",
+          "round": 1,
+          "milliseconds": 4850.847916,
+          "firstPublication": null,
+          "checksum": "91f60258",
+          "evaluatorSteps": 210,
+          "calls": 0,
+          "maxIoActive": 0,
+          "worker": {
+            "executor": "task-worker",
+            "workers": 1,
+            "active": 0,
+            "queued": 0,
+            "completed": 32,
+            "terminated": 0,
+            "closed": false
+          }
+        },
+        {
+          "kind": "exact-cpu",
+          "mode": "workers-2",
+          "round": 0,
+          "milliseconds": 2585.855416999999,
+          "firstPublication": null,
+          "checksum": "91f60258",
+          "evaluatorSteps": 210,
+          "calls": 0,
+          "maxIoActive": 0,
+          "worker": {
+            "executor": "task-worker",
+            "workers": 2,
+            "active": 0,
+            "queued": 0,
+            "completed": 16,
+            "terminated": 0,
+            "closed": false
+          }
+        },
+        {
+          "kind": "exact-cpu",
+          "mode": "workers-2",
+          "round": 1,
+          "milliseconds": 2528.473167,
+          "firstPublication": null,
+          "checksum": "91f60258",
+          "evaluatorSteps": 210,
+          "calls": 0,
+          "maxIoActive": 0,
+          "worker": {
+            "executor": "task-worker",
+            "workers": 2,
+            "active": 0,
+            "queued": 0,
+            "completed": 32,
+            "terminated": 0,
+            "closed": false
+          }
+        },
+        {
+          "kind": "exact-cpu",
+          "mode": "workers-4",
+          "round": 0,
+          "milliseconds": 1420.6075409999994,
+          "firstPublication": null,
+          "checksum": "91f60258",
+          "evaluatorSteps": 210,
+          "calls": 0,
+          "maxIoActive": 0,
+          "worker": {
+            "executor": "task-worker",
+            "workers": 4,
+            "active": 0,
+            "queued": 0,
+            "completed": 16,
+            "terminated": 0,
+            "closed": false
+          }
+        },
+        {
+          "kind": "exact-cpu",
+          "mode": "workers-4",
+          "round": 1,
+          "milliseconds": 1310.0586250000015,
+          "firstPublication": null,
+          "checksum": "91f60258",
+          "evaluatorSteps": 210,
+          "calls": 0,
+          "maxIoActive": 0,
+          "worker": {
+            "executor": "task-worker",
+            "workers": 4,
+            "active": 0,
+            "queued": 0,
+            "completed": 32,
+            "terminated": 0,
+            "closed": false
+          }
+        }
+      ]
+    },
+    "after": {
+      "schema": "rix.benchmark.async-streams@1",
+      "seed": 0,
+      "items": 16,
+      "exponent": 128,
+      "rounds": 2,
+      "runtime": "Bun 1.4.0",
+      "rows": [
+        {
+          "kind": "io-pipeline",
+          "mode": "event-loop-1",
+          "round": 0,
+          "milliseconds": 37.568084,
+          "firstPublication": 18.205249999999978,
+          "checksum": "97b6b8b8",
+          "evaluatorSteps": 45,
+          "calls": 20,
+          "maxIoActive": 1,
+          "stream": {
+            "event": "stream-close",
+            "stream": "collection stream.map.chunk.map",
+            "segments": 3,
+            "queued": 0,
+            "running": 0,
+            "maxQueued": 3,
+            "maxRunning": 1,
+            "published": 4,
+            "dropped": 0,
+            "buffered": 0,
+            "executor": "scheduler",
+            "cancellation": "complete"
+          }
+        },
+        {
+          "kind": "io-pipeline",
+          "mode": "event-loop-1",
+          "round": 1,
+          "milliseconds": 29.75841700000001,
+          "firstPublication": 11.39937500000002,
+          "checksum": "97b6b8b8",
+          "evaluatorSteps": 45,
+          "calls": 20,
+          "maxIoActive": 1,
+          "stream": {
+            "event": "stream-close",
+            "stream": "collection stream.map.chunk.map",
+            "segments": 3,
+            "queued": 0,
+            "running": 0,
+            "maxQueued": 3,
+            "maxRunning": 1,
+            "published": 4,
+            "dropped": 0,
+            "buffered": 0,
+            "executor": "scheduler",
+            "cancellation": "complete"
+          }
+        },
+        {
+          "kind": "scheduler-overhead",
+          "mode": "event-loop-1",
+          "round": 0,
+          "milliseconds": 5.012417000000028,
+          "firstPublication": 4.341917000000024,
+          "checksum": "7cd03885",
+          "evaluatorSteps": 97,
+          "calls": 0,
+          "maxIoActive": 0,
+          "stream": {
+            "event": "stream-close",
+            "stream": "collection stream.map.chunk.map",
+            "segments": 3,
+            "queued": 0,
+            "running": 0,
+            "maxQueued": 3,
+            "maxRunning": 1,
+            "published": 4,
+            "dropped": 0,
+            "buffered": 0,
+            "executor": "scheduler",
+            "cancellation": "complete"
+          }
+        },
+        {
+          "kind": "scheduler-overhead",
+          "mode": "event-loop-1",
+          "round": 1,
+          "milliseconds": 2.547833999999966,
+          "firstPublication": 1.999167,
+          "checksum": "7cd03885",
+          "evaluatorSteps": 97,
+          "calls": 0,
+          "maxIoActive": 0,
+          "stream": {
+            "event": "stream-close",
+            "stream": "collection stream.map.chunk.map",
+            "segments": 3,
+            "queued": 0,
+            "running": 0,
+            "maxQueued": 3,
+            "maxRunning": 1,
+            "published": 4,
+            "dropped": 0,
+            "buffered": 0,
+            "executor": "scheduler",
+            "cancellation": "complete"
+          }
+        },
+        {
+          "kind": "io-pipeline",
+          "mode": "event-loop-4",
+          "round": 0,
+          "milliseconds": 10.879541000000017,
+          "firstPublication": 6.773000000000025,
+          "checksum": "97b6b8b8",
+          "evaluatorSteps": 45,
+          "calls": 20,
+          "maxIoActive": 4,
+          "stream": {
+            "event": "stream-close",
+            "stream": "collection stream.map.chunk.map",
+            "segments": 3,
+            "queued": 0,
+            "running": 0,
+            "maxQueued": 10,
+            "maxRunning": 4,
+            "published": 4,
+            "dropped": 0,
+            "buffered": 0,
+            "executor": "scheduler",
+            "cancellation": "complete"
+          }
+        },
+        {
+          "kind": "io-pipeline",
+          "mode": "event-loop-4",
+          "round": 1,
+          "milliseconds": 9.527832999999987,
+          "firstPublication": 5.607291999999973,
+          "checksum": "97b6b8b8",
+          "evaluatorSteps": 45,
+          "calls": 20,
+          "maxIoActive": 4,
+          "stream": {
+            "event": "stream-close",
+            "stream": "collection stream.map.chunk.map",
+            "segments": 3,
+            "queued": 0,
+            "running": 0,
+            "maxQueued": 10,
+            "maxRunning": 4,
+            "published": 4,
+            "dropped": 0,
+            "buffered": 0,
+            "executor": "scheduler",
+            "cancellation": "complete"
+          }
+        },
+        {
+          "kind": "scheduler-overhead",
+          "mode": "event-loop-4",
+          "round": 0,
+          "milliseconds": 2.5576659999999833,
+          "firstPublication": 2.2642909999999574,
+          "checksum": "7cd03885",
+          "evaluatorSteps": 97,
+          "calls": 0,
+          "maxIoActive": 0,
+          "stream": {
+            "event": "stream-close",
+            "stream": "collection stream.map.chunk.map",
+            "segments": 3,
+            "queued": 0,
+            "running": 0,
+            "maxQueued": 6,
+            "maxRunning": 4,
+            "published": 4,
+            "dropped": 0,
+            "buffered": 0,
+            "executor": "scheduler",
+            "cancellation": "complete"
+          }
+        },
+        {
+          "kind": "scheduler-overhead",
+          "mode": "event-loop-4",
+          "round": 1,
+          "milliseconds": 3.487707999999998,
+          "firstPublication": 3.1999999999999886,
+          "checksum": "7cd03885",
+          "evaluatorSteps": 97,
+          "calls": 0,
+          "maxIoActive": 0,
+          "stream": {
+            "event": "stream-close",
+            "stream": "collection stream.map.chunk.map",
+            "segments": 3,
+            "queued": 0,
+            "running": 0,
+            "maxQueued": 6,
+            "maxRunning": 4,
+            "published": 4,
+            "dropped": 0,
+            "buffered": 0,
+            "executor": "scheduler",
+            "cancellation": "complete"
+          }
+        },
+        {
+          "kind": "exact-cpu",
+          "mode": "event-loop",
+          "round": 0,
+          "milliseconds": 3.224667000000011,
+          "firstPublication": null,
+          "checksum": "91f60258",
+          "evaluatorSteps": 178,
+          "calls": 0,
+          "maxIoActive": 0
+        },
+        {
+          "kind": "exact-cpu",
+          "mode": "event-loop",
+          "round": 1,
+          "milliseconds": 4.290333999999973,
+          "firstPublication": null,
+          "checksum": "91f60258",
+          "evaluatorSteps": 178,
+          "calls": 0,
+          "maxIoActive": 0
+        },
+        {
+          "kind": "exact-cpu",
+          "mode": "workers-1",
+          "round": 0,
+          "milliseconds": 380.674584,
+          "firstPublication": null,
+          "checksum": "91f60258",
+          "evaluatorSteps": 210,
+          "calls": 0,
+          "maxIoActive": 0,
+          "worker": {
+            "executor": "task-worker",
+            "workers": 1,
+            "active": 0,
+            "queued": 0,
+            "completed": 16,
+            "terminated": 0,
+            "closed": false
+          }
+        },
+        {
+          "kind": "exact-cpu",
+          "mode": "workers-1",
+          "round": 1,
+          "milliseconds": 8.138459000000012,
+          "firstPublication": null,
+          "checksum": "91f60258",
+          "evaluatorSteps": 210,
+          "calls": 0,
+          "maxIoActive": 0,
+          "worker": {
+            "executor": "task-worker",
+            "workers": 1,
+            "active": 0,
+            "queued": 0,
+            "completed": 32,
+            "terminated": 0,
+            "closed": false
+          }
+        },
+        {
+          "kind": "exact-cpu",
+          "mode": "workers-2",
+          "round": 0,
+          "milliseconds": 394.884458,
+          "firstPublication": null,
+          "checksum": "91f60258",
+          "evaluatorSteps": 210,
+          "calls": 0,
+          "maxIoActive": 0,
+          "worker": {
+            "executor": "task-worker",
+            "workers": 2,
+            "active": 0,
+            "queued": 0,
+            "completed": 16,
+            "terminated": 0,
+            "closed": false
+          }
+        },
+        {
+          "kind": "exact-cpu",
+          "mode": "workers-2",
+          "round": 1,
+          "milliseconds": 5.438416999999845,
+          "firstPublication": null,
+          "checksum": "91f60258",
+          "evaluatorSteps": 210,
+          "calls": 0,
+          "maxIoActive": 0,
+          "worker": {
+            "executor": "task-worker",
+            "workers": 2,
+            "active": 0,
+            "queued": 0,
+            "completed": 32,
+            "terminated": 0,
+            "closed": false
+          }
+        },
+        {
+          "kind": "exact-cpu",
+          "mode": "workers-4",
+          "round": 0,
+          "milliseconds": 412.21345900000006,
+          "firstPublication": null,
+          "checksum": "91f60258",
+          "evaluatorSteps": 210,
+          "calls": 0,
+          "maxIoActive": 0,
+          "worker": {
+            "executor": "task-worker",
+            "workers": 4,
+            "active": 0,
+            "queued": 0,
+            "completed": 16,
+            "terminated": 0,
+            "closed": false
+          }
+        },
+        {
+          "kind": "exact-cpu",
+          "mode": "workers-4",
+          "round": 1,
+          "milliseconds": 4.58204099999989,
+          "firstPublication": null,
+          "checksum": "91f60258",
+          "evaluatorSteps": 210,
+          "calls": 0,
+          "maxIoActive": 0,
+          "worker": {
+            "executor": "task-worker",
+            "workers": 4,
+            "active": 0,
+            "queued": 0,
+            "completed": 32,
+            "terminated": 0,
+            "closed": false
+          }
+        }
+      ]
+    }
+  }
+}

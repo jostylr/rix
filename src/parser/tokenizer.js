@@ -1,9 +1,16 @@
+import { sourceLimits, checkSourceLimit, RixSourceLimitError } from "./source-limits.js";
+
 /**
  * Math Oracle Language Tokenizer
  * Implements tokenization according to the specification in tokenizing-spec.txt
  */
 
 // Unicode patterns for identifiers
+function codePointAt(source, offset) {
+  const point = source.codePointAt(offset);
+  return point === undefined ? "" : String.fromCodePoint(point);
+}
+
 const identifierStart = /[\p{L}_]/u;
 const identifierPart = /[\p{L}\p{N}_]/u;
 
@@ -178,8 +185,26 @@ function posToLineCol(input, pos) {
   return { line, col };
 }
 
-function tokenize(input) {
+function tokenize(input, options = {}) {
+  return tokenizeSource(input, options, false).tokens;
+}
+
+/** Editor-only line recovery. Invalid tokens are never accepted by parse(). */
+export function tokenizeForEditor(input, options = {}) {
+  return tokenizeSource(input, options, true);
+}
+
+function tokenizeSource(input, options, recover) {
+  if (typeof input !== "string") throw new TypeError("Source must be a string");
+  const limits = sourceLimits(options);
   const tokens = [];
+  const diagnostics = [];
+  let truncated = false;
+  try { checkSourceLimit("sourceLength", input.length, limits); }
+  catch (error) {
+    if (!recover) throw error;
+    return { tokens: [{ type: "End", original: "", value: null, pos: [0, 0, 0] }], diagnostics: [error], truncated: true };
+  }
   let position = 0;
 
   while (position < input.length) {
@@ -201,6 +226,8 @@ function tokenize(input) {
       break;
     }
 
+    try {
+    checkSourceLimit("tokens", tokens.length + 1, limits, position);
     let token = null;
 
     // Postfix checks/taps must be recognized before ## line and tag comments.
@@ -262,6 +289,10 @@ function tokenize(input) {
     }
 
     if (token) {
+      checkSourceLimit("tokenLength", token.original.length, limits, position, token.pos[2]);
+      if (token.type === "Number" || token.type === "ActiveBaseNumber") {
+        checkSourceLimit("numeralLength", token.original.length, limits, position, token.pos[2]);
+      }
       // Include whitespace from startPos in the original
       const whitespace = input.slice(startPos, position);
       token.original = whitespace + token.original;
@@ -274,8 +305,26 @@ function tokenize(input) {
       tokens.push(token);
       position += token.original.length - whitespace.length;
     } else {
-      // If nothing matched, skip this character
-      position++;
+      const error = new SyntaxError(`Unrecognized source character at position ${position}`);
+      error.code = "RXP1002";
+      throw error;
+    }
+    } catch (error) {
+      error.code ||= "RXP1002";
+      error.offset ??= position;
+      error.endOffset ??= position + (String.fromCodePoint(input.codePointAt(position) || 0).length);
+      if (!recover) throw error;
+      diagnostics.push(error);
+      if (error instanceof RixSourceLimitError || diagnostics.length >= limits.recoveryErrors) {
+        truncated = true;
+        break;
+      }
+      // Resume only at a new line. Keep the damaged region explicitly invalid,
+      // so consumers can use later names without mistaking it for executable IR.
+      const newline = input.indexOf("\n", position);
+      const end = newline < 0 ? input.length : newline + 1;
+      tokens.push({ type: "Invalid", original: input.slice(startPos, end), value: null, pos: [startPos, position, end] });
+      position = end;
     }
   }
 
@@ -289,7 +338,7 @@ function tokenize(input) {
     });
   }
 
-  return tokens;
+  return { tokens, diagnostics, truncated };
 }
 
 function tryMatchCustomOperator(input, position) {
@@ -921,10 +970,10 @@ function tryMatchSystemFunctionRef(input, position) {
   const remaining = input.slice(position);
 
   // Match @_ followed by an identifier: @_ASSIGN, @_ADD, etc.
-  if (remaining.startsWith("@_") && remaining.length > 2 && identifierStart.test(remaining[2])) {
-    let length = 3; // @_ + first char
-    while (length < remaining.length && identifierPart.test(remaining[length])) {
-      length++;
+  if (remaining.startsWith("@_") && remaining.length > 2 && identifierStart.test(codePointAt(remaining, 2))) {
+    let length = 2 + codePointAt(remaining, 2).length;
+    while (length < remaining.length && identifierPart.test(codePointAt(remaining, length))) {
+      length += codePointAt(remaining, length).length;
     }
     const original = remaining.slice(0, length);
     const name = remaining.slice(2, length); // Strip @_ prefix for value
@@ -961,13 +1010,13 @@ function tryMatchIdentifier(input, position) {
   }
 
   // Check if first character is a valid identifier start
-  if (!identifierStart.test(remaining[0])) {
+  if (!identifierStart.test(codePointAt(remaining, 0))) {
     return null;
   }
 
-  let length = 1;
-  while (length < remaining.length && identifierPart.test(remaining[length])) {
-    length++;
+  let length = codePointAt(remaining, 0).length;
+  while (length < remaining.length && identifierPart.test(codePointAt(remaining, length))) {
+    length += codePointAt(remaining, length).length;
   }
 
   const original = remaining.slice(0, length);
@@ -977,9 +1026,9 @@ function tryMatchIdentifier(input, position) {
   }
 
   let firstLetter = null;
-  for (let i = 0; i < original.length; i++) {
-    if (/[\p{L}]/u.test(original[i])) {
-      firstLetter = original[i];
+  for (const char of original) {
+    if (/[\p{L}]/u.test(char)) {
+      firstLetter = char;
       break;
     }
   }
@@ -1001,9 +1050,9 @@ function tryMatchIdentifier(input, position) {
 
 function normalizeIdentifierValue(original) {
   let firstLetter = null;
-  for (let i = 0; i < original.length; i++) {
-    if (/[\p{L}]/u.test(original[i])) {
-      firstLetter = original[i];
+  for (const char of original) {
+    if (/[\p{L}]/u.test(char)) {
+      firstLetter = char;
       break;
     }
   }
@@ -1550,14 +1599,14 @@ function tryMatchSymbol(input, position) {
 
   // If no multi-character symbol matches, try single characters
   if (remaining.length > 0) {
-    const char = remaining[0];
+    const char = codePointAt(remaining, 0);
     // Check if it's a symbol character (not letter, digit, or whitespace)
     if (!/[\w\s\p{L}\p{N}]/u.test(char)) {
       return {
         type: "Symbol",
         original: char,
         value: char,
-        pos: [position, position, position + 1],
+        pos: [position, position, position + char.length],
       };
     }
   }
@@ -1572,18 +1621,18 @@ function tryMatchOuterIdentifier(input, position) {
   // But reject @_ prefix, which is for SystemFunction identifiers
   if (remaining.startsWith("@_")) return null;
 
-  if (remaining.startsWith("@") && remaining.length > 1 && identifierStart.test(remaining[1])) {
-    let length = 2; // @ + first char
-    while (length < remaining.length && identifierPart.test(remaining[length])) {
-      length++;
+  if (remaining.startsWith("@") && remaining.length > 1 && identifierStart.test(codePointAt(remaining, 1))) {
+    let length = 1 + codePointAt(remaining, 1).length;
+    while (length < remaining.length && identifierPart.test(codePointAt(remaining, length))) {
+      length += codePointAt(remaining, length).length;
     }
     const original = remaining.slice(0, length);
     const name = remaining.slice(1, length); // Strip @ prefix
 
     let firstLetter = null;
-    for (let i = 0; i < name.length; i++) {
-      if (/[\p{L}]/u.test(name[i])) {
-        firstLetter = name[i];
+    for (const char of name) {
+      if (/[\p{L}]/u.test(char)) {
+        firstLetter = char;
         break;
       }
     }

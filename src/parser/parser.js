@@ -4,6 +4,7 @@
  */
 
 import { tokenize, posToLineCol } from "./tokenizer.js";
+import { sourceLimits, checkSourceLimit, checkAstLimits } from "./source-limits.js";
 import {
   extractOperatorDeclarations,
   mergeOperatorDefinitions,
@@ -549,7 +550,10 @@ export class RixParseError extends Error {
 }
 
 class Parser {
-  constructor(tokens, systemLookup, source = "", customOperators = new Map()) {
+  constructor(tokens, systemLookup, source = "", customOperators = new Map(), limits = sourceLimits()) {
+    this.limits = limits;
+    this.expressionDepth = 0;
+    this.nodeCount = 0;
     this.tokens = tokens;
     this.systemLookup = systemLookup || (() => ({ type: "identifier" }));
     this.source = source;
@@ -596,6 +600,7 @@ class Parser {
   }
 
   createNode(type, properties = {}) {
+    checkSourceLimit("nodes", ++this.nodeCount, this.limits, this.current.pos?.[1] || 0);
     const node = {
       type,
       pos: properties.pos || this.current.pos,
@@ -741,11 +746,12 @@ class Parser {
 
   // Parse expression with given minimum precedence
   parseExpression(minPrec = 0) {
-    const left = this.parsePrefix();
-    if (!left) {
-      this.error("Expected an expression");
-    }
-    return this.parseExpressionRec(left, minPrec, false);
+    checkSourceLimit("parseDepth", ++this.expressionDepth, this.limits, this.current.pos?.[1] || 0);
+    try {
+      const left = this.parsePrefix();
+      if (!left) this.error("Expected an expression");
+      return this.parseExpressionRec(left, minPrec, false);
+    } finally { this.expressionDepth--; }
   }
 
   parseDecisionBranchExpression() {
@@ -799,6 +805,7 @@ class Parser {
         return this.createNode("Number", {
           value: token.value,
           original: token.original,
+          pos: token.pos,
         });
 
       case "ActiveBaseNumber":
@@ -807,6 +814,7 @@ class Parser {
           value: token.value,
           quoted: token.quoted === true,
           original: token.original,
+          pos: token.pos,
         });
 
       case "String":
@@ -818,6 +826,7 @@ class Parser {
             value: token.value,
             kind: token.kind,
             original: token.original,
+            pos: token.pos,
           });
         }
 
@@ -828,6 +837,7 @@ class Parser {
           flags: token.flags,
           mode: token.mode,
           original: token.original,
+          pos: token.pos,
         });
 
       case "Identifier":
@@ -836,6 +846,7 @@ class Parser {
           return this.createNode("SystemFunctionRef", {
             name: token.value,
             original: token.original,
+            pos: token.pos,
           });
         } else if (token.kind === "System") {
           const systemInfo = this.systemLookup(token.value);
@@ -843,11 +854,13 @@ class Parser {
             name: token.value,
             systemInfo: systemInfo,
             original: token.original,
+            pos: token.pos,
           });
         } else {
           return this.createNode("UserIdentifier", {
             name: token.value,
             original: token.original,
+            pos: token.pos,
           });
         }
 
@@ -856,6 +869,7 @@ class Parser {
         return this.createNode("OuterIdentifier", {
           name: token.value,
           original: token.original,
+          pos: token.pos,
         });
 
       case "PlaceHolder":
@@ -863,6 +877,7 @@ class Parser {
         return this.createNode("PlaceHolder", {
           place: token.place,
           original: token.original,
+          pos: token.pos,
         });
 
       case "Symbol":
@@ -879,6 +894,7 @@ class Parser {
           this.advance();
           return this.createNode("UndecidedLiteral", {
             original: token.original,
+            pos: token.pos,
           });
         } else if (token.value === "...") {
           this.advance();
@@ -1009,6 +1025,7 @@ class Parser {
           return this.createNode("UserIdentifier", {
             name: "@",
             original: token.original,
+            pos: token.pos,
           });
         } else if (token.value === "!!") {
           this.advance();
@@ -1069,6 +1086,7 @@ class Parser {
           }
           return this.createNode("SystemObject", {
             original: token.original,
+            pos: token.pos,
           });
         } else if (token.value === "::") {
           return this.parseSymbolicVariable(false);
@@ -1077,6 +1095,7 @@ class Parser {
           this.advance();
           return this.createNode("NULL", {
             original: token.original,
+            pos: token.pos,
           });
         } else if (token.value === "$$") {
           this.advance();
@@ -1093,6 +1112,7 @@ class Parser {
           }
           return this.createNode("ParentSelfRef", {
             original: token.original,
+            pos: token.pos,
           });
         } else if (token.value === "$") {
           this.advance();
@@ -1119,6 +1139,7 @@ class Parser {
           }
           return this.createNode("SelfRef", {
             original: token.original,
+            pos: token.pos,
           });
         } else if (token.value === ":") {
           // Colon-string: :word produces a string literal in prefix position
@@ -3101,6 +3122,7 @@ class Parser {
         name: token.value,
         ...(token.kind === "System" ? { systemInfo: this.systemLookup(token.value) } : {}),
         original: token.original,
+        pos: token.pos,
       });
     } else if (this.current.value === "(") {
       key = this.parseGrouping();
@@ -5040,6 +5062,7 @@ class Parser {
         body: content.slice(colonIndex + 1),
         explicitParser: true,
         original: token.original,
+        pos: token.pos,
       });
     }
 
@@ -5051,6 +5074,7 @@ class Parser {
         context: null,
         body: content.slice(1),
         original: token.original,
+        pos: token.pos,
       });
     }
     // Unnamed bodies always belong to the default parser. In particular,
@@ -5060,6 +5084,7 @@ class Parser {
       context: null,
       body: content,
       original: token.original,
+      pos: token.pos,
     });
   }
 
@@ -5383,14 +5408,21 @@ class Parser {
 
 // Main parse function
 export function parse(input, systemLookup, options = {}) {
+  const limits = sourceLimits(options);
   let tokens;
   let source = "";
   if (typeof input === "string") {
     source = input;
-    tokens = tokenize(input);
+    tokens = tokenize(input, { limits });
   } else {
     tokens = input;
     source = options.source || "";
+  }
+  checkSourceLimit("sourceLength", source.length, limits);
+  checkSourceLimit("tokens", tokens.filter((token) => token.type !== "End").length, limits);
+  for (const token of tokens) {
+    checkSourceLimit("tokenLength", (token.original || "").trimStart().length, limits, token.pos?.[1] || 0);
+    if (token.type === "Number" || token.type === "ActiveBaseNumber") checkSourceLimit("numeralLength", (token.original || "").trimStart().length, limits, token.pos?.[1] || 0);
   }
   const localOperators = extractOperatorDeclarations(tokens, {
     source,
@@ -5401,6 +5433,6 @@ export function parse(input, systemLookup, options = {}) {
     options.operatorDefinitions,
     localOperators,
   );
-  const parser = new Parser(tokens, systemLookup, source, customOperators);
-  return parser.parse();
+  const parser = new Parser(tokens, systemLookup, source, customOperators, limits);
+  return checkAstLimits(parser.parse(), limits);
 }

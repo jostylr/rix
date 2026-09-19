@@ -1,6 +1,6 @@
 import { analyzeRix, RIX_LINT_RULES } from "../../eval/lint.js";
 import { parse, RixParseError } from "../../parser/parser.js";
-import { tokenize } from "../../parser/tokenizer.js";
+import { tokenizeForEditor } from "../../parser/tokenizer.js";
 import { formatRix, checkRixFormat } from "./formatter.js";
 import {
     lineStarts,
@@ -76,11 +76,7 @@ function walkAst(node, callback, seen = new Set()) {
 }
 
 function valueToken(token) {
-    return token && token.type !== "End" && !(token.type === "String" && token.kind === "comment");
-}
-
-function usefulTokens(source) {
-    return tokenize(source).filter(valueToken);
+    return token && token.type !== "End" && token.type !== "Invalid" && !(token.type === "String" && token.kind === "comment");
 }
 
 function identifierName(token) {
@@ -91,21 +87,12 @@ function isIdentifier(token) {
     return token?.type === "Identifier" || token?.type === "OuterIdentifier";
 }
 
-function matchingClose(tokens, openIndex, open = "(", close = ")") {
-    let depth = 0;
-    for (let index = openIndex; index < tokens.length; index++) {
-        if (tokens[index].value === open) depth++;
-        else if (tokens[index].value === close && --depth === 0) return index;
-    }
-    return -1;
-}
-
-function declarationKind(tokens, index) {
+function declarationKind(tokens, index, closes, imports) {
     const token = tokens[index];
     if (!isIdentifier(token)) return null;
-    if (isPluginImportSelector(tokens, index)) return "function";
+    if (imports.has(index)) return "function";
     if (tokens[index + 1]?.value === "(") {
-        const close = matchingClose(tokens, index + 1);
+        const close = closes.get(index + 1) ?? -1;
         if (close > 0 && ["->", "=>", "^=>"].includes(tokens[close + 1]?.value)) return "function";
     }
     if (ASSIGNMENTS.has(tokens[index + 1]?.value)) {
@@ -115,18 +102,19 @@ function declarationKind(tokens, index) {
     return null;
 }
 
-function isPluginImportSelector(tokens, index) {
-    if (tokens[index - 1]?.value !== ":") return false;
-    if (tokens[index - 2]?.value === "=") return false;
-    for (let cursor = index - 2; cursor >= 0; cursor--) {
-        if (tokens[cursor]?.value === "]") return false;
-        if (tokens[cursor]?.value !== "[") continue;
-        return tokens[cursor - 2]?.value === "." && tokens[cursor - 1]?.type === "Identifier";
+function buildSymbolIndex(source, tokens, includeParameters = true) {
+    // Index delimiters/selectors once: repeated suffix scans become quadratic
+    // on damaged documents containing many unfinished calls or colon strings.
+    const closes = new Map(), stack = [], imports = new Set();
+    let bracket = -1;
+    for (let index = 0; index < tokens.length; index++) {
+        const value = tokens[index].value;
+        if (value === "(") stack.push(index);
+        else if (value === ")" && stack.length) closes.set(stack.pop(), index);
+        if (value === "[" || value === "]") bracket = index;
+        if (isIdentifier(tokens[index]) && tokens[index - 1]?.value === ":" && tokens[index - 2]?.value !== "="
+            && bracket >= 0 && tokens[bracket].value === "[" && tokens[bracket - 2]?.value === "." && tokens[bracket - 1]?.type === "Identifier") imports.add(index);
     }
-    return false;
-}
-
-function buildSymbolIndex(source, tokens) {
     const declarations = [];
     const occurrences = [];
     const declarationOffsets = new Set();
@@ -135,9 +123,9 @@ function buildSymbolIndex(source, tokens) {
         const token = tokens[index];
         if (!isIdentifier(token)) continue;
         const range = tokenRange(token);
-        const kind = declarationKind(tokens, index);
+        const kind = declarationKind(tokens, index, closes, imports);
         if (kind) {
-            const pluginImport = isPluginImportSelector(tokens, index);
+            const pluginImport = imports.has(index);
             const symbol = {
                 name: identifierName(token),
                 kind,
@@ -150,8 +138,8 @@ function buildSymbolIndex(source, tokens) {
             declarations.push(symbol);
             declarationOffsets.add(range.start);
 
-            if (kind === "function" && tokens[index + 1]?.value === "(") {
-                const close = matchingClose(tokens, index + 1);
+            if (includeParameters && kind === "function" && tokens[index + 1]?.value === "(") {
+                const close = closes.get(index + 1) ?? -1;
                 for (let parameterIndex = index + 2; parameterIndex < close; parameterIndex++) {
                     const parameter = tokens[parameterIndex];
                     if (parameter?.type === "Identifier" && parameter.kind === "User") {
@@ -238,8 +226,8 @@ function discoverDiagnosticTaps(source, tokens) {
     return taps;
 }
 
-function discoverFolds(source) {
-    const tokens = tokenize(source).filter((token) => token.type !== "End");
+function discoverFolds(source, inputTokens) {
+    const tokens = inputTokens.filter((token) => token.type !== "End" && token.type !== "Invalid");
     const stack = [];
     const folds = [];
     const starts = lineStarts(source);
@@ -368,25 +356,27 @@ export function analyzeRixDocument(source, options = {}) {
     const text = String(source);
     const uri = options.uri || "untitled:rix";
     const version = Number.isInteger(options.version) ? options.version : 0;
-    let tokens = [];
+    const lexed = tokenizeForEditor(text, { limits: options.limits });
+    const tokens = lexed.tokens.filter(valueToken);
     let ast = null;
-    let parseError = null;
-    try {
-        tokens = usefulTokens(text);
-        ast = parse(text, options.systemLookup, {
-            file: uri,
-            operatorDefinitions: options.operatorDefinitions,
-        });
-    } catch (error) {
-        parseError = error;
-        try { tokens = usefulTokens(text); } catch { tokens = []; }
+    let parseError = lexed.diagnostics[0] || null;
+    if (!parseError) {
+        try {
+            ast = parse(lexed.tokens, options.systemLookup, {
+                source: text,
+                file: uri,
+                operatorDefinitions: options.operatorDefinitions,
+                limits: options.limits,
+            });
+        } catch (error) { parseError = error; }
     }
 
-    const symbols = buildSymbolIndex(text, tokens);
+    const symbols = buildSymbolIndex(text, tokens, !parseError);
     const diagnostics = [];
     let scopes = [];
     if (parseError) {
-        diagnostics.push(normalizeParseDiagnostic(parseError, text, uri, version));
+        diagnostics.push(...(lexed.diagnostics.length ? lexed.diagnostics : [parseError]).map((error) =>
+            normalizeParseDiagnostic(error, text, uri, version)));
     } else {
         const analysis = analyzeRix(text, {
             ast,
@@ -407,6 +397,8 @@ export function analyzeRixDocument(source, options = {}) {
         source: text,
         ast,
         parseError,
+        recovered: lexed.diagnostics.length > 0,
+        truncated: lexed.truncated,
         tokens,
         diagnostics,
         scopes,
@@ -414,7 +406,7 @@ export function analyzeRixDocument(source, options = {}) {
         occurrences: symbols.occurrences,
         checks: discoverChecks(text, tokens),
         diagnosticTaps: discoverDiagnosticTaps(text, tokens),
-        folds: discoverFolds(text),
+        folds: lexed.truncated ? [] : discoverFolds(text, lexed.tokens),
         semanticTokens: buildSemanticTokens(tokens, symbols),
         catalog: catalogEntries(symbols),
     };

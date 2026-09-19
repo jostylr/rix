@@ -1,5 +1,5 @@
 export {
-    parse, RixParseError, tokenize, posToLineCol,
+    parse, RixParseError, tokenize, tokenizeForEditor, posToLineCol, RIX_SOURCE_LIMITS, RixSourceLimitError,
     BUILTIN_PRECEDENCE_BANDS, extractOperatorDeclarations, extractOperatorDeclarationsFromSource,
     mergeOperatorDefinitions, parseOperatorDeclarationLine,
 } from "./parser/index.js";

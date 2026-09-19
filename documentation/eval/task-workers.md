@@ -78,3 +78,9 @@ Coverage includes real-worker/event-loop exact and random equivalence, permuted
 Shaped storage, capability/capture rejection, deterministic bounded bursts,
 worker replacement after cancellation, stale publication suppression, atomic
 reactive batches and Notebook rerun/resource cleanup.
+
+Pure worker definitions are reused within a worker, while grants, captures, RNG
+state and budgets are fresh per request. Completion follows cleanup so immediate
+reuse is safe after either a result or an error. See the
+[measured cold/warm costs](../design/eval/runtime-performance.md); small tasks
+still often cost less on the owner executor.
