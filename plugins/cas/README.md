@@ -60,8 +60,8 @@ Product-to-sum records retain both affine arguments. A zero sum/difference
 frequency integrates as a constant times `x`, never by dividing by zero.
 These identities hold on the entire real line and introduce no additional
 domain obligations. Negative/noninteger trig powers, degrees above 8, mixed
-powers such as `Sin(x)^2*Cos(x)^3`, and nonaffine arguments are outside this
-rung. The degree budget keeps graph construction and classroom derivative
+nonaffine arguments are outside the basic power rung. The bounded mixed-power
+extension is described below. The degree budget keeps graph construction and classroom derivative
 checks bounded; it is not a mathematical restriction on the recurrence.
 
 ## Implementation style: checks before computation
@@ -113,8 +113,10 @@ reason such as `:unsupportedSemanticFunction` or
 The current layer does not attempt general Risch integration, unrestricted
 trigonometric identity search, special-function reductions, multivariate
 Groebner simplification, or enormous heuristic simplification portfolios.
-Useful next additions are mixed trigonometric powers, selected radical
-substitutions, exact definite-integral symmetries, and broader
-assumption-aware simplification.
+The delivered bounded course extension now includes mixed trigonometric powers,
+quadratic radical substitutions, definite-integral symmetries, certified range
+quadrature, explicit approximate fallback and local-premise rewrites. See the
+[course calculus guide](../../documentation/eval/course-calculus.md) for exact
+scopes, retained domains, equation specifications and limits.
 
 See [tutorial.md](tutorial.md) for runnable course examples.

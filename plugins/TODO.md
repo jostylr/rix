@@ -53,10 +53,10 @@ phase numbers in the detailed historical sections are not execution priorities.
 | 11 | `.solve` | Certified subdivision consumers; multivariate elimination separately | **Waiting:** numerical consumers need `.numerics` box subdivision; algebraic elimination is explicitly later |
 | 12 | `.fraction` | Portable classroom-derivation and fraction-path evidence | **Complete N2:** bounded replay, views and source-preserving records |
 | 13 | `.fracfun` | Multivariate forms and declared coefficient domains | **Waiting:** multivariate Polynomial/coefficient-domain support |
-| 14 | `.cas` | Mixed trigonometric powers, selected radicals, and definite-integral symmetries | **Ready:** bounded trig power recurrences and product-to-sum join the existing course rules |
+| 14 | `.cas` | Bounded course integration, conditional rewrites and definite integrals | **Implemented:** M6 mixed trig powers, quadratic radicals, symmetry, certified quadrature and explicit approximate fallback |
 | 15 | `.symbolic` | Shared assumptions and restricted-domain wrappers | **Decision:** one portable assumption/branch-obligation contract |
 | 16 | `.logic` | Separate bounded propositional sequent presentation | **Delivered:** plan M8; first-order vocabulary remains a later user decision |
-| 17 | `.calculus` | Absolute-value/domain graphs and portable differential, boundary, and integral equation specifications | **Ready:** coordinate with `.cas`; solver execution stays elsewhere |
+| 17 | `.calculus` | Course domains, inert equation specifications and declared derivatives | **Implemented M6:** bounded records and caller evidence; solver execution stays in Numerics/Solve/ODE |
 | 18 | `.analysis` | Metric, normed, Banach, Hilbert, and selected `L^p` records | **Phase 4:** abstract function-space program |
 | 19 | `.ball` | Polynomial evaluation, interval Newton, and validated linear algebra over balls | **Waiting:** shared validated linear-algebra API from `.numerics` |
 | 20 | `.cauchy` | Constructive-completeness and portable proof/evidence exchange | **Phase 4:** proof-connected foundations |
@@ -867,10 +867,10 @@ tracked in
    - [x] Add sine/cosine power recurrences through degree 8 and product-to-sum
      for two affine trig factors, including zero-frequency terms, with replay
      evidence and derivative regression tests.
-   - [ ] Add mixed trigonometric powers, selected radical substitutions, and
-     exact definite-integral symmetry rules.
-   - [ ] Broaden safe simplification with assumption-aware sign, power,
-     radical, and rational-expression rules while keeping rule replay bounded.
+   - [x] Add mixed trigonometric powers (total degree at most 8), quadratic
+     square-root substitutions, and checked definite-integral symmetry rules.
+   - [x] Add bounded named sign/power/root/trig identities, absolute-value
+     domain graphs and hole-preserving cancellation with explicit local premises.
 4. **Phase 4 — General and external CAS**
    - [ ] Explore Risch-style integration, large heuristic identity portfolios,
      special-function reduction, and optional external CAS adapters without
@@ -983,29 +983,21 @@ tracked in
 3. **Phase 3 — Integration and equation specifications**
    - [x] Distinguish a selected primitive, an antiderivative family with its
      integration constant, and a definite integral with endpoints.
-   - [ ] Complete the shared Calculus-facing course integration ladder. `.cas`
-     now covers polynomial powers/sums, `1/x` on an explicit positive branch,
-     affine power/exponential/logarithmic forms, selected integration by parts,
-     rational linear partial fractions, `Log(Abs(...))`, affine sine/cosine,
-     and irreducible-quadratic cases. Trigonometric reductions, selected
-     radicals, and definite-integral symmetry rules remain.
-   - [ ] Complete the checked simplifier. `.cas` now provides bounded replay
-     for ordinary constant folding and polynomial collect/expand/factor views;
-     sign-aware powers/roots, hole-preserving rational cancellation, and a
-     small named library of standard trigonometric identities remain. Keep
-     every domain condition visible and make transformation direction
-     explicit.
-   - [ ] Apply exact integration identities when justified, then negotiate
-     certified Numerics quadrature or explicitly approximate fallback while
-     retaining assumptions, work, and evidence.
-   - [ ] Represent differential, boundary-value, and integral equations as
-     inert portable problem specifications, including initial/boundary data
-     and uniqueness assumptions.
-   - [ ] Let `.solve` and `.numerics` consume those problems through protocols;
-     keep symbolic formulation separate from solver ownership.
-   - [ ] Allow opaque numerical functions to advertise derivative
-     implementations or certified derivative bounds without treating finite
-     differences as exact identities.
+   - [x] Complete the bounded course integration ladder with mixed trig powers,
+     quadratic square-root forms, exact symmetry and visible branch obligations.
+   - [x] Add replayable named local-premise sign/root/power/trig rules and
+     hole-preserving cancellation, without global assumption semantics.
+   - [x] Apply exact integration identities where domain checks justify them;
+     otherwise use certified interval-range quadrature or an explicitly
+     approximate midpoint fallback, retaining work limits and unresolved regions.
+   - [x] Represent differential, boundary and Fredholm integral equations as
+     inert portable specifications; caller assumptions remain unverified data.
+   - [ ] Later: add direct problem-record solver adapters beyond existing
+     explicit expression/ODE APIs; the inert integral-equation record advertises
+     an unavailable solver and does not imply general equation solving.
+   - [x] Add explicitly registered opaque derivative declarations with bounded
+     intervals and visible caller evidence. Declarations are never certified
+     derivative bounds, and importing a record never registers executable code.
 4. **Phase 4 — Theorem evidence and external calculus providers**
    - [ ] Record replayable rule applications, assumptions, and proof/evidence
      provenance for calculus transformations.

@@ -37,6 +37,8 @@ describe("pure RiX Calculus plugin", () => {
             "rix.abstract-function@1",
         ]);
         expect(entry(info, "schemas").values.map(text)).toEqual([
+            "rix.calculus.equation-problem@1",
+            "rix.calculus.derivative-declaration@1",
             "rix.calculus.function@1",
             "rix.calculus.expression@1",
             "rix.calculus.registry-entry@1",

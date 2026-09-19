@@ -195,3 +195,13 @@ their real/complex branch policies are designed. `.fracfun` now exports its
 display and evaluation specifications plus denominator restrictions as public
 Calculus expressions; its closure rewriting and paired-form construction
 still justify a host implementation.
+
+
+## Bounded equation and opaque-derivative records
+
+`rix.calculus.equation-problem@1` contains inert differential, boundary and
+Fredholm second-kind specifications. `rix.calculus.derivative-declaration@1`
+retains provider IDs and caller-declared domain/range bounds; only explicit
+`UseDeclaredDerivative` attaches an existing provider through the registry.
+These records preserve unverified status and do not introduce global assumptions
+or a solver. See [the course guide](../../documentation/eval/course-calculus.md).

@@ -1802,7 +1802,7 @@ function evaluateNode(expression, bindings, state) {
         }
     } else if (kind === "apply") {
         const id=textValue(mapValue(expression,"semanticid"));
-        if(!["rix.function.sin@1","rix.function.cos@1"].includes(id)) throw new Error(`unsupportedSemanticApplication:${id}`);
+        if(!["rix.function.sin@1","rix.function.cos@1","rix.function.exp@1","rix.function.log.real-principal@1","rix.function.sqrt.real-principal@1","rix.function.abs.real@1"].includes(id)) throw new Error(`unsupportedSemanticApplication:${id}`);
         const args=expressionChildren(expression,"arguments");
         if(args.length!==1) throw new Error("semanticArityMismatch");
         const child=evaluateNode(args[0],bindings,state);
@@ -1812,6 +1812,7 @@ function evaluateNode(expression, bindings, state) {
             if(++state.nodes>state.maxNodes) throw new Error("calculusGraphWorkLimit");
             // A global enclosure is valid for every unbounded real component.
             if(component.low===null || component.high===null) {
+                if (!["rix.function.sin@1","rix.function.cos@1"].includes(id)) throw new Error("elementaryRangeRequiresBoundedInput");
                 range=range.union(new RationalIntervalSet(new RationalInterval(-1,1)));
                 continue;
             }
@@ -1822,7 +1823,7 @@ function evaluateNode(expression, bindings, state) {
         }
         result=graphNodeResult({range,coverage:child.coverage,exclusions:child.exclusions,
             certified:child.certified,exactImage:false,dependencies:child.dependencies,nodeId:null});
-        result.nodeId=appendTrace(state,"semantic.realTrigonometric",graphKey,[child.nodeId],exactSetConclusion(result),
+        result.nodeId=appendTrace(state,["rix.function.sin@1","rix.function.cos@1"].includes(id)?"semantic.realTrigonometric":"semantic.realElementary",graphKey,[child.nodeId],exactSetConclusion(result),
             {semanticId:id,operand:child.range,budgets:state.semanticBudgets});
     } else {
         throw new Error(`unsupportedGraphKind:${String(kind)}`);

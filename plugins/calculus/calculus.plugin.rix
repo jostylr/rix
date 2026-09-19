@@ -3,11 +3,11 @@ id: calculus
 description: Portable abstract functions, obligation-bearing higher differentiation, and provenance-recording evaluation through semantic-ID implementation links.
 kind: rix
 mount: calculus
-exports: [Function, Exp, Log, Abs, Sin, Cos, Atan, Sqrt, Asin, ComplexLog, Variable, Constant, Apply, Obligation, Register, Resolve, StructuralKey, Evaluate, EvaluateResult, SimplifyResult, CheckSimplification, Differentiate, DifferentiateResult, DifferentiateN, DifferentiateNResult, Partial, PartialResult, Gradient, GradientResult, Jacobian, JacobianResult, Hessian, HessianResult, SelectedPrimitive, AntiderivativeFamily, DefiniteIntegral, ToSpec, FromSpec, IsFunction, IsExpression, IsTransformation, IsIntegral]
+exports: [DifferentialProblem, BoundaryProblem, IntegralEquation, DerivativeDeclaration, UseDeclaredDerivative, Function, Exp, Log, Abs, Sin, Cos, Atan, Sqrt, Asin, ComplexLog, Variable, Constant, Apply, Obligation, Register, Resolve, StructuralKey, Evaluate, EvaluateResult, SimplifyResult, CheckSimplification, Differentiate, DifferentiateResult, DifferentiateN, DifferentiateNResult, Partial, PartialResult, Gradient, GradientResult, Jacobian, JacobianResult, Hessian, HessianResult, SelectedPrimitive, AntiderivativeFamily, DefiniteIntegral, ToSpec, FromSpec, IsFunction, IsExpression, IsTransformation, IsIntegral]
 groups: [Calculus, Analysis, Symbolic, Exact]
 permissions: []
 provides: [rix.calculus@1, rix.abstract-function@1]
-schemas: [rix.calculus.function@1, rix.calculus.expression@1, rix.calculus.registry-entry@1, rix.calculus.obligation@1, rix.calculus.transformation@1, rix.calculus.graph-simplification@1, rix.calculus.evaluation@1, rix.calculus.derivative-collection@1, rix.calculus.integral@1]
+schemas: [rix.calculus.equation-problem@1, rix.calculus.derivative-declaration@1, rix.calculus.function@1, rix.calculus.expression@1, rix.calculus.registry-entry@1, rix.calculus.obligation@1, rix.calculus.transformation@1, rix.calculus.graph-simplification@1, rix.calculus.evaluation@1, rix.calculus.derivative-collection@1, rix.calculus.integral@1]
 snapshot: false
 deterministic: true
 defaultEnabled: false
@@ -1080,8 +1080,80 @@ CalculusRegister(calculusBuiltinComplexLog,{=
 });
 .TypeInstall(:MathematicalFunction);
 
+### Inert course equation problems and explicitly declared opaque derivatives.
+CalculusProblemName(value,label) -> {;
+    (value ? :String) && value.Len()>0 && value.Len()<=256 ?_> .Error(@"@{label} must be a nonempty bounded string");value;
+};
+CalculusProblemData(value) -> {; .ValidatedClaimEqual(value,value);value; };
+CalculusProblemInterval(value) -> {;
+    interval=value ~!: :RationalInterval;
+    CalculusProblemData(interval);
+    interval.Low()<=interval.High() ?_> .Error("Problem domain must be ordered");interval;
+};
+CalculusDifferentialProblem(rhs,variable,unknowns,options ?= {= }) -> {;
+    name=CalculusProblemName(variable,"Independent variable");
+    (rhs ? :Array) && rhs.Len()>=1 && rhs.Len()<=16 ?_> .Error("Differential rhs must contain 1..16 expressions");
+    (unknowns ? :Array) && unknowns.Len()==rhs.Len() ?_> .Error("Differential unknown names must match rhs");
+    unknowns.Map(item->CalculusProblemName(item,"Unknown"));
+    unknowns.All(item->unknowns.Filter(other->other==item).Len()==1 && item!=name) ?_> .Error("Differential names must be distinct");
+    rhs.All(item->CalculusIsExpression(item)) ?_> .Error("Differential right-hand sides must be expression graphs");
+    order=CalculusOption(options,"order",1);(order ? :Integer) && order>=1 && order<=16 ?_> .Error("Differential order must be 1..16");
+    domain=CalculusOption(options,"domain",_);domain==_ ?: _ ?_ CalculusProblemInterval(domain);
+    CalculusProblemData([rhs,unknowns,options]);
+    .ImmutableValue({= schema="rix.calculus.equation-problem@1",kind=:differential,variable=name,unknowns=unknowns,rhs=rhs,order=order,
+       domain=domain,options=options,execution=:inert,verification=:unverified,solver=:ODEorNumerics });
+};
+CalculusBoundaryProblem(problem,conditions,options ?= {= }) -> {;
+    problem[:schema]=="rix.calculus.equation-problem@1" && problem[:kind]==:differential ?_> .Error("BoundaryProblem requires a differential specification");
+    expected=CalculusDifferentialProblem(problem[:rhs],problem[:variable],problem[:unknowns],problem[:options]);
+    .ValidatedClaimEqual(problem,expected) ?_> .Error("Altered differential problem");
+    (conditions ? :Array) && conditions.Len()>=1 && conditions.Len()<=32 ?_> .Error("Boundary conditions must contain 1..32 records");
+    conditions.Map(condition->{;
+        CalculusIsExpression(condition[:expression]) ?_> .Error("Boundary residual must be an expression graph");
+        ((condition[:at] ? :Integer) || (condition[:at] ? :Rational)) ?_> .Error("Boundary location must be exact");
+        (problem[:domain]==_ || (condition[:at]>=problem[:domain].Low() && condition[:at]<=problem[:domain].High())) ?_> .Error("Boundary location is outside the declared domain");
+        [:eq,:le,:lt,:ge,:gt].Includes(CalculusOption(condition,"relation",:eq)) ?_> .Error("Unsupported boundary relation");
+    });
+    CalculusProblemData([problem,conditions,options]);
+    .ImmutableValue({= schema="rix.calculus.equation-problem@1",kind=:boundary,differential=problem,conditions=conditions,options=options,
+      residualConvention=:expressionComparedWithZero,execution=:inert,verification=:unverified,solver=:ODEorNumerics });
+};
+CalculusIntegralEquation(unknown,kernel,variable,lower,upper,forcing,options ?= {= }) -> {;
+    name=CalculusProblemName(unknown,"Unknown function ID");integration=CalculusProblemName(variable,"Integration variable");
+    output=CalculusProblemName(CalculusOption(options,"outputvariable",:x),"Output variable");output!=integration ?_> .Error("Integral equation variables must be distinct");
+    CalculusIsExpression(kernel) && CalculusIsExpression(forcing) ?_> .Error("Integral kernel and forcing must be expression graphs");
+    a=lower ~!: :Rational;b=upper ~!: :Rational;scale=CalculusOption(options,"scale",1) ~!: :Rational;
+    CalculusProblemData([kernel,forcing,a,b,scale,options]);
+    .ImmutableValue({= schema="rix.calculus.equation-problem@1",kind=:fredholmSecondKind,unknown=name,kernel=kernel,forcing=forcing,
+      integrationVariable=integration,outputVariable=output,lower=a,upper=b,scale=scale,options=options,
+      convention=:uEqualsForcingPlusScaledIntegralKernelTimesU,execution=:inert,verification=:unverified,solver=:unavailable });
+};
+CalculusDerivativeDeclaration(functionId,derivativeId,domain,bounds,options ?= {= }) -> {;
+    original=CalculusProblemName(functionId,"Function ID");derivative=CalculusProblemName(derivativeId,"Derivative provider ID");
+    interval=CalculusProblemInterval(domain);range=CalculusProblemInterval(bounds);
+    order=CalculusOption(options,"order",1);(order ? :Integer) && order>=1 && order<=8 ?_> .Error("Declared derivative order must be 1..8");
+    CalculusProblemData([interval,range,options]);
+    .ImmutableValue({= schema="rix.calculus.derivative-declaration@1",functionId=original,derivativeId=derivative,order=order,
+       domain=interval,range=range,options=options,evidenceLevel=:declaredByCaller,certified=_,execution=:inert });
+};
+CalculusUseDeclaredDerivative(function,provider,declaration) -> {;
+    (function ? :MathematicalFunction) && (provider ? :MathematicalFunction) ?_> .Error("Declared derivatives require existing mathematical functions");
+    expected=CalculusDerivativeDeclaration(declaration[:functionId],declaration[:derivativeId],declaration[:domain],declaration[:range],declaration[:options]);
+    .ValidatedClaimEqual(declaration,expected) ?_> .Error("Altered derivative declaration");
+    declaration[:order]==1 ?_> .Error("Register higher derivatives as successive first-derivative declarations");
+    function.semanticId==declaration[:functionId] && provider.semanticId==declaration[:derivativeId] ?_> .Error("Derivative provider IDs do not match the declaration");
+    derivative=(application)->CalculusApply(provider,application[:arguments][1]);
+    obligations=(application)->[CalculusObligation(:domain,:inDeclaredInterval,application[:arguments][1],{= evidence={= kind=:declaredInterval,interval=declaration[:domain],declaration=declaration },reason=:declaredDerivativeDomain })];
+    CalculusRegister(function,{= derivative=derivative,derivativeObligations=obligations,derivativeEvidence=declaration });
+};
+
 calculusNamespace = {= };
 calculusNamespace._proto = {=
+    DifferentialProblem=(self,rhs,variable,unknowns,options ?= {= })->CalculusDifferentialProblem(rhs,variable,unknowns,options),
+    BoundaryProblem=(self,problem,conditions,options ?= {= })->CalculusBoundaryProblem(problem,conditions,options),
+    IntegralEquation=(self,unknown,kernel,variable,lower,upper,forcing,options ?= {= })->CalculusIntegralEquation(unknown,kernel,variable,lower,upper,forcing,options),
+    DerivativeDeclaration=(self,id,derivative,domain,bounds,options ?= {= })->CalculusDerivativeDeclaration(id,derivative,domain,bounds,options),
+    UseDeclaredDerivative=(self,function,provider,declaration)->CalculusUseDeclaredDerivative(function,provider,declaration),
     Function=(self, semanticId, options ?= {= })->CalculusBuildFunction(semanticId,options),
     Exp=(self, implementation ?= _)->CalculusExp(implementation),
     Log=(self, implementation ?= _)->CalculusLog(implementation),

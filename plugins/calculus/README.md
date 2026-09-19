@@ -228,9 +228,11 @@ The bidirectional `{#}` bridge, semantic registry, obligation-bearing
 transformation results, representative real/complex branch-aware rules, and
 exact higher/multivariate differentiation are implemented. Registry-driven
 evaluation preserves linked implementation and common-subexpression reuse
-provenance. Integral formulation records are implemented; exact integration,
-certified quadrature, non-Integer powers, and equation problems remain later
-phases. `.fracfun`
+provenance. Integral formulation and inert differential/boundary/Fredholm equation records
+are implemented. Explicit derivative declarations preserve caller assumptions.
+The `.cas` layer supplies bounded exact integration, symmetry and certified or
+explicitly approximate quadrature; general non-Integer branch semantics remain
+later work. See [course calculus](../../documentation/eval/course-calculus.md). `.fracfun`
 now projects its display/evaluation forms and source
 denominator restrictions through the same public Calculus expression schema;
 its closure rewriting and paired-form construction remain host-owned. See

@@ -206,3 +206,11 @@ decided status and uses `?_>`, not `??>`.
    `4*a*c-b^2 > 0`.
 5. Derive the two-degree power recurrence by integration by parts, then
    compare its answer for `Sin(x)^2` with the product-to-sum route.
+
+
+## Bounded course continuation
+
+See [the executable course calculus guide](../../documentation/eval/course-calculus.md)
+for mixed powers, radicals, definite integrals, local domain rewrites, and inert
+equation/declared-derivative records. It includes exact, bounded-failure and
+explicitly approximate examples.

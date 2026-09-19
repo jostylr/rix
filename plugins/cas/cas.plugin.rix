@@ -3,12 +3,12 @@ id: cas
 description: Browser-safe course-level symbolic simplification, polynomial forms, and exact integration with checked replay.
 kind: rix
 mount: cas
-exports: [Simplify, CheckSimplification, NormalizePolynomial, Expand, Collect, Factor, Integrate, CheckIntegral, Capabilities]
+exports: [Rewrite, CheckRewrite, AbsDomain, CheckDomain, Definite, CheckDefinite, Simplify, CheckSimplification, NormalizePolynomial, Expand, Collect, Factor, Integrate, CheckIntegral, Capabilities]
 groups: [Algebra, Calculus, CAS, Exact, Symbolic]
 permissions: []
-requires: [rix.calculus@1, rix.polynomial@1, rix.rational-function@1]
+requires: [rix.numerics@2, rix.calculus@1, rix.polynomial@1, rix.rational-function@1]
 provides: [rix.cas@1, rix.cas.rewrite@1, rix.cas.integral@1]
-schemas: [rix.cas.rewrite@1, rix.cas.integral@1]
+schemas: [rix.cas.rewrite@1, rix.cas.integral@1, rix.cas.definite@1, rix.cas.course-rewrite@1, rix.cas.domain-graph@1]
 snapshot: false
 deterministic: true
 defaultEnabled: false
@@ -74,7 +74,7 @@ CasCheckSimplification(candidate) -> {;
     valid = (candidate ? :Map) && candidate[:schema]=="rix.cas.rewrite@1" && candidate[:operation]==:simplify;
     valid ?_> .ImmutableValue({= accepted=_,certified=_,reason=:malformedCasSimplification });
     recomputed = CasSimplify(candidate[:source]);
-    accepted = CasExpressionKey(recomputed[:expression])==CasExpressionKey(candidate[:expression]);
+    accepted = .ValidatedClaimEqual(recomputed,candidate);
     .ImmutableValue({= accepted=accepted,certified=accepted ?: 1 ?_ _,reason=accepted ?: _ ?_ :simplificationClaimMismatch });
 };
 
@@ -304,6 +304,72 @@ CasIntegrateTrigProduct(left, right, variable) ?!- [
     }]);
 };
 
+### Mixed same-argument trig powers, total degree at most eight.
+CasBinomial(n,k) -> {;
+    value:=1;{@ j=1;j<=@k;{; @value~=@value*(@n-j+1)/j; };j+=1};value;
+};
+CasTrigFactor(expression) -> {;
+    direct=CasTrigKind(expression);
+    direct==_ ?_> {= kind=direct,degree=1,argument=expression[:arguments][1] };
+    (expression[:kind]==:operator && expression[:operation]==:power) ?_> _;
+    base=expression[:operands][1];kind=CasTrigKind(base);degree=CasConstantValue(expression[:operands][2]);
+    (kind!=_ && (degree ? :Integer) && degree>=0) ?_> _;
+    {= kind=kind,degree=degree,argument=base[:arguments][1] };
+};
+CasIntegrateMixedTrig(left,right,variable) -> {;
+    l=CasTrigFactor(left);r=CasTrigFactor(right);
+    (l!=_ && r!=_) ?_> CasUnsupported(:unsupportedProduct);
+    (l[:kind]!=r[:kind] && CasExpressionKey(l[:argument])==CasExpressionKey(r[:argument])) ?_> CasIntegrateTrigProduct(left,right,variable);
+    m=l[:kind]==:sin ?: l[:degree] ?_ r[:degree];n=l[:kind]==:cos ?: l[:degree] ?_ r[:degree];
+    m+n<=8 ?_> CasUnsupported(:mixedTrigonometricDegreeBudgetExceeded);
+    argument=l[:argument];affine=CasAffine(argument,variable);
+    (affine[:valid] && affine[:slope]!=0) ?_> CasUnsupported(:nonAffineTrigonometricArgument);
+    sine=.calculus.Sin()(argument);cosine=.calculus.Cos()(argument);primitive:=.calculus.Constant(0);
+    {? m%2==1 ? {;
+          p=(@m-1)//2;
+          {@ k=0;k<=@p;{; @primitive=@primitive-(-1)^k*CasBinomial(@p,k)*@cosine^(@n+2*k+1)/(@n+2*k+1); };k+=1};
+       };
+       n%2==1 ? {;
+          p=(@n-1)//2;
+          {@ k=0;k<=@p;{; @primitive=@primitive+(-1)^k*CasBinomial(@p,k)*@sine^(@m+2*k+1)/(@m+2*k+1); };k+=1};
+       };
+       {;
+          p=@m//2;q=@n//2;
+          {@ i=0;i<=@p;{;
+              {@ j=0;j<=@q;{;
+                  coefficient=(-1)^@i*CasBinomial(@p,@i)*CasBinomial(@q,j)/(2^(@p+@q));
+                  @primitive=@primitive+coefficient*CasTrigPowerPrimitive(:cos,2*@argument,@i+j)/2;
+              };j+=1};
+          };i+=1};
+       }
+    };
+    CasIntegrationState(:complete,primitive/affine[:slope],[],[{= rule=:mixedTrigonometricPowers,sineDegree=m,cosineDegree=n,argument=argument,slope=affine[:slope],maxTotalDegree=8 }]);
+};
+CasQuadraticCoefficients={>
+    (expression,variable) ?- [p=CasPolynomial(expression,variable),p.Degree()==2] -> p.Coefficients(:ascending),
+    (expression,variable) -> _
+};
+CasIntegrateRadical(argument,variable,reciprocal ?= _) -> {;
+    coefficients=CasQuadraticCoefficients(argument,variable);
+    coefficients!=_ ?_> CasUnsupported(:unsupportedRadicalForm);
+    c=coefficients[1];b=coefficients[2];a=coefficients[3];d=c/a-(b/(2*a))^2;
+    (a>0 || d<0) ?_> CasUnsupported(:noRealQuadraticRadicalInterior);
+    u=.calculus.Variable(variable)+b/(2*a);scale=.calculus.Sqrt()(.calculus.Constant(a.Abs()));
+    (a>0 && d==0)==_ ?_> {;
+        @reciprocal==_ ?_> CasUnsupported(:degenerateReciprocalRadical);
+        CasIntegrationState(:complete,@scale*@u*.calculus.Abs()(@u)/2,[],[{= rule=:absoluteAffineRadical,a=@a,b=@b,c=@c }]);
+    };
+    primitive=a<0 ?: {;
+        radius=.calculus.Sqrt()(.calculus.Constant(-@d));root=.calculus.Sqrt()(-@d-@u^2);angle=.calculus.Asin()(@u/radius);
+        @reciprocal ?: angle/@scale ?_ @scale*(@u*root-@d*angle)/2;
+    } ?_ {;
+        root=.calculus.Sqrt()(@u^2+@d);logarithm=CasLogAbs(@u+root);
+        @reciprocal ?: logarithm/@scale ?_ @scale*(@u*root+@d*logarithm)/2;
+    };
+    CasIntegrationState(:complete,primitive,[CasPositiveObligation(argument,:quadraticRadicalInterior)],
+      [{= rule=:quadraticRadicalSubstitution,a=a,b=b,c=c,completedSquare=d,reciprocal=reciprocal }]);
+};
+
 CasIntegrateProduct(left, right, variable) -> {;
     variableExpression = .calculus.Variable(variable);
     result := _;
@@ -337,10 +403,17 @@ CasIntegrateProduct(left, right, variable) -> {;
           @result ~= CasIntegrationState(:complete,CasIntegrateExpPower(@variableExpression,@rightDegree,@left,affine[:slope]),[],[{= rule=:integrationByPartsExpPower,degree=@rightDegree,slope=affine[:slope] }]);
       }
       ?_ _;
-    result==_ ?: CasIntegrateTrigProduct(left,right,variable) ?_ result;
+    result==_ ?: CasIntegrateMixedTrig(left,right,variable) ?_ result;
 };
 
-CasIntegrateQuotient(numerator, denominator, variable) ?!- [
+CasIntegrateQuotient(numerator,denominator,variable) -> {;
+    CasApplySemantic(denominator,"rix.function.sqrt.real-principal@1") ?_> CasIntegrateAffineQuotient(numerator,denominator,variable);
+    CasIndependent(numerator,variable) ?_> CasUnsupported(:unsupportedRadicalNumerator);
+    result=CasIntegrateRadical(denominator[:arguments][1],variable,1);
+    result[:status]==:complete ?_> result;
+    result.Set("expression",numerator*result[:expression]);
+};
+CasIntegrateAffineQuotient(numerator, denominator, variable) ?!- [
     CasIndependent(numerator,variable) ?_> CasUnsupported(:unsupportedQuotient),
     affine = CasAffine(denominator,variable),
     affine[:valid] && affine[:slope]!=0 ?_> CasUnsupported(:unsupportedQuotient)
@@ -370,6 +443,7 @@ CasIntegratePower(base, exponentExpression, variable) -> {;
 
 CasIntegrateApplication(expression, variable) -> {;
     argument = expression[:arguments][1];
+    CasApplySemantic(expression,"rix.function.sqrt.real-principal@1")==_ ?_> CasIntegrateRadical(argument,variable);
     affine = CasAffine(argument,variable);
     CasApplySemantic(expression,"rix.function.exp@1")
       ?: {;
@@ -567,10 +641,19 @@ CasIntegrate(value, variable ?= :x, options ?= {= }) -> {;
       ?: CasIntegratePolynomial(value)
       ?_ (value ? :RationalFunction)
       ?: CasIntegratePartialFractions(value)
-      ?_ CasIntegrateNode(CasExpression(value),name);
+      ?_ CasIntegrateNode(CasCourseGraph(value),name);
     CasIntegralResult(value,name,state);
 };
 
+CasEvidence(value) -> {;
+    (value ? :Polynomial)==_ ?_> {= kind=:polynomial,variable=value.Variable(),coefficients=value.AscendingCoefficients() };
+    (value ? :RationalFunction)==_ ?_> {= kind=:rationalFunction,variable=value.variable,numerator=CasEvidence(value.numerator),denominator=CasEvidence(value.denominator) };
+    CasIsExpression(value)==_ ?_> {= graph=CasExpressionKey(value) };
+    (value ? :Map)==_ ?_> .Keys(value).Reduce((output,key)->output.Set(key,CasEvidence(value[key])),{= });
+    (value ? :Array)==_ ?_> value.Map(item->CasEvidence(item));
+    value;
+};
+CasIntegralClaim(result) -> [result[:status],result[:variable],result[:reason],result[:exact],result[:verification],CasEvidence(result[:rules]),CasEvidence(result[:obligations])];
 CasCheckIntegral(candidate) -> {;
     valid = (candidate ? :Map) && candidate[:schema]=="rix.cas.integral@1";
     valid ?_> .ImmutableValue({= accepted=_,certified=_,reason=:malformedCasIntegral });
@@ -579,19 +662,204 @@ CasCheckIntegral(candidate) -> {;
     expressionMatches = recomputed[:status]==:complete
       ?: CasExpressionKey(recomputed[:antiderivative])==CasExpressionKey(candidate[:antiderivative])
       ?_ recomputed[:reason]==candidate[:reason];
-    accepted = statusMatches && expressionMatches;
+    accepted = statusMatches && expressionMatches && .ValidatedClaimEqual(CasIntegralClaim(candidate),CasIntegralClaim(recomputed));
     .ImmutableValue({= accepted=accepted,certified=accepted ?: 1 ?_ _,reason=accepted ?: _ ?_ :integralClaimMismatch,recomputed=recomputed });
 };
 
+### Bounded whole-domain definite integrals and transparent numerical fallback.
+CasCourseGraph(expression) -> {;
+    value=CasExpression(expression);state={= nodes=0 };state._mutable=1;
+    .ValidatedClaimEqual(value,value);
+    CasCourseVisit(value,state,0);value;
+};
+CasCourseVisit(expression,state,depth) -> {;
+    state[:nodes]+=1;
+    (depth<=64 && state[:nodes]<=4096) ?_> .Error("Course graph exceeds depth 64 or 4096 nodes");
+    kind=expression[:kind];
+    children=kind==:operator ?: expression[:operands] ?_ kind==:apply ?: expression[:arguments] ?_ [];
+    children.Map(child->CasCourseVisit(child,state,depth+1));1;
+};
+CasReplace(expression,variable,replacement) -> {;
+    kind=expression[:kind];
+    kind==:variable ?_> {? kind==:operator ? {= valueKind=:calculusExpression,schema="rix.calculus.expression@1",kind=:operator,operation=expression[:operation],operands=expression[:operands].Map(child->CasReplace(child,variable,replacement)) };
+                          kind==:apply ? {= valueKind=:calculusExpression,schema="rix.calculus.expression@1",kind=:apply,semanticId=expression[:semanticId],name=expression[:name],arguments=expression[:arguments].Map(child->CasReplace(child,variable,replacement)) };
+                          expression };
+    .ExpressionVariableMatches(expression,variable) ?: replacement ?_ expression;
+};
+CasParityOperator(expression,variable) -> {;
+    operands=expression[:operands];op=expression[:operation];p=CasParity(operands[1],variable);
+    op!=:negate ?_> p;
+    q=CasParity(operands[2],variable);
+    (op!=:add && op!=:subtract) ?_> (p==q ?: q ?_ :unknown);
+    (op!=:multiply && op!=:divide) ?_> ((p==:unknown || q==:unknown) ?: :unknown ?_ p==q ?: :even ?_ :odd);
+    op==:power ?_> :unknown;
+    exponent=CasConstantValue(operands[2]);(exponent ? :Integer) ?_> :unknown;
+    p==:unknown ?: :unknown ?_ exponent%2==0 ?: :even ?_ p;
+};
+CasParity(expression,variable) -> {;
+    kind=expression[:kind];
+    kind!=:constant ?_> :even;
+    kind!=:variable ?_> (.ExpressionVariableMatches(expression,variable) ?: :odd ?_ :even);
+    affine=CasAffine(expression,variable);
+    affine[:valid]==_ ?_> (affine[:slope]==0 ?: :even ?_ affine[:intercept]==0 ?: :odd ?_ :unknown);
+    kind!=:operator ?_> CasParityOperator(expression,variable);
+    kind==:apply ?_> :unknown;
+    p=CasParity(expression[:arguments][1],variable);id=expression[:semanticId];
+    p!=:even ?_> :even;
+    p==:odd ?_> :unknown;
+    ["rix.function.cos@1","rix.function.abs.real@1"].Includes(id) ?: :even
+      ?_ ["rix.function.sin@1","rix.function.atan.real-principal@1","rix.function.asin.real-principal@1"].Includes(id) ?: :odd ?_ :unknown;
+};
+CasRangeDefined(range) -> range[:certified]==1 && range[:domainstatus]==:allDefined && (range[:interval] ? :RationalInterval);
+CasConditionChecked(condition,bindings) -> {;
+    range=.numerics.GraphRange(condition[:expression],bindings,{= maxSubintervals=1 });
+    CasRangeDefined(range) ?_> _;
+    interval=range[:interval];relation=condition[:relation];
+    {? relation==:positive ? interval.Low()>0;
+       relation==:nonnegative ? interval.Low()>=0;
+       relation==:nonpositive ? interval.High()<=0;
+       relation==:nonzero ? (interval.Low()>0 || interval.High()<0);
+       (relation==:defined || relation==:real) ? 1;
+       _ };
+};
+CasFitsEvidence={>
+    (value) ?- [checked=.ValidatedClaimEqual(value,value)] -> 1,
+    (value) -> _
+};
+CasDefiniteNumerical(expression,variable,lower,upper,options,domain,parity,primitive) -> {;
+    count=CasOption(options,"panels",16);(count ? :Integer) && count>=1 && count<=256 ?_> .Error("Definite panels must be 1..256");
+    tolerance=CasOption(options,"tolerance",1/1000) ~!: :Rational;tolerance>=0 ?_> .Error("Definite tolerance must be nonnegative");
+    approximate=CasOption(options,"fallback",:certified)==:approximate;
+    lo=parity==:even ?: (lower+upper)/2 ?_ .Min(lower,upper);hi=.Max(lower,upper);width=(hi-lo)/count;orientation=upper>=lower ?: 1 ?_ -1;
+    symmetryFactor=parity==:even ?: 2 ?_ 1;
+    total:=0:0;samples:=[];unresolved:=[];exhausted:=_;evaluated:=0;
+    CasFitsEvidence([expression,domain,domain,primitive,primitive,options]) ?_> .Error("Definite source evidence exceeds bounded retention");
+    {@ i=0;i<@count && @exhausted==_;{;
+        left=@lo+i*@width;right=left+@width;binding=@approximate ?: (left+right)/2 ?_ left:right;
+        range=.numerics.GraphRange(@expression,{= }.Set(@variable,binding),{= maxSubintervals=1 });
+        CasRangeDefined(range) ?: {;
+            nextTotal=@total+@width*@range[:interval];nextSamples=@samples.Push({= interval=@left:@right,range=@range[:interval] });
+            retained=[@expression,@domain,@primitive,@options,nextTotal,nextSamples];
+            CasFitsEvidence([retained,retained]) ?: {; @total~=@nextTotal;@samples~=@nextSamples;@evaluated+=1; }
+              ?_ {; @unresolved~=@unresolved.Push(@left:@hi);@exhausted~=1; };
+        } ?_ {; @unresolved~=@unresolved.Push(@left:@right); };
+    };i+=1};
+    interval=symmetryFactor*(orientation>0 ?: total ?_ 0-total);complete=unresolved.Len()==0;
+    status=complete==_ ?: :unresolved ?_ approximate ?: :approximate ?_ :certified;
+    .ImmutableValue({= schema="rix.cas.definite@1",source=expression,variable=variable,lower=lower,upper=upper,options=options,
+        status=status,exact=_,certified=complete && approximate==_,domain=domain,parity=parity,primitive=primitive,
+        interval=(complete && approximate==_) ?: interval ?_ _,candidate=complete ?: interval.Midpoint() ?_ _,
+        goalMet=(complete && approximate==_) && interval.Width()<=tolerance,
+        method=approximate ?: :midpointApproximation ?_ :intervalRiemannQuadrature,
+        samples=samples,unresolved=unresolved,symmetryFactor=symmetryFactor,work={= panels=evaluated,maxPanels=count,evidenceExhausted=exhausted,exhausted=exhausted || (approximate==_ && interval.Width()>tolerance) },derivativeAssumptions=[] });
+};
+CasDefinite(value,variable,lower,upper,options ?= {= }) -> {;
+    expression=CasCourseGraph(value);name=CasVariableName(variable);
+    a=lower ~!: :Rational;b=upper ~!: :Rational;
+    .ValidatedClaimEqual([expression,options,a,b],[expression,options,a,b]);
+    [:certified,:approximate].Includes(CasOption(options,"fallback",:certified)) ?_> .Error("Definite fallback must be :certified or :approximate");
+    bindings={= }.Set(name,.Min(a,b):.Max(a,b));domain=.numerics.GraphRange(expression,bindings,{= maxSubintervals=1 });
+    CasRangeDefined(domain) ?_> .ImmutableValue({= schema="rix.cas.definite@1",source=expression,variable=name,lower=a,upper=b,options=options,
+       status=:unresolved,exact=_,certified=_,reason=:sourceDomainNotCertified,domain=domain,unresolved=[.Min(a,b):.Max(a,b)] });
+    center=(a+b)/2;shifted=CasReplace(expression,name,.calculus.Variable(name)+center);parity=CasParity(.calculus.SimplifyResult(shifted)[:expression],name);
+    (a!=b && parity!=:odd) ?_> .ImmutableValue({= schema="rix.cas.definite@1",source=expression,variable=name,lower=a,upper=b,options=options,
+        status=:exact,exact=1,certified=1,value=0,domain=domain,parity=parity,method=:intervalSymmetry,unresolved=[],derivativeAssumptions=[] });
+    primitive=CasIntegrate(expression,name);
+    (primitive[:status]==:complete && primitive[:obligations].All(condition->CasConditionChecked(condition,bindings))) ?_> CasDefiniteNumerical(expression,name,a,b,options,domain,parity,primitive);
+    valueExpression={= valueKind=:calculusExpression,schema="rix.calculus.expression@1",kind=:operator,operation=:subtract,operands=[CasReplace(primitive[:antiderivative],name,.calculus.Constant(b)),CasReplace(primitive[:antiderivative],name,.calculus.Constant(a))] };
+    endpoints=.numerics.GraphRange(valueExpression,{= },{= maxSubintervals=1 });
+    CasRangeDefined(endpoints) ?_> CasDefiniteNumerical(expression,name,a,b,options,domain,parity,primitive);
+    scalar=endpoints[:interval].Width()==0 ?: endpoints[:interval].Low() ?_ _;
+    .ImmutableValue({= schema="rix.cas.definite@1",source=expression,variable=name,lower=a,upper=b,options=options,
+        status=:exact,exact=1,certified=1,value=scalar,valueExpression=valueExpression,interval=endpoints[:interval],
+        primitive=primitive,domain=domain,endpoints=endpoints,parity=parity,method=:fundamentalTheorem,unresolved=[],derivativeAssumptions=[] });
+};
+CasCheckDefinite(result) -> .ValidatedClaimEqual(result,CasDefinite(result[:source],result[:variable],result[:lower],result[:upper],result[:options]));
+
+### Explicit course identities: local premises never become global assumptions.
+CasCourseCondition(expression,relation) -> .calculus.Obligation(:domain,relation,expression,{= reason=:courseRewriteDomain });
+CasRequireOperator(expression,operation,count) -> {;
+    (expression[:kind]==:operator && expression[:operation]==operation && expression[:operands].Len()==count) ?_> .Error("Rewrite source does not match the named rule");
+    expression[:operands];
+};
+CasRequireApplication(expression,id) -> {;
+    CasApplySemantic(expression,id) ?_> .Error("Rewrite source does not match the named semantic function");expression[:arguments][1];
+};
+CasCourseRewrite(value,rule,premises ?= []) -> {;
+    source=CasCourseGraph(value);
+    (premises ? :Array) && premises.Len()<=32 ?_> .Error("Rewrite premises must be an Array with at most 32 conditions");
+    premises.Map(condition->{;
+        (condition ? :Map) && condition[:schema]=="rix.calculus.obligation@1" && condition[:kind]==:domain
+          && [:defined,:real,:positive,:nonnegative,:nonpositive,:nonzero].Includes(condition[:relation]) ?_> .Error("Expected existing local Calculus domain obligations");
+        CasCourseGraph(condition[:expression]);
+    });
+    .ValidatedClaimEqual(premises,premises);
+    result={?
+      [:absNonnegative,:absNonpositive].Includes(rule) ? {;
+        argument=CasRequireApplication(@source,"rix.function.abs.real@1");
+        {= expression=@rule==:absNonnegative ?: argument ?_ -argument,
+           obligations=[CasCourseCondition(argument,@rule==:absNonnegative ?: :nonnegative ?_ :nonpositive)] };
+      };
+      rule==:sqrtSquare ? {;
+        square=CasRequireApplication(@source,"rix.function.sqrt.real-principal@1");parts=CasRequireOperator(square,:power,2);
+        CasConstantValue(parts[2])==2 ?_> .Error("sqrtSquare requires a square");
+        {= expression=.calculus.Abs()(parts[1]),obligations=[CasCourseCondition(parts[1],:real)] };
+      };
+      rule==:nestedIntegerPower ? {;
+        outer=CasRequireOperator(@source,:power,2);inner=CasRequireOperator(outer[1],:power,2);
+        m=CasConstantValue(inner[2]);n=CasConstantValue(outer[2]);
+        (m ? :Integer) && (n ? :Integer) && m.Abs()<=8 && n.Abs()<=8 ?_> .Error("Nested powers require Integer exponents between -8 and 8");
+        {= expression=inner[1]^(m*n),obligations=[CasCourseCondition(inner[1],(m<=0 || n<=0) ?: :nonzero ?_ :defined)] };
+      };
+      rule==:trigPythagorean ? {;
+        terms=CasRequireOperator(@source,:add,2);l=CasTrigFactor(terms[1]);r=CasTrigFactor(terms[2]);
+        (l!=_ && r!=_ && l[:kind]!=r[:kind] && l[:degree]==2 && r[:degree]==2 && CasExpressionKey(l[:argument])==CasExpressionKey(r[:argument]))
+          ?_> .Error("trigPythagorean requires matching sine/cosine squares");
+        {= expression=.calculus.Constant(1),obligations=[CasCourseCondition(l[:argument],:real)] };
+      };
+      [:cancelSelf,:cancelFactor].Includes(rule) ? {;
+        parts=CasRequireOperator(@source,:divide,2);denominator=parts[2];
+        target=@rule==:cancelSelf ?: {;
+            CasExpressionKey(@parts[1])==CasExpressionKey(@denominator) ?_> .Error("cancelSelf requires identical factors");.calculus.Constant(1);
+        } ?_ {;
+            product=CasRequireOperator(@parts[1],:multiply,2);key=CasExpressionKey(@denominator);
+            CasExpressionKey(product[1])==key ?: product[2] ?_ CasExpressionKey(product[2])==key ?: product[1] ?_ .Error("cancelFactor requires a matching denominator factor");
+        };
+        {= expression=target,obligations=[CasCourseCondition(denominator,:nonzero),CasCourseCondition(target,:defined)],excludedZeros=[denominator] };
+      };
+      .Error("Unsupported bounded course rewrite rule")
+    };
+    obligations=result[:obligations];
+    matched=obligations.Map(condition->premises.Any(premise->premise[:relation]==condition[:relation] && CasExpressionKey(premise[:expression])==CasExpressionKey(condition[:expression])));
+    .ImmutableValue({= schema="rix.cas.course-rewrite@1",source=source,rule=rule,premises=premises,expression=result[:expression],
+       obligations=obligations,matchedPremises=matched,excludedZeros=result[:excludedZeros]==_ ?: [] ?_ result[:excludedZeros],
+       status=matched.All(value->value==1) ?: :assumed ?_ :conditional,certified=_,
+       evidenceLevel=:checkedConditionalIdentity,globalAssumptionsChanged=_ });
+};
+CasCheckCourseRewrite(result) -> .ValidatedClaimEqual(result,CasCourseRewrite(result[:source],result[:rule],result[:premises]));
+CasAbsDomain(expression) -> {;
+    source=CasCourseGraph(expression);
+    .ImmutableValue({= schema="rix.cas.domain-graph@1",kind=:absoluteValue,source=source,domain=[CasCourseCondition(source,:real)],
+      branches=[{= relation=:ge,bound=0,expression=source },{= relation=:lt,bound=0,expression=-source }],
+      boundary=0,continuous=1,derivativeAtBoundary=:notGenerallyDefined,verification=:checkedPiecewiseDefinition });
+};
+CasCheckDomain(result) -> .ValidatedClaimEqual(result,CasAbsDomain(result[:source]));
+
 casCapabilities = .ImmutableValue({=
-    simplification=[:checkedGraphIdentities,:canonicalPolynomialNormalization,:expand,:collect,:factor],
-    integration=[:polynomials,:affinePowers,:affineReciprocals,:affineExponentials,:affineSine,:affineCosine,:trigonometricPowerReduction,:trigonometricProductToSum,:logByParts,:polynomialTimesExponentialByParts,:linearPartialFractions,:irreducibleQuadraticPartialFractions],
-    limits={= maxTrigonometricDegree=8 },
-    unsupported=[:generalRischIntegration,:mixedTrigonometricPowers,:radicalSubstitution,:higherDegreePartialFractionResiduals,:unrestrictedIdentitySearch]
+    simplification=[:localPremiseCourseRules,:holePreservingCancellation,:absoluteValueDomainGraph,:checkedGraphIdentities,:canonicalPolynomialNormalization,:expand,:collect,:factor],
+    integration=[:mixedTrigonometricPowers,:quadraticRadicalSubstitution,:definiteIntegralSymmetry,:certifiedRangeQuadrature,:explicitApproximateFallback,:polynomials,:affinePowers,:affineReciprocals,:affineExponentials,:affineSine,:affineCosine,:trigonometricPowerReduction,:trigonometricProductToSum,:logByParts,:polynomialTimesExponentialByParts,:linearPartialFractions,:irreducibleQuadraticPartialFractions],
+    limits={= maxTrigonometricDegree=8,maxMixedTotalDegree=8,maxGraphNodes=4096,maxGraphDepth=64,maxQuadraturePanels=256 },
+    unsupported=[:generalRischIntegration,:higherDegreeRadicalSubstitution,:higherDegreePartialFractionResiduals,:unrestrictedIdentitySearch]
 });
 
 casNamespace = {= };
 casNamespace._proto = {=
+    Rewrite=(self,value,rule,premises ?= [])->CasCourseRewrite(value,rule,premises),
+    CheckRewrite=(self,result)->CasCheckCourseRewrite(result),
+    AbsDomain=(self,value)->CasAbsDomain(value),
+    CheckDomain=(self,result)->CasCheckDomain(result),
+    Definite=(self,value,variable,lower,upper,options ?= {= })->CasDefinite(value,variable,lower,upper,options),
+    CheckDefinite=(self,result)->CasCheckDefinite(result),
     Simplify=(self,value)->CasSimplify(value),
     CheckSimplification=(self,value)->CasCheckSimplification(value),
     NormalizePolynomial=(self,value,variable ?= :x)->CasNormalizePolynomial(value,variable),

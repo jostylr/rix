@@ -194,14 +194,14 @@ describe("checked Calculus graph ranges", () => {
             .Plugin.Load("calculus");
             .Plugin.Load("numerics");
             x := .calculus.Variable(:x);
-            expression := .calculus.Exp()(x);
+            expression := .calculus.Function("test.opaque@1")(x);
             .numerics.GraphRange(expression,{= x=0:1 });
         `, runtime());
         expect(text(entry(result, "status"))).toBe("unknown");
         expect(entry(result, "certified")).toBeNull();
         expect(text(entry(result, "domainStatus"))).toBe("unresolved");
         expect(text(entry(result, "diagnostics").values[0])).toBe(
-            "unsupportedSemanticApplication:rix.function.exp@1",
+            "unsupportedSemanticApplication:test.opaque@1",
         );
     });
 

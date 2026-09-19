@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Normalized semantic record before mathematical JSON tagging; RiX map keys are case-insensitive. Exact values and expression graphs use the shared mathematical JSON codec. Shape validation does not verify a mathematical claim: invoke its bounded runtime replay checker. See documentation/eval/course-calculus.md.",
+  "type": "object",
+  "$id": "https://rix.ratmath.com/schema/cas-definite/v1.schema.json",
+  "title": "cas-definite v1",
+  "required": [
+    "schema",
+    "source",
+    "variable",
+    "lower",
+    "upper",
+    "options",
+    "status",
+    "exact",
+    "certified",
+    "domain",
+    "unresolved"
+  ],
+  "properties": {
+    "schema": {
+      "const": "rix.cas.definite@1"
+    },
+    "source": {
+      "description": "Exact semantic value; runtime checks types, limits, domains and evidence."
+    },
+    "variable": {
+      "description": "Exact semantic value; runtime checks types, limits, domains and evidence."
+    },
+    "lower": {
+      "description": "Exact semantic value; runtime checks types, limits, domains and evidence."
+    },
+    "upper": {
+      "description": "Exact semantic value; runtime checks types, limits, domains and evidence."
+    },
+    "options": {
+      "description": "Exact semantic value; runtime checks types, limits, domains and evidence."
+    },
+    "status": {
+      "enum": [
+        "exact",
+        "certified",
+        "approximate",
+        "unresolved"
+      ]
+    },
+    "exact": {
+      "description": "Exact semantic value; runtime checks types, limits, domains and evidence."
+    },
+    "certified": {
+      "description": "Exact semantic value; runtime checks types, limits, domains and evidence."
+    },
+    "domain": {
+      "description": "Exact semantic value; runtime checks types, limits, domains and evidence."
+    },
+    "unresolved": {
+      "type": "array",
+      "maxItems": 256
+    },
+    "samples": {
+      "type": "array",
+      "maxItems": 256
+    },
+    "method": {
+      "enum": [
+        "intervalSymmetry",
+        "fundamentalTheorem",
+        "intervalRiemannQuadrature",
+        "midpointApproximation"
+      ]
+    }
+  },
+  "additionalProperties": true
+}

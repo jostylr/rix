@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Normalized semantic record before mathematical JSON tagging; RiX map keys are case-insensitive. Exact values and expression graphs use the shared mathematical JSON codec. Shape validation does not verify a mathematical claim: invoke its bounded runtime replay checker. See documentation/eval/course-calculus.md.",
+  "type": "object",
+  "$id": "https://rix.ratmath.com/schema/cas-course-rewrite/v1.schema.json",
+  "title": "cas-course-rewrite v1",
+  "required": [
+    "schema",
+    "source",
+    "rule",
+    "premises",
+    "expression",
+    "obligations",
+    "matchedpremises",
+    "excludedzeros",
+    "status",
+    "certified",
+    "evidencelevel",
+    "globalassumptionschanged"
+  ],
+  "properties": {
+    "schema": {
+      "const": "rix.cas.course-rewrite@1"
+    },
+    "source": {
+      "description": "Exact semantic value; runtime checks types, limits, domains and evidence."
+    },
+    "rule": {
+      "enum": [
+        "absNonnegative",
+        "absNonpositive",
+        "sqrtSquare",
+        "nestedIntegerPower",
+        "trigPythagorean",
+        "cancelSelf",
+        "cancelFactor"
+      ]
+    },
+    "premises": {
+      "type": "array",
+      "maxItems": 32
+    },
+    "expression": {
+      "description": "Exact semantic value; runtime checks types, limits, domains and evidence."
+    },
+    "obligations": {
+      "description": "Exact semantic value; runtime checks types, limits, domains and evidence."
+    },
+    "matchedpremises": {
+      "description": "Exact semantic value; runtime checks types, limits, domains and evidence."
+    },
+    "excludedzeros": {
+      "description": "Exact semantic value; runtime checks types, limits, domains and evidence."
+    },
+    "status": {
+      "enum": [
+        "conditional",
+        "assumed"
+      ]
+    },
+    "certified": {
+      "type": "null"
+    },
+    "evidencelevel": {
+      "description": "Exact semantic value; runtime checks types, limits, domains and evidence."
+    },
+    "globalassumptionschanged": {
+      "type": "null"
+    }
+  },
+  "additionalProperties": true
+}

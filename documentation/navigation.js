@@ -18,6 +18,7 @@ export const documentationNavigation = [
       { text: "Interactive tutorials (RiX Web)", href: "https://rix.ratmath.com/tutorial/", external: true },
       page("eval/sheet-guide.md", "Sheet views"),
       page("eval/function-returns.md", "Diagnostic guards and early returns"),
+      page("eval/course-calculus.md", "Course calculus and checked integration"),
     ],
   },
   {

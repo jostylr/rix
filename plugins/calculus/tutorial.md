@@ -360,3 +360,11 @@ rule are meant. The Numerics result says how a value was computed and what
 evidence the finite work supports. Integral records now extend this same
 boundary; exact integration, certified quadrature, and equation specifications
 remain later steps.
+
+
+## Bounded course continuation
+
+See [the executable course calculus guide](../../documentation/eval/course-calculus.md)
+for mixed powers, radicals, definite integrals, local domain rewrites, and inert
+equation/declared-derivative records. It includes exact, bounded-failure and
+explicitly approximate examples.

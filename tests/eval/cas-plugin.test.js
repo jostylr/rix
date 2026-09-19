@@ -134,7 +134,7 @@ describe("browser-safe course CAS plugin", () => {
             "unsupportedQuotient","unsupportedQuotient","unsupportedProduct",
             "unsupportedTrigonometricExponent","trigonometricDegreeBudgetExceeded",
             "nonAffineTrigonometricArgument","unsupportedSumTerm","unsupportedDifferenceTerm",
-            "unsupportedSemanticFunction","unsupportedSemanticFunction"];
+            "unsupportedRadicalForm","unsupportedRadicalForm"];
         result.values.forEach((row,index) => {
             const [integral,replay] = row.values;
             expect(text(entry(integral,"status"))).toBe("unsupported");
@@ -232,6 +232,7 @@ describe("browser-safe course CAS plugin", () => {
         const info = parseAndEvaluate('.Plugin.Info("cas")', runtime());
         expect(text(entry(info, "kind"))).toBe("rix");
         expect(entry(info, "requires").values.map(text)).toEqual([
+            "rix.numerics@2",
             "rix.calculus@1",
             "rix.polynomial@1",
             "rix.rational-function@1",
@@ -239,6 +240,9 @@ describe("browser-safe course CAS plugin", () => {
         expect(entry(info, "schemas").values.map(text)).toEqual([
             "rix.cas.rewrite@1",
             "rix.cas.integral@1",
+            "rix.cas.definite@1",
+            "rix.cas.course-rewrite@1",
+            "rix.cas.domain-graph@1",
         ]);
     });
 
@@ -364,10 +368,10 @@ describe("browser-safe course CAS plugin", () => {
             .Plugin.Load("cas");
             x := .calculus.Variable(:x);
             Sqrt := .calculus.Sqrt();
-            .cas.Integrate(Sqrt(x^2+1),x);
+            .cas.Integrate(Sqrt(x^3+1),x);
         `, runtime());
         expect(text(entry(result, "status"))).toBe("unsupported");
-        expect(text(entry(result, "reason"))).toBe("unsupportedSemanticFunction");
+        expect(text(entry(result, "reason"))).toBe("unsupportedRadicalForm");
         expect(entry(result, "antiderivative")).toBeNull();
     });
 });

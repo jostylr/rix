@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Normalized semantic record before mathematical JSON tagging; RiX map keys are case-insensitive. Exact values and expression graphs use the shared mathematical JSON codec. Shape validation does not verify a mathematical claim: invoke its bounded runtime replay checker. See documentation/eval/course-calculus.md.",
+  "type": "object",
+  "$id": "https://rix.ratmath.com/schema/calculus-equation-problem/v1.schema.json",
+  "title": "calculus-equation-problem v1",
+  "required": [
+    "schema",
+    "kind",
+    "options",
+    "execution",
+    "verification",
+    "solver"
+  ],
+  "properties": {
+    "schema": {
+      "const": "rix.calculus.equation-problem@1"
+    },
+    "kind": {
+      "enum": [
+        "differential",
+        "boundary",
+        "fredholmSecondKind"
+      ]
+    },
+    "options": {
+      "description": "Exact semantic value; runtime checks types, limits, domains and evidence."
+    },
+    "execution": {
+      "const": "inert"
+    },
+    "verification": {
+      "const": "unverified"
+    },
+    "solver": {
+      "enum": [
+        "ODEorNumerics",
+        "unavailable"
+      ]
+    },
+    "conditions": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32
+    },
+    "rhs": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16
+    },
+    "unknowns": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16
+    }
+  },
+  "additionalProperties": true,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "differential"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "variable",
+          "unknowns",
+          "rhs",
+          "order",
+          "domain"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "boundary"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "differential",
+          "conditions",
+          "residualconvention"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "fredholmSecondKind"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "unknown",
+          "kernel",
+          "forcing",
+          "integrationvariable",
+          "outputvariable",
+          "lower",
+          "upper",
+          "scale",
+          "convention"
+        ]
+      }
+    }
+  ]
+}
