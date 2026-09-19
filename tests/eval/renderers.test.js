@@ -246,7 +246,8 @@ describe("renderer registry", () => {
                     [3334/10000, 2/3],
                     [1/3, 3/4]
                 ], {= stroke="#2563eb", width=1/3 }),
-                .Graphics.Circle([(5:4),2], 1/3, {= fill="#0f766e" })
+                .Graphics.Circle([(5:4),2], 1/3, {= fill="#0f766e" }),
+                .Graphics.Circle([(4:5),3], 1/3, {= fill="#0f766e" })
             ])
         `, runtime());
         const registry = new RendererRegistry();
@@ -267,6 +268,15 @@ describe("renderer registry", () => {
             "svg-coordinate-collision",
             "svg-certified-outward-enclosure",
         ]));
+        // Source order is retained for presentation; enclosure bounds stay sorted.
+        expect(lowering.entries).toContainEqual(expect.objectContaining({
+            path: "Circle center x",
+            exact: "5:4",
+            lower: "4",
+            upper: "5",
+            source: "rational-interval",
+            presentation: "reversed",
+        }));
         expect(lowering.entries).toContainEqual(expect.objectContaining({
             path: "Circle center x",
             exact: "4:5",
