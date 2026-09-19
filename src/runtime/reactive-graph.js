@@ -610,6 +610,35 @@ export function createReactiveGraph(options = {}) {
                 throw error;
             }
         },
+        /** Publish already evaluated worker literals in one owner-side graph epoch. */
+        replaceValues(entries, metadata = null) {
+            if (activeEpoch) throw new Error("Reactive computations cannot publish worker results during an epoch");
+            if (!Array.isArray(entries) || entries.length > 10_000) throw new Error("Invalid reactive literal batch");
+            const updates = new Map();
+            for (const entry of entries) {
+                const node = requireNode(canonicalName(entry.name));
+                assertSynchronousFormulaValue(entry.value);
+                if (updates.has(node.name)) throw new Error(`Duplicate reactive literal target: ${node.name}`);
+                updates.set(node.name, { node, value: entry.value });
+            }
+            const previous = new Map(), sources = new Map();
+            try {
+                for (const [name, { node, value }] of updates) {
+                    if (node.kind === "source") sources.set(name, value);
+                    else {
+                        previous.set(name, { formula: node.formula, source: node.source, evaluator: node.evaluator });
+                        node.formula = Object.freeze({ fn: "DEFER", args: Object.freeze([value]) });
+                        node.source = null;
+                        node.evaluator = () => value;
+                    }
+                }
+                if (updates.size) runEpoch({ dirty: new Set(updates.keys()), sourceOverrides: sources, cause: { type: "reactive:worker-batch", metadata } });
+            } catch (error) {
+                for (const [name, snapshot] of previous) Object.assign(requireNode(name), snapshot);
+                throw error;
+            }
+            return graph;
+        },
         setSource(name, value, metadata = null) {
             name = canonicalName(name);
             const node = requireNode(name);

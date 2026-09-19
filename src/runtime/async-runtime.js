@@ -335,7 +335,8 @@ const disposingContexts = new WeakSet();
 
 export function registerAsyncResource(context, resource, close) {
     if (!context || !resource || typeof close !== "function") return resource;
-    if (disposingContexts.has(context)) throw new Error("Cannot acquire async resources during context shutdown");
+    const ownerContexts = context.getEnv("__async_resource_contexts__", null);
+    if (disposingContexts.has(context) || ownerContexts?.closed) throw new Error("Cannot acquire async resources during context shutdown");
     let resources = asyncResources.get(context);
     if (!resources) {
         resources = new Map();
@@ -343,6 +344,8 @@ export function registerAsyncResource(context, resource, close) {
     }
     const limit = asyncLimits(context.getEnv("asyncLimits", {})).outstanding;
     if (!resources.has(resource) && resources.size >= limit) throw asyncLimitFault("async resources", limit);
+    // A Notebook/session owner can track resources acquired by descendant scopes.
+    ownerContexts?.add(context);
     const taskPath = [...(context.getEnv("__async_task_path__", []) || []), "cleanup"];
     resources.set(resource, async (value, reason) => {
         try { return await close(value, reason); }

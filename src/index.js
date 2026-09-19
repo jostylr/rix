@@ -177,4 +177,7 @@ export { createPublicationProfile, createPublicationBuild, parsePublicationProfi
 
 export { IMPLICIT_TRACE_SCHEMA, IMPLICIT_TRACE_CHECKER, evaluateImplicitTrace, checkImplicitTrace, refineImplicitTrace } from "./runtime/implicit-geometry.js";
 
+export { TaskWorkerPool, createTaskWorkerPool } from "./runtime/task-worker-pool.js";
+export { TASK_WORKER_PROTOCOL, prepareTaskRequest } from "./runtime/task-worker-protocol.js";
+
 export { decodeRefinableReal, encodeRefinableReal, inspectRefinableReal, refineImportedReal, RealRecipeRegistry, createDefaultRealRecipeRegistry, REAL_RECIPE_SEMANTICS, REAL_JSON_LIMITS } from "./runtime/refinable-real-json.js";

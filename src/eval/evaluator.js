@@ -147,6 +147,8 @@ import {
     unregisterAsyncResource,
 } from "../runtime/async-runtime.js";
 
+import { markTaskRegistry, markTaskSystem } from "../runtime/task-worker-policy.js";
+import { prepareTaskRequest } from "../runtime/task-worker-protocol.js";
 import { AsyncEffectLane, asyncLimits, asyncLimitFault, appendAsyncFailures, normalizeAsyncFailure } from "../runtime/async-policy.js";
 
 function asyncOwner(context) {
@@ -160,7 +162,7 @@ function asyncOwner(context) {
 }
 
 function asyncRootState(context, state = null) {
-    return { ...asyncOwner(context), taskPath: [], ...state };
+    return { ...asyncOwner(context), signal: context.getEnv("__evaluation_budget__", null)?.signal ?? null, taskPath: [], ...state };
 }
 
 async function prepareAsyncLazyRead(target, index, state, materialize = false) {
@@ -308,6 +310,7 @@ export function createDefaultRegistry(options = {}) {
     installUnitExactVariants(registry);
     installSymbolicVariants(registry);
     installExpressionVariants(registry);
+    markTaskRegistry(registry);
     for (const loadStartup of options.startupLoaders || []) {
         loadStartup(registry);
     }
@@ -639,6 +642,7 @@ export function createDefaultSystemContext(options = {}) {
     for (const [group, members] of Object.entries(runtimeDefaults.capabilityGroups)) {
         ctx.registerGroup(group, members);
     }
+    markTaskSystem(ctx);
     if (frozen) ctx.freeze();
     return ctx;
 }
@@ -2695,13 +2699,12 @@ function asyncCollectionEntry(node, context, registry, systemContext, state) {
         return evaluateAsyncInternal(node, itemContext, registry, systemContext, state);
     }
     return state.scheduler.run((admission) =>
-        withAsyncItemFinalizers(itemContext, () => evaluateAsyncInternal(
-            node,
-            itemContext,
-            registry,
-            systemContext,
-            { ...state, admission },
-        )), state.group, {
+        withAsyncItemFinalizers(itemContext, () => {
+            const pool = itemContext.getEnv("__async_task_worker_pool__", null);
+            const task = pool && prepareTaskRequest(node, itemContext, registry, systemContext);
+            if (task) return pool.runTask(task, { context: itemContext, signal: state.signal, taskPath: state.taskPath });
+            return evaluateAsyncInternal(node, itemContext, registry, systemContext, { ...state, admission });
+        }), state.group, {
             branchPath: state.branchPath,
             path: asyncTaskPath(state),
             taskPath: state.taskPath,
