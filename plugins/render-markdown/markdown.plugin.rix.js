@@ -14,6 +14,8 @@ deterministic: true
 defaultEnabled: false
 **/
 
+import { numericFormatterPolicy } from "../../src/runtime/numeric-presentation.js";
+
 import { installRendererPlugin, option, rixString } from "../renderers/common.js";
 import { renderMarkdown } from "../renderers/document-renderers.js";
 
@@ -38,7 +40,7 @@ export const definition = {
             rawMarkup: rixString(option(options, "rawMarkup", "fallback")) || "fallback",
             graphic: policy === "inline" ? null : (graphic, state) => {
                 figure += 1;
-                const nested = render(graphic, policy, { alt: state.figureAlt || "" });
+                const nested = render(graphic, policy, { alt: state.figureAlt || "", numericPolicy: numericFormatterPolicy(state.format) });
                 const path = `${directory}/figure-${figure}.${nested.extension}`;
                 assets.push({ path, mime: nested.mime, content: nested.content });
                 state.diagnostics.push(...nested.diagnostics);

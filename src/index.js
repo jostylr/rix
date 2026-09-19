@@ -156,3 +156,5 @@ export {
 } from "./tools/language-service/index.js";
 
 export { OUTPUT_DOCUMENT_SCHEMA, encodeOutputJSON, decodeOutputJSON, snapshotOutputDocument } from "./runtime/output-json.js";
+
+export { NUMERIC_PRESENTATION_SCHEMA, createNumericPolicy, presentNumericValue, numericFormatter, withNumericPresentation } from "./runtime/numeric-presentation.js";

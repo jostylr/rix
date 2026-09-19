@@ -3,17 +3,18 @@ id: document
 description: Portable report templates with citations, assets, numbering policies, and safe target-specific nodes.
 kind: host
 mount: document
-exports: [Report, Label, Ref, Theme, References, Bibliography, Citation, AssetManifest, Asset, Numbering, Header, Footer, Template, ApplyTemplate, TargetMarkup, Snapshot, EncodeJSON, DecodeJSON]
+exports: [Report, Label, Ref, Theme, References, Bibliography, Citation, AssetManifest, Asset, Numbering, Header, Footer, Template, ApplyTemplate, TargetMarkup, Snapshot, EncodeJSON, DecodeJSON, NumericPolicy, Present]
 groups: [Documents]
 permissions: []
 provides: [rix.document.report@1, rix.document.report@2, rix.document.template@1, rix.document.assets@1, rix.output.document@1]
-schemas: [rix.document.report@1, rix.document.theme@1, rix.document.bibliography@1, rix.document.citation@1, rix.document.assets@1, rix.document.numbering@1, rix.document.template@1, rix.document.target-markup@1, rix.output.document@1]
+schemas: [rix.document.report@1, rix.document.theme@1, rix.document.bibliography@1, rix.document.citation@1, rix.document.assets@1, rix.document.numbering@1, rix.document.template@1, rix.document.target-markup@1, rix.output.document@1, rix.numeric-presentation@1]
 snapshot: true
 deterministic: true
 defaultEnabled: false
 **/
 
 import { encodeOutputJSON, decodeOutputJSON, snapshotOutputDocument } from "../../src/runtime/output-json.js";
+import { createNumericPolicy, withNumericPresentation } from "../../src/runtime/numeric-presentation.js";
 import { Integer } from "@ratmath/core";
 import {
     createDocumentReference,
@@ -51,6 +52,9 @@ function decodeDocument([source, options]) {
     ]) };
 }
 const HELPERS = new Map([
+    ["NumericPolicy", ([options]) => ({type:"map",entries:new Map(Object.entries(createNumericPolicy(options)).map(([key,value]) => [key,
+        typeof value === "string" ? {type:"string",value} : typeof value === "number" || typeof value === "boolean" ? new Integer(BigInt(value)) : value]))})],
+    ["Present", ([value, options]) => withNumericPresentation(value, options)],
     ["Snapshot", ([value]) => snapshotOutputDocument(value)],
     ["EncodeJSON", ([value, options]) => ({type:"string",value:encodeOutputJSON(value,persistenceOptions(options))})],
     ["DecodeJSON", decodeDocument],

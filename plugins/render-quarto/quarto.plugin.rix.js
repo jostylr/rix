@@ -14,6 +14,8 @@ deterministic: true
 defaultEnabled: false
 **/
 
+import { numericFormatterPolicy } from "../../src/runtime/numeric-presentation.js";
+
 import { field, installRendererPlugin, option, rixString, sequence } from "../renderers/common.js";
 import { quartoFrontMatter, renderMarkdown } from "../renderers/document-renderers.js";
 
@@ -75,7 +77,7 @@ export const definition = {
             rawMarkup: rixString(option(options, "rawMarkup", "fallback")) || "fallback",
             graphic: policy ? (graphic, state) => {
                 figure += 1;
-                const nested = render(graphic, policy, { alt: state.figureAlt || "" });
+                const nested = render(graphic, policy, { alt: state.figureAlt || "", numericPolicy: numericFormatterPolicy(state.format) });
                 const path = `${assetDirectory(options)}/figure-${figure}.${nested.extension}`;
                 assets.push({ path, mime: nested.mime, content: nested.content });
                 state.diagnostics.push(...nested.diagnostics);

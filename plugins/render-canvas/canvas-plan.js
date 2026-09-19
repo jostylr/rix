@@ -1,3 +1,4 @@
+import { numericFormatter } from "../../src/runtime/numeric-presentation.js";
 import {
     boolValue,
     diagnostic,
@@ -138,6 +139,7 @@ function transformCommands(node) {
 }
 
 function visit(node, commands, diagnostics, format, interaction, path = "graphic", inheritedStyle = {}) {
+    format = numericFormatter(format, node?.numericPolicy);
     if (!node || node.type !== "output") throw new Error(`${path} contains a non-Graphics scene node`);
     if (node.kind === "path") {
         const style = { ...mergedStyle(inheritedStyle, node.style), hitId: semanticId(node, path) };
@@ -195,6 +197,7 @@ function canvasAssets(options) {
 }
 
 export function createCanvasPlan(graphic, format, options = {}) {
+    format = numericFormatter(format, graphic?.numericPolicy);
     const commands = [];
     const diagnostics = [];
     const logicalWidth = numberValue(graphic.size[0], "Graphic width");

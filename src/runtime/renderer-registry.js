@@ -1,3 +1,4 @@
+import { numericFormatter } from "./numeric-presentation.js";
 /**
  * Host-owned renderer discovery and target negotiation.
  *
@@ -201,7 +202,7 @@ export class RendererRegistry {
                     requestedTarget: requested,
                     target: entry.target,
                     registry: this,
-                    format: runtime.format || ((item) => item?.type === "string" ? item.value : String(item ?? "")),
+                    format: numericFormatter(runtime.format || ((item) => item?.type === "string" ? item.value : String(item ?? "")), options.numericPolicy ?? options.numericpolicy),
                     render: (nestedValue, nestedTarget, nestedOptions = {}) => this.render(
                         nestedValue,
                         nestedTarget,

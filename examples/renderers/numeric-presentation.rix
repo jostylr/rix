@@ -1,0 +1,21 @@
+/**
+plugins: [document, latex, pdf, markdown, quarto, html]
+**/
+.Plugin.Load("document");
+$$x := 1/3;
+policy := .document.NumericPolicy({= notation=:decimal,decimalPlaces=3 });
+report := .document.Present(.Fragment([
+    .Heading(1,"Exact sources and rounded displays"),
+    .Paragraph(["One third: ",1/3,". Exact mixed override: ",.document.Present(7/3,{= fraction=:mixed })]),
+    .Table(["rational","reversed interval"],[[1/3,5/3:4/3]]),
+    .Sheet([1/3,5/3:4/3]),
+    .document.Snapshot(.ControlPanel([.Controls.Input($$x,"Exact input")],"Current value")),
+    .Graphics.Graphic([180,60],[.Graphics.Text([70,30],1/3)])
+]),policy);
+.Out("numbers.tex",report);
+.Out("numbers.pdf",report);
+.Out("numbers.md",report);
+.Out("numbers.qmd",report);
+.Out("numbers.html",report);
+.Out("numbers-source.txt",.document.EncodeJSON(report));
+0;

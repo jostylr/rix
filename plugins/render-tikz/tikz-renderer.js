@@ -1,3 +1,4 @@
+import { numericFormatter } from "../../src/runtime/numeric-presentation.js";
 import { Integer, Rational } from "@ratmath/core";
 import {
     UnsupportedRenderError,
@@ -59,9 +60,9 @@ function interpolate(from, to) {
 }
 
 function texText(value) {
-    return String(value).replace(/[\\{}%$&#_^~]/g, (character) => ({
+    return String(value).replace(/[\\{}%$&#_^~≈]/g, (character) => ({
         "\\": "\\textbackslash{}", "{": "\\{", "}": "\\}", "%": "\\%", "$": "\\$",
-        "&": "\\&", "#": "\\#", "_": "\\_", "^": "\\textasciicircum{}", "~": "\\textasciitilde{}",
+        "&": "\\&", "#": "\\#", "_": "\\_", "^": "\\textasciicircum{}", "~": "\\textasciitilde{}", "≈": "\\ensuremath{\\approx}",
     })[character]);
 }
 
@@ -242,6 +243,7 @@ function scopeOptions(node) {
 }
 
 function renderNode(node, state, format, path, inheritedStyle = {}) {
+    format = numericFormatter(format, node?.numericPolicy);
     if (!node || node.type !== "output") throw new Error(`${path} contains a non-Graphics scene node`);
     const resolvedStyle = mergedStyle(inheritedStyle, node.style);
     if (node.kind === "path") {
@@ -376,6 +378,7 @@ function packageDeclarations(state, includeTikz = true) {
 }
 
 export function renderGraphicTikz(graphic, format, { standalone = false, preamble = false } = {}) {
+    format = numericFormatter(format, graphic?.numericPolicy);
     const state = {
         diagnostics: [],
         packages: new Set(["tikz", "xcolor"]),

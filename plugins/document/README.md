@@ -64,3 +64,10 @@ values, interval orientation, object sharing, mathematical identities and
 asset metadata survive; imports never fetch assets or execute code.
 See [document persistence](../../documentation/eval/document-persistence.md)
 for limits, migration, and the host API.
+
+## Numeric presentation
+
+`NumericPolicy(options)` validates a bounded, versioned display policy;
+`Present(value, policy)` attaches it to an existing output or exact numeric Text
+record. Exact source and policy persist separately. See
+[the numeric presentation guide](../../documentation/eval/numeric-presentation.md).

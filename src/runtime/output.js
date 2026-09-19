@@ -1,3 +1,4 @@
+import { numericFormatter, numericFormatterPolicy, numericSourceFormatter } from "./numeric-presentation.js";
 /** Portable structured-output values and host-neutral render helpers. */
 
 import { CertifiedApproximation, Integer, Rational, RationalInterval } from "@ratmath/core";
@@ -2560,6 +2561,7 @@ function renderSvgText(node, format, defs, policy, path) {
 }
 
 function renderSvgNode(node, format, defs, policy, path) {
+    format = numericFormatter(format, node?.numericPolicy);
     if (!isOutputValue(node)) unsupportedSvg("expected a Graphics output node", path, "svg-invalid-scene-node");
     if (node.kind === "path") {
         validateSvgStyle(node.style, SVG_PATH_STYLE_KEYS, path);
@@ -2635,6 +2637,7 @@ function renderSvgNode(node, format, defs, policy, path) {
 }
 
 export function lowerGraphicSvg(graphic, format = (item) => String(item ?? ""), options = {}) {
+    format = numericFormatter(format, graphic?.numericPolicy);
     if (!isOutputValue(graphic) || graphic.kind !== "graphic") throw new Error("Expected a Graphic output value");
     const policy = svgPolicy(options);
     const size = graphic.size.map((value, index) => svgNumber(value, `Graphic size ${index + 1}`, policy, index === 0 ? "width" : "height"));
@@ -2779,6 +2782,7 @@ function formatSheetText(sheet, format) {
 }
 
 function formatInlineText(value, format) {
+    format = numericFormatter(format, value?.numericPolicy);
     if (!isOutputValue(value)) return cellText(value, format);
     if (value.kind === "text") return cellText(value.value, format);
     if (value.kind === "emphasis" || value.kind === "strong") {
@@ -2874,6 +2878,7 @@ function formatPlotText(graphic, format) {
 }
 
 export function formatOutputText(value, format) {
+    format = numericFormatter(format, value?.numericPolicy);
     if (!isOutputValue(value)) return format(value);
     if (outputValueKind(value) === "scene3d") {
         const entries = value?.entries instanceof Map ? value.entries : null;
@@ -3011,6 +3016,7 @@ function safeHtmlUrl(value, { media = false } = {}) {
 }
 
 function renderInlineHtml(value, format) {
+    format = numericFormatter(format, value?.numericPolicy);
     if (!isOutputValue(value)) return escapeHtml(cellText(value, format));
     if (value.kind === "text") return `<span class="rix-output-text">${escapeHtml(cellText(value.value, format))}</span>`;
     if (value.kind === "emphasis") return `<em class="rix-output-emphasis">${value.children.map((child) => renderInlineHtml(child, format)).join("")}</em>`;
@@ -3047,6 +3053,7 @@ function mediaDimensions(value) {
 }
 
 export function renderOutputHtml(value, format = (item) => String(item ?? "")) {
+    format = numericFormatter(format, value?.numericPolicy);
     const text = (item) => escapeHtml(isOutputValue(item) ? formatOutputText(item, format) : cellText(item, format));
     if (!isOutputValue(value)) return `<pre>${text(value)}</pre>`;
     if (outputValueKind(value) === "scene3d") {
@@ -3128,10 +3135,11 @@ export function renderOutputHtml(value, format = (item) => String(item ?? "")) {
         return `<label class="rix-output-control rix-output-control-slider" data-rix-control-kind="slider" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}"${controlStyleAttributes(value)}${controlStateAttributes(value)}${dependencies}><span class="rix-output-control-label">${escapeHtml(value.label)}</span><input type="range" min="0" max="${value.steps}" step="1" value="${value.index}" data-rix-control-input aria-label="${escapeHtml(value.label)}"${controlInputAttributes(value)}><output data-rix-control-value>${text(controlField(value, "value"))}</output><small class="rix-output-control-scale">${text(controlField(value, "low"))} … ${text(controlField(value, "high"))} · step ${text(controlField(value, "step"))}</small>${controlMessages(value)}</label>`;
     }
     if (value.kind === "control_input") {
+        const inputValue = numericFormatterPolicy(format) ? numericSourceFormatter(format)(value.value) : cellText(controlField(value, "value"), format);
         const dependencies = value.replacesDependencies.length > 0
             ? ` data-rix-replaces-dependencies="${escapeHtml(value.replacesDependencies.join(","))}"`
             : "";
-        return `<label class="rix-output-control rix-output-control-input" data-rix-control-kind="input" data-rix-control-input-mode="${escapeHtml(value.inputMode || "expression")}" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}"${controlStyleAttributes(value)}${controlStateAttributes(value)}${dependencies}><span class="rix-output-control-label">${escapeHtml(value.label)}</span><span class="rix-output-control-input-row"><input type="text" value="${text(controlField(value, "value"))}" placeholder="${escapeHtml(value.placeholder)}" data-rix-control-input aria-label="${escapeHtml(value.label)}"${controlInputAttributes(value, { text: true })}><button type="button" data-rix-control-commit${controlInputAttributes(value)}>Set</button></span><output data-rix-control-value>${text(controlField(value, "value"))}</output>${controlMessages(value)}</label>`;
+        return `<label class="rix-output-control rix-output-control-input" data-rix-control-kind="input" data-rix-control-input-mode="${escapeHtml(value.inputMode || "expression")}" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}"${controlStyleAttributes(value)}${controlStateAttributes(value)}${dependencies}><span class="rix-output-control-label">${escapeHtml(value.label)}</span><span class="rix-output-control-input-row"><input type="text" value="${escapeHtml(inputValue)}" placeholder="${escapeHtml(value.placeholder)}" data-rix-control-input aria-label="${escapeHtml(value.label)}"${controlInputAttributes(value, { text: true })}><button type="button" data-rix-control-commit${controlInputAttributes(value)}>Set</button></span><output data-rix-control-value>${text(controlField(value, "value"))}</output>${controlMessages(value)}</label>`;
     }
     if (value.kind === "control_choice") {
         const dependencies = value.replacesDependencies.length > 0

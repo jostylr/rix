@@ -443,7 +443,7 @@ the important relationship between the panel and its reactive values.
   document path, with visible static/unsupported-media fallbacks.
 - [x] Add renderer tests proving a paragraph preserves inline semantics rather
   than text-formatting `Emphasis`, `Link`, `Math`, or `Code` children.
-- [ ] Implement the shared numeric presentation policy and cross-renderer
+- [x] Implement the shared numeric presentation policy and cross-renderer
   fixtures proving that exact source values survive mixed/improper, interval,
   scientific/significant-digit, locale, and approximation display choices.
 

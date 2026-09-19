@@ -1,3 +1,4 @@
+import { numericFormatter, numericFormatterPolicy } from "../../src/runtime/numeric-presentation.js";
 /** Structured document lowering shared by Markdown, Quarto, and LaTeX. */
 
 import { formatOutputText, isInlineOutput, isOutputValue, renderGraphicSvg } from "../../src/runtime/output.js";
@@ -10,6 +11,11 @@ function markdownEscape(value) {
 }
 
 function inlineMarkdown(value, state) {
+    if (value?.numericPolicy) {
+        const previous = state.format;
+        state.format = numericFormatter(previous, value.numericPolicy);
+        try { return inlineMarkdown({ ...value, numericPolicy: null }, state); } finally { state.format = previous; }
+    }
     if (!isOutputValue(value)) return markdownEscape(state.format(value));
     if (value.documentTargetMarkup) {
         const { target, content } = value.documentTargetMarkup;
@@ -46,7 +52,7 @@ function markdownTable(value, state) {
 function graphicMarkdown(value, state) {
     if (typeof state.graphic === "function") return state.graphic(value, state);
     try {
-        return state.render(value, "svg", { alt: state.figureAlt || "" }).content;
+        return state.render(value, "svg", { alt: state.figureAlt || "", numericPolicy: numericFormatterPolicy(state.format) }).content;
     } catch (error) {
         if (!(error instanceof UnsupportedRenderError)) throw error;
         state.diagnostics.push(diagnostic("markdown-core-svg-fallback", "SVG plugin unavailable; used the core compatibility SVG adapter", "info"));
@@ -55,6 +61,11 @@ function graphicMarkdown(value, state) {
 }
 
 function blockMarkdown(value, state, depth = 0) {
+    if (value?.numericPolicy) {
+        const previous = state.format;
+        state.format = numericFormatter(previous, value.numericPolicy);
+        try { return blockMarkdown({ ...value, numericPolicy: null }, state, depth); } finally { state.format = previous; }
+    }
     if (!isOutputValue(value)) return state.format(value);
     if (isInlineOutput(value)) return inlineMarkdown(value, state);
     if (value.kind === "live_view") return blockMarkdown(value.current, state, depth);
@@ -145,13 +156,18 @@ export function renderMarkdown(value, { format, render, quarto = false, graphic 
 }
 
 function texEscape(value) {
-    return String(value).replace(/[\\{}%$&#_^~]/g, (character) => ({
+    return String(value).replace(/[\\{}%$&#_^~≈]/g, (character) => ({
         "\\": "\\textbackslash{}", "{": "\\{", "}": "\\}", "%": "\\%", "$": "\\$", "&": "\\&",
-        "#": "\\#", "_": "\\_", "^": "\\textasciicircum{}", "~": "\\textasciitilde{}",
+        "#": "\\#", "_": "\\_", "^": "\\textasciicircum{}", "~": "\\textasciitilde{}", "≈": "\\ensuremath{\\approx}",
     })[character]);
 }
 
 function inlineLatex(value, state) {
+    if (value?.numericPolicy) {
+        const previous = state.format;
+        state.format = numericFormatter(previous, value.numericPolicy);
+        try { return inlineLatex({ ...value, numericPolicy: null }, state); } finally { state.format = previous; }
+    }
     if (!isOutputValue(value)) return texEscape(state.format(value));
     if (value.documentTargetMarkup) {
         const { target, content } = value.documentTargetMarkup;
@@ -196,6 +212,11 @@ function latexGrid(value, state) {
 }
 
 function blockLatex(value, state) {
+    if (value?.numericPolicy) {
+        const previous = state.format;
+        state.format = numericFormatter(previous, value.numericPolicy);
+        try { return blockLatex({ ...value, numericPolicy: null }, state); } finally { state.format = previous; }
+    }
     if (!isOutputValue(value)) return texEscape(state.format(value));
     if (isInlineOutput(value)) return inlineLatex(value, state);
     if (value.kind === "live_view") return blockLatex(value.current, state);
@@ -254,7 +275,7 @@ function blockLatex(value, state) {
         if (state.figureAsset !== "tikz") {
             if (typeof state.render !== "function") throw new Error(`LaTeX ${state.figureAsset} figure delegation requires a renderer registry`);
             state.figure += 1;
-            const rendered = state.render(value, state.figureAsset, {});
+            const rendered = state.render(value, state.figureAsset, { numericPolicy: numericFormatterPolicy(state.format) });
             const path = `${state.assetDir}/figure-${state.figure}.${rendered.extension}`;
             state.assets.push({ path, mime: rendered.mime, content: rendered.content });
             state.diagnostics.push(...rendered.diagnostics);
@@ -298,7 +319,7 @@ export function renderLatex(value, {
         ? `\\definecolor{rixaccent}{HTML}{${themeAccent.slice(1).toUpperCase()}}\n`
         : "";
     return {
-        content: `\\documentclass[${pageSize}]{article}\n\\usepackage[margin=1in]{geometry}\n${[...state.packages].sort().map((name) => `\\usepackage{${name}}`).join("\n")}\n${themePreamble}\\hypersetup{pdftitle={${texEscape(pdfTitle)}},pdfauthor={${texEscape(pdfAuthor)}},bookmarks=${bookmarks ? "true" : "false"}}\n${heading}\\begin{document}\n${makeTitle}${body.trim()}\n\\end{document}\n`,
+        content: `\\documentclass[${pageSize}]{article}\n\\usepackage[margin=1in]{geometry}\n${[...state.packages].sort().map((name) => `\\usepackage{${name}}`).join("\n")}\n\\DeclareUnicodeCharacter{2248}{\\ensuremath{\\approx}}\n${themePreamble}\\hypersetup{pdftitle={${texEscape(pdfTitle)}},pdfauthor={${texEscape(pdfAuthor)}},bookmarks=${bookmarks ? "true" : "false"}}\n${heading}\\begin{document}\n${makeTitle}${body.trim()}\n\\end{document}\n`,
         diagnostics: state.diagnostics,
         assets: state.assets,
         metadata: renderMetadata,

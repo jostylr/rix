@@ -313,3 +313,5 @@ export {
 } from "./exact-values.js";
 
 export { OUTPUT_DOCUMENT_SCHEMA, encodeOutputJSON, decodeOutputJSON, snapshotOutputDocument } from "./output-json.js";
+
+export { NUMERIC_PRESENTATION_SCHEMA, createNumericPolicy, presentNumericValue, numericFormatter, withNumericPresentation } from "./numeric-presentation.js";
