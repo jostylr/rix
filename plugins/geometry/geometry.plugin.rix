@@ -3,12 +3,12 @@ id: geometry
 description: Pure-RiX exact geometry, transformations, conics, constraints, and bounded portable Graphics refinement.
 kind: rix
 mount: geometry
-exports: [Point, Line, Segment, Ray, Polygon, Circle, Center, RadiusSquared, Conic, Ellipse, Parabola, Hyperbola, Locus, Implicit, Affine, Projective, Transform, Constraint, Constraints, SquaredDistance, Distance, Length, Area, CircularAngle, Angle, Centroid, Incenter, Orthocenter, AngleBisector, Perpendicular, ParallelThrough, Midpoint, PerpendicularBisector, Circumcircle, Translate, RotateQuarterTurns, Rotate, ReflectAcross, Intersect, Points, Status, UncertainPoint, UncertainBounds, TransformUncertain, ConstructionGraph, ConstructionRecord, ImportConstruction, AddPoint, AddLine, AddCircle, AddIntersection, AddTransform, AddMeasurement, Drag, DragMany, ConstrainedDrag, RepairSuggestions, Undo, Redo, Refine, Draw, Workbench, AuthoringWorkbench]
+exports: [TraceImplicit, CheckImplicitTrace, RefineImplicitTrace, IntersectionBoxes, ParameterConstruction, ParameterDrag, ParameterHandle, Point, Line, Segment, Ray, Polygon, Circle, Center, RadiusSquared, Conic, Ellipse, Parabola, Hyperbola, Locus, Implicit, Affine, Projective, Transform, Constraint, Constraints, SquaredDistance, Distance, Length, Area, CircularAngle, Angle, Centroid, Incenter, Orthocenter, AngleBisector, Perpendicular, ParallelThrough, Midpoint, PerpendicularBisector, Circumcircle, Translate, RotateQuarterTurns, Rotate, ReflectAcross, Intersect, Points, Status, UncertainPoint, UncertainBounds, TransformUncertain, ConstructionGraph, ConstructionRecord, ImportConstruction, AddPoint, AddLine, AddCircle, AddIntersection, AddTransform, AddMeasurement, Drag, DragMany, ConstrainedDrag, RepairSuggestions, Undo, Redo, Refine, Draw, Workbench, AuthoringWorkbench]
 groups: [Geometry, Graphics, Exact]
 permissions: []
 requires: [rix.numerics@1, rix.polynomial.algorithms@1, rix.algebraic-real@1]
-provides: [rix.geometry@1, rix.geometry.intersection@1, rix.geometry.constraint@1, rix.geometry.refinement@1, rix.geometry.circular-angle@1, rix.geometry.uncertain-point@1, rix.geometry.construction-graph@1, rix.geometry.construction-record@1, rix.geometry.workbench@1, rix.geometry.authoring-policy@1]
-schemas: [rix.geometry@1, rix.geometry.intersection@1, rix.geometry.constraint@1, rix.geometry.refinement@1, rix.geometry.circular-angle@1, rix.geometry.uncertain-point@1, rix.geometry.construction-graph@1, rix.geometry.construction-record@1, rix.geometry.workbench@1, rix.geometry.authoring-policy@1]
+provides: [rix.geometry.implicit-trace@1, rix.geometry.parameter-construction@1, rix.geometry@1, rix.geometry.intersection@1, rix.geometry.constraint@1, rix.geometry.refinement@1, rix.geometry.circular-angle@1, rix.geometry.uncertain-point@1, rix.geometry.construction-graph@1, rix.geometry.construction-record@1, rix.geometry.workbench@1, rix.geometry.authoring-policy@1]
+schemas: [rix.geometry.implicit-trace@1, rix.geometry.parameter-construction@1, rix.geometry@1, rix.geometry.intersection@1, rix.geometry.constraint@1, rix.geometry.refinement@1, rix.geometry.circular-angle@1, rix.geometry.uncertain-point@1, rix.geometry.construction-graph@1, rix.geometry.construction-record@1, rix.geometry.workbench@1, rix.geometry.authoring-policy@1]
 snapshot: true
 deterministic: true
 defaultEnabled: false
@@ -1831,8 +1831,79 @@ GeometryAuthoringWorkbench(graph,actions,options ?= {= }) -> {;
     }));
 };
 
+GeometryTraceMethods(result) -> {;
+    result._proto={=
+        Refine=(self,options ?= {= })->GeometryTraceMethods(.ImplicitTraceRefine(self,options)),
+        Check=(self)->.ImplicitTraceCheck(self)
+    };
+    .ImmutableValue(result);
+};
+GeometryTraceImplicit(expression,gradient,box,options ?= {= }) -> GeometryTraceMethods(.ImplicitTrace(expression,gradient,box,options));
+GeometryParameterAttempt={>
+    (builder,parameter) ?- [Apply=builder,candidate=Apply(parameter)] -> {= ok=1,result=candidate },
+    (builder,parameter) -> {= ok=_,result=_,diagnostic=:constructionCallbackRejected }
+};
+GeometryParameterCertified(candidate) ?!- [
+    candidate ? :Map ?_> _,
+    candidate.Has("schema") ?_> _
+] -> {;
+    schema=candidate[:schema];
+    schema!="rix.numerics.interval-newton-box@1" ?_> (.ValidatedBoxCheck(candidate)[:certified]&&candidate[:rootExistence]==:unique);
+    schema!="rix.numerics.box-subdivision@1" ?_> (.numerics.CheckBoxSubdivision(candidate)[:certified]&&candidate[:status]==:complete&&candidate[:unique].Len()>0);
+    schema!="rix.geometry.implicit-trace@1" ?_> (.ImplicitTraceCheck(candidate)[:certified]&&candidate[:status]==:complete&&candidate[:arcs].Len()>0);
+    _;
+};
+GeometryParameterUpdate(state,parameter,operation ?= :parameterDrag) ?!- [
+    state ? :Map ?_> .Error("geometry.ParameterDrag requires a parameter construction"),
+    state[:schema]=="rix.geometry.parameter-construction@1" ?_> .Error("geometry.ParameterDrag requires a parameter construction"),
+    state[:maxHistory] ? :Integer ?_> .Error("geometry parameter maxHistory requires an Integer"),
+    state[:history] ? :Array ?_> .Error("geometry parameter history requires an Array"),
+    state[:maxHistory]>=0&&state[:maxHistory]<=256 ?_> .Error("geometry parameter maxHistory must be between 0 and 256"),
+    state[:history].Len()<=256 ?_> .Error("geometry parameter history exceeds its budget"),
+    state[:lastCertified]==_||GeometryParameterCertified(state[:lastCertified]) ?_> .Error("geometry parameter retained evidence is not certified")
+] -> {;
+    position=GeometryNumericSequence(parameter,2,"geometry parameter position");
+    position.All((coordinate)->@"@{coordinate.Numerator()}".Len()<=4097&&@"@{coordinate.Denominator()}".Len()<=4096)
+      ?_> .Error("geometry parameter exceeds its rational digit budget");
+    builder=state[:builder];attempt=GeometryParameterAttempt(builder,position);
+    accepted=attempt[:ok]&&GeometryParameterCertified(attempt[:result]);
+    previous=state[:lastCertified];
+    diagnostic=accepted ?: _ ?_ attempt[:ok] ?: :constraintsUnproved ?_ :constructionCallbackRejected;
+    event={= operation=operation,from=state[:parameter],requested=position,accepted=accepted,diagnostic=diagnostic };
+    history:=state[:history].Push(event);
+    {@ index=1;@history.Len()>@state[:maxHistory];{; @history~=@history.DropFirst();};index+=1};
+    .DeepMutable({= schema="rix.geometry.parameter-construction@1",builder=builder,
+        parameter=accepted ?: position ?_ state[:parameter],requestedParameter=position,
+        lastCertified=accepted ?: attempt[:result] ?_ previous,proposal=attempt[:result],
+        status=accepted ?: :accepted ?_ previous==_ ?: :unresolved ?_ :retainedLastCertified,
+        diagnostic=diagnostic,history=history,maxHistory=state[:maxHistory],
+        repair=accepted ?: [] ?_ [{= action=:changeParameter,label="Move the parameter into a certifiable region" },
+            {= action=:refineSearch,label="Increase bounded work or select a different search box" }]
+    },_);
+};
+GeometryParameterConstruction(builder,parameter,options ?= {= }) ?!- [
+    maxHistory=GeometryOption(options,"maxhistory",32) ~!: :Integer,
+    maxHistory>=0&&maxHistory<=256 ?_> .Error("geometry parameter maxHistory must be between 0 and 256")
+] -> GeometryParameterUpdate({= schema="rix.geometry.parameter-construction@1",builder=builder,parameter=parameter,lastCertified=_,history=[],maxHistory=maxHistory },parameter,:create);
+GeometryParameterHandle(target,options ?= {= }) -> {;
+    state=$$target.Get();
+    state[:schema]=="rix.geometry.parameter-construction@1" ?_> .Error("geometry.ParameterHandle requires a parameter construction node");
+    .Graphics.DragPoint({= target=$$target,position=state[:parameter],
+        action=(current,position)->GeometryParameterUpdate(current,[position[1],position[2]]),
+        label=GeometryOption(options,"label","Move construction parameter"),
+        coordinateSystem=GeometryOption(options,"coordinatesystem",{= view=[-2,-2,2,2],size=[400,400] }),
+        style=GeometryOption(options,"style",{= hitId="parameter-handle" }) });
+};
+
 geometryNamespace = {= };
 geometryNamespace._proto = {=
+    TraceImplicit=(self,expression,gradient,box,options ?= {= })->GeometryTraceImplicit(expression,gradient,box,options),
+    CheckImplicitTrace=(self,result)->.ImplicitTraceCheck(result),
+    RefineImplicitTrace=(self,result,options ?= {= })->GeometryTraceMethods(.ImplicitTraceRefine(result,options)),
+    IntersectionBoxes=(self,expressions,jacobian,box,options ?= {= })->.numerics.SubdivideBoxes(expressions,jacobian,box,options),
+    ParameterConstruction=(self,builder,parameter,options ?= {= })->GeometryParameterConstruction(builder,parameter,options),
+    ParameterDrag=(self,state,parameter)->GeometryParameterUpdate(state,parameter),
+    ParameterHandle=(self,target,options ?= {= })->GeometryParameterHandle($$target,options),
     Point=(self, first, second ?= _, options ?= {= })->GeometryPoint(first, second, options),
     Line=(self, first, second ?= _, options ?= {= })->GeometryLine(first, second, options),
     Segment=(self, first, second ?= _, options ?= {= })->GeometrySegment(first, second, options),

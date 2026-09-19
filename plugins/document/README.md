@@ -60,7 +60,9 @@ retains inert data for re-export. Known malformed records always fail.
 
 Use `Snapshot(value)` to detach current controls, Sheet views and graphic
 handles before saving. A direct live/callable import/export is rejected. Exact
-values, interval orientation, object sharing, mathematical identities and
+values, interval orientation, normalized rational interval sets (including empty,
+open, and unbounded components), formal Fraction intervals and signed infinite
+Fraction endpoints, object sharing, mathematical identities and
 asset metadata survive; imports never fetch assets or execute code.
 See [document persistence](../../documentation/eval/document-persistence.md)
 for limits, migration, and the host API.

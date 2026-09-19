@@ -3,12 +3,12 @@ id: solve
 description: Domain-dispatched exact/certified solution objects for linear, optimization, polynomial, and scalar numerical problems.
 kind: rix
 mount: solve
-exports: [Classify, Linear, System, Polynomial, Numerical, Substitute, Residuals, Check]
+exports: [Classify, Linear, System, Polynomial, Numerical, RootBoxes, FromBoxes, BoxFeasibility, Substitute, Residuals, Check]
 groups: [Solve, Symbolic, Exact]
 permissions: []
 requires: [rix.linear-algebra@2, rix.optimization@2, rix.polynomial.algorithms@1, rix.algebraic-real@1, rix.numerics@2]
-provides: [rix.system-solver@2, rix.system-solver@1, rix.solution@1]
-schemas: [rix.solve.system-result@1, rix.solve.solution@1]
+provides: [rix.solve.box-feasibility@1, rix.system-solver@2, rix.system-solver@1, rix.solution@1]
+schemas: [rix.solve.system-result@1, rix.solve.solution@1, rix.solve.box-feasibility@1]
 snapshot: false
 deterministic: true
 defaultEnabled: false
@@ -130,6 +130,7 @@ SolveResiduals(value,candidate ?= _) -> {;
 
 SolveCheck(value,candidate ?= _) -> {;
     kind=value[:classification];
+    kind!=:numericalBoxes ?_> SolveCheckRootBoxes(value,candidate);
     kind==:optimization
       ?: value[:program].Evaluate(SolveCandidateVector(value,candidate))[:feasible]
       ?_ kind==:numerical
@@ -418,6 +419,41 @@ SolveNumerical(function,intervalValue,options ?= {= })->{;
       };
 };
 
+SolveFromBoxes(boxes,options ?= {= }) ?!- [
+    options.Has("objective")==_ ?_> .Error("Root boxes do not solve optimization problems"),
+    boxes[:schema]=="rix.numerics.box-subdivision@1" ?_> .Error("solve.FromBoxes requires a numerical box subdivision"),
+    .numerics.CheckBoxSubdivision(boxes)[:accepted] ?_> .Error("solve.FromBoxes rejected unchecked box evidence")
+] -> {;
+    branches=boxes[:unique].Map((entry)->entry[:result][:box]);
+    unresolved=boxes[:unresolved];
+    existence=branches.Len()>0 ?: :atLeastOne ?_ unresolved.Len()==0 ?: :none ?_ :unproved;
+    result=SolveSolution(existence==:none ?: :empty ?_ :branch,boxes[:status],{=
+        classification=:numericalBoxes,purpose=:rootFinding,exact=_,certified=boxes[:certified],
+        rootExistence=existence,solution=branches,branches=branches,unknowns=boxes[:variables],
+        excluded=boxes[:excluded],unresolved=unresolved,boxes=boxes,assumptions=[],
+        distinctRootCount=_,provenance={= plugin=:solve,dispatch=:validatedNumericalBoxes }
+    });
+    .ValidatedClaimEqual(result,result) ?_> .Error("solve root summary exceeds its retained evidence budget");
+    result;
+};
+
+SolveCheckRootBoxes(value,candidate ?= _) ?!- [
+    candidate==_ ?_> .Error("Numerical root box Check replays enclosures and does not certify a supplied point"),
+    .numerics.CheckBoxSubdivision(value[:boxes])[:certified] ?_> _
+] -> .ValidatedClaimEqual(value,SolveFromBoxes(value[:boxes]));
+
+SolveRootBoxes(expressions,jacobian,box,options ?= {= }) ?!- [
+    options.Has("objective")==_ ?_> .Error("Root boxes do not solve optimization problems")
+] -> SolveFromBoxes(.numerics.SubdivideBoxes(expressions,jacobian,box,options),options);
+
+SolveBoxFeasibility(expressions,jacobian,box,options ?= {= }) -> {;
+    roots=SolveRootBoxes(expressions,jacobian,box,options);
+    status=roots[:rootExistence]==:atLeastOne ?: :feasible ?_ roots[:rootExistence]==:none ?: :infeasible ?_ :unknown;
+    {= schema="rix.solve.box-feasibility@1",purpose=:equalityFeasibility,status=status,
+        certified=status!=:unknown,witnessBoxes=roots[:branches],roots=roots,
+        unresolved=roots[:unresolved],optimization=_ };
+};
+
 solveNamespace={= };
 solveNamespace._proto={=
     Classify=(self,spec)->SolveClassify(spec),
@@ -425,6 +461,9 @@ solveNamespace._proto={=
     System=(self,spec,options ?= {= })->SolveSystem(spec,options),
     Polynomial=(self,polynomial,interval,options ?= {= })->SolvePolynomial(polynomial,interval,options),
     Numerical=(self,function,interval,options ?= {= })->SolveNumerical(function,interval,options),
+    RootBoxes=(self,expressions,jacobian,box,options ?= {= })->SolveRootBoxes(expressions,jacobian,box,options),
+    FromBoxes=(self,boxes,options ?= {= })->SolveFromBoxes(boxes,options),
+    BoxFeasibility=(self,expressions,jacobian,box,options ?= {= })->SolveBoxFeasibility(expressions,jacobian,box,options),
     Substitute=(self,solution,bindings ?= {= })->SolveSubstitute(solution,bindings),
     Residuals=(self,solution,candidate ?= _)->SolveResiduals(solution,candidate),
     Check=(self,solution,candidate ?= _)->SolveCheck(solution,candidate)

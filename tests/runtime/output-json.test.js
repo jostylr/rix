@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { Integer, Rational, Fraction, RationalInterval, CertifiedApproximation } from "@ratmath/core";
+import { Integer, Rational, Fraction, FractionInterval, RationalInterval, RationalIntervalSet, CertifiedApproximation } from "@ratmath/core";
 import { encodeOutputJSON, decodeOutputJSON, snapshotOutputDocument } from "../../src/runtime/output-json.js";
 import * as out from "../../src/runtime/output.js";
 import { Context, createDefaultRegistry, createDefaultSystemContext, parseAndEvaluate, formatValue } from "../../src/index.js";
@@ -148,4 +148,50 @@ test("materialized timelines and narration tracks remain inert and retain exact 
     expect(loaded.frames.length).toBe(2);
     expect(loaded.tracks[0].keyframes[1].value.value).toBe("Second");
     expect(out.renderOutputHtml(loaded,formatValue)).toBe(out.renderOutputHtml(value,formatValue));
+});
+
+
+test("interval-set persistence keeps exact endpoints, open boundaries, infinities and sharing",()=>{
+    const range=new RationalIntervalSet([
+        {low:null,high:new Rational(-1),lowClosed:false,highClosed:true},
+        {low:new Rational(1,3),high:new Rational(2,3),lowClosed:false,highClosed:true},
+        {low:new Rational(2),high:null,lowClosed:true,highClosed:false},
+    ]);
+    const empty=new RationalIntervalSet(),point=new RationalIntervalSet(new RationalInterval(new Rational(1,7),new Rational(1,7)));
+    const source=[range,range,empty,point];
+    const snapshot=snapshotOutputDocument(source);expect(snapshot[0]).toBe(range);
+    const wire=encodeOutputJSON(snapshot),result=decodeOutputJSON(wire).value;
+    expect(result[0]).toBeInstanceOf(RationalIntervalSet);expect(result[0]).toBe(result[1]);
+    expect(result[0].equals(range)).toBe(true);expect(result[2].isEmpty).toBe(true);expect(result[3].equals(point)).toBe(true);
+    expect(encodeOutputJSON(result)).toBe(wire);
+    function malformed(change){const data=JSON.parse(wire);const set=data.nodes.find(node=>node.tag==="interval-set");
+        const component=data.nodes.find(node=>node.id===set.data[0].$ref);change(component,data,set);return JSON.stringify(data);}
+    expect(()=>decodeOutputJSON(malformed(component=>component.data.find(([key])=>key==="lowClosed")[1]=true))).toThrow("closed endpoint");
+    expect(()=>decodeOutputJSON(malformed(component=>component.data.find(([key])=>key==="high")[1]="-1"))).toThrow("invalid interval-set component");
+    expect(()=>decodeOutputJSON(malformed(component=>component.data.push(["extra",true])))).toThrow("unexpected or missing fields");
+    expect(()=>decodeOutputJSON(malformed((component,data,set)=>set.data.reverse()))).toThrow("normalized");
+    const huge=new RationalIntervalSet(new RationalInterval(new Rational(10n**5000n),new Rational(10n**5000n)));
+    expect(()=>encodeOutputJSON(huge)).toThrow("oversized integer");
+});
+
+
+test("formal fraction intervals retain endpoint forms, infinities and stored low/high order",()=>{
+    const low=new Fraction(-1,0,{allowInfinite:true}),high=new Fraction(1,0,{allowInfinite:true});
+    const finite=new FractionInterval(new Fraction(2,4),new Fraction(3,4));
+    const all=new FractionInterval(low,high),source=[finite,all,low,high];
+    const wire=encodeOutputJSON(snapshotOutputDocument(source)),result=decodeOutputJSON(wire).value;
+    expect(result[0]).toBeInstanceOf(FractionInterval);
+    expect([String(result[0].low),String(result[0].high)]).toEqual(["2/4","3/4"]);
+    expect(result[1].low).toBe(result[2]);expect(result[1].high).toBe(result[3]);
+    expect([result[2].numerator,result[2].denominator,result[3].numerator,result[3].denominator]).toEqual([-1n,0n,1n,0n]);
+    expect(encodeOutputJSON(result)).toBe(wire);
+    const descending=new FractionInterval(new Fraction(3,4),new Fraction(2,4));
+    const restoredDescending=roundTrip(descending);
+    expect([String(descending.low),String(descending.high)]).toEqual(["2/4","3/4"]);
+    expect([String(restoredDescending.low),String(restoredDescending.high)]).toEqual(["2/4","3/4"]);
+    function malformed(change){const data=JSON.parse(wire);change(data);return JSON.stringify(data);}
+    expect(()=>decodeOutputJSON(malformed(data=>data.nodes.find(node=>node.tag==="fraction"&&node.data[1]==="0").data=["0","0"]))).toThrow("indeterminate");
+    expect(()=>decodeOutputJSON(malformed(data=>data.nodes.find(node=>node.tag==="fraction").tag="rational"))).toThrow("must be Fractions");
+    expect(()=>decodeOutputJSON(malformed(data=>data.nodes.find(node=>node.tag==="fraction-interval").data.reverse()))).toThrow("low/high order");
+    expect(()=>decodeOutputJSON(malformed(data=>data.nodes.find(node=>node.tag==="fraction-interval").data.pop()))).toThrow("invalid fraction interval");
 });

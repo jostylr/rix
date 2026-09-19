@@ -144,10 +144,10 @@ export class WidgetSession {
 function graphicBindings(node, bindings = { targets: new Map(), actions: new Map() }) {
     if (!isOutputValue(node)) return bindings;
     if (node.kind === "drag_point" && isReactiveNode(node.target)) {
-        bindings.targets.set(node.targetId, { target: node.target, coordinateSystem: node.coordinateSystem });
+        bindings.targets.set(node.targetId, { target: node.target, coordinateSystem: node.coordinateSystem, run: node.run });
     }
     if (node.kind === "graphic_action" && isReactiveNode(node.target)) {
-        bindings.targets.set(node.targetId, { target: node.target, coordinateSystem: null });
+        if (!bindings.targets.has(node.targetId)) bindings.targets.set(node.targetId, { target: node.target, coordinateSystem: null });
         bindings.actions.set(node.id, node);
     }
     for (const child of node.children || []) graphicBindings(child, bindings);
@@ -245,7 +245,8 @@ export class GraphicWidgetSession {
         const binding = this.targets.get(String(event.targetId || ""));
         if (!binding) throw new Error(`Unknown Graphic drag target: ${event.targetId || "missing target"}`);
         const { target, coordinateSystem } = binding;
-        const value = graphicPoint(event.position, coordinateSystem);
+        const position = graphicPoint(event.position, coordinateSystem);
+        const value = binding.run ? binding.run(position) : position;
         const replacedDependencies = Object.freeze([...target.dependencies]);
         target.replaceValue(value, {
             source: "widget",

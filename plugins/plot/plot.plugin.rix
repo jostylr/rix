@@ -3,7 +3,7 @@ id: plot
 description: Pure-RiX exact and numerics-backed 2D plotting that lowers to portable core Graphics scenes.
 kind: rix
 mount: plot
-exports: [Polynomial, PolynomialPOI, Function, Parametric, Scatter, Line, Bar, Step, Polar, ErrorBand, Interval, Trajectory, PhasePortrait, EventTrajectory, EventPhasePortrait, LinkedTrajectory, LinkedEvents, Implicit, Inequality, Contour, HeatMap, VectorField, ColorScale]
+exports: [Polynomial, PolynomialPOI, Function, Parametric, Scatter, Line, Bar, Step, Polar, ErrorBand, Interval, CertifiedRegions, Trajectory, PhasePortrait, EventTrajectory, EventPhasePortrait, LinkedTrajectory, LinkedEvents, Implicit, Inequality, Contour, HeatMap, VectorField, ColorScale]
 groups: [Plot, Graphics, Exact]
 permissions: []
 requires: [rix.numerics@1]
@@ -1143,6 +1143,64 @@ PlotInequality(fn,xDomain,yDomain,settings ?= {= }) -> {;
     });
 };
 
+PlotCertifiedRegions(result,settings ?= {= }) ?!- [
+    schema=result[:schema],
+    schema=="rix.geometry.implicit-trace@1"||schema=="rix.numerics.box-subdivision@1" ?_> .Error("plot.CertifiedRegions requires checked implicit or root boxes"),
+    checked=schema=="rix.geometry.implicit-trace@1" ?: .ImplicitTraceCheck(result) ?_ .numerics.CheckBoxSubdivision(result),
+    checked[:accepted] ?_> .Error("plot.CertifiedRegions rejected unchecked box evidence")
+] -> {;
+    trace=schema=="rix.geometry.implicit-trace@1";
+    names=result[:variables];
+    selected=PlotOption(settings,"axes",names.Len()==1 ?: [names[1]] ?_ [names[1],names[2]]);
+    (selected.Len()==1||selected.Len()==2)&&selected.Distinct().Len()==selected.Len()&&selected.All((name)->@names.Includes(name))
+      ?_> .Error("plot.CertifiedRegions axes must select one or two distinct box variables");
+    xaxis=selected[1];yaxis=selected.Len()==2 ?: selected[2] ?_ _;
+    xrange=result[:inputBox][:axes][xaxis].ToRationalInterval();
+    yrange=yaxis==_ ?: (-1):1 ?_ result[:inputBox][:axes][yaxis].ToRationalInterval();
+    xdomain=xrange.Low()==xrange.High() ?: [xrange.Low()-1,xrange.High()+1] ?_ [xrange.Low(),xrange.High()];
+    ydomain=yrange.Low()==yrange.High() ?: [yrange.Low()-1,yrange.High()+1] ?_ [yrange.Low(),yrange.High()];
+    config=PlotFieldConfig(xdomain,ydomain,settings);
+    regular=trace ?: result[:arcs] ?_ result[:unique];
+    leaves=result[:excluded].Concat(regular).Concat(result[:unresolved]);
+    leaves.Len()<=4097 ?_> .Error("plot.CertifiedRegions exceeds the complete region display budget");
+    children:=[];records:=[];
+    {@ index=1;index<=@leaves.Len();{;
+        node=@leaves[index];kind=node[:classification];
+        stopped=PlotOption(node,"reason",_)!=_;
+        color=stopped ?: "#fbbf24" ?_ kind==:excluded ?: "#cbd5e1" ?_ kind==:unique ?: "#86efac" ?_ kind==:regularArc ?: "#93c5fd" ?_ "#fbbf24";
+        x=node[:box][:axes][@xaxis].ToRationalInterval();
+        y=@yaxis==_ ?: (-1/4):(1/4) ?_ node[:box][:axes][@yaxis].ToRationalInterval();
+        origin=PlotProject([x.Low(),y.High()],@config);end=PlotProject([x.High(),y.Low()],@config);
+        id=@"certified-region-@{node[:id]}";
+        rootBox=@trace ?: PlotOption(node,"rootbox",_) ?_ kind==:unique ?: node[:result][:box] ?_ _;
+        record={= id=id,classification=kind,box=node[:box],rootBox=rootBox,
+            topology=PlotOption(node,"topology",_),reason=PlotOption(node,"reason",_),
+            coordinates=:exactRational,display=:boxEnclosure };
+        rectangle=.Graphics.Rectangle(origin,[end[1]-origin[1],end[2]-origin[2]],{= fill=color,stroke="#64748b",width=1,opacity=1/2,hitId=id });
+        marks:=[rectangle];
+        rootBox!=_ ?: {;
+            rx=@rootBox[:axes][@xaxis].ToRationalInterval();
+            ry=@yaxis==_ ?: (-1/8):(1/8) ?_ @rootBox[:axes][@yaxis].ToRationalInterval();
+            a=PlotProject([rx.Low(),ry.High()],@config);b=PlotProject([rx.High(),ry.Low()],@config);
+            @marks ~= @marks.Push(.Graphics.Rectangle(a,[b[1]-a[1],b[2]-a[2]],{= fill=@color,stroke="#0f172a",width=2,hitId=@"@{@id}-root-enclosure" }));
+        } ?_ _;
+        @children ~= @children.Push(.Graphics.Group({= children=marks,metadata={= region=record } }));
+        @records ~= @records.Push(record);
+    };index+=1 };
+    legend=[{= label="Excluded",color="#64748b" },{= label="Unique root box",color="#15803d" },
+        {= label="Local implicit chart",color="#2563eb" },{= label="Unresolved",color="#b45309" }];
+    children~=children.Concat(legend.Map((entry,index)->.Graphics.Text(
+        [@config[:margin]+(index-1)*(@config[:width]-2*@config[:margin])/4,@config[:height]-8],entry[:label],
+        {= fill=entry[:color],size=10,anchor="start" })));
+    graphic=PlotFieldGraphic(:certifiedRegions,config,settings,children,{=
+        records=records,unresolvedRegions=result[:unresolved],status=result[:status],
+        evidence={= checker=checked,source={= }.Merge(result),axes=selected,projection=:coordinateProjection,distinctRootCount=_ },
+        sampling={= method=:checkedBoxes,certification=:retainedEvidence },rendering=:boxEnclosures,
+        legend=legend
+    });
+    graphic;
+};
+
 PlotPaletteIndex(value,minimum,maximum,count) -> minimum==maximum ?: (count+1)//2 ?_ {;
     index=((@value-@minimum)/(@maximum-@minimum)*(@count-1))//1+1;
     .Max(1,.Min(@count,index));
@@ -1525,6 +1583,7 @@ plotNamespace._proto = {=
     EventPhasePortrait=(self, result, options ?= {= })->PlotEventView(result,options,1),
     LinkedTrajectory=(self, solution, options ?= {= })->PlotLinkedTrajectory(solution,options),
     LinkedEvents=(self, result, options ?= {= })->PlotLinkedEvents(result,options),
+    CertifiedRegions=(self,result,options ?= {= })->PlotCertifiedRegions(result,options),
     Implicit=(self, fn, xDomain, yDomain, options ?= {= })->PlotContourBuild(fn,xDomain,yDomain,options,:implicit),
     Inequality=(self, fn, xDomain, yDomain, options ?= {= })->PlotInequality(fn,xDomain,yDomain,options),
     Contour=(self, fn, xDomain, yDomain, options ?= {= })->PlotContourBuild(fn,xDomain,yDomain,options,:contour),

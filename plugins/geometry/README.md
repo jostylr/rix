@@ -239,3 +239,20 @@ cells or reduced work resolution visible; topology certification remains Phase
 3 work.
 
 See [tutorial.md](tutorial.md) for a complete construction.
+
+## Checked numerical boxes and parameter changes
+
+`TraceImplicit(expression, gradient, box, options?)` produces exact two-variable
+local chart enclosures with replayable face, derivative, and domain evidence.
+`CheckImplicitTrace` and `RefineImplicitTrace` are also available as result
+methods `.Check()` and `.Refine(options)`. Every split preserves the complete
+original cell. Singular/tangent, boundary, arithmetic, and work/evidence limits
+remain explicit unresolved regions. Coverage certification alone asserts no
+root or topology in those regions.
+
+`IntersectionBoxes` delegates checked numerical systems to Numerics subdivision.
+`ParameterConstruction`, `ParameterDrag`, and `ParameterHandle` validate proposed
+constraints and preserve the last checked construction after a failed move.
+These numerical consumers do not require multivariate Polynomial objects.
+See [the reference](validated-implicit.md) and
+[the executable tutorial](validated-implicit-tutorial.md).

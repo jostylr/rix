@@ -283,3 +283,23 @@ permissions. It is deliberately separate from the SVG renderer: plotting
 describes a scene; a renderer chooses how to paint it.
 
 See [tutorial.md](tutorial.md).
+
+## Checked numerical region plots
+
+`CertifiedRegions(result, options?)` replays a Geometry implicit trace or
+Numerics box subdivision before drawing it. Gray marks exclusions, green marks
+unique-root cells, blue marks local graph charts, and amber marks unresolved
+or pending cells. Original cells remain visible; darker rectangles show checked
+contracted root enclosures. These are exact box enclosures, not sampled points
+or a connected contour. Exact boxes, source evidence, stopping reasons, and
+stable region IDs remain in Graphic metadata and travel through ordinary SVG,
+HTML, Canvas, and static publication paths.
+
+The `axes` option selects one or two distinct box variables. With one selected
+axis, the vertical display band is synthetic and makes no mathematical claim.
+For higher-dimensional systems, selected coordinates are projections and full
+boxes remain in metadata. Degenerate view axes are padded only for display.
+Usual plot `size`, `margin`, and title options apply. At most 4097 complete-cover
+leaves are displayed. Shared boundaries may overlap and no distinct-root count
+or unknown topology is inferred. See
+[checked geometry examples](../geometry/validated-implicit-tutorial.md).

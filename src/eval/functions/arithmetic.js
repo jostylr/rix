@@ -8,7 +8,8 @@ import { Integer, Rational } from "@ratmath/core";
 import { formatValue } from "../format.js";
 import {calculusDerivativeProofValue} from '../../runtime/calculus-proof.js';
 import { executeRangeOperation, rangeEvidence } from "../../runtime/range-arithmetic.js";
-import { validatedBoxValue } from "../../runtime/validated-boxes.js";
+import { validatedBoxValue, validatedClaimKey } from "../../runtime/validated-boxes.js";
+import { implicitTraceValue } from "../../runtime/implicit-geometry.js";
 import {
     calculusGraphRangeValue,
     calculusGraphRangeCheckValue,
@@ -211,6 +212,24 @@ export const arithmeticFunctions = {
         doc: "Independently recompute a checked Krawczyk classification",
     },
 
+    IMPLICIT_TRACE: {
+        impl(args, context) {
+            if(args.length<3||args.length>4) throw new Error("ImplicitTrace expects expression, checked gradient, box, and optional options");
+            return implicitTraceValue("trace",args,context);
+        }, pure:true, doc:"Trace checked local implicit charts with a complete bounded box cover",
+    },
+    IMPLICIT_TRACE_CHECK: {
+        impl(args, context) {
+            if(args.length!==1) throw new Error("ImplicitTraceCheck expects one result");
+            return implicitTraceValue("check",args,context);
+        }, pure:true, doc:"Replay all implicit chart, coverage, and topology claims",
+    },
+    IMPLICIT_TRACE_REFINE: {
+        impl(args, context) {
+            if(args.length<1||args.length>2) throw new Error("ImplicitTraceRefine expects result and optional options");
+            return implicitTraceValue("refine",args,context);
+        }, pure:true, doc:"Recheck an implicit trace and refine its original box with bounded options",
+    },
     INTERVAL_LINEAR_SOLVE: {
         impl(args, context) {
             if (args.length < 2 || args.length > 3) throw new Error("IntervalLinearSolve expects matrix, right-hand side, and optional options");
@@ -234,6 +253,13 @@ export const arithmeticFunctions = {
             if (args.length < 1 || args.length > 2) throw new Error("BoxResume expects a checked subdivision result and optional work budget");
             return validatedBoxValue("resume", args, context);
         }, pure: true, doc: "Replay and extend a retained deterministic box subdivision queue",
+    },
+    VALIDATED_CLAIM_EQUAL: {
+        impl(args) {
+            if(args.length!==2) throw new Error("ValidatedClaimEqual expects two retained claims");
+            try { return validatedClaimKey(args[0])===validatedClaimKey(args[1]) ? new Integer(1n) : null; }
+            catch { return null; }
+        }, pure:true, doc:"Compare typed retained claims under the shared replay data limits",
     },
     VALIDATED_BOX_CHECK: {
         impl(args, context) {

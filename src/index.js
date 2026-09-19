@@ -174,3 +174,5 @@ export { LOGIC_SEQUENT_SCHEMA, LOGIC_SEQUENT_CHECKER, createSequent, checkSequen
 
 export { LIVE_PUBLICATION_SCHEMA, LIVE_PUBLICATION_LIMITS, prepareLivePublication, createLivePublicationConfig } from "./runtime/live-publication.js";
 export { createPublicationProfile, createPublicationBuild, parsePublicationProfiles, serializePublicationProfiles, createPublicationRebuilder, PUBLICATION_BUILD_SCHEMA, PUBLICATION_MANIFEST_SCHEMA, PUBLICATION_TARGETS, PUBLICATION_LIMITS } from "./runtime/publication-workflow.js";
+
+export { IMPLICIT_TRACE_SCHEMA, IMPLICIT_TRACE_CHECKER, evaluateImplicitTrace, checkImplicitTrace, refineImplicitTrace } from "./runtime/implicit-geometry.js";

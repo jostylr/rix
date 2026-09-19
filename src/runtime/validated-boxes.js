@@ -261,6 +261,7 @@ function textBudget(state,value) {
     return value;
 }
 function canonical(value, state={nodes:0,seen:new Set()}, depth=0) {
+    state.maxDepth=Math.max(state.maxDepth||0,depth);
     if(depth>256 || ++state.nodes>2000000) throw new Error("validatedReplayClaimBudgetExceeded");
     // A conservative allowance for the typed tags and structural JSON bytes.
     state.text=(state.text||0)+32;
@@ -307,6 +308,17 @@ export function checkValidatedBoxResult(candidate) {
         const accepted=original===JSON.stringify(canonical(recomputed));
         return freeze({accepted,certified:accepted&&recomputed.certified,reason:accepted?null:"validatedClaimMismatch",checkedBy:VALIDATED_BOX_CHECKER});
     }catch(error){return freeze({accepted:false,certified:false,reason:error.message});}
+}
+
+/** Shared typed, bounded claim representation for consumers of box evidence. */
+export function validatedClaimKey(value) {
+    return JSON.stringify(canonical(value));
+}
+/** Conservative replay accounting, including typed tags and JSON escaping. */
+export function validatedClaimCost(value) {
+    const state={nodes:0,seen:new Set(),text:0,maxDepth:0};
+    canonical(value,state);
+    return {nodes:state.nodes,text:state.text,depth:state.maxDepth};
 }
 
 export function resumeBoxSubdivision(candidate, options={}) {

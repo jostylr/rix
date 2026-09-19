@@ -55,8 +55,12 @@ The `unknownTags` option is one of:
 
 Exact integers/rationals, formal unreduced Fractions, interval endpoint order,
 certified approximation enclosures/source sharing, undecided values, collection
-sharing and mathematical graph identities survive. Mathematical imports create
-fresh runtime identities while preserving sharing within the document.
+sharing and mathematical graph identities survive. Scoped mathematical imports
+create fresh runtime identities while preserving sharing within the document.
+Unscoped rational Calculus graphs retain their name-based structure as inert
+records, so saved derivative selectors and checked numerical evidence can be
+replayed without inventing a new symbol binding. Live extension methods are
+omitted from these known graph records.
 
 Defaults are 4,000,000 UTF-8 bytes, 20,000 graph nodes, 100,000 traversal steps,
 128 nesting levels and 4,096 integer characters. Options `maxBytes`, `maxNodes`,
@@ -88,3 +92,18 @@ implicit source execution is provided.
 To move images/audio/video together with a saved document, use the
 [portable asset bundle APIs](output-assets.md). Plain document JSON retains
 asset references and never resolves their bytes.
+
+
+The `interval-set` scalar tag retains normalized rational interval-set components
+with exact nullable endpoints and explicit closure flags. `null` means negative
+infinity on the lower side and positive infinity on the upper side; infinite
+endpoints must be open. Empty sets and closed singleton components round-trip.
+Malformed, reversed, overlapping or unsorted wire components are rejected rather
+than silently normalized. The ordinary digit, edge, node and depth budgets apply.
+
+
+The `fraction-interval` tag stores two exact Fraction references in their stored
+low/high order, without reducing endpoint representations. Formal Fraction
+values may retain nonzero numerators over zero as signed infinity, using the
+existing explicit infinite-Fraction constructor policy. `0/0`, reversed interval
+endpoints, non-Fraction endpoints and infinite Rational values are rejected.

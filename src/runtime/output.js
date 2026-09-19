@@ -1845,13 +1845,16 @@ function coordinateSystemPoint(sourceCenter, coordinateSystem, name) {
     ]);
 }
 
-export function createDragPoint(args) {
+export function createDragPoint(args, runtime = null) {
     const entry = spec(args, ["target", "radius", "style", "label", "coordinateSystem"], "DragPoint");
     const target = get(entry, "target");
     if (!isReactiveNode(target)) {
         throw new Error("DragPoint target must be a ReactiveGraph node");
     }
-    const sourceCenter = sequence(target.get(), "DragPoint target value");
+    const action = get(entry, "action");
+    const suppliedPosition = get(entry, "position");
+    if (suppliedPosition !== null && action === null) throw new Error("DragPoint position requires an action callback");
+    const sourceCenter = sequence(suppliedPosition ?? target.get(), "DragPoint target value");
     if (sourceCenter.length !== 2) {
         throw new Error("DragPoint target value must contain x and y coordinates");
     }
@@ -1866,6 +1869,7 @@ export function createDragPoint(args) {
         coordinateSystem,
         target,
         targetId: target.id,
+        ...(action === null ? {} : { action, run: position => invokeControlCallable(action, [target.get(), position], runtime, "DragPoint action") }),
         replacesDependencies: Object.freeze([...target.dependencies]),
     });
 }

@@ -71,3 +71,33 @@ General scalar callables use `.solve.Numerical(function,interval,options)` and
 the Numerics root-isolation protocol. A mere sign crossing is returned as
 `:isolatedAssumed` with the continuity obligation intact; it is not promoted
 to a certified algebraic root.
+
+## Validated numerical root boxes and equality feasibility
+
+`RootBoxes(expressions, jacobian, box, options?)` uses checked Numerics
+subdivision; `FromBoxes(result)` consumes an existing replayable subdivision.
+Both return a Solve solution with `classification=numericalBoxes`,
+`purpose=rootFinding`, exact rational root enclosures, retained excluded and
+unresolved regions, and `rootExistence=atLeastOne|none|unproved`. `.Check()`
+replays the numerical evidence and compares the entire reconstructed Solve
+summary with typed, bounded equality. It rejects a supplied point candidate: an
+enclosure check does not certify an exact candidate point. Here `certified` concerns enclosure/cover
+validity; pending regions do not prove roots. Shared closed faces mean
+`distinctRootCount` is deliberately unclaimed.
+
+`BoxFeasibility(expressions, jacobian, box, options?)` separately reports equality
+feasibility: `feasible` when a checked unique-root box exists, `infeasible` when
+the full cover is excluded, and `unknown` otherwise. Only the first two statuses
+have a certified feasibility answer. These APIs reject an `objective` option;
+use the separate Optimize service for optimization. They accept scalar and
+multidimensional Calculus expression graphs and checked `JacobianResult`
+evidence without multivariate Polynomial objects. See the
+[geometry tutorial](../geometry/validated-implicit-tutorial.md).
+
+The core Numerics capability `ValidatedClaimEqual(a,b)` compares retained data
+using the same typed replay representation and numeric/text/node/depth bounds.
+It returns false for unequal or unsupported/oversized data. Runtime extension
+methods and outer convenience checker annotations are ignored; nested evidence
+is compared. Equality alone is not a mathematical certificate. A root summary that cannot
+fit the shared retained-evidence limits is explicitly rejected before return;
+reduce its work budget or retain the underlying Numerics subdivision directly.

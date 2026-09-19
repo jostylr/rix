@@ -329,3 +329,5 @@ export { createPublicationProject, readPublicationProject } from "./publication-
 export { LOGIC_SEQUENT_SCHEMA, LOGIC_SEQUENT_CHECKER, createSequent, checkSequent, renderSequentTree, exactProposition, checkExactProposition } from "./logic-sequent.js";
 
 export { createPublicationProfile, createPublicationBuild, parsePublicationProfiles, serializePublicationProfiles, createPublicationRebuilder, PUBLICATION_BUILD_SCHEMA, PUBLICATION_MANIFEST_SCHEMA, PUBLICATION_TARGETS, PUBLICATION_LIMITS } from "./publication-workflow.js";
+
+export { IMPLICIT_TRACE_SCHEMA, IMPLICIT_TRACE_CHECKER, evaluateImplicitTrace, checkImplicitTrace, refineImplicitTrace } from "./implicit-geometry.js";

@@ -19,7 +19,7 @@ export const STANDARD_CAPABILITY_NAMES = Object.freeze([
     "DivRound", "DivUp", "DOCUMENT_TEMPLATE", "DoubleFactorial", "DUMP", "EMPHASIS", "EQ",
     "Equal", "ERROR", "EVAL", "Exact", "ExpressionApply", "ExpressionConstant", "ExpressionConstantInfo", "ExpressionDefinition", "ExpressionExpand", "EXPRESSIONFROMSPEC", "ExpressionHasExtendedConstants", "ExpressionHasScopedSymbols", "ExpressionKey", "ExpressionOperation", "ExpressionReal", "ExpressionRefine", "ExpressionVariable", "ExpressionVariableMatches", "ExpressionVariableSelector", "Factorial", "FIGURE", "Filter", "FIRST",
     "FORMULASHEET", "FRAGMENT", "GETEL", "Graphics", "Greater", "GreaterEqual", "GRID", "GT",
-    "GTE", "HEADING", "Hull", "If", "IMAGE", "ImmutableValue", "INFO", "INFOVALUE", "INSPECTSPEC",
+    "GTE", "HEADING", "Hull", "If", "IMAGE", "ImmutableValue", "ImplicitTrace", "ImplicitTraceCheck", "ImplicitTraceRefine", "INFO", "INFOVALUE", "INSPECTSPEC",
     "IntDiv", "INTEGRATE", "Intersect", "Intersects", "Interval", "IntervalLinearSolve", "IntervalNewtonBox", "IRANGE", "IsExpression", "JacobianBoxRange", "KEYOF", "KEYS", "KrawczykBox", "KrawczykCheck", "Lambda",
     "LAST", "LEN", "Less", "LessEqual", "LINEBREAK", "LINK", "LIST", "LISTITEM", "LIVEVIEW",
     "LogicSequent", "LogicCheckSequent", "LogicSequentTree", "LogicExactProposition", "LogicCheckProposition",
@@ -37,7 +37,7 @@ export const STANDARD_CAPABILITY_NAMES = Object.freeze([
     "STOP", "Stream", "STRONG", "Sub", "SUBSTR", "SymmetricDifference", "TABLE", "TaylorModelBoxRange",
     "TEMPLATE_TEXT", "TEST", "TESTERROR", "TESTSTOP", "TEXT", "Shaped", "Timeline", "TRACE",
     "TRANSFORM", "Tuple", "TypeExport", "TypeImport", "TypeKnown",
-    "Undecided", "Union", "Units", "UPPER", "ValidatedBoxCheck", "VALUES", "VIDEO", "WARN",
+    "Undecided", "Union", "Units", "UPPER", "ValidatedBoxCheck", "ValidatedClaimEqual", "VALUES", "VIDEO", "WARN",
 ]);
 
 export const STANDARD_PLUGIN_SNAPSHOT = Object.freeze([]);

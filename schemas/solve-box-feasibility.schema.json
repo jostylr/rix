@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "title": "RiX checked equality feasibility v1",
+  "description": "Normalized RiX result with exact mathematical values and case-insensitive keys. Not an optimization certificate.",
+  "required": [
+    "schema",
+    "purpose",
+    "status",
+    "certified",
+    "witnessBoxes",
+    "roots",
+    "unresolved",
+    "optimization"
+  ],
+  "properties": {
+    "schema": {
+      "const": "rix.solve.box-feasibility@1"
+    },
+    "purpose": {
+      "const": "equalityFeasibility"
+    },
+    "status": {
+      "enum": [
+        "feasible",
+        "infeasible",
+        "unknown"
+      ]
+    },
+    "certified": {
+      "description": "RiX truth: certified only for decided feasible/infeasible answers."
+    },
+    "witnessBoxes": {
+      "type": "array"
+    },
+    "roots": {
+      "type": "object"
+    },
+    "unresolved": {
+      "type": "array"
+    },
+    "optimization": {}
+  },
+  "$id": "https://rix.ratmath.com/schema/solve-box-feasibility/v1.schema.json"
+}

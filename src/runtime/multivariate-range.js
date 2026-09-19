@@ -711,6 +711,26 @@ export function invertRationalMatrix(source) {
 }
 
 /** Shared checked graph/derivative boundary for validated nonlinear solvers. */
+export function checkedScalarBoxData(expression, gradientCollection, source, options = map([]), conventions = {}) {
+    conventions = normalizedConventions(conventions);
+    const box = createRationalBox(source);
+    const gradient = checkedGradient(expression, gradientCollection, box);
+    let graphEvaluations = 0;
+    const evaluate = (value) => {
+        graphEvaluations += 1;
+        const result = checkedGraphRange(value, box.axes, options, conventions);
+        closedComponent(result.range, "validatedScalarRequiresClosedBoundedRange");
+        return result.range.toRationalInterval();
+    };
+    const range = evaluate(expression), obligationChecks = [];
+    const gradientRanges = gradient.identities.map((identity) => {
+        obligationChecks.push(...discharge(identity, box.axes, options, conventions));
+        return evaluate(identity.expression);
+    });
+    return { box, range, gradientRanges, obligationChecks, graphEvaluations, conventions };
+}
+
+/** Shared checked graph/derivative boundary for validated nonlinear solvers. */
 export function checkedSystemBoxData(expressions, jacobianCollection, source, options = map([]), conventions = {}) {
     conventions = normalizedConventions(conventions);
     const box = createRationalBox(source);

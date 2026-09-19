@@ -1,5 +1,5 @@
 /** Inert, bounded persistence for portable output trees. No evaluator or host I/O. */
-import { Integer, Rational, Fraction, RationalInterval, CertifiedApproximation } from "@ratmath/core";
+import { Integer, Rational, Fraction, FractionInterval, RationalInterval, RationalIntervalSet, CertifiedApproximation } from "@ratmath/core";
 import * as output from "./output.js";
 import { UNDECIDED, isUndecided, undecidedDiagnostic } from "./decision.js";
 import { HOLE, isHole } from "./hole.js";
@@ -76,6 +76,31 @@ function assertKeys(value, allowed, path) {
 export function encodeOutputJSON(value, options = {}) {
     const limits = settings(options), nodes = [], seen = new Map(), active = new Set(), maths = [], sources = new Map();
     let edges = 0;
+    const formalGraphs=new WeakMap();
+    function unscopedRationalGraph(root,path) {
+        if(formalGraphs.has(root))return formalGraphs.get(root);
+        const stack=[[root,0]],visited=new Set();let work=0;
+        while(stack.length) {
+            const [node,depth]=stack.pop();
+            if(++work>limits.maxEdges || depth>limits.maxDepth)fail("formal graph work/depth budget exceeded",path);
+            entries(node,path);
+            if(visited.has(node))continue;visited.add(node);
+            if(!isMathExpression(node) || node.entries.has("symbolid") || node.entries.get("bound")) {formalGraphs.set(root,false);return false;}
+            const kind=node.entries.get("kind")?.value;
+            if(kind==="variable")continue;
+            if(kind==="constant") {
+                const value=node.entries.get("value");
+                if(value instanceof Integer || value instanceof Rational)continue;
+                formalGraphs.set(root,false);return false;
+            }
+            const children=node.entries.get(kind==="operator"?"operands":"arguments")?.values;
+            if(!["operator","apply"].includes(kind)||!Array.isArray(children)) {formalGraphs.set(root,false);return false;}
+            if(children.length>limits.maxEdges)fail("formal graph work/depth budget exceeded",path);
+            for(const entry of children)stack.push([entry,depth+1]);
+        }
+        for(const node of visited)formalGraphs.set(node,true);
+        return true;
+    }
     function child(item, path, depth) {
         if (++edges > limits.maxEdges || depth > limits.maxDepth) fail("graph work/depth budget exceeded", path);
         if (item === null || typeof item === "string" || typeof item === "boolean") return item;
@@ -99,13 +124,23 @@ export function encodeOutputJSON(value, options = {}) {
         else if (item instanceof Fraction || item instanceof Rational) {
             node.tag = item instanceof Fraction ? "fraction" : "rational";
             node.data = [String(item.numerator), String(item.denominator)]; node.data.forEach(v => digits(v, limits, path));
+        } else if (item instanceof FractionInterval) {
+            node.tag = "fraction-interval"; node.data = [descend(item.low,"low"),descend(item.high,"high")];
         } else if (item instanceof RationalInterval) {
             node.tag = "interval"; node.data = [descend(item.start, "start"), descend(item.end, "end")];
+        } else if (item instanceof RationalIntervalSet) {
+            node.tag = "interval-set";
+            node.data = item.components.map((component,index) => descend(component,index));
         } else if (item instanceof CertifiedApproximation) {
             node.tag = "certified";
             const source = key => { if (!sources.has(key)) sources.set(key, `s${sources.size}`); return sources.get(key); };
             node.data = descend({ candidate: item.candidate, enclosure: item.enclosure, representation: item.representation,
                 source: source(item.sourceId), dependencies: item.dependencies.map(source) }, "approximation");
+        } else if (isMathExpression(item) && unscopedRationalGraph(item,path)) {
+            // Name-based formal graphs have no scoped identity to refresh.
+            // Keeping inert records preserves their checked derivative selectors.
+            node.tag = "record";
+            node.data = entries(item,path).filter(([key])=>key!=="_ext").map(([key,entry])=>[key,descend(entry,key)]);
         } else if (isMathExpression(item) || realConstantState(item) || ["exact_generator", "exact_expression"].includes(item.type)) {
             node.tag = "math"; node.data = maths.length; maths.push(item);
         } else if (Array.isArray(item)) { node.tag = "array"; node.data = Array.from(item, (entry, index) => descend(Object.hasOwn(item, index) ? entry : HOLE, index)); }
@@ -286,13 +321,34 @@ export function decodeOutputJSON(source, options = {}) {
         else if (["rational", "fraction"].includes(node.tag)) {
             if (!Array.isArray(node.data) || node.data.length !== 2) fail("invalid fraction", path);
             const [n, d] = node.data.map(s => digits(s, limits, path));
-            if (d === 0n) fail("nonfinite fraction", path);
-            value = node.tag === "fraction" ? new Fraction(n, d) : new Rational(n, d);
+            if (d === 0n && (node.tag!=="fraction" || n===0n)) fail("nonfinite or indeterminate fraction", path);
+            value = node.tag === "fraction" ? new Fraction(n, d, {allowInfinite:d===0n}) : new Rational(n, d);
+        } else if (node.tag === "fraction-interval") {
+            if(!Array.isArray(node.data)||node.data.length!==2)fail("invalid fraction interval",path);
+            const ends=node.data.map((entry,index)=>descend(entry,index));
+            if(!ends.every(value=>value instanceof Fraction))fail("fraction interval endpoints must be Fractions",path);
+            if(!ends[0].lessThanOrEqual(ends[1]))fail("fraction interval endpoints must retain low/high order",path);
+            value=new FractionInterval(...ends);
         } else if (node.tag === "interval") {
             if (!Array.isArray(node.data) || node.data.length !== 2) fail("invalid interval", path);
             const ends = node.data.map((entry, index) => descend(entry, index));
             if (!ends.every(v => v instanceof Integer || v instanceof Rational)) fail("interval endpoints must be exact scalars", path);
             value = new RationalInterval(...ends);
+        } else if (node.tag === "interval-set") {
+            const components=list(node.data,path).map((entry,index)=>{
+                const component=descend(entry,index);
+                assertKeys(component,["low","high","lowClosed","highClosed"],path);
+                if (!["low","high"].every(key=>Object.hasOwn(component,key) && (component[key]===null || component[key] instanceof Rational || component[key] instanceof Integer)) ||
+                    typeof component.lowClosed!=="boolean" || typeof component.highClosed!=="boolean") fail("invalid interval-set component",path);
+                return {...component,low:component.low instanceof Integer?new Rational(component.low.value):component.low,
+                    high:component.high instanceof Integer?new Rational(component.high.value):component.high};
+            });
+            try { value=new RationalIntervalSet(components); } catch(error) { fail(error.message,path); }
+            if (value.components.length!==components.length || value.components.some((component,index)=>{
+                const original=components[index];
+                return ["low","high"].some(key=>String(component[key])!==String(original[key])) ||
+                    component.lowClosed!==original.lowClosed || component.highClosed!==original.highClosed;
+            })) fail("interval-set components must be normalized",path);
         } else if (node.tag === "array") value = list(node.data, path).map((entry, index) => descend(entry, index));
         else if (node.tag === "map") value = new Map(pairs(node.data));
         else if (node.tag === "hole") { if (node.data !== null) fail("invalid hole", path); value = HOLE; }
@@ -371,7 +427,7 @@ export function snapshotOutputDocument(root) {
         if ([Object.prototype, null].includes(Object.getPrototypeOf(value))) entries(value, "$snapshot");
         if (active.has(value)) fail("cyclic snapshot input");
         if (seen.has(value)) return seen.get(value);
-        if (value instanceof Integer || value instanceof Rational || value instanceof Fraction || value instanceof RationalInterval || value instanceof CertifiedApproximation || isShaped(value) || isMathExpression(value) || realConstantState(value) || ["exact_generator", "exact_expression"].includes(value.type) || isUndecided(value) || isHole(value)) return value;
+        if (value instanceof Integer || value instanceof Rational || value instanceof Fraction || value instanceof FractionInterval || value instanceof RationalInterval || value instanceof RationalIntervalSet || value instanceof CertifiedApproximation || isShaped(value) || isMathExpression(value) || realConstantState(value) || ["exact_generator", "exact_expression"].includes(value.type) || isUndecided(value) || isHole(value)) return value;
         active.add(value);
         let source = value;
         if (value.type === "output") {

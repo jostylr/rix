@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "title": "RiX retained checked parameter construction v1",
+  "description": "Normalized runtime state; numeric values keep exact representations. This active callback-bearing state is not itself a portable publication document.",
+  "required": [
+    "schema",
+    "status",
+    "parameter",
+    "requestedParameter",
+    "builder",
+    "lastCertified",
+    "proposal",
+    "diagnostic",
+    "history",
+    "maxHistory",
+    "repair"
+  ],
+  "properties": {
+    "schema": {
+      "const": "rix.geometry.parameter-construction@1"
+    },
+    "status": {
+      "enum": [
+        "accepted",
+        "retainedLastCertified",
+        "unresolved"
+      ]
+    },
+    "parameter": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "requestedParameter": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "builder": {
+      "description": "Active host/RiX callable; excluded from inert publication snapshots."
+    },
+    "lastCertified": {},
+    "proposal": {},
+    "diagnostic": {},
+    "history": {
+      "type": "array",
+      "maxItems": 256
+    },
+    "maxHistory": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 256
+    },
+    "repair": {
+      "type": "array",
+      "maxItems": 2
+    }
+  },
+  "$id": "https://rix.ratmath.com/schema/geometry-parameter-construction/v1.schema.json"
+}

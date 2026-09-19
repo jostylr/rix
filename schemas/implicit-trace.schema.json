@@ -1,0 +1,378 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "title": "RiX bounded checked implicit chart cover v1",
+  "description": "Normalized native record; exact mathematical values retain their existing representations. RiX keys are case-insensitive.",
+  "required": [
+    "schema",
+    "valueKind",
+    "status",
+    "certified",
+    "inputBox",
+    "variables",
+    "coverage",
+    "boundaryPolicy",
+    "topology",
+    "excluded",
+    "arcs",
+    "unresolved",
+    "pending",
+    "nodes",
+    "work",
+    "evidence"
+  ],
+  "properties": {
+    "schema": {
+      "const": "rix.geometry.implicit-trace@1"
+    },
+    "valueKind": {
+      "const": "implicitTraceResult"
+    },
+    "status": {
+      "enum": [
+        "complete",
+        "partial",
+        "budgetExhausted"
+      ]
+    },
+    "certified": {
+      "type": "boolean",
+      "description": "Checked enclosure/cover validity, not roots or topology in unresolved or pending cells."
+    },
+    "inputBox": {
+      "$ref": "rational-box.schema.json"
+    },
+    "variables": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "type": "string"
+      }
+    },
+    "coverage": {
+      "const": "completeInputCover"
+    },
+    "boundaryPolicy": {
+      "const": "closedOverlap"
+    },
+    "topology": {
+      "const": "localChartsOnly"
+    },
+    "excluded": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "box",
+          "depth",
+          "classification"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^r(?:\\.[01])*$"
+          },
+          "box": {
+            "$ref": "rational-box.schema.json"
+          },
+          "depth": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 128
+          },
+          "classification": {
+            "enum": [
+              "excluded",
+              "regularArc",
+              "singularOrTangentUnknown",
+              "boundaryTopologyUnknown",
+              "arithmeticBudgetExceeded",
+              "invalidEvidence",
+              "unprocessed"
+            ]
+          },
+          "rootBox": {
+            "$ref": "rational-box.schema.json"
+          },
+          "topology": {
+            "enum": [
+              "localGraph",
+              "unknown"
+            ]
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "arcs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "box",
+          "depth",
+          "classification"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^r(?:\\.[01])*$"
+          },
+          "box": {
+            "$ref": "rational-box.schema.json"
+          },
+          "depth": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 128
+          },
+          "classification": {
+            "enum": [
+              "excluded",
+              "regularArc",
+              "singularOrTangentUnknown",
+              "boundaryTopologyUnknown",
+              "arithmeticBudgetExceeded",
+              "invalidEvidence",
+              "unprocessed"
+            ]
+          },
+          "rootBox": {
+            "$ref": "rational-box.schema.json"
+          },
+          "topology": {
+            "enum": [
+              "localGraph",
+              "unknown"
+            ]
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "unresolved": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "box",
+          "depth",
+          "classification"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^r(?:\\.[01])*$"
+          },
+          "box": {
+            "$ref": "rational-box.schema.json"
+          },
+          "depth": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 128
+          },
+          "classification": {
+            "enum": [
+              "excluded",
+              "regularArc",
+              "singularOrTangentUnknown",
+              "boundaryTopologyUnknown",
+              "arithmeticBudgetExceeded",
+              "invalidEvidence",
+              "unprocessed"
+            ]
+          },
+          "rootBox": {
+            "$ref": "rational-box.schema.json"
+          },
+          "topology": {
+            "enum": [
+              "localGraph",
+              "unknown"
+            ]
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "pending": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "box",
+          "depth",
+          "classification"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^r(?:\\.[01])*$"
+          },
+          "box": {
+            "$ref": "rational-box.schema.json"
+          },
+          "depth": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 128
+          },
+          "classification": {
+            "enum": [
+              "excluded",
+              "regularArc",
+              "singularOrTangentUnknown",
+              "boundaryTopologyUnknown",
+              "arithmeticBudgetExceeded",
+              "invalidEvidence",
+              "unprocessed"
+            ]
+          },
+          "rootBox": {
+            "$ref": "rational-box.schema.json"
+          },
+          "topology": {
+            "enum": [
+              "localGraph",
+              "unknown"
+            ]
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "box",
+          "depth",
+          "classification"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^r(?:\\.[01])*$"
+          },
+          "box": {
+            "$ref": "rational-box.schema.json"
+          },
+          "depth": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 128
+          },
+          "classification": {
+            "enum": [
+              "excluded",
+              "regularArc",
+              "singularOrTangentUnknown",
+              "boundaryTopologyUnknown",
+              "arithmeticBudgetExceeded",
+              "invalidEvidence",
+              "unprocessed"
+            ]
+          },
+          "rootBox": {
+            "$ref": "rational-box.schema.json"
+          },
+          "topology": {
+            "enum": [
+              "localGraph",
+              "unknown"
+            ]
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "work": {
+      "type": "object",
+      "required": [
+        "processed",
+        "attempted",
+        "graphEvaluations",
+        "maxBoxes",
+        "maxEvidenceText",
+        "pending",
+        "exhausted",
+        "outputExhausted"
+      ],
+      "properties": {
+        "processed": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4096
+        },
+        "attempted": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4096
+        },
+        "maxBoxes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4096
+        },
+        "maxEvidenceText": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 16777216
+        },
+        "exhausted": {
+          "type": "boolean"
+        },
+        "outputExhausted": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": true
+    },
+    "evidence": {
+      "type": "object",
+      "required": [
+        "kind",
+        "checker",
+        "expression",
+        "gradient",
+        "source",
+        "options",
+        "conventions"
+      ],
+      "properties": {
+        "kind": {
+          "const": "implicitTrace"
+        },
+        "checker": {
+          "const": "rix.runtime.implicit-trace-checker@1"
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "$id": "https://rix.ratmath.com/schema/implicit-trace/v1.schema.json"
+}

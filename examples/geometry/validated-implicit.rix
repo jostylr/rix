@@ -1,0 +1,6 @@
+## Original cells and checked parametric Newton enclosures for a parabola.
+.Plugin.Load("calculus");.Plugin.Load("geometry");.Plugin.Load("plot");
+x := .calculus.Variable(:x);y := .calculus.Variable(:y);f := y-x^2;
+trace := .geometry.TraceImplicit(f,.calculus.GradientResult(f,[:x,:y]),
+    {= x=(-1):1,y=(-2):2 },{= maxWidth=1/8,maxBoxes=63 });
+.plot.CertifiedRegions(trace,{= size=[720,420],title="Checked parabola enclosures" });
