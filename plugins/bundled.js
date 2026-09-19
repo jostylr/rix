@@ -199,9 +199,9 @@ const BUNDLED_PLUGINS = [
         metadata: {
             id: "document", description: "Portable report templates with citations, assets, numbering policies, and safe target-specific nodes.",
             kind: "host", mount: "document",
-            exports: ["Report", "Label", "Ref", "Theme", "References", "Bibliography", "Citation", "AssetManifest", "Asset", "Numbering", "Header", "Footer", "Template", "ApplyTemplate", "TargetMarkup"],
-            groups: ["Documents"], permissions: [], provides: ["rix.document.report@1", "rix.document.report@2", "rix.document.template@1", "rix.document.assets@1"],
-            schemas: ["rix.document.report@1", "rix.document.theme@1", "rix.document.bibliography@1", "rix.document.citation@1", "rix.document.assets@1", "rix.document.numbering@1", "rix.document.template@1", "rix.document.target-markup@1"],
+            exports: ["Report", "Label", "Ref", "Theme", "References", "Bibliography", "Citation", "AssetManifest", "Asset", "Numbering", "Header", "Footer", "Template", "ApplyTemplate", "TargetMarkup", "Snapshot", "EncodeJSON", "DecodeJSON"],
+            groups: ["Documents"], permissions: [], provides: ["rix.document.report@1", "rix.document.report@2", "rix.document.template@1", "rix.document.assets@1", "rix.output.document@1"],
+            schemas: ["rix.document.report@1", "rix.document.theme@1", "rix.document.bibliography@1", "rix.document.citation@1", "rix.document.assets@1", "rix.document.numbering@1", "rix.document.template@1", "rix.document.target-markup@1", "rix.output.document@1"],
             snapshot: true, deterministic: true, defaultEnabled: false,
         },
         install: ({ systemContext }) => installDocumentPlugin({ systemContext }),

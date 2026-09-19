@@ -49,3 +49,18 @@ Bibliography and asset records are data, not filesystem or network operations.
 Asset paths must be relative and may not contain `..`; a host still decides how
 and whether to resolve them. Reports fail on missing citations, missing
 references, duplicate labels, duplicate citation keys, and malformed assets.
+
+## Inert document persistence
+
+`EncodeJSON(value, options?)` returns a versioned `rix.output.document@1`
+String. `DecodeJSON(source, options?)` returns `{= value, diagnostics, schema }`.
+Keep import diagnostics visible: unknown tags warn and become placeholders by
+default; `unknownTags="strict-error"` rejects them and `"preserve-opaque"`
+retains inert data for re-export. Known malformed records always fail.
+
+Use `Snapshot(value)` to detach current controls, Sheet views and graphic
+handles before saving. A direct live/callable import/export is rejected. Exact
+values, interval orientation, object sharing, mathematical identities and
+asset metadata survive; imports never fetch assets or execute code.
+See [document persistence](../../documentation/eval/document-persistence.md)
+for limits, migration, and the host API.

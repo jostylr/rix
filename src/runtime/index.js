@@ -311,3 +311,5 @@ export {
     inverseCayley,
     equalCayley,
 } from "./exact-values.js";
+
+export { OUTPUT_DOCUMENT_SCHEMA, encodeOutputJSON, decodeOutputJSON, snapshotOutputDocument } from "./output-json.js";

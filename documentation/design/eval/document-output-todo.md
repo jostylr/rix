@@ -3,8 +3,10 @@
 ::: {.callout-note title="Status — records, templates, and baseline exporters implemented"}
 Reconciled 2026-09-19. Block/inline/media records, strict template directives
 and holes, semantic text/HTML rendering, and Markdown/Quarto/LaTeX/PDF
-exporters exist. The remaining work concerns complete document persistence,
-shared presentation policy, host asset resolution, accessibility, and richer
+exporters exist. Inert document persistence now ships as `rix.output.document@1`
+with exact values, snapshots, bounded identity tables and three unknown-tag
+modes; see [document persistence](../../eval/document-persistence.md).
+The remaining work concerns shared presentation policy, host asset resolution, accessibility, and richer
 publication layout. The umbrella `ratmath/WORK_PLAN.md` orders that work.
 New interval/fraction spellings below remain proposals, not approved syntax.
 :::
@@ -416,14 +418,14 @@ the important relationship between the panel and its reactive values.
   and positional forms only where positional form stays unambiguous.
 - [x] Introduce `isInlineOutput` and `isBlockOutput` classification. Preserve
   existing `.Text` compatibility while rejecting block children in `Paragraph`.
-- [ ] Define stable JSON serialization tags and exact-value rules for every
+- [x] Define stable JSON serialization tags and exact-value rules for every
   record before persistence APIs ship.
 - [x] Preserve descending interval endpoints in mathematical JSON; the
   executable guide is `eval/mathematical-serialization.md`.
-- [ ] Complete document-level unreduced-fraction round trips using existing
+- [x] Complete document-level unreduced-fraction round trips using existing
   public value contracts. New `.:`, `:.`, and labeled-fraction surface syntax
   is deferred to the decision register; do not couple persistence to it.
-- [ ] Add configurable unknown-tag handling with `warn-and-skip` as the normal
+- [x] Add configurable unknown-tag handling with `warn-and-skip` as the normal
   document-import default plus `strict-error` and `preserve-opaque` modes.
 - [x] Add required-field validation for nonempty image alt text, asset MIME
   type, valid section level, and valid list nesting. Publication-level

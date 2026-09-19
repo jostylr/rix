@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schemas/output-document.schema.json",
+  "title": "Inert portable output document",
+  "description": "Wire envelope; output-json.js additionally validates tags, references, acyclicity, exact scalars, constructor invariants and work budgets.",
+  "type": "object",
+  "required": ["schema", "root", "nodes", "mathematics"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": { "const": "rix.output.document@1" },
+    "root": { "$ref": "#/$defs/value" },
+    "nodes": {
+      "type": "array", "maxItems": 20000,
+      "items": {
+        "type": "object", "required": ["id", "tag", "data"], "additionalProperties": false,
+        "properties": { "id": { "type": "string", "pattern": "^n[0-9]+$" }, "tag": { "type": "string" }, "data": {} }
+      }
+    },
+    "mathematics": { "type": ["object", "null"] }
+  },
+  "$defs": {
+    "value": {
+      "oneOf": [
+        { "type": ["null", "string", "boolean", "number"] },
+        { "type": "object", "required": ["$ref"], "additionalProperties": false, "properties": { "$ref": { "type": "string", "pattern": "^n[0-9]+$" } } },
+        { "type": "object", "required": ["$bigint"], "additionalProperties": false, "properties": { "$bigint": { "type": "string", "pattern": "^(0|-?[1-9][0-9]*)$" } } }
+      ]
+    }
+  }
+}

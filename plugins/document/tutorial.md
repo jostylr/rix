@@ -93,3 +93,21 @@ latexOnly := .document.TargetMarkup(
 );
 latexOnly;
 ```
+
+## Save an inert report
+
+The persisted tree keeps exact numbers, labels and asset declarations without
+capturing an execution scope. Loading returns the value and visible diagnostics.
+
+```rix
+.Plugin.Load("document");
+report := .document.Report("Saved results", [.Paragraph([.Strong("Exact"), 1/3])]);
+savedReport := .document.EncodeJSON(report);
+importedReport := .document.DecodeJSON(savedReport);
+importedReport[:diagnostics];
+importedReport[:value];
+```
+
+For live controls or editable Sheet views, save `.document.Snapshot(value)`.
+The explicit snapshot retains the current display but removes callbacks and
+reactive bindings. Opening the JSON never runs source or fetches assets.

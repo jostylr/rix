@@ -154,3 +154,5 @@ export {
     referencesAt,
     renameAt,
 } from "./tools/language-service/index.js";
+
+export { OUTPUT_DOCUMENT_SCHEMA, encodeOutputJSON, decodeOutputJSON, snapshotOutputDocument } from "./runtime/output-json.js";
