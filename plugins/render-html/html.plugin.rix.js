@@ -34,6 +34,9 @@ function staticDiagnostics(value, diagnostics, seen = new Set()) {
 
 function prepareHtmlValue(value, state, seen = new Map()) {
     if (!value || typeof value !== "object") return value;
+    // Only transform output structure. Exact mathematical leaves retain their
+    // prototypes, identity, and formatting/evidence behavior.
+    if (!Array.isArray(value) && value.type !== "output") return value;
     if (seen.has(value)) return seen.get(value);
     if (value.documentTargetMarkup) {
         const { target, content } = value.documentTargetMarkup;

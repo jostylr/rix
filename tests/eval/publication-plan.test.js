@@ -73,3 +73,9 @@ test("book/site project sources share Notebook YAML conventions and validate cro
     expect(()=>parseAndEvaluate('.document.Project([{= path="index.qmd",value=first }]);',state)).toThrow("unresolved");
     expect(()=>quartoProjectYaml("Study",[{path:"../outside.qmd"}])).toThrow("unsafe");
 });
+test("HTML publication preserves exact mathematical leaves while preparing output assets",()=>{
+    const state=runtime();
+    const html=parseAndEvaluate('.Plugin.Load("html");.html.Render(.Fragment([.Paragraph(["Exact n: ",3,"; fraction: ",1/3])]))[:content];',state).value;
+    expect(html).toContain("Exact n: 3; fraction: 1/3");
+    expect(html).not.toContain("[object Object]");
+});
