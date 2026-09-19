@@ -692,7 +692,7 @@ function rationalIdentity(size) {
             row === column ? Rational.one : Rational.zero));
 }
 
-function invertRationalMatrix(source) {
+export function invertRationalMatrix(source) {
     const size = source.length;
     const augmented = source.map((row, rowIndex) => [
         ...row,
@@ -714,6 +714,31 @@ function invertRationalMatrix(source) {
         }
     }
     return augmented.map((row) => row.slice(size));
+}
+
+/** Shared checked graph/derivative boundary for validated nonlinear solvers. */
+export function checkedSystemBoxData(expressions, jacobianCollection, source, options = map([]), conventions = {}) {
+    conventions = normalizedConventions(conventions);
+    const box = createRationalBox(source);
+    if (box.dimension < 1 || box.dimension > 16) throw new Error("rationalBoxDimensionOutOfRange");
+    const jacobian = checkedJacobian(expressions, jacobianCollection, box);
+    const centers = centerAxes(box);
+    const obligationChecks = [];
+    let graphEvaluations = 0;
+    const evaluate = (expression, axes) => {
+        graphEvaluations += 1;
+        const range = checkedGraphRange(expression, axes, options, conventions).range;
+        closedComponent(range, "validatedSystemRequiresClosedBoundedRange");
+        return range.toRationalInterval();
+    };
+    const functionRange = jacobian.sources.map((expression) => evaluate(expression, box.axes));
+    const functionAtCenter = jacobian.sources.map((expression) => evaluate(expression, centers));
+    const jacobianRange = jacobian.identities.map((row) => row.map((identity) => {
+        obligationChecks.push(...discharge(identity, box.axes, options, conventions));
+        return evaluate(identity.expression, box.axes);
+    }));
+    return { box, center: box.variables.map((name) => singletonRational(centers.get(name), "validatedCenterMustBeExact")),
+        functionRange, functionAtCenter, jacobianRange, obligationChecks, graphEvaluations, conventions };
 }
 
 function krawczykLimits(options) {

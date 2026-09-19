@@ -26,6 +26,7 @@ export const runtimeDefaults = Object.freeze({
     Plot: Object.freeze(["plot"]),
     Core: Object.freeze(["LEN", "FIRST", "LAST", "GETEL", "IRANGE", "IF", "LOOP", "MULTI", "RAND_NAME", "PRINT", "Shaped", "KEYOF", "KEYS", "VALUES", "REGISTERMETHOD", "CertifiedApproximation", "Undecided", "RefinementRequest", "RefinementEffectiveLimits", "RefinementSupports", "RefinementCheck", "RefinementUnsupported", "TypeKnown", "ImmutableValue"]),
     Methods: Object.freeze(["REGISTERMETHOD"]),
+    Numerics: Object.freeze(["INTERVAL_LINEAR_SOLVE", "INTERVAL_NEWTON_BOX", "BOX_SUBDIVIDE", "BOX_RESUME", "VALIDATED_BOX_CHECK", "RATIONAL_BOX", "KRAWCZYK_BOX", "KRAWCZYK_CHECK"]),
     Arith: Object.freeze(["ADD", "SUB", "MUL", "DIV", "INTDIV", "DIVMOD", "MOD", "POW", "FACTORIAL", "DOUBLEFACTORIAL", "RANGE_POLICY", "RANGE_EVIDENCE", "RANGE_ADD", "RANGE_SUBTRACT", "RANGE_MULTIPLY", "RANGE_DIVIDE", "RANGE_NEGATE", "RANGE_ABSOLUTE_VALUE", "RANGE_RECIPROCAL", "RANGE_INTEGER_POWER", "CALCULUS_RANGE", "CALCULUS_RANGE_CHECK", "CALCULUS_RANGE_RECOGNIZE", "CALCULUS_GRAPH_SIMPLIFY", "CALCULUS_GRAPH_SIMPLIFICATION_CHECK", "CALCULUS_DERIVATIVE_CHECK", "CALCULUS_DERIVATIVE_SIGN", "CALCULUS_LIPSCHITZ_RANGE", "CALCULUS_TAYLOR_RANGE"]),
     Logic: Object.freeze(["EQ", "NEQ", "LT", "GT", "LTE", "GTE", "AND", "OR", "NOT", "GUARD_RETURN"]),
     Collections: Object.freeze(["LEN", "FIRST", "LAST", "GETEL", "IRANGE", "MAP", "FILTER", "REDUCE", "Shaped", "Stream"]),

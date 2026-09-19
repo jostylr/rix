@@ -3,12 +3,12 @@ id: ball
 description: Certified real and complex rational balls with precision-negotiated elementary functions.
 kind: rix
 mount: ball
-exports: [Ball, Interval, Sqrt, NthRoot, Cbrt, Exp, Log, Sin, Cos, Tan, Complex, ComplexParts, Midpoint, Radius, Lower, Upper, Contains, RoundOut, Record]
+exports: [Ball, Interval, Sqrt, NthRoot, Cbrt, Exp, Log, Sin, Cos, Tan, Complex, ComplexParts, Midpoint, Radius, Lower, Upper, Contains, RoundOut, Record, Polynomial, DerivativeBound, LinearSolve]
 groups: [Numerics, Exact]
 permissions: []
 requires: [rix.numerics@1]
 provides: [rix.ball@1, rix.complex-ball@1, rix.enclosable-real@1]
-schemas: [rix.ball@1, rix.ball.nested-real@1, rix.ball.function-real@1, rix.ball.arithmetic-real@1, rix.ball.complex@1]
+schemas: [rix.ball@1, rix.ball.nested-real@1, rix.ball.function-real@1, rix.ball.arithmetic-real@1, rix.ball.complex@1, rix.ball.polynomial-bound@1, rix.ball.validated-linear@1]
 snapshot: false
 deterministic: true
 defaultEnabled: false
@@ -548,6 +548,53 @@ ComplexBallRecord(value) -> {;
 
 .TypeInstall(:Ball);
 
+BallPolynomialCoefficients(coefficients) ?!- [
+    coefficients.Len() >= 1 ?_> .Error("Ball polynomial requires at least one coefficient"),
+    coefficients.Len() <= 257 ?_> .Error("Ball polynomial degree must not exceed 256")
+] -> coefficients.Map(coefficient -> BallRequireRational(coefficient,"Ball polynomial coefficient"));
+
+BallPolynomial(coefficients, value) -> {;
+    exact = BallPolynomialCoefficients(coefficients);
+    argument = value ? :RationalInterval ?: value ?_ BallPromote(value).Interval();
+    result := exact[1]:exact[1];
+    {@ index=2; index<=@exact.Len(); {;
+        @result ~= @result*@argument+@exact[index];
+    }; index+=1 };
+    BallFromInterval(result);
+};
+
+BallDerivativeBound(coefficients,value,order ?= 1) ?!- [
+    degree=BallRequireNonnegativeInteger(order,"Ball derivative order"),
+    degree <= 256 ?_> .Error("Ball derivative order must not exceed 256")
+] -> {;
+    original = BallPolynomialCoefficients(coefficients);
+    derived := original;
+    {@ step=1; step<=@degree; {;
+        next := [];
+        {@ index=1; index<@derived.Len(); {;
+            @next ~= @next.Push(@derived[index]*(@derived.Len()-index));
+        }; index+=1 };
+        @derived ~= next.Len()==0 ?: [0] ?_ next;
+    }; step+=1 };
+    enclosure = BallPolynomial(derived,value);
+    interval = enclosure.Interval();
+    lowMagnitude = .Abs(interval.Low());
+    highMagnitude = .Abs(interval.High());
+    {= schema="rix.ball.polynomial-bound@1",certified=1,coefficients=original,
+        derivativeCoefficients=derived,order=degree,ball=enclosure,interval=interval,
+        absoluteBound=lowMagnitude>highMagnitude ?: lowMagnitude ?_ highMagnitude,
+        evidence={= method=:exactIntervalHorner,coefficientOrder=:descending }
+    };
+};
+
+BallValidatedLinearSolve(matrix,rhs,options ?= {= }) -> {;
+    linear = .numerics.IntervalLinearSolve(matrix,rhs,options);
+    {= schema="rix.ball.validated-linear@1",status=linear[:status],certified=linear[:certified],
+        solution=linear[:certified] ?: linear[:solution].Map(enclosure->BallFromInterval(enclosure)) ?_ _,
+        denotation=:allPointSystems,linear=linear,diagnostics=linear[:diagnostics]
+    };
+};
+
 ballNamespace = (midpoint, radius ?= 0) -> BallConstruct(midpoint, radius);
 ballNamespace._proto = {=
     Ball = (self, midpoint, radius ?= 0) -> BallConstruct(midpoint, radius),
@@ -568,6 +615,9 @@ ballNamespace._proto = {=
     Upper = (self, ball) -> BallRequire(ball)[:interval].High(),
     Contains = (self, ball, candidate) -> BallContains(ball, candidate),
     RoundOut = (self, ball, bits ?= 53) -> BallRoundOut(ball, bits),
+    Polynomial = (self, coefficients, value) -> BallPolynomial(coefficients,value),
+    DerivativeBound = (self, coefficients, value, order ?= 1) -> BallDerivativeBound(coefficients,value,order),
+    LinearSolve = (self, matrix, rhs, options ?= {= }) -> BallValidatedLinearSolve(matrix,rhs,options),
     Record = (self, value) -> value[:valueKind] == :ball ?: BallRecord(value) ?_ BallNestedRecord(value)
 };
 

@@ -10,7 +10,7 @@
 export const STANDARD_CAPABILITY_NAMES = Object.freeze([
     "Abs", "Add", "AffineBoxRange", "Algebra", "All", "And", "Any", "Array", "ASSET", "Assign",
     "AssignCopy", "AssignDeepCopy", "AssignDeepUpdate", "AssignUpdate", "AUDIO", "BIND",
-    "Block", "CalculusDerivativeCheck", "CalculusDerivativeProof", "CalculusDerivativeSign", "CalculusGraphRewrite",
+    "Block", "BoxResume", "BoxSubdivide", "CalculusDerivativeCheck", "CalculusDerivativeProof", "CalculusDerivativeSign", "CalculusGraphRewrite",
     "CalculusGraphRewriteCheck", "CalculusGraphSimplificationCheck", "CalculusGraphSimplify",
     "CalculusLipschitzRange", "CalculusRange", "CalculusRangeCheck", "CalculusRangeRecognize",
     "CalculusTaylorRange", "CALLOUT", "Case", "CertifiedApproximation", "Chunk", "CODE", "CODEBLOCK",
@@ -20,7 +20,7 @@ export const STANDARD_CAPABILITY_NAMES = Object.freeze([
     "Equal", "ERROR", "EVAL", "Exact", "ExpressionApply", "ExpressionConstant", "ExpressionConstantInfo", "ExpressionDefinition", "ExpressionExpand", "EXPRESSIONFROMSPEC", "ExpressionHasExtendedConstants", "ExpressionHasScopedSymbols", "ExpressionKey", "ExpressionOperation", "ExpressionReal", "ExpressionRefine", "ExpressionVariable", "ExpressionVariableMatches", "ExpressionVariableSelector", "Factorial", "FIGURE", "Filter", "FIRST",
     "FORMULASHEET", "FRAGMENT", "GETEL", "Graphics", "Greater", "GreaterEqual", "GRID", "GT",
     "GTE", "HEADING", "Hull", "If", "IMAGE", "ImmutableValue", "INFO", "INFOVALUE", "INSPECTSPEC",
-    "IntDiv", "INTEGRATE", "Intersect", "Intersects", "Interval", "IRANGE", "IsExpression", "JacobianBoxRange", "KEYOF", "KEYS", "KrawczykBox", "KrawczykCheck", "Lambda",
+    "IntDiv", "INTEGRATE", "Intersect", "Intersects", "Interval", "IntervalLinearSolve", "IntervalNewtonBox", "IRANGE", "IsExpression", "JacobianBoxRange", "KEYOF", "KEYS", "KrawczykBox", "KrawczykCheck", "Lambda",
     "LAST", "LEN", "Less", "LessEqual", "LINEBREAK", "LINK", "LIST", "LISTITEM", "LIVEVIEW",
     "Loop", "LT", "LTE", "Map", "MATH", "MATHBLOCK", "MathBudgets", "MathDecodeJSON", "MathDecodeJSONL", "MathEncodeJSON", "MathEncodeJSONL", "MathEvaluate", "MathEvaluateCalculus", "MathInstantiate", "MathPolynomialCoefficients", "MathSubstitute", "Max", "Min", "Mod", "Mul", "MULTI",
     "MultivariateRangeCheck", "MultivariateRangeRequest", "Neg", "NEQ", "Not", "NotationParser", "NotEqual", "Or", "Pair", "PARAGRAPH", "Params",
@@ -36,7 +36,7 @@ export const STANDARD_CAPABILITY_NAMES = Object.freeze([
     "STOP", "Stream", "STRONG", "Sub", "SUBSTR", "SymmetricDifference", "TABLE", "TaylorModelBoxRange",
     "TEMPLATE_TEXT", "TEST", "TESTERROR", "TESTSTOP", "TEXT", "Shaped", "Timeline", "TRACE",
     "TRANSFORM", "Tuple", "TypeExport", "TypeImport", "TypeKnown",
-    "Undecided", "Union", "Units", "UPPER", "VALUES", "VIDEO", "WARN",
+    "Undecided", "Union", "Units", "UPPER", "ValidatedBoxCheck", "VALUES", "VIDEO", "WARN",
 ]);
 
 export const STANDARD_PLUGIN_SNAPSHOT = Object.freeze([]);

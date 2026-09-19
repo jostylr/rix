@@ -15,6 +15,9 @@ export {
     applyRixLintFixes, lintDiagnosticsToSarif,
 } from "./eval/index.js";
 export { UNDECIDED, UndecidedDiagnostic, undecidedDiagnostic, undecidedReason, isUndecided, decisionState, reviveDecisionValue } from "./runtime/decision.js";
+export { INTERVAL_LINEAR_SCHEMA, INTERVAL_NEWTON_BOX_SCHEMA, BOX_SUBDIVISION_SCHEMA, VALIDATED_BOX_CHECKER,
+    evaluateIntervalLinearSolve, evaluateIntervalNewtonBox, evaluateBoxSubdivision, resumeBoxSubdivision,
+    checkValidatedBoxResult } from "./runtime/validated-boxes.js";
 export { HaloNeighborhood, isHaloNeighborhood } from "./runtime/halo.js";
 export {
     Context, SystemContext, PluginCatalog, parsePluginYaml, readPluginHeader, readSourceHeader,

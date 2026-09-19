@@ -8,6 +8,7 @@ import { Integer, Rational } from "@ratmath/core";
 import { formatValue } from "../format.js";
 import {calculusDerivativeProofValue} from '../../runtime/calculus-proof.js';
 import { executeRangeOperation, rangeEvidence } from "../../runtime/range-arithmetic.js";
+import { validatedBoxValue } from "../../runtime/validated-boxes.js";
 import {
     calculusGraphRangeValue,
     calculusGraphRangeCheckValue,
@@ -208,6 +209,37 @@ export const arithmeticFunctions = {
         },
         pure: true,
         doc: "Independently recompute a checked Krawczyk classification",
+    },
+
+    INTERVAL_LINEAR_SOLVE: {
+        impl(args, context) {
+            if (args.length < 2 || args.length > 3) throw new Error("IntervalLinearSolve expects matrix, right-hand side, and optional options");
+            return validatedBoxValue("linear", args, context);
+        }, pure: true, doc: "Validate an interval linear system by exact preconditioned interval elimination",
+    },
+    INTERVAL_NEWTON_BOX: {
+        impl(args, context) {
+            if (args.length < 3 || args.length > 4) throw new Error("IntervalNewtonBox expects expressions, checked Jacobian, box, and optional options");
+            return validatedBoxValue("newton", args, context);
+        }, pure: true, doc: "Contract a checked nonlinear system with a validated interval Newton operator",
+    },
+    BOX_SUBDIVIDE: {
+        impl(args, context) {
+            if (args.length < 3 || args.length > 4) throw new Error("BoxSubdivide expects expressions, checked Jacobian, box, and optional options");
+            return validatedBoxValue("subdivide", args, context);
+        }, pure: true, doc: "Classify a bounded complete cover with deterministic exact box subdivision",
+    },
+    BOX_RESUME: {
+        impl(args, context) {
+            if (args.length < 1 || args.length > 2) throw new Error("BoxResume expects a checked subdivision result and optional work budget");
+            return validatedBoxValue("resume", args, context);
+        }, pure: true, doc: "Replay and extend a retained deterministic box subdivision queue",
+    },
+    VALIDATED_BOX_CHECK: {
+        impl(args, context) {
+            if (args.length !== 1) throw new Error("ValidatedBoxCheck expects one validated linear, Newton, or subdivision result");
+            return validatedBoxValue("check", args, context);
+        }, pure: true, doc: "Independently replay retained linear, interval Newton, and box coverage claims",
     },
 
     MULTIVARIATE_RANGE_CHECK: {
