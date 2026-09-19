@@ -55,7 +55,7 @@ phase numbers in the detailed historical sections are not execution priorities.
 | 13 | `.fracfun` | Multivariate forms and declared coefficient domains | **Waiting:** multivariate Polynomial/coefficient-domain support |
 | 14 | `.cas` | Mixed trigonometric powers, selected radicals, and definite-integral symmetries | **Ready:** bounded trig power recurrences and product-to-sum join the existing course rules |
 | 15 | `.symbolic` | Shared assumptions and restricted-domain wrappers | **Decision:** one portable assumption/branch-obligation contract |
-| 16 | `.logic` | Separate bounded propositional sequent presentation | **Ready:** plan M8; first-order vocabulary is a later user decision |
+| 16 | `.logic` | Separate bounded propositional sequent presentation | **Delivered:** plan M8; first-order vocabulary remains a later user decision |
 | 17 | `.calculus` | Absolute-value/domain graphs and portable differential, boundary, and integral equation specifications | **Ready:** coordinate with `.cas`; solver execution stays elsewhere |
 | 18 | `.analysis` | Metric, normed, Banach, Hilbert, and selected `L^p` records | **Phase 4:** abstract function-space program |
 | 19 | `.ball` | Polynomial evaluation, interval Newton, and validated linear algebra over balls | **Waiting:** shared validated linear-algebra API from `.numerics` |
@@ -925,7 +925,7 @@ tracked in
    - [x] Add scoped subproof discharge, implication introduction, disjunction
      elimination, negation rules, and a natural-deduction tree presentation for
      the small intuitionistic-compatible propositional core.
-   - [ ] Add a separate sequent-calculus rule set and tree presentation rather
+   - [x] Add a separate sequent-calculus rule set and tree presentation rather
      than relabeling natural-deduction evidence as sequents.
    - [ ] Provide finite-model exploration for a bounded first-order subset,
      clearly separating a found model/countermodel from an unbounded theorem.

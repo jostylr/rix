@@ -127,6 +127,9 @@ describe("introductory Logic plugin", () => {
             "rix.logic.proof@1",
             "rix.logic.tree@1",
             "rix.logic.tableau@1",
+            "rix.logic.sequent@1",
+            "rix.logic.sequent-tree@1",
+            "rix.logic.exact-proposition@1",
         ]);
     });
 

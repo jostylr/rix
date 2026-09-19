@@ -75,9 +75,9 @@ identity := .logic.Proof([
 ],p.Implies(p));
 ```
 
-The current proof language intentionally omits quantifiers, equality,
-induction, separate sequent-calculus rules, and automated proof search. Those
-need explicit scope, substitution, and search-completeness contracts.
+The natural-deduction proof language omits quantifiers, equality and induction.
+The separate bounded classical sequent service below shares formulas while
+retaining its own rule and evidence records.
 
 ## Educational tree views
 
@@ -136,9 +136,61 @@ rule set: the two educational systems are explicitly labeled.
 ## Next educational rung
 
 The next useful addition is bounded finite-model exploration for a carefully
-defined first-order subset. A separate sequent presentation is useful pedagogically but
-should share formulas and evidence rather than pretending a natural-deduction
-tree is already a sequent proof. SAT/SMT integration, proof-assistant exchange,
+defined first-order subset. The delivered sequent presentation shares formulas
+while keeping its evidence distinct from natural deduction and tableaux. SAT/SMT integration, proof-assistant exchange,
 and general automated theorem proving remain optional later work.
 
 See [tutorial.md](tutorial.md) for runnable examples.
+
+## Classical sequent calculus
+
+`Sequent(left, right, options)` checks the classical multi-succedent assertion
+that whenever all formulas on the left hold, at least one on the right holds.
+An empty left side is no assumption; an empty right side is contradiction.
+The finite contexts treat exchange and contraction implicitly. Explicit rule
+IDs identify identity, constant, negation, conjunction, disjunction, implication,
+and definitional biconditional rules on either side. There is no cut rule or
+first-order quantification.
+
+`rix.logic.sequent@1` retains every premise sequent, rule, principal position,
+node dependency, work count and unprocessed leaf. Status is `valid`, `invalid`
+with a directly checked countermodel, or `unresolved`. One countermodel decides
+invalidity even when another branch is unfinished; `complete` separately reports
+whether every branch finished. Input formulas have at most 4,096 nodes, depth 64,
+64 atom names (256 characters each), and 256 entries in each context.
+
+| Option | Default | Bounds |
+|---|---|---|
+| `maxSteps` | 512 | 0–4096 rule applications |
+| `maxNodes` | 1024 | 1–4096 retained nodes |
+| `maxDepth` | 64 | 0–128 proof depth |
+| `maxText` | 1048576 | 4096–4194304 characters of serialized premise contexts |
+
+`CheckSequent(record)` performs bounded deterministic replay and compares all
+fields. Edited rules, missing premises, false status/work claims and substituted
+countermodels fail. The replay checker shares the small inference kernel with
+search; independent truth-table tests verify its rules. Accepting an unresolved
+record validates retained work, not validity. This is a different classical
+proof system from the existing scoped natural-deduction service and signed
+tableaux; their records cannot be relabeled as sequents.
+
+`SequentTree(record, {= maxNodes=128 })` first checks the record, then creates an
+ordinary Fragment with a Graphic and full-text Table. The view budget is 1–512
+nodes; `{= graphic=1 }` returns the Graphic alone for SVG export. Omitted nodes are disclosed and the complete source evidence remains in
+metadata. Node IDs and premise edges are stable. SVG labels are shortened, with
+complete formulas and statuses in the table. HTML, SVG, Markdown, LaTeX/PDF use
+the ordinary output services and their source sidecars.
+
+`ExactProposition(operation,left,right)` accepts only exact Integer/Rational or
+RationalInterval operands. It checks `eq`, `neq`, `lt`, `lte`, `gt`, `gte` for all
+values in the normalized interval bounds, retaining oriented source intervals.
+The latter two operations normalize to their reversed comparisons. Decided
+results supply Top/Bottom formulas; overlapping/uncertain comparisons return
+`truth=:undecided` and `formula=_`. `CheckProposition(record)` rechecks these
+arithmetic facts. There is no unchecked conversion from a theorem label,
+approximate Float, or assumed expression to a logical premise. Rational
+components are bounded to 4,096 digits. This covers evaluated algebraic constants
+and exact interval facts; broader symbolic obligations remain their own services.
+
+See [sequent-tutorial.md](sequent-tutorial.md) for runnable derivations, failure
+cases and static output.

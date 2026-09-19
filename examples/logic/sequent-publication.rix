@@ -1,0 +1,12 @@
+/**
+plugins: [logic, document, html, latex, svg]
+**/
+.Plugin.Load("logic");.Plugin.Load("document");
+p := .logic.Atom(:p);q := .logic.Atom(:q);
+proof := .logic.Sequent([p,p.Implies(q)],[q]);
+view := .logic.SequentTree(proof);
+.Out("sequent.html",view);
+.Out("sequent.tex",view);
+.Out("sequent.svg",.logic.SequentTree(proof,{= graphic=1 }));
+.Out("sequent-source.txt",.document.EncodeJSON(view));
+proof[:status];

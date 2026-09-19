@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/logic-exact-proposition.schema.json",
+  "title": "Exact arithmetic proposition evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "checker",
+    "operation",
+    "left",
+    "right",
+    "truth",
+    "formula"
+  ],
+  "properties": {
+    "schema": {
+      "const": "rix.logic.exact-proposition@1"
+    },
+    "checker": {
+      "const": "exact-rational-comparison@1"
+    },
+    "operation": {
+      "enum": [
+        "eq",
+        "neq",
+        "lt",
+        "lte"
+      ]
+    },
+    "left": {},
+    "right": {},
+    "truth": {
+      "enum": [
+        "true",
+        "false",
+        "undecided"
+      ]
+    },
+    "formula": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "logic-sequent.schema.json#/$defs/formula"
+        }
+      ]
+    }
+  },
+  "description": "Exact Integer/Rational/RationalInterval operands use the host mathematical encoding. Float and expression/assumption recipes are rejected; undecided comparisons have no formula."
+}

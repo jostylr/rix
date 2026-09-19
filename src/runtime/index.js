@@ -325,3 +325,5 @@ export { createOutputBundleHost } from "./output-bundle-host.js";
 export { PUBLICATION_PLAN_SCHEMA, PUBLICATION_PROJECT_SCHEMA, createPublicationPlan, resolvePublicationPlan, withPublicationPlan, validatePublicationTree, visitPublicationTree, publicationDiagnostics, quartoProjectYaml } from "./publication-plan.js";
 
 export { createPublicationProject, readPublicationProject } from "./publication-project.js";
+
+export { LOGIC_SEQUENT_SCHEMA, LOGIC_SEQUENT_CHECKER, createSequent, checkSequent, renderSequentTree, exactProposition, checkExactProposition } from "./logic-sequent.js";

@@ -293,6 +293,8 @@ const CORE_SYNTAX_CAPABILITIES = {
     BoxSubdivide: "BOX_SUBDIVIDE",
     BoxResume: "BOX_RESUME",
     ValidatedBoxCheck: "VALIDATED_BOX_CHECK",
+    LogicSequent: "LOGIC_SEQUENT", LogicCheckSequent: "LOGIC_CHECK_SEQUENT", LogicSequentTree: "LOGIC_SEQUENT_TREE",
+    LogicExactProposition: "LOGIC_EXACT_PROPOSITION", LogicCheckProposition: "LOGIC_CHECK_PROPOSITION",
     MultivariateRangeCheck: "MULTIVARIATE_RANGE_CHECK",
     CalculusRange: "CALCULUS_RANGE", CalculusRangeCheck: "CALCULUS_RANGE_CHECK",
     CalculusRangeRecognize: "CALCULUS_RANGE_RECOGNIZE",

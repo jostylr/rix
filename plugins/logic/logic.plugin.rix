@@ -3,11 +3,11 @@ id: logic
 description: Portable propositional formulas, bounded truth tables, checked normal forms, scoped natural deduction, and educational tree views.
 kind: rix
 mount: logic
-exports: [Atom, Top, Bottom, Not, And, Or, Implies, Iff, Evaluate, Valuations, TruthTable, Classify, Tableau, CheckTableau, NNF, CNF, DNF, CheckNormalForm, Step, Subproof, Proof, CheckProof, SyntaxTree, ProofTree, IsFormula, Capabilities]
+exports: [Atom, Top, Bottom, Not, And, Or, Implies, Iff, Evaluate, Valuations, TruthTable, Classify, Tableau, CheckTableau, NNF, CNF, DNF, CheckNormalForm, Step, Subproof, Proof, CheckProof, SyntaxTree, ProofTree, Sequent, CheckSequent, SequentTree, ExactProposition, CheckProposition, IsFormula, Capabilities]
 groups: [Logic, Education, Exact]
 permissions: []
-provides: [rix.logic@1, rix.logic.formula@1, rix.logic.truth-table@1, rix.logic.normal-form@1, rix.logic.proof@1, rix.logic.tree@1, rix.logic.tableau@1]
-schemas: [rix.logic.formula@1, rix.logic.truth-table@1, rix.logic.normal-form@1, rix.logic.proof@1, rix.logic.tree@1, rix.logic.tableau@1]
+provides: [rix.logic@1, rix.logic.formula@1, rix.logic.truth-table@1, rix.logic.normal-form@1, rix.logic.proof@1, rix.logic.tree@1, rix.logic.tableau@1, rix.logic.sequent@1, rix.logic.sequent-tree@1, rix.logic.exact-proposition@1]
+schemas: [rix.logic.formula@1, rix.logic.truth-table@1, rix.logic.normal-form@1, rix.logic.proof@1, rix.logic.tree@1, rix.logic.tableau@1, rix.logic.sequent@1, rix.logic.sequent-tree@1, rix.logic.exact-proposition@1]
 snapshot: false
 deterministic: true
 defaultEnabled: false
@@ -713,7 +713,8 @@ logicCapabilities = .ImmutableValue({=
     proofStructure=[:scopedSubproofs,:explicitDischarge,:naturalDeductionTrees],
     views=[:syntaxTree,:proofTree],
     tableaux=[:signedPropositional,:openClosedBranchEvidence,:boundedSearch,:replay],
-    next=[:boundedFirstOrderModels,:sequentCalculus]
+    sequents=[:classicalLK,:explicitRuleIds,:boundedSearch,:replay,:staticTree],
+    next=[:boundedFirstOrderModels]
 });
 
 logicNamespace = {= };
@@ -742,6 +743,11 @@ logicNamespace._proto = {=
     CheckProof=(self,proof)->LogicCheckProof(proof),
     SyntaxTree=(self,value)->LogicSyntaxTree(value),
     ProofTree=(self,proof)->LogicProofTree(proof),
+    Sequent=(self,left,right,options ?= {= })->.LogicSequent(left,right,options),
+    CheckSequent=(self,proof)->.LogicCheckSequent(proof),
+    SequentTree=(self,proof,options ?= {= })->.LogicSequentTree(proof,options),
+    ExactProposition=(self,operation,left,right)->.LogicExactProposition(operation,left,right),
+    CheckProposition=(self,evidence)->.LogicCheckProposition(evidence),
     IsFormula=(self,value)->LogicIsFormulaValue(value) ?: 1 ?_ _,
     Capabilities=(self)->logicCapabilities
 };
