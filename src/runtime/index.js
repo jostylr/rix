@@ -327,3 +327,5 @@ export { PUBLICATION_PLAN_SCHEMA, PUBLICATION_PROJECT_SCHEMA, createPublicationP
 export { createPublicationProject, readPublicationProject } from "./publication-project.js";
 
 export { LOGIC_SEQUENT_SCHEMA, LOGIC_SEQUENT_CHECKER, createSequent, checkSequent, renderSequentTree, exactProposition, checkExactProposition } from "./logic-sequent.js";
+
+export { createPublicationProfile, createPublicationBuild, parsePublicationProfiles, serializePublicationProfiles, createPublicationRebuilder, PUBLICATION_BUILD_SCHEMA, PUBLICATION_MANIFEST_SCHEMA, PUBLICATION_TARGETS, PUBLICATION_LIMITS } from "./publication-workflow.js";

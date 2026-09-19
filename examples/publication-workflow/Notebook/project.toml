@@ -1,0 +1,14 @@
+format_version = 1
+title = "Publication showcase"
+notebooks = ["Notes/notebook.toml"]
+default_export_profile = "review"
+
+[export_profiles.review]
+targets = ["html", "markdown", "quarto", "bundle"]
+plugins = ["document"]
+
+[export_profiles.review.inputs.small]
+source = "n := 3;"
+
+[export_profiles.review.inputs.large]
+source = "n := 7;"

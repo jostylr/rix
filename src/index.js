@@ -171,3 +171,6 @@ export { PUBLICATION_PLAN_SCHEMA, PUBLICATION_PROJECT_SCHEMA, createPublicationP
 export { createPublicationProject, readPublicationProject } from "./runtime/publication-project.js";
 
 export { LOGIC_SEQUENT_SCHEMA, LOGIC_SEQUENT_CHECKER, createSequent, checkSequent, renderSequentTree, exactProposition, checkExactProposition } from "./runtime/logic-sequent.js";
+
+export { LIVE_PUBLICATION_SCHEMA, LIVE_PUBLICATION_LIMITS, prepareLivePublication, createLivePublicationConfig } from "./runtime/live-publication.js";
+export { createPublicationProfile, createPublicationBuild, parsePublicationProfiles, serializePublicationProfiles, createPublicationRebuilder, PUBLICATION_BUILD_SCHEMA, PUBLICATION_MANIFEST_SCHEMA, PUBLICATION_TARGETS, PUBLICATION_LIMITS } from "./runtime/publication-workflow.js";

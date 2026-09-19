@@ -43,27 +43,7 @@ import {
 import { createExecutionSession } from "../src/tools/execution/worker.js";
 import { NodePluginCatalog } from "../src/runtime/plugin-catalog-node.js";
 import { formatValue as formatResult } from "../src/eval/format.js";
-import { install as installFloatPlugin } from "../plugins/float/float.plugin.rix.js";
-import { install as installArrayJsExample } from "../examples/plugins/example-array-js/array-js.plugin.rix.js";
-import { install as installDrawPlugin } from "../plugins/draw/draw.plugin.rix.js";
-import { install as installFracfunPlugin } from "../plugins/fracfun/fracfun.plugin.rix.js";
-import { install as installDataPlugin } from "../plugins/data/data.plugin.rix.js";
-import { install as installDocumentPlugin } from "../plugins/document/document.plugin.rix.js";
-import { install as installTerminalAsciiPlugin } from "../plugins/render-terminal-ascii/terminal-ascii.plugin.rix.js";
-import { install as installSvgPlugin } from "../plugins/render-svg/svg.plugin.rix.js";
-import { install as installCanvasPlugin } from "../plugins/render-canvas/canvas.plugin.rix.js";
-import { install as installWebglPlugin } from "../plugins/render-webgl/webgl.plugin.rix.js";
-import { install as installTikzPlugin } from "../plugins/render-tikz/tikz.plugin.rix.js";
-import { install as installMarkdownPlugin } from "../plugins/render-markdown/markdown.plugin.rix.js";
-import { install as installHtmlPlugin } from "../plugins/render-html/html.plugin.rix.js";
-import { install as installQuartoPlugin } from "../plugins/render-quarto/quarto.plugin.rix.js";
-import { install as installLatexPlugin } from "../plugins/render-latex/latex.plugin.rix.js";
-import { install as installPngPlugin } from "../plugins/render-png/png.plugin.rix.js";
-import { install as installPdfPlugin } from "../plugins/render-pdf/pdf.plugin.rix.js";
-import { install as installGltfPlugin } from "../plugins/render-gltf/gltf.plugin.rix.js";
-import { install as installCsvPlugin } from "../plugins/render-csv/csv.plugin.rix.js";
-import { install as installGifPlugin } from "../plugins/render-gif/gif.plugin.rix.js";
-import { compileLatex, encodeGifFrames, rasterizeSvg } from "./node-renderer-tools.js";
+import { registerBuiltPluginInstallers } from "./builtin-installers.js";
 import {
     ensureRixCliPreamble,
     readRixCliConfig,
@@ -79,7 +59,6 @@ const TOOL_DIR = path.dirname(fileURLToPath(import.meta.url));
 const EXAMPLES_DIR = path.resolve(TOOL_DIR, "../examples");
 const FIRST_PARTY_PLUGINS_DIR = path.resolve(TOOL_DIR, "../plugins");
 const EXAMPLE_PLUGINS_DIR = path.resolve(EXAMPLES_DIR, "plugins");
-const WEB_PAGE_ENTRY = path.resolve(TOOL_DIR, "web-page.js");
 const WEB_PAGE_STYLE = path.resolve(TOOL_DIR, "web-page.css");
 const RENDERER_PLUGIN_IDS = ["svg", "canvas", "webgl", "terminal-ascii", "tikz", "markdown", "html", "quarto", "latex", "png", "pdf", "gif", "gltf", "csv"];
 const STANDARD_PLUGIN_IDS = new Set(["exact-algebras", "algebra", "draw", "plot", "scene3d", "nd", "geometry", "graph", "combinatorics", "data", "document", "float", ...RENDERER_PLUGIN_IDS]);
@@ -113,6 +92,7 @@ function usage() {
     return `Usage:
   bun rix [options] [file.rix]
   bun rix test [filters...]
+  bun rix publish build.json [--profile=NAME] [--out=DIR] [--watch] [--json]
   bun rix lint [--level=LEVEL] [--profile=PROFILE] [--strict] [--json|--sarif] file.rix [...]
   bun rix explain-scope [--json] file.rix:line[:column]
   bun rix parse --json file.rix
@@ -646,31 +626,6 @@ function readOperatorFiles(filenames, baseDir) {
     });
 }
 
-function registerBuiltPluginInstallers(pluginCatalog) {
-    // Discovery finds the metadata before createDefaultSystemContext has a
-    // chance to register bundled implementations, so approve these explicit
-    // first-party installers in the CLI host.
-    pluginCatalog.registerInstaller("float", installFloatPlugin);
-    pluginCatalog.registerInstaller("example-array-js", installArrayJsExample);
-    pluginCatalog.registerInstaller("draw", ({ systemContext }) => installDrawPlugin({ systemContext }));
-    pluginCatalog.registerInstaller("fracfun", installFracfunPlugin);
-    pluginCatalog.registerInstaller("data", ({ systemContext }) => installDataPlugin({ systemContext }));
-    pluginCatalog.registerInstaller("document", ({ systemContext }) => installDocumentPlugin({ systemContext }));
-    pluginCatalog.registerInstaller("terminal-ascii", installTerminalAsciiPlugin);
-    pluginCatalog.registerInstaller("svg", installSvgPlugin);
-    pluginCatalog.registerInstaller("canvas", installCanvasPlugin);
-    pluginCatalog.registerInstaller("webgl", installWebglPlugin);
-    pluginCatalog.registerInstaller("tikz", installTikzPlugin);
-    pluginCatalog.registerInstaller("markdown", installMarkdownPlugin);
-    pluginCatalog.registerInstaller("html", installHtmlPlugin);
-    pluginCatalog.registerInstaller("quarto", installQuartoPlugin);
-    pluginCatalog.registerInstaller("latex", installLatexPlugin);
-    pluginCatalog.registerInstaller("png", (api) => installPngPlugin({ ...api, rasterizeSvg }));
-    pluginCatalog.registerInstaller("pdf", (api) => installPdfPlugin({ ...api, compileLatex }));
-    pluginCatalog.registerInstaller("gltf", installGltfPlugin);
-    pluginCatalog.registerInstaller("csv", installCsvPlugin);
-    pluginCatalog.registerInstaller("gif", (api) => installGifPlugin({ ...api, encodeGif: encodeGifFrames }));
-}
 
 function validateArtifactPath(outDir, artifactPath) {
     if (typeof artifactPath !== "string" || !artifactPath.trim()) throw new Error(".Out path must be a non-empty string");
@@ -681,64 +636,12 @@ function validateArtifactPath(outDir, artifactPath) {
     return target;
 }
 
-function pageHtml({ source, sourcePath, title, plugins }) {
-    const config = JSON.stringify({ source, sourcePath, title, plugins }).replaceAll("<", "\\u003c");
-    return `<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${title.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")}</title><link rel="stylesheet" href="assets/rix-page.css"></head>
-<body><main id="rix-app"><noscript>This RiX page needs JavaScript enabled.</noscript></main><script>globalThis.__RIX_PAGE__=${config};</script><script src="assets/rix-page.js"></script></body></html>\n`;
-}
-
 function staticPageHtml({ value, title, context }) {
     const escapedTitle = title.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
     const body = renderOutputHtml(value, (item) => formatResult(item, { context }));
     return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escapedTitle}</title><link rel="stylesheet" href="assets/rix-page.css"></head>
 <body><main id="rix-app">${body}</main></body></html>\n`;
-}
-
-function browserNodeShims() {
-    return {
-        name: "rix-browser-node-shims",
-        setup(build) {
-            build.onResolve({ filter: /^node:(fs|path|module)$/ }, ({ path: specifier }) => ({ path: specifier, namespace: "rix-node-shim" }));
-            build.onLoad({ filter: /.*/, namespace: "rix-node-shim" }, ({ path: specifier }) => {
-                const message = JSON.stringify(`${specifier} is unavailable in a generated RiX page`);
-                if (specifier === "node:path") {
-                    return {
-                        contents: "const path = { isAbsolute: () => false, resolve: (...parts) => parts.at(-1) || \"\", dirname: () => \"\" }; export default path;",
-                        loader: "js",
-                    };
-                }
-                if (specifier === "node:module") {
-                    return {
-                        contents: `const unavailable = () => { throw new Error(${message}); }; const createRequire = () => unavailable; export { createRequire };`,
-                        loader: "js",
-                    };
-                }
-                return {
-                    contents: `const unavailable = () => { throw new Error(${message}); }; const existsSync = unavailable, readdirSync = unavailable, readFileSync = unavailable, statSync = unavailable; export default new Proxy({}, { get: unavailable }); export { existsSync, readdirSync, readFileSync, statSync };`,
-                    loader: "js",
-                };
-            });
-        },
-    };
-}
-
-async function buildBrowserRuntime(outDir) {
-    const assetsDir = path.join(outDir, "assets");
-    mkdirSync(assetsDir, { recursive: true });
-    writeFileSync(path.join(assetsDir, "rix-page.css"), readFileSync(WEB_PAGE_STYLE, "utf8"));
-    const result = await Bun.build({
-        entrypoints: [WEB_PAGE_ENTRY],
-        outdir: assetsDir,
-        target: "browser",
-        format: "iife",
-        naming: "rix-page.js",
-        sourcemap: "none",
-        loader: { ".rix": "text" },
-        plugins: [browserNodeShims()],
-    });
-    if (!result.success) throw new Error(result.logs.map((log) => log.message).join("\n") || "Could not build the RiX browser runtime");
 }
 
 async function writeArtifacts({ outDir, artifacts, source, sourcePath, plugins, context, result, rendererRegistry = null }) {
@@ -753,10 +656,6 @@ async function writeArtifacts({ outDir, artifacts, source, sourcePath, plugins, 
     if (interactiveArtifacts.length > 1) {
         throw new Error("Only one .html .Out artifact can be the final reactive view");
     }
-    const legacyHtmlArtifacts = htmlArtifacts.filter((artifact) =>
-        !artifact.value?._renderResult
-        && (artifact.value === result || !rendererRegistry?.targetForPath(artifact.path)));
-    if (legacyHtmlArtifacts.length > 0) await buildBrowserRuntime(resolvedOutDir);
     const written = [];
     for (const artifact of artifacts) {
         const target = validateArtifactPath(resolvedOutDir, artifact.path);
@@ -780,9 +679,22 @@ async function writeArtifacts({ outDir, artifacts, source, sourcePath, plugins, 
             }
         } else if (/\.html?$/i.test(artifact.path)) {
             const title = path.basename(artifact.path, path.extname(artifact.path));
-            writeFileSync(target, artifact.value === result
-                ? pageHtml({ source, sourcePath, title, plugins })
-                : staticPageHtml({ value: artifact.value, title, context }));
+            if (artifact.value === result) {
+                const { buildLivePublication } = await import("../src/runtime/live-publication-node.js");
+                const page = await buildLivePublication({ value: artifact.value, source, sourcePath, title, plugins, format: item => formatResult(item, { context }) });
+                writeFileSync(target, page.content);
+                for (const [name, content] of page.assets) {
+                    const assetTarget = validateArtifactPath(path.dirname(target), name);
+                    mkdirSync(path.dirname(assetTarget), { recursive: true });
+                    writeFileSync(assetTarget, content); written.push(assetTarget);
+                }
+                for (const diagnostic of page.diagnostics) console.error(`[${diagnostic.code}] ${diagnostic.message}`);
+            } else {
+                const assetTarget = path.join(path.dirname(target), "assets/rix-page.css");
+                mkdirSync(path.dirname(assetTarget), { recursive: true });
+                writeFileSync(assetTarget, readFileSync(WEB_PAGE_STYLE, "utf8"));
+                writeFileSync(target, staticPageHtml({ value: artifact.value, title, context }));
+            }
         } else {
             writeFileSync(target, `${formatResult(artifact.value, { context })}\n`);
         }
@@ -1245,6 +1157,7 @@ async function runTests(filters, options = {}) {
 
 async function main() {
     const rawArgs = process.argv.slice(2);
+    if (rawArgs[0] === "publish") return (await import("./publication-build.js")).runPublicationCli(rawArgs.slice(1));
     if (rawArgs[0] === "lint") return runLint(rawArgs.slice(1));
     if (rawArgs[0] === "explain-scope") return runExplainScope(rawArgs.slice(1));
     if (["parse", "symbols", "format", "verify"].includes(rawArgs[0])) return runEditorTool(rawArgs[0], rawArgs.slice(1));

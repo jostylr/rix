@@ -1,0 +1,11 @@
+/**
+plugins: [document]
+**/
+$$radius := n;
+$$view := .Fragment([
+ .Heading(1,"A live exact result"),
+ .ControlPanel([.Controls.Slider($$radius,1:10,1,"Radius")]),
+ .Paragraph(["Exact radius: ",$radius]),
+ .Graphics.Graphic([120,80],[.Graphics.Circle([60,40],$radius,{= id="retained-circle",fill="#0c7b7f" })])
+]);
+$view;

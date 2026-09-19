@@ -5,6 +5,7 @@
  * observable/widget mechanics between RiX Web and the notebook.
  */
 
+import { replaceOutputHtml } from "./incremental-svg.js";
 import { isOutputValue, outputValueKind, renderOutputHtml } from "../runtime/output.js";
 import { enhanceSheetViews } from "./sheet-view.js";
 import { enhanceGraphicViews } from "./graphic-view.js";
@@ -577,7 +578,8 @@ export function mountOutputWidgets(root, value, options = {}) {
                 const presentation = captureGraphicPresentation(liveRoot);
                 const focusRequest = pendingFocusRequest || presentation.focus;
                 pendingFocusRequest = null;
-                liveRoot.innerHTML = render(value.current);
+                const update = replaceOutputHtml(liveRoot, render(value.current), { incrementalSvg: options.incrementalSvg });
+                options.onSvgUpdate?.(update);
                 liveRoot.dataset.rixLiveRevision = String(value.revision);
                 mountWidgets(liveRoot, value.current);
                 restoreGraphicPresentation(liveRoot, presentation);
@@ -597,7 +599,8 @@ export function mountOutputWidgets(root, value, options = {}) {
             const focusRequest = pendingFocusRequest || presentation.focus;
             pendingFocusRequest = null;
             currentValue = nextValue;
-            root.innerHTML = render(currentValue);
+            const update = replaceOutputHtml(root, render(currentValue), { incrementalSvg: options.incrementalSvg });
+            options.onSvgUpdate?.(update);
             mountWidgets(root, currentValue);
             restoreGraphicPresentation(root, presentation);
             restoreOutputFocus(root, focusRequest);

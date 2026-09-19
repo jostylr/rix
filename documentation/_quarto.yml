@@ -54,6 +54,8 @@ project:
     - eval/publication-plan.md
     - eval/graphic-coordinate-disclosure.md
     - eval/exact-exploration.md
+    - eval/live-publication.md
+    - eval/publication-workflows.md
     - eval/types-and-traits-guide.md
     - reference/system-reference.md
     - plugin-catalog.md

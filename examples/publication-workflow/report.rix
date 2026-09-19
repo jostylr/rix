@@ -1,0 +1,8 @@
+/**
+plugins: [document]
+**/
+figure := .Image({= asset=.Asset("diagram.svg","image/svg+xml"),alt="Exact circle diagram",caption="A local vector asset" });
+.document.Report("A portable exact report",[
+  .Paragraph(["The named input is ",n,". Exact thirds remain exact in every source target."]),
+  .Table(["input","one third"],[[n,n/3]]),figure
+]);

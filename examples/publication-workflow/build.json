@@ -1,0 +1,18 @@
+{
+  "schema": "rix.publication-build@1",
+  "out": "publication",
+  "defaultProfile": "review",
+  "profiles": {
+    "review": {
+      "targets": ["html", "markdown", "quarto", "latex", "pdf", "bundle"],
+      "plugins": ["document"],
+      "inputs": { "small": "n := 3;", "large": "n := 7;" },
+      "plan": { "theme": "compact", "pageSize": "letterpaper", "longTableRows": 20 }
+    },
+    "live": { "targets": ["html", "bundle"], "live": true, "plugins": ["document"], "inputs": { "initial": "n := 3;" } }
+  },
+  "documents": [
+    { "id": "report", "source": "report.rix", "assetRoots": ["."] },
+    { "id": "interactive", "source": "interactive.rix" }
+  ]
+}

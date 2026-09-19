@@ -1,3 +1,4 @@
+import { install as installDocument } from "../plugins/document/document.plugin.rix.js";
 /** Browser runtime used by `rix --out`. This file is bundled by the CLI. */
 
 import {
@@ -8,7 +9,8 @@ import {
     formatValue,
     mountOutputWidgets,
     parseAndEvaluate,
-    parseAndEvaluateAsync,
+    parseAndEvaluateObserved,
+    parseAndEvaluateObservedAsync,
     renderOutputHtml,
     tokenize,
 } from "../src/index.js";
@@ -28,6 +30,8 @@ import scene3dSource from "../plugins/scene3d/scene3d.plugin.rix" with { type: "
 import ndSource from "../plugins/nd/nd.plugin.rix" with { type: "text" };
 import { install as installGltf } from "../plugins/render-gltf/gltf.plugin.rix.js";
 
+import { prepareLivePublication, relocateLivePublicationAssets, LIVE_PUBLICATION_SCHEMA } from "../src/runtime/live-publication.js";
+
 const page = globalThis.__RIX_PAGE__;
 
 function addPlugin(catalog, metadata, installer = null, source = null) {
@@ -37,6 +41,7 @@ function addPlugin(catalog, metadata, installer = null, source = null) {
 
 function createCatalog() {
     const catalog = new PluginCatalog();
+    addPlugin(catalog, { id: "document", description: "Portable document publications", kind: "host", mount: "document", exports: ["Report", "Label", "Ref", "Theme", "References", "Bibliography", "Citation", "AssetManifest", "Asset", "Numbering", "Header", "Footer", "Template", "ApplyTemplate", "TargetMarkup", "Snapshot", "EncodeJSON", "DecodeJSON", "NumericPolicy", "Present", "PublicationPlan", "Publish", "Project"], groups: ["Documents"], permissions: [], defaultEnabled: false }, installDocument);
     addPlugin(catalog, {
         id: "float", description: "JavaScript IEEE-754 Float conversion and optional approximate math.",
         kind: "host", mount: "float", exports: ["Float", "Interval", "Round", "Floor", "Ceiling", "Abs", "Sqrt", "Sin", "Cos", "Tan", "Log", "Exp"],
@@ -83,19 +88,17 @@ function createCatalog() {
 }
 
 function showError(error) {
-    const root = document.querySelector("#rix-app");
-    if (error instanceof Error) {
-        const message = error.message || error.name || "RiX page error";
-        const stack = error.stack || "";
-        root.textContent = stack.includes(message) ? stack : [message, stack].filter(Boolean).join("\n\n");
-    } else {
-        root.textContent = String(error);
+    let status = document.querySelector("#rix-publication-status");
+    if (!status) {
+        status = document.createElement("aside"); status.id = "rix-publication-status"; status.setAttribute("role", "status"); document.body.append(status);
     }
-    root.classList.add("rix-page-error");
+    status.textContent = `Live interaction unavailable: ${error?.message || String(error)}. The static result remains available.`;
+    status.classList.add("rix-page-error");
 }
 
 async function run() {
-    if (!page?.source) throw new Error("This RiX page has no embedded source.");
+    if (typeof page?.source !== "string") throw new Error("This RiX page has no retained source.");
+    if (page.schema && page.schema !== LIVE_PUBLICATION_SCHEMA) throw new Error("Unsupported live publication schema");
     const context = new Context();
     const registry = createDefaultRegistry();
     const pluginCatalog = createCatalog();
@@ -111,28 +114,33 @@ async function run() {
         });
     }
 
-    const reads = new Set();
-    const options = { ...runtime, file: page.sourcePath || "<generated-page>", reactiveReads: reads };
+    const options = { ...runtime, file: page.sourcePath || "<generated-page>" };
     const tokens = tokenize(page.source);
     const usesAsyncEvaluation = tokens.some((token) => token.value === "{$" || token.value === "{$$"
         || token.value === "|>_" || token.value === "|>!")
         || /\.(?:ForEach|Reduce|Collect|First|Find|Count|Close|Retry)\s*\(/i.test(page.source);
-    const value = usesAsyncEvaluation
-        ? await parseAndEvaluateAsync(page.source, options)
-        : parseAndEvaluate(page.source, options);
+    const observed = usesAsyncEvaluation
+        ? await parseAndEvaluateObservedAsync(page.source, options)
+        : parseAndEvaluateObserved(page.source, options);
     const root = document.querySelector("#rix-app");
     const format = (item) => formatValue(item, { context });
-    root.innerHTML = renderOutputHtml(value, format);
-    const source = [...reads].find((item) => typeof item?.subscribe === "function") || null;
-    mountOutputWidgets(root, value, {
+    const prepared = prepareLivePublication(observed.value, page.descriptor?.limits || {});
+    const value = relocateLivePublicationAssets(prepared.snapshot, page.assetPaths || {}), diagnostics = prepared.diagnostics;
+    if (root.dataset.rixStaticSnapshot !== "true") root.innerHTML = renderOutputHtml(value, format);
+    root.dataset.rixLiveReady = "true";
+    if (diagnostics.length) document.querySelector("#rix-publication-status").textContent = diagnostics.map((item) => item.message).join(" ");
+    const dispose = mountOutputWidgets(root, value, {
+        incrementalSvg: true,
+        onSvgUpdate(update) { root.dataset.rixSvgUpdate = update.mode; root.dataset.rixSvgReused = String(update.reused); },
         format,
         evaluateControl(sourceText) {
             return parseAndEvaluate(sourceText, runtime);
         },
-        observe: source
-            ? (listener) => source.subscribe((event) => listener(source.peek(), event))
+        observe: observed.observe
+            ? (listener) => observed.observe((value, event) => listener(relocateLivePublicationAssets(prepareLivePublication(value, page.descriptor?.limits || {}).snapshot, page.assetPaths || {}), event))
             : null,
     });
+    window.addEventListener("pagehide", () => { dispose(); observed.dispose(); }, { once: true });
 }
 
 run().catch(showError);

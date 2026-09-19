@@ -110,3 +110,16 @@ bun run build:docs
 ```
 
 Use `bun run preview:docs` for a local authoring server. The source-derived runtime catalog is regenerated as part of both commands.
+
+## Repeatable publication builds
+
+`bun bin/rix.js publish build.json` evaluates named document/input variants and
+renders their retained results to the targets in a saved profile. `--watch` tracks
+source, plugin, operator and declared dependencies; failed or superseded builds
+preserve the last successful output. Complete outputs contain a deterministic
+artifact manifest, checksums, local media and explicit unsupported-target fallbacks.
+
+The [publication showcase](examples/publication-workflow/README.md) includes report,
+PDF, live HTML and Notebook profiles. See [publication workflows](documentation/eval/publication-workflows.md)
+for budgets, host capabilities and compiler availability. Live pages include a
+complete initial result and local scripts; they remain readable without JavaScript.
