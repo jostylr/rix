@@ -122,3 +122,12 @@ tensorTest('import replays and rejects forged derived origins instead of trustin
  expect(()=>parseAndEvaluate('.linalg.ImportGraph(replaygraph,{= maxReplayWork=1 });',rt)).toThrow('replay work budget');
  expect(()=>parseAndEvaluate('.linalg.ImportGraph(replaygraph,{= maxReplayWork=16777217 });',rt)).toThrow('hard bounds');
 });
+tensorTest('full views restore nested source links in dependency order and reject contradictory identities',()=>{
+ const rt=runtime();const values=parseAndEvaluate(prefix+'a:=.linalg.PolynomialSpace(2,:x);p:=.p`x^2+2*x+3`;q:=.p`x^2+2*x+4`;u:=a.Realize(p);view:=u.Vector().View().View();f:=.linalg.Frame(a[:space],{= relativeTo=a.Frame(),basis=[1,1,0;0,1,0;0,0,1] });changed:=u.Vector().Transform(f);g:=.linalg.ExportGraph([view,p,q,changed]);r:=.linalg.ImportGraph(g);[r[1].SameSource(r[2]),a.Realize(p).SameSource(q)];',rt).values;
+ truth(values[0]);expect(values[1]).toBeNull();
+ const graph=decodeMathematicalJSON(encodeMathematicalJSON(rt.context.get('g')));
+ const qid=graph.entries.get('roots').values[2];const reps=entries(graph).filter(r=>kind(r)==='tensorRepresentation');
+ const changed=reps.find(r=>r.entries.get('transform')?.entries.get('kind').value==='coordinateChange');changed.entries.set('viewof',qid);
+ rt.context.set('badsource',graph);
+ expect(()=>parseAndEvaluate('.linalg.ImportGraph(badsource);',rt)).toThrow(/source/);
+});

@@ -2155,6 +2155,32 @@ LinalgGraphTransformMatrix(state,record,slot,axis) -> {;
     (equivalent==_ || equivalent[:slots][axis][:frameid]==source[:id])
       ?_> .Error("Linear graph transformation source conflicts with its preceding representation"); 1;
 };
+LinalgGraphSourceId(state,id) -> {;
+    id!=_ ?_> _;
+    key=@"@{id}";
+    state[:sourceids].Has(key) ?_> LinalgGraphFindSourceId(state,id,key);
+    state[:sourceids][key];
+};
+LinalgGraphFindSourceId(state,id,key) -> {;
+    record=state[:records][id];
+    source=record[:kind]==:polynomial ?: id
+      ?_ record[:kind]==:tensorRepresentation ?: LinalgGraphSourceId(state,record[:viewof]) ?_ _;
+    state[:sourceids][key]=source; source;
+};
+LinalgGraphValidateSource(state,record) -> {;
+    record[:kind]==:tensorRepresentation ?_> _;
+    identity=LinalgGraphAt(state,record[:tensorid],[:tensorIdentity]);
+    LinalgGraphSourceId(state,record[:id])==LinalgGraphSourceId(state,identity[:origin])
+      ?_> .Error("Linear graph equivalent representations disagree about their domain source");
+    transform=record[:transform]; transform!=_ ?_> 1;
+    kind=transform[:kind];
+    kind==:slotPermutation ?: (record[:viewof]==record[:derivedfrom][1] ?_> .Error("Linear graph slot permutation lost its source view")) ?_ _;
+    (kind==:coordinateChange || kind==:fullExtentView || kind==:slotPermutation || record[:viewof]==_)
+      ?_> .Error("Linear graph derived operation claims an unsupported source view");
+    equivalent=LinalgGraphOptional(state,record[:equivalentto],[:tensorRepresentation]);
+    (kind!=:coordinateChange || equivalent==_ || record[:viewof]==equivalent[:viewof])
+      ?_> .Error("Linear graph coordinate change does not preserve its preceding source view"); 1;
+};
 LinalgGraphValidate(graph,limits) -> {;
     LinalgGraphKeys(graph,["schema","scalarfield","roots","records"]);
     graph[:schema]=="rix.linalg.identity-graph@1" && graph[:scalarfield]=="rix.scalar-field.rational@1"
@@ -2163,11 +2189,12 @@ LinalgGraphValidate(graph,limits) -> {;
     records.Len()>=1 && records.Len()<=limits[:maxnodes] && roots.Len()>=1 && roots.Len()<=limits[:maxnodes]
       ?_> .Error("Linear graph node/root budget exceeded or empty document");
     records.Map((record,index)->LinalgGraphRecordHeader(record,index));
-    state={= records=records,limits=limits,components=0,storage={= },visited={= },heights={= } }; state._mutable=1;
+    state={= records=records,limits=limits,components=0,storage={= },visited={= },heights={= },sourceids={= } }; state._mutable=1;
     records.Map((record)->LinalgGraphValidateRecord(state,record));
     records.Map((record)->LinalgGraphTransformLaw(state,record));
     roots.Map((id)->LinalgGraphAt(state,id,[:vectorSpace,:frame,:tensorRepresentation,:linearMap,:metric,:polynomialSpace,:polynomial,:linearRealization]));
     records.Map((record)->LinalgGraphVisit(state,record[:id],1));
+    records.Map((record)->LinalgGraphValidateSource(state,record));
     state;
 };
 LinalgGraphRecordHeader(record,index) -> {;
@@ -2298,13 +2325,17 @@ LinalgGraphRestoreTransform(state,id,value) -> {;
 };
 LinalgGraphRestoreTensorLinks(state,record) -> {;
     record[:kind]==:tensorRepresentation ?_> _;
+    key=@"@{record[:id]}"; state[:linked][key]!=1 ?_> .Error("Linear graph contains cyclic source links");
+    state[:linked][key]!=2 ?_> LinalgGraphBuilt(state,record[:id]);
+    state[:linked][key]=1;
+    LinalgGraphEdges(record).Map((ref)->LinalgGraphRestoreTensorLinks(state,state[:records][ref]));
     value=LinalgGraphBuilt(state,record[:id]); identity=LinalgGraphBuilt(state,record[:tensorid]);
     originRecord=LinalgGraphAt(state,record[:tensorid],[:tensorIdentity]); origin=LinalgGraphBuilt(state,originRecord[:origin]);
     LinalgTensorEqual(value,origin) ?_> .Error("Linear graph gives inconsistent coordinates to one tensor identity");
     value[:equivalentto]=LinalgGraphBuilt(state,record[:equivalentto]); value[:viewof]=LinalgGraphBuilt(state,record[:viewof]);
     value[:derivedfrom]=record[:derivedfrom].Map((ref)->LinalgGraphBuilt(state,ref));
     value[:transform]=LinalgGraphRestoreTransform(state,record[:id],record[:transform]); value[:origin]=origin;
-    value[:identity]=identity; LinalgSyncTensor(value);value.identity=identity;value.viewOf=value[:viewof];value;
+    value[:identity]=identity; LinalgSyncTensor(value);value.identity=identity;value.viewOf=value[:viewof];state[:linked][key]=2;value;
 };
 LinalgGraphRestoreHistory(state,record) -> {;
     record[:kind]==:tensorIdentity ?_> _;
@@ -2347,6 +2378,7 @@ LinalgImportGraph(graph,options ?= {= }) -> {;
     records.Map((record)->LinalgGraphBuildTensor(state,record));
     state[:replaywork]=0;
     records.Map((record)->LinalgGraphReplay(state,record));
+    state[:linked]={= };
     records.Map((record)->LinalgGraphRestoreTensorLinks(state,record));
     records.Map((record)->LinalgGraphRestoreHistory(state,record));
     records.Map((record)->LinalgGraphBuildRealization(state,record));
