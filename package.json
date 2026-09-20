@@ -52,7 +52,8 @@
     "./live-publication/node": "./src/runtime/live-publication-node.js",
     "./publication-workflow": "./src/runtime/publication-workflow.js",
     "./output-assets": "./src/runtime/output-assets.js",
-    "./output-assets/node": "./src/runtime/output-assets-node.js"
+    "./output-assets/node": "./src/runtime/output-assets-node.js",
+    "./rixcel-workbook": "./src/runtime/rixcel-workbook.js"
   },
   "bin": {
     "rix": "./bin/rix.js",

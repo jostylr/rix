@@ -17,6 +17,7 @@ export const documentationNavigation = [
       page("introduction.md", "Complete introduction"),
       { text: "Interactive tutorials (RiX Web)", href: "https://rix.ratmath.com/tutorial/", external: true },
       page("eval/sheet-guide.md", "Sheet views"),
+      page("eval/workbooks.md", "Workbooks and cross-sheet dependencies"),
       page("eval/function-returns.md", "Diagnostic guards and early returns"),
       page("eval/course-calculus.md", "Course calculus and checked integration"),
     ],

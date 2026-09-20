@@ -343,3 +343,5 @@ export { ASYNC_STREAM_CLOCK_ENV, defaultStreamClock } from "./async-stream-clock
 
 export { IMPLICIT_REGION_SCHEMA, IMPLICIT_REGION_CHECKER, evaluateImplicitRegion, checkImplicitRegion, refineImplicitRegion } from "./implicit-region.js";
 export { createLinkedViews } from "./linked-views.js";
+
+export { RIXCEL_WORKBOOK_FORMAT, RIXCEL_WORKBOOK_LIMITS, parseRixCelWorkbook, createRixCelWorkbookDocument, stringifyRixCelWorkbook, createRixCelWorkbook } from "./rixcel-workbook.js";

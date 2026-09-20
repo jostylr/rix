@@ -56,7 +56,7 @@ Checked items are implemented in the current RiX repository.
 - [x] Add `grid`, `row`, `col`, and `index` evaluation bindings.
 - [x] Add the `near` evaluation binding.
 - [x] Add public `FormulaSheet.Near(origin, offsets)` for explicit relative reads.
-- [ ] Add `book`, `names`, and `imports` namespaces.
+- [x] Add explicit `book`, `names`, and `imports` namespaces with document-owned exports.
 - [x] Record runtime slot-read dependencies.
 - [x] Incrementally recompute dirty dependents.
 - [x] Detect cycles and report complete address paths.
@@ -81,8 +81,10 @@ Checked items are implemented in the current RiX repository.
 - [x] Edit FormulaSheet row/column coordinate labels while retaining numeric headers.
 - [x] Render imported blank fields as blank without hiding intentional `_` results.
 - [x] Let interactive hosts observe and dispose a direct final reactive output such as `$frag`.
-- [ ] Coordinate tracked dependencies that span multiple independent ReactiveGraphs.
-- [ ] Define volatile/external-source recomputation policy.
+- [x] Coordinate workbook document dependencies in one atomic graph, with full
+  cross-document cycle paths and bounded private candidate rebuilds.
+- [x] Use explicit external snapshot refresh by default; host-opt-in schedules
+  preserve source/version metadata and dispose timers/pending work.
 - [x] Add round-trip and migration tests for `.rixcel` documents.
 
 ## 4. Standalone RiXCel editor

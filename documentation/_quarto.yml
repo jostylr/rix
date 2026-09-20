@@ -22,6 +22,7 @@ project:
     - introduction.md
     - status.qmd
     - eval/sheet-guide.md
+    - eval/workbooks.md
     - eval/output-guide.md
     - eval/renderer-guide.md
     - eval/scene3d-guide.md

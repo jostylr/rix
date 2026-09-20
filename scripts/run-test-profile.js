@@ -77,6 +77,7 @@ export const shortTests = new Set([
     "tests/runtime/range-schemas.test.js",
     "tests/runtime/range-set-interchange.test.js",
     "tests/runtime/rixcel-references.test.js",
+    "tests/runtime/rixcel-workbook.test.js",
     "tests/tools/codemirror.test.js",
     "tests/tools/control-panel-view.test.js",
     "tests/tools/graphic-view.test.js",

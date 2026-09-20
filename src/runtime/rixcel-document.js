@@ -517,7 +517,7 @@ function historyShape(initial, events, cursor) {
     return shape;
 }
 
-function historicalSlotId(document, index, cursor = document.cursor) {
+export function rixCelSlotId(document, index, cursor = document.cursor) {
     const origin = [...index];
     for (const event of document.events.slice(0,cursor).reverse()) {
         if (event.type !== "axis:insert") continue;
@@ -537,7 +537,7 @@ export function replayRixCelDocument(value) {
     for (const event of document.events.slice(0, document.cursor)) {
         if (event.type === "slot:set") {
             byIndex.set(indexKey(event.index), {
-                id: historicalSlotId(document, event.index, event.sequence),
+                id: rixCelSlotId(document, event.index, event.sequence),
                 index: [...event.index],
                 source: event.source,
                 assignmentMode: event.assignmentMode,
@@ -546,7 +546,7 @@ export function replayRixCelDocument(value) {
         } else if (event.type === "slot:batch") {
             for (const edit of event.edits) {
                 byIndex.set(indexKey(edit.index), {
-                    id: historicalSlotId(document, edit.index, event.sequence),
+                    id: rixCelSlotId(document, edit.index, event.sequence),
                     index: [...edit.index],
                     source: edit.source,
                     assignmentMode: edit.assignmentMode,
@@ -599,7 +599,7 @@ export function materializeRixCelDocument(value) {
     const slots = Array.from({ length: size }, (_unused, offset) => {
         const index = indexFromOffset(offset, document.shape);
         return byIndex.get(indexKey(index)) ?? {
-            id: historicalSlotId(document, index),
+            id: rixCelSlotId(document, index),
             index,
             source: document.defaultSlot.source,
             assignmentMode: document.defaultSlot.assignmentMode,
@@ -685,7 +685,7 @@ export function importRixCelDocument(value, options = {}) {
         documentView: view,
         defaultSlotMetadata: document.defaultSlot,
         slotMetadata,
-        slotIdentity: index => historicalSlotId(document,index),
+        slotIdentity: index => rixCelSlotId(document,index),
     });
     importedDocuments.set(sheet,document);
     return sheet;

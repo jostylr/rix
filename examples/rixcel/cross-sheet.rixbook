@@ -1,0 +1,120 @@
+{
+  "format": "rixcel-workbook",
+  "version": 1,
+  "documents": [
+    {
+      "document": {
+        "format": "rixcel",
+        "version": 3,
+        "id": "sales",
+        "initialShape": [
+          4,
+          3
+        ],
+        "shape": [
+          4,
+          3
+        ],
+        "view": {
+          "title": "sales"
+        },
+        "defaultSlot": {
+          "source": "_",
+          "assignmentMode": ":=",
+          "view": {
+            "blank": true
+          }
+        },
+        "events": [
+          {
+            "id": "sales:event:1",
+            "sequence": 1,
+            "type": "slot:set",
+            "index": [
+              1,
+              1
+            ],
+            "source": "7/3",
+            "assignmentMode": ":=",
+            "view": {},
+            "command": "document.SetSource(1, 1, \"7/3\", \":=\")"
+          }
+        ],
+        "cursor": 1,
+        "drafts": []
+      },
+      "names": {},
+      "exports": {
+        "subtotal": {
+          "index": [
+            1,
+            1
+          ]
+        }
+      },
+      "imports": {}
+    },
+    {
+      "document": {
+        "format": "rixcel",
+        "version": 3,
+        "id": "report",
+        "initialShape": [
+          4,
+          3
+        ],
+        "shape": [
+          4,
+          3
+        ],
+        "view": {
+          "title": "report"
+        },
+        "defaultSlot": {
+          "source": "_",
+          "assignmentMode": ":=",
+          "view": {
+            "blank": true
+          }
+        },
+        "events": [
+          {
+            "id": "report:event:1",
+            "sequence": 1,
+            "type": "slot:set",
+            "index": [
+              1,
+              1
+            ],
+            "source": "imports.Get(:subtotal)*(1+names.Get(:tax))",
+            "assignmentMode": ":=",
+            "view": {},
+            "command": "document.SetSource(1, 1, \"imports.Get(:subtotal)*(1+names.Get(:tax))\", \":=\")"
+          }
+        ],
+        "cursor": 1,
+        "drafts": []
+      },
+      "names": {
+        "tax": {
+          "source": "1/10"
+        }
+      },
+      "exports": {
+        "total": {
+          "index": [
+            1,
+            1
+          ]
+        }
+      },
+      "imports": {
+        "subtotal": {
+          "document": "sales",
+          "export": "subtotal"
+        }
+      }
+    }
+  ],
+  "external": {}
+}
