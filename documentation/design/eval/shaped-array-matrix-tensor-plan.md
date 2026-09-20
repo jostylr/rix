@@ -1,17 +1,22 @@
 ---
 title: "Shaped values, matrices, vectors, and mathematical tensors"
-description: "Implemented Shaped/Matrix migration and remaining finite coordinate-aware tensor work."
+description: "Implemented Shaped/Matrix migration, finite tensor algebra and finite-support polynomial coordinates."
 toc-depth: 4
 ---
 
 # Status
 
-**Implementation in progress; reconciled 2026-09-19.** Shaped/Matrix storage,
+**Finite implementation complete; reconciled 2026-09-20.** Shaped/Matrix storage,
 semantic-name folding, compact Frame headers, finite coordinate tensors,
 vector/covector pairing, linear maps, dual spaces, tensor products/contractions,
 bounded polynomial realizations, and identity-record serialization exist.
 See `plugins/linalg/README.md` and `tests/eval/linalg-optimize-solve-plugin.test.js`.
-Stable identity-record writing is not a complete persistence/import contract.
+Validated finite identity graphs now supplement the single-record writers.
+`ExportGraph`/`ImportGraph` preserve document-local sharing with fresh runtime
+identities, bounded lineage and exact Rational coordinate storage. T3 adds
+Rational spectral evidence, finite-support tensors and countable monomial Frames
+for finite polynomials, with bounded inclusion/projection. Infinite expansions,
+general countable bases and extension-field canonical forms remain later work.
 
 The original start/branch/approval gates are historical migration sequencing,
 not new permission requirements. Preserve the implemented syntax and settled
@@ -33,7 +38,7 @@ linalg/optimize/solve, Web REPL and Notebook engine suites. Generated references
 and host catalogs come from their existing scripts. Full cross-repository
 release checks remain Q1, not evidence supplied by this migration record.
 The finite tensor algebra, identity imports and sparse-coordinate items below
-belong to T1–T3; optional syntax and infinite-dimensional research stay in D2/D9.
+are delivered by T1–T3; optional syntax and infinite-dimensional research stay in D2/D9.
 
 # Decision summary
 
@@ -262,8 +267,8 @@ binding.
 - [x] Remove the experimental `Coordinates` name directly; do not retain a
   compatibility constructor or alias in this unreleased language.
 - [x] Confirm the options-map fields `name`, `dimension`, and `over`.
-- [ ] Define the versioned scalar-field protocol and verify that `:Rational`
-  supplies it.
+- [x] Define `rix.scalar-field@1` with the exact Rational adapter; custom fields
+  remain a later extension.
 - [x] Confirm that separately constructed structurally identical spaces remain
   distinct.
 - [x] Confirm `basis=:defining` for nominating the first frame without calling
@@ -271,8 +276,8 @@ binding.
 - [x] Specify basis-matrix orientation as new-frame basis vectors in columns of
   `relativeTo` coordinates.
 - [ ] Decide whether `FramedSpace` convenience sugar is worth exposing.
-- [ ] Define stable export identities for spaces and frames and reject dangling
-  frame references during import.
+- [x] Define document-local graph references for spaces and Frames; import
+  creates fresh opaque identities and rejects dangling or conflicting references.
 - [ ] Reserve separate future constructors for modules, affine spaces,
   subspaces, quotient spaces, direct sums, and infinite-dimensional spaces.
 
@@ -298,15 +303,11 @@ and cancellation can lower the degree. The finite vector space is polynomials
 of degree **at most** `n`, conventionally `P_<=n`, with dimension `n + 1`.
 
 ```rix
-p4 := .poly.PolynomialSpace({=
-  variable = :x,
-  maxDegree = 4,
-  over = :Rational
-});
-
-monomial := p4.Frame(:monomial);
-p := .poly([1, 2, 0, 3]);
-pv := p4.AsVector(p, monomial);
+p4 := .linalg.PolynomialSpace(4,:x,{= over=:Rational });
+monomial := p4.Frame();
+p := .poly.Polynomial([1,2,0,3]);
+realization := p4.Realize(p,monomial);
+pv := realization.Vector();
 ```
 
 `p` remains a `Polynomial`; `pv` is a vector representation linked by
@@ -319,39 +320,40 @@ One polynomial can belong to several ambient spaces, for example both
 identities even though they refer to the same polynomial source. Consequently:
 
 - source identity and vector-space element identity are recorded separately;
-- `SameSource` may hold when `SameVector` does not;
+- `SameSource` may hold when `SameTensor` does not;
 - decoding a computed vector returns a new polynomial value unless an explicit
   identity-preserving view operation applies;
 - vector arithmetic returns a vector by default, while the realization can
-  provide an explicit `AsPolynomial`/`Decode` operation;
+  provide the explicit `Reconstruct` operation;
 - domain plugins may offer convenience operations that calculate linearly and
   return their domain type, but generic vector dispatch does not assume this.
 
 Other natural realizations include fixed-size homogeneous polynomials,
 truncated power series, functions on a finite set, finite-dimensional function
 subspaces, matrices viewed as vectors under a selected entry frame, and finite
-algebra extensions. Each domain owns its adapters; `.linalg` owns only the
-generic realization protocol.
+algebra extensions. The first bounded `PolynomialSpace` adapter remains in `.linalg` with its
+established public spelling. Additional domain adapters may follow the same
+explicit realization contract.
 
 ### Linear-realization checklist
 
-- [x] Define a versioned `rix.linear-realization@1` protocol with membership,
+- [x] Define a versioned `rix.linalg.linear-realization@1` protocol with membership,
   space, frame, encode, decode, scalar-domain, and provenance operations.
-- [ ] Distinguish `viewOf`/`SameSource` from abstract vector identity and
+- [x] Distinguish `viewOf`/`SameSource` from abstract vector identity and
   coordinate-representation identity.
-- [ ] Decide whether `AsVector` is a generic method, realization method, or
-  both with one canonical dispatch path.
-- [ ] Require an explicit ambient realization when a source belongs to several
+- [x] Use `adapter.Realize(source,frame?)` and `realization.Vector(frame?)` as
+  the explicit realization path; do not add generic `AsVector` dispatch.
+- [x] Require an explicit ambient realization when a source belongs to several
   vector spaces.
-- [ ] Ensure coordinate transformation of a view preserves its source link
+- [x] Ensure coordinate transformation of a view preserves its source link
   without mutating the source.
-- [ ] Make vector arithmetic return `Vector` unless an explicit domain adapter
+- [x] Make vector arithmetic return `Vector` unless an explicit domain adapter
   requests decoded results.
 - [x] Add `.linalg.PolynomialSpace(n, variable?)` for `P_<=n` with its
   monomial Frame and exact Realize/Reconstruct operations.
-- [ ] Extend polynomial realization tests to alternative Frames and ambiguous
+- [x] Extend polynomial realization tests to alternative Frames and ambiguous
   ambient spaces while preserving the domain source.
-- [ ] Test cancellation, zero, degree bounds, variable mismatch, scalar-field
+- [x] Test cancellation, zero, degree bounds, variable mismatch, scalar-field
   mismatch, encode/decode round trips, and the same polynomial viewed in two
   ambient spaces.
 
@@ -371,14 +373,14 @@ monomial frame is indexed by nonnegative integers, and each polynomial has
 finite support even though no global degree bound exists:
 
 ```rix
-px := .poly.PolynomialSpace({=
+px := .linalg.PolynomialSpace({=
   variable = :x,
   maxDegree = :unbounded,
   over = :Rational
 });
 
-monomial := px.Frame(:monomial);
-pv := px.AsVector(.poly([1, 0, 0, 5]), monomial);
+monomial := px.Frame();
+pv := px.Realize(.poly.Polynomial([1, 0, 0, 5])).Vector();
 ```
 
 Here `:unbounded` means every element still has finite degree; it does not mean
@@ -420,21 +422,21 @@ for useful infinite-dimensional work.
 
 ### Infinite-dimensional checklist
 
-- [ ] Add dimension descriptors distinguishing finite `n`, countably infinite,
-  and symbolic/unknown dimension.
-- [ ] Define `SparseCoordinates` with canonical zero removal, basis keys,
+- [x] Distinguish finite `n` and `:countable` dimensions for finite-support
+  monomial Frames. Symbolic/unknown dimension descriptors remain later.
+- [x] Define `SparseCoordinates` with canonical zero removal, basis keys,
   scalar-domain validation, deterministic traversal, and work-bounded tensor
   products.
-- [ ] Permit `Vector` and `Tensor` component storage through a coordinate-
+- [x] Permit `Vector` and `Tensor` component storage through a coordinate-
   storage protocol rather than requiring `Shaped`.
-- [ ] Implement countable frames with `BasisAt`, optional key enumeration, and
-  finite-support encode/decode.
-- [ ] Use all finite polynomials as the first countably infinite-dimensional
+- [x] Implement countable monomial Frames with `BasisAt` and finite-support
+  encode/decode. Arbitrary countable bases and key enumerators remain later.
+- [x] Use all finite polynomials as the first countably infinite-dimensional
   exact realization.
-- [ ] Keep bounded `P_<=n` as a finite subspace with dense `Shaped` components.
-- [ ] Define inclusion maps and projections between `P_<=n`, `P_<=m`, and the
+- [x] Keep bounded `P_<=n` as a finite subspace with dense `Shaped` components.
+- [x] Define inclusion maps and projections between `P_<=n`, `P_<=m`, and the
   unbounded finite-polynomial space.
-- [ ] Specify support-growth budgets and diagnostics for tensor products and
+- [x] Specify support-growth budgets and diagnostics for tensor products and
   linear maps.
 - [ ] Design a separate lazy/oracular coordinate protocol before formal power
   series or infinite-support sequences are called vectors.
@@ -835,19 +837,20 @@ is retained.
 - [x] Implement canonical `/Covector: V/` syntax and `/Vector: V*/` sugar.
 - [x] Share identity, representation, coordinate transformation, and
   serialization machinery between Vector, Covector, and Tensor.
-- [ ] Accept component storage through a versioned coordinate-storage protocol;
-  use `Shaped` for finite dense coordinates and `SparseCoordinates` for
+- [x] Specify `rix.coordinate-storage@1` with bounded finite `denseShaped`
+  adapters and logical entry order.
+- [x] Extend the coordinate-storage protocol with `SparseCoordinates` for
   finite-support infinite-dimensional coordinates.
 - [x] Implement vector/covector pairing without inventing a metric.
-- [ ] Require an explicit metric for dot products, norms, angles, and
+- [x] Require an explicit metric for dot products, norms, angles, and
   raising/lowering between a space and its dual.
 - [x] Replace the one-space `CoordinateTensor` assumption with ordered slot
   descriptors supporting distinct vector spaces and dimensions.
 - [x] Name the public ordered-basis/coordinatized-space value `Frame`; remove
   the experimental `Coordinates` name during the migration.
 - [x] Implement explicit `DualSpace` and primal/dual slot contraction.
-- [ ] Complete canonical/noncanonical dual-Frame behavior and tests.
-- [ ] Implement explicit noncanonical dual-coordinate construction.
+- [x] Complete canonical/noncanonical dual-Frame behavior and tests.
+- [x] Implement explicit noncanonical dual-coordinate construction.
 - [x] Parse, lower, resolve, and validate `/Tensor: V@V*@Wa/`.
 - [x] Validate literal rank and each axis dimension against the resolved slot.
 - [x] Make `:Tensor` construction fail unless complete slot and coordinate
@@ -858,17 +861,30 @@ is retained.
   frame.
 - [x] Implement tensor product, valid contraction, compatible addition, and
   scalar arithmetic for finite coordinate tensors.
-- [ ] Complete slot permutation and its coordinate/provenance tests.
-- [ ] Return the declared coordinate-storage value from `Components()` and
-  apply the slice/transform commutation rule to every proposed Tensor view.
-- [ ] Define tensor equality, `SameTensor`, structural equality of independent
+- [x] Complete slot permutation and its coordinate/provenance tests.
+- [x] Return finite dense `Shaped` storage from `Components()` and verify full
+  views and slot permutations commute with Frame changes. Strict component
+  slices return storage; additional storage protocols remain below.
+- [x] Define tensor equality, `SameTensor`, structural equality of independent
   tensors, and equality across coordinate representations.
 - [x] Write versioned `rix.linalg.identity-record@1` records for spaces,
   Frames, tensors, linear maps, and realizations, including representation IDs.
-- [ ] Add validated import/round-trip identity graphs with bounded provenance
-  and dangling-reference rejection.
+- [x] Add `rix.linalg.identity-graph@1` export/import with bounded provenance,
+  strict reference/domain validation, fresh identities, and frozen Polynomial
+  source views. Tests: `tests/eval/linear-identity-graph.test.js`.
 - [x] Implement configurable lineage retention with a permanent origin and a
   default ring of the 30 most recent transformation records.
+
+Finite dense semantics are exercised in `tests/eval/finite-tensor-semantics.test.js`.
+The method surface is `Permute`, `View`, `ComponentSlice`, `Equal`, `Lower`,
+`Raise`, `Dot`, `NormSquared`, `Norm`, `Angle`, `Trace`, `Symmetrize`,
+`Antisymmetrize`, and `TensorPower`. Metrics are symmetric nonsingular Rational
+forms. Norm/angle require positive definiteness; non-Rational roots/angles
+return explicit coefficient-extension diagnostics. Dual linear maps retain
+the duals of their actual source/target Frames. `Transform!` retains distinct
+snapshots, cuts evicted backlinks, and validates the complete target before
+mutating the active representation. See the Linalg README for finite budgets
+and the chosen-dual basis convention.
 
 ## Stage 5 — Complete the coordinated rename across hosts and documentation
 
@@ -889,10 +905,11 @@ is retained.
 
 ## Stage 6 — Advanced tensor algebra
 
-- [ ] Add metrics and validated raising/lowering of indices; never identify a
+- [x] Add metrics and validated raising/lowering of indices; never identify a
   space with its dual without a metric or explicit isomorphism.
-- [ ] Add symmetrization, antisymmetrization, traces, tensor powers, and named
-  contraction notation.
+- [x] Add bounded symmetrization, antisymmetrization, traces, and tensor powers.
+- [ ] Named contraction notation remains a later syntax decision (method-based
+  `Contract` and `Trace` are implemented).
 - [x] Add linear maps between distinct spaces, composition, pullbacks, and
   pushforwards using the same slot model.
 - [ ] Add sparse or accelerated component storage without changing semantic
@@ -918,30 +935,31 @@ Implementation is not complete until tests cover at least these cases:
   abstract vector-space and coordinate identities.
 - [x] A rank-1 bare literal remains `Shaped` rather than silently becoming a
   Vector.
-- [ ] Matrix components are shaped; Vector and Tensor values report their
-  component-storage capability without falsely satisfying `? :shaped` when
-  their coordinates are sparse or lazy.
+- [x] Matrix components are shaped; finite Vector and Tensor `Components()`
+  return Shaped storage without making the tensor itself Shaped.
+- [ ] Report coordinate-storage capabilities for sparse or lazy coordinates
+  without falsely satisfying `? :shaped` (the storage-protocol extension).
 - [x] Vector coordinate changes preserve abstract identity and create new
   representation identity.
-- [ ] Vector/covector pairing works without a metric, while dot product, norm,
+- [x] Vector/covector pairing works without a metric, while dot product, norm,
   and angle diagnose a missing metric.
 - [x] `:Tensor` without slot metadata is rejected.
 - [x] `/Tensor: V@V*@Wa/` resolves `V`/`Wa` to the intended local coordinate
   values and validates every dimension.
-- [ ] `V*` uses the canonically dual basis, while an explicit dual coordinate
+- [x] `V*` uses the canonically dual basis, while an explicit dual coordinate
   value can represent a noncanonical choice.
 - [x] A tensor with slots from differently sized spaces transforms correctly.
 - [x] Non-bang coordinate transformation returns a new representation of the
   same abstract tensor.
-- [ ] Bang transformation retains bounded history without changing abstract
+- [x] Bang transformation retains bounded history without changing abstract
   identity.
 - [x] Lineage always retains the origin plus the configured number of recent
   transformations (default 30), evicting the oldest intermediate record first.
-- [ ] Tensor-preserving views satisfy the slice/transform commutation law;
+- [x] Tensor-preserving views satisfy the slice/transform commutation law;
   coordinate component slices that fail it return component storage.
 - [x] Tensor arithmetic creates a new abstract identity with derivation
   provenance rather than an equivalence link.
-- [ ] Invalid contractions report the incompatible slots and spaces.
+- [x] Invalid contractions report the incompatible slots and spaces.
 - [x] Mixed-case type and trait spellings resolve identically and export with
   canonical spelling.
 - [x] Repository-owned serialized fixtures and IR use only the new names; old
@@ -980,3 +998,22 @@ Implementation is not complete until tests cover at least these cases:
 - [x] Retain a non-evictable origin plus a configurable recent lineage, with a
   default of 30 recent transformations per abstract tensor.
 - [x] Use the compact shaped header as the canonical formatter/export spelling.
+
+
+### T3 finite spectral and support completion
+
+The public Linalg implementation now returns exact characteristic/minimal
+Polynomials and Rational eigenspaces with bounded replayable spectral records.
+Canonical/Jordan bases and extension-field eigenspaces remain unsupported;
+budget exhaustion is distinguished from a proof that no further Rational roots
+exist. The implementation uses only the existing univariate Q[x] domain.
+
+`SparseCoordinates` implements finite support over exact Rational scalars,
+including finite and countable monomial axes, canonical zero removal, numeric
+key ordering and explicit support/work/index budgets. Tensor operations retain
+ordered slot and identity semantics. `PolynomialSpace(:unbounded)` represents
+finite polynomials only; `Bounded(n)`, `Include` and `Project` implement explicit
+finite subspace maps with replayable coefficient evidence. Identity graph v1
+remains finite/dense; sparse data has its own inert coordinate record adapter,
+which does not claim to restore ambient identities. See the Linalg README for
+limits and supported sparse operations.

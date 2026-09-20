@@ -1,14 +1,14 @@
 /**
 id: linalg
-description: Pure-RiX exact dense linear algebra and coordinate-aware tensor transformations.
+description: Pure-RiX exact linear algebra, Rational spectral evidence and finite-support tensors.
 kind: rix
 mount: linalg
-exports: [Rref, Rank, Determinant, Inverse, Solve, Bareiss, LU, LDU, QR, DeterminantCertificate, RowSpace, ColumnSpace, NullSpace, VectorSpace, DualSpace, DualFrame, Metric, Frame, Tensor, Vector, Covector, LinearMap, Compose, Pushforward, Pullback, TensorProduct, Contract, PolynomialSpace, Realize, Reconstruct, SameSource, ScalarField, CoordinateStorage, ExportGraph, ImportGraph, Serialize, ChangeMatrix, Transform, Transform!, Components, Pair, SameTensor]
+exports: [VerifyProjection, SparseCoordinates, RestoreCoordinates, VerifyCoordinates, CharacteristicPolynomial, MinimalPolynomial, RationalEigenspaces, VerifySpectral, Rref, Rank, Determinant, Inverse, Solve, Bareiss, LU, LDU, QR, DeterminantCertificate, RowSpace, ColumnSpace, NullSpace, VectorSpace, DualSpace, DualFrame, Metric, Frame, Tensor, Vector, Covector, LinearMap, Compose, Pushforward, Pullback, TensorProduct, Contract, PolynomialSpace, Realize, Reconstruct, SameSource, ScalarField, CoordinateStorage, ExportGraph, ImportGraph, Serialize, ChangeMatrix, Transform, Transform!, Components, Pair, SameTensor]
 groups: [LinearAlgebra, Exact]
 permissions: []
 requires: [rix.polynomial@1]
 provides: [rix.linear-algebra@2, rix.linear-algebra@1, rix.tensor@1, rix.linear-realization@1]
-schemas: [rix.linalg.result@1, rix.linalg.bareiss@1, rix.linalg.factorization@1, rix.linalg.qr@1, rix.linalg.determinant-certificate@1, rix.linalg.subspace@1, rix.linalg.vector-space@1, rix.linalg.frame@1, rix.linalg.metric@1, rix.linalg.tensor@1, rix.linalg.linear-map@1, rix.linalg.linear-realization@1, rix.linalg.polynomial-space@1, rix.linalg.identity-record@1, rix.linalg.identity-graph@1, rix.scalar-field@1, rix.coordinate-storage@1]
+schemas: [rix.linalg.polynomial-projection@1, rix.linalg.spectral@1, rix.linalg.result@1, rix.linalg.bareiss@1, rix.linalg.factorization@1, rix.linalg.qr@1, rix.linalg.determinant-certificate@1, rix.linalg.subspace@1, rix.linalg.vector-space@1, rix.linalg.frame@1, rix.linalg.metric@1, rix.linalg.tensor@1, rix.linalg.linear-map@1, rix.linalg.linear-realization@1, rix.linalg.polynomial-space@1, rix.linalg.identity-record@1, rix.linalg.identity-graph@1, rix.scalar-field@1, rix.coordinate-storage@1]
 snapshot: false
 deterministic: true
 defaultEnabled: false
@@ -871,6 +871,7 @@ LinalgVectorSpace(first, second ?= _, options ?= {= }) -> {;
 
 LinalgFrame(spaceValue, specification ?= _, basisArgument ?= _, options ?= {= }) -> {;
     space = LinalgRequireSpace(spaceValue);
+    space[:dimension]!=:countable ?_> .Error("Countable polynomial spaces provide their own monomial Frame; general infinite basis changes are unsupported");
     settings = specification ? :Map
       ?: specification.Merge({= space=space })
       ?_ options.Merge({= space=space, name=specification, basis=basisArgument });
@@ -907,6 +908,7 @@ LinalgFrame(spaceValue, specification ?= _, basisArgument ?= _, options ?= {= })
 LinalgChangeRows(sourceValue,targetValue) -> {;
     source=LinalgRequireFrame(sourceValue); target=LinalgRequireFrame(targetValue);
     LinalgSameSpace(source,target) ?: _ ?_ .Error("Frames must belong to the same VectorSpace");
+    source[:space][:dimension]!=:countable ?_> .Error("Countable Frames have no finite change matrix");
     LinalgMultiplyRows(LinalgMatrixRows(target[:inversebasis]),LinalgMatrixRows(source[:basis]));
 };
 LinalgChangeMatrix(source,target) -> {;
@@ -983,8 +985,9 @@ LinalgRecordRepresentation(identity,value) -> {;
 LinalgTensorValue(components,slots,lineage ?= {= }) -> {;
     components.Shape().Len()==slots.Len() ?_> .Error("Tensor rank must match its ordered slots");
     slots.All((slot,axis)->components.Shape()[axis]==slot[:frame][:space][:dimension]) ?_> .Error("Tensor component shape must match every slot Frame dimension");
-    LinalgVectorValues(components.Flatten()).All((entry)->(entry ? :Integer)||(entry ? :Rational)) ?_> .Error("Tensor components must be exact Rational scalars");
-    components=components ~!: :Shaped;
+    entries=LinalgSparseIs(components) ?: components.Entries().Map((term)->term[:value]) ?_ LinalgVectorValues(components.Flatten());
+    entries.All((entry)->(entry ? :Integer)||(entry ? :Rational)) ?_> .Error("Tensor components must be exact Rational scalars");
+    components=LinalgSparseIs(components) ?: components ?_ components ~!: :Shaped;
     typeName=LinalgTensorType(slots);
     identityKey=lineage.Has("identitykey") ?: lineage[:identitykey] ?_ LinalgNextIdentity(:tensor);
     identity=lineage.Has("identity")
@@ -1038,12 +1041,12 @@ LinalgTensorValue(components,slots,lineage ?= {= }) -> {;
 };
 
 LinalgTensor(components,frames,variance ?= _,options ?= {= }) -> {;
-    components ? :Shaped ?: _ ?_ .Error("Vector/Tensor components must be Shaped");
+    ((components ? :Shaped)||LinalgSparseIs(components)) ?_> .Error("Vector/Tensor components must be Shaped or finite-support coordinates");
     slots=LinalgNormalizeSlots(components,frames,variance);
     LinalgTensorValue(components,slots);
 };
-LinalgVector(components,frame,options ?= {= })->LinalgTensor(LinalgVectorStorage(LinalgVectorValues(components,"Vector components")),frame,[:up],options);
-LinalgCovector(components,frame,options ?= {= })->LinalgTensor(LinalgVectorStorage(LinalgVectorValues(components,"Covector components")),frame,[:down],options);
+LinalgVector(components,frame,options ?= {= })->LinalgTensor(LinalgSparseIs(components) ?: components ?_ LinalgVectorStorage(LinalgVectorValues(components,"Vector components")),frame,[:up],options);
+LinalgCovector(components,frame,options ?= {= })->LinalgTensor(LinalgSparseIs(components) ?: components ?_ LinalgVectorStorage(LinalgVectorValues(components,"Covector components")),frame,[:down],options);
 
 LinalgTypedShaped(requested,components,slotRecords) -> {;
     slots=slotRecords.Map((slot)->LinalgSlot(slot[:frame],LinalgActualVariance(slot[:frame],requested==:Covector ?: 1 ?_ slot[:dual])));
@@ -1076,6 +1079,7 @@ LinalgTupleForLinear(linear,shape,strides) -> {;
 };
 
 LinalgTransformAxis(tensor,axis,matrix) -> {;
+    !LinalgSparseIs(tensor) ?_> LinalgSparseAxis(tensor,axis,matrix);
     shape=tensor.Shape(); strides=LinalgStrides(shape); input=tensor.Flatten();
     output := [];
     {@ linear=0; linear<@input.Size(); {;
@@ -1101,6 +1105,7 @@ LinalgTargetFrames(value,targetValue) -> {;
 };
 
 LinalgTransformed(value,targets) -> {;
+    !LinalgSparseIs(value[:components]) ?_> LinalgSparseTransformed(value,targets);
     components := value[:components]; changes := [];
     {@ axis=1; axis<=@value[:slots].Len(); {;
         slot=@value[:slots][axis]; target=LinalgRequireFrame(@targets[axis]);
@@ -1164,13 +1169,14 @@ LinalgSameTensor(left,right)->LinalgRequireTensor(left)[:identitytoken]==LinalgR
 
 LinalgPair(firstValue,secondValue) -> {;
     first=LinalgRequireTensor(firstValue); second=LinalgRequireTensor(secondValue);
-    covector=first.__type=="Covector" ?: first ?_ second.__type=="Covector" ?: second ?_ _;
-    vector=first.__type=="Vector" ?: first ?_ second.__type=="Vector" ?: second ?_ _;
+    covector=LinalgTensorType(first[:slots])=="Covector" ?: first ?_ LinalgTensorType(second[:slots])=="Covector" ?: second ?_ _;
+    vector=LinalgTensorType(first[:slots])=="Vector" ?: first ?_ LinalgTensorType(second[:slots])=="Vector" ?: second ?_ _;
     covector!=_ && vector!=_ && first[:slots].Len()==1 && second[:slots].Len()==1
       ?_> .Error("Pair requires one Vector and one Covector");
     LinalgSameSpace(covector[:slots][1],vector[:slots][1])
       ?: _ ?_ .Error("Vector and Covector must belong to the same VectorSpace");
     aligned=LinalgSameFrame(vector[:slots][1],covector[:slots][1]) ?: vector ?_ LinalgTransform(vector,covector[:slots][1][:frame]);
+    !(LinalgSparseIs(covector[:components])||LinalgSparseIs(aligned[:components])) ?_> LinalgSparsePair(covector[:components],aligned[:components]);
     LinalgDot(LinalgVectorValues(covector[:components]),LinalgVectorValues(aligned[:components]));
 };
 
@@ -1182,6 +1188,8 @@ LinalgCombine(operation,leftValue,rightValue) -> {;
     LinalgCompatible(left,right) ?: _ ?_ .Error(@"@{operation} requires tensors with the same ordered VectorSpace slots and variance");
     aligned=left[:slots].All((slot,axis)->LinalgSameFrame(slot,right[:slots][axis]))
       ?: right ?_ LinalgTransform(right,left[:slots].Map((slot)->slot[:frame]));
+    !(LinalgSparseIs(left[:components])||LinalgSparseIs(aligned[:components])) ?_> LinalgTensorValue(
+        LinalgSparseAdd(left[:components],LinalgSparseScale(aligned[:components],operation==:add ?: 1 ?_ -1)),left[:slots],{= derivedFrom=[left,right] });
     a=left[:components].Flatten(); b=aligned[:components].Flatten();
     values=[];
     values=a.Map((entry,index)->operation==:add ?: entry+b[index] ?_ entry-b[index]);
@@ -1190,6 +1198,7 @@ LinalgCombine(operation,leftValue,rightValue) -> {;
 
 LinalgScale(operation,value,scalarValue,scalarFirst ?= _) -> {;
     tensor=LinalgRequireTensor(value); scalar=LinalgExact(scalarValue,"Tensor scalar");
+    !LinalgSparseIs(tensor[:components]) ?_> LinalgTensorValue(LinalgSparseScale(tensor[:components],operation==:mul ?: scalar ?_ 1/scalar),tensor[:slots],{= derivedFrom=[tensor] });
     values=tensor[:components].Map((entry)->operation==:mul ?: entry*scalar ?_ scalarFirst ?: scalar/entry ?_ entry/scalar);
     LinalgTensorValue(values,tensor[:slots],{= derivedFrom=[tensor] });
 };
@@ -1203,6 +1212,7 @@ LinalgDefaultFrame(spaceValue) -> {;
 
 LinalgDualSpace(spaceValue) -> {;
     space=LinalgRequireSpace(spaceValue);
+    space[:dimension]!=:countable ?_> .Error("The full dual of a countable algebraic space is not finite-support; use explicit finite-support Covectors for pairing");
     cached=@linalgState[:dualspaces].Filter((entry)->entry[:token]==space[:identitytoken]);
     cached.Len()==0 ?_> cached[1][:value];
     dual=LinalgVectorSpace({=
@@ -1259,11 +1269,13 @@ LinalgLinearMapVerify(value) -> {;
 
 LinalgPushforward(mapValue,vectorValue) -> {;
     map=LinalgRequireLinearMap(mapValue); vector=LinalgRequireTensor(vectorValue);
-    vector.__type=="Vector" && LinalgSameSpace(vector[:slots][1],map[:domain])
+    LinalgTensorType(vector[:slots])=="Vector" && LinalgSameSpace(vector[:slots][1],map[:domain])
       ?_> .Error("Pushforward requires a Vector in the map domain");
     aligned=LinalgSameFrame(vector[:slots][1],map[:sourceframe])
       ?: vector ?_ LinalgTransform(vector,map[:sourceframe]);
-    values=LinalgMultiplyMatrixVector(LinalgMatrixRows(map[:matrix]),LinalgVectorValues(aligned[:components]));
+    values=LinalgSparseIs(aligned[:components])
+      ?: LinalgSparseAxis(aligned[:components],1,LinalgMatrixRows(map[:matrix]))
+      ?_ LinalgMultiplyMatrixVector(LinalgMatrixRows(map[:matrix]),LinalgVectorValues(aligned[:components]));
     result=LinalgVector(values,map[:targetframe]);
     result[:viewof]=vector; result.viewOf=vector;
     result;
@@ -1271,12 +1283,14 @@ LinalgPushforward(mapValue,vectorValue) -> {;
 
 LinalgPullback(mapValue,covectorValue) -> {;
     map=LinalgRequireLinearMap(mapValue); covector=LinalgRequireTensor(covectorValue);
-    covector.__type=="Covector" && LinalgSameSpace(covector[:slots][1],map[:codomain])
+    LinalgTensorType(covector[:slots])=="Covector" && LinalgSameSpace(covector[:slots][1],map[:codomain])
       ?_> .Error("Pullback requires a Covector in the map codomain");
     aligned=LinalgSameFrame(covector[:slots][1],map[:targetframe])
       ?: covector ?_ LinalgTransform(covector,map[:targetframe]);
     transpose=LinalgTransposeRows(LinalgMatrixRows(map[:matrix]));
-    LinalgCovector(LinalgMultiplyMatrixVector(transpose,LinalgVectorValues(aligned[:components])),map[:sourceframe]);
+    values=LinalgSparseIs(aligned[:components]) ?: LinalgSparseAxis(aligned[:components],1,transpose)
+      ?_ LinalgMultiplyMatrixVector(transpose,LinalgVectorValues(aligned[:components]));
+    LinalgCovector(values,map[:sourceframe]);
 };
 
 LinalgCompose(leftValue,rightValue) -> {;
@@ -1337,6 +1351,8 @@ LinalgTensorProductSpace(leftValue,rightValue) -> {;
 
 LinalgTensorProductValues(leftValue,rightValue) -> {;
     left=LinalgRequireTensor(leftValue); right=LinalgRequireTensor(rightValue);
+    !(LinalgSparseIs(left[:components])||LinalgSparseIs(right[:components])) ?_> LinalgTensorValue(
+        LinalgSparseProduct(left[:components],right[:components]),left[:slots].Concat(right[:slots]),{= derivedFrom=[left,right],transform={= kind=:tensorProduct } });
     values:=[]; a=left[:components].Flatten(); b=right[:components].Flatten();
     {@ first=1; first<=@a.Size(); {;
         {@ second=1; second<=@b.Size(); {; @values ~= @values.Push(@a[@first]*@b[second]); }; second+=1 };
@@ -1365,6 +1381,7 @@ LinalgContract(value,firstAxisValue,secondAxisValue) -> {;
     targets=tensor[:slots].Map((slot)->slot[:frame]);
     targets=targets.Set(second,a[:frame]);
     aligned=LinalgSameFrame(a,b) ?: tensor ?_ LinalgTransform(tensor,targets);
+    !LinalgSparseIs(aligned[:components]) ?_> LinalgSparseContract(aligned,first,second);
     shape=aligned[:components].Shape(); sourceStrides=LinalgStrides(shape);
     remainingShape:=[]; remainingSlots:=[];
     {@ axis=1; axis<=@rank; {;
@@ -1398,8 +1415,10 @@ LinalgContract(value,firstAxisValue,secondAxisValue) -> {;
 };
 
 LinalgPolynomialSpace(maxDegreeValue,variable ?= :x,options ?= {= }) -> {;
+    !(maxDegreeValue ? :Map) ?_> LinalgPolynomialSpace(maxDegreeValue[:maxdegree],LinalgOption(maxDegreeValue,"variable",variable),options.Merge(maxDegreeValue));
     over=LinalgOption(options,"over",:Rational);
     over==:Rational ?_> .Error("PolynomialSpace requires the Rational scalar field");
+    maxDegreeValue!=:unbounded ?_> LinalgCountablePolynomialSpace(variable,options);
     maxDegree=LinalgPositiveInteger(maxDegreeValue+1,"Polynomial-space dimension")-1;
     space=LinalgVectorSpace({=
         name=LinalgOption(options,"name",@"Q[@{variable}] degree <= @{maxDegree}"),
@@ -1409,17 +1428,18 @@ LinalgPolynomialSpace(maxDegreeValue,variable ?= :x,options ?= {= }) -> {;
     frame=LinalgFrame(space,{= name="monomial",basis=:defining });
     LinalgPolynomialSpaceValue(space,frame,maxDegree,variable);
 };
-LinalgPolynomialSpaceValue(space,frame,maxDegree,variable) -> {;
+LinalgPolynomialSpaceValue(space,frame,maxDegree,variable,ambient ?= _) -> {;
     adapter={=
         valueKind=:polynomialSpace,schema="rix.linalg.polynomial-space@1",identityToken=LinalgNewIdentity(),
         adapter="rix.linalg.polynomial-space@1",space=space,frame=frame,
-        maxDegree=maxDegree,variable=variable,exact=1
+        maxDegree=maxDegree,variable=variable,exact=1,ambient=ambient
     };
     adapter.__type="PolynomialSpace";
     adapter._proto={=
         Realize=(self,value,frame ?= _)->LinalgPolynomialRealize(self,value,frame),
         Reconstruct=(self,vector)->LinalgPolynomialReconstruct(self,vector),
         Frame=(self)->self[:frame],ScalarField=(self)->LinalgRationalField(),
+        Bounded=(self,degree)->LinalgPolynomialBounded(self,degree),Include=(self,value)->LinalgPolynomialInclude(self,value),Project=(self,value)->LinalgPolynomialProject(self,value),
         Serialize=(self)->LinalgSerialize(self)
     };
     .ImmutableValue(adapter);
@@ -1447,6 +1467,7 @@ LinalgRealizationValue(adapter,polynomial,vector) -> {;
 LinalgPolynomialRealize(adapter,polynomial,frameValue ?= _) -> {;
     polynomial ? :Polynomial ?_> .Error("PolynomialSpace.Realize requires a Polynomial");
     LinalgPolynomialVariableEqual(polynomial.Variable(),adapter[:variable]) ?_> .Error("Polynomial variable does not match this PolynomialSpace");
+    adapter[:maxdegree]!=:unbounded ?_> LinalgPolynomialSparseRealize(adapter,polynomial,frameValue);
     polynomial.Degree()<=adapter[:maxdegree] ?_> .Error("Polynomial degree exceeds this finite realization space");
     coefficients:=polynomial.AscendingCoefficients();
     coefficients.All((value)->(value ? :Integer)||(value ? :Rational)) ?_> .Error("PolynomialSpace requires exact Rational coefficients");
@@ -1473,12 +1494,13 @@ LinalgSameSource(left,right) -> {;
 
 LinalgPolynomialReconstruct(adapter,vectorValue) -> {;
     vector=LinalgRequireTensor(vectorValue);
-    vector.__type=="Vector" && LinalgSameSpace(vector[:slots][1],adapter[:space])
+    LinalgTensorType(vector[:slots])=="Vector" && LinalgSameSpace(vector[:slots][1],adapter[:space])
       ?_> .Error("Polynomial reconstruction requires a Vector from this PolynomialSpace");
     aligned=LinalgSameFrame(vector[:slots][1],adapter[:frame])
       ?: vector ?_ LinalgTransform(vector,adapter[:frame]);
+    adapter[:maxdegree]!=:unbounded ?_> LinalgPolynomialSparseReconstruct(adapter,aligned[:components]);
     .poly.Polynomial({=
-        coefficients=LinalgVectorValues(aligned[:components]),order=:ascending,variable=adapter[:variable]
+        coefficients=LinalgVectorValues(LinalgSparseIs(aligned[:components]) ?: aligned[:components].Materialize() ?_ aligned[:components]),order=:ascending,variable=adapter[:variable]
     });
 };
 
@@ -1565,8 +1587,10 @@ LinalgTensorEqual(leftValue,rightValue) -> {;
     LinalgTensorIs(leftValue) && LinalgTensorIs(rightValue) ?_> _;
     LinalgCompatible(leftValue,rightValue) ?_> _;
     sameFrames=leftValue[:slots].All((slot,axis)->LinalgSameFrame(slot,rightValue[:slots][axis]));
-    aligned=(sameFrames ?: rightValue[:components] ?_ LinalgTransformed(rightValue,leftValue[:slots].Map((slot)->slot[:frame]))[:components]).Flatten();
-    LinalgVectorValues(leftValue[:components].Flatten()).All((entry,index)->entry==aligned[index]);
+    aligned=sameFrames ?: rightValue[:components] ?_ LinalgTransformed(rightValue,leftValue[:slots].Map((slot)->slot[:frame]))[:components];
+    !(LinalgSparseIs(leftValue[:components])||LinalgSparseIs(aligned)) ?_> LinalgSparseEqual(leftValue[:components],aligned);
+    flattened=aligned.Flatten();
+    LinalgVectorValues(leftValue[:components].Flatten()).All((entry,index)->entry==flattened[index]);
 };
 LinalgAxis(value,axisValue,label ?= "Tensor axis") -> {;
     axis=LinalgPositiveInteger(axisValue,label);
@@ -1583,6 +1607,7 @@ LinalgAxes(orderValue,rank) -> {;
     checked;
 };
 LinalgPermuteComponents(components,order) -> {;
+    !LinalgSparseIs(components) ?_> LinalgSparsePermute(components,order);
     shape=components.Shape(); targetShape=order.Map((axis)->shape[axis]);
     sourceStrides=LinalgStrides(shape); targetStrides=LinalgStrides(targetShape);
     source=components.Flatten(); result:=[];
@@ -1657,7 +1682,7 @@ LinalgMetricIndex(value,metricValue,axisValue,operation) -> {;
 };
 LinalgMetricDot(leftValue,rightValue,metricValue ?= _) -> {;
     metric=LinalgRequireMetric(metricValue); left=LinalgRequireTensor(leftValue); right=LinalgRequireTensor(rightValue);
-    left.__type=="Vector" && right.__type=="Vector" ?_> .Error("Metric Dot requires two primal Vectors");
+    LinalgTensorType(left[:slots])=="Vector" && LinalgTensorType(right[:slots])=="Vector" ?_> .Error("Metric Dot requires two primal Vectors");
     LinalgPair(LinalgMetricIndex(left,metric,1,:lower),right);
 };
 LinalgNormSquared(value,metric ?= _) -> LinalgMetricDot(value,value,metric);
@@ -1712,6 +1737,7 @@ LinalgSymmetry(value,axesValue ?= _,antisymmetric ?= _) -> {;
     axes.All((axis)->LinalgSameSpace(tensor[:slots][axis],first) && tensor[:slots][axis][:dual]==first[:dual])
       ?_> .Error("Symmetry requires selected slots from the same VectorSpace with identical variance");
     choices=LinalgPermutationChoices(axes);
+    !LinalgSparseIs(tensor[:components]) ?_> LinalgSparseSymmetry(tensor,axes,choices,antisymmetric);
     choices.Len()*tensor[:components].Size()<=131072 ?_> .Error("Symmetry work budget exceeded");
     frames=tensor[:slots].Map((slot,index)->axes.Any((axis)->axis==index) ?: first[:frame] ?_ slot[:frame]);
     aligned=LinalgTransformed(tensor,frames)[:components]; total:=LinalgZeros(aligned.Size());
@@ -1733,12 +1759,179 @@ LinalgSymmetry(value,axesValue ?= _,antisymmetric ?= _) -> {;
 LinalgTensorPower(value,exponentValue) -> {;
     tensor=LinalgRequireTensor(value); exponent=exponentValue ~!: :Integer;
     exponent!=_ && exponent>=0 && exponent<=8 ?_> .Error("TensorPower exponent must be an Integer from zero through eight");
-    tensor[:components].Size()^exponent<=65536 ?_> .Error("TensorPower component budget exceeded");
+    support=LinalgSparseIs(tensor[:components]) ?: tensor[:components].SupportSize() ?_ tensor[:components].Size();
+    support^exponent<=65536 ?_> .Error("TensorPower component budget exceeded");
     exponent==0 ?: 1 ?_ exponent==1 ?: LinalgView(tensor) ?_ {;
         result:=[@tensor];
         {@ power=2; power<=@exponent; {; @result ~= [LinalgTensorProductValues(@result[1],@tensor)]; }; power+=1 };
         result[1];
     };
+};
+
+### Finite exact spectral services over Q. No extension field is inferred.
+LinalgSpectralLimits(options) -> {;
+    dimension=LinalgPositiveInteger(LinalgOption(options,"maxdimension",8),"Spectral dimension budget");
+    trials=LinalgPositiveInteger(LinalgOption(options,"maxroottrials",10000),"Rational-root trial budget");
+    candidates=LinalgPositiveInteger(LinalgOption(options,"maxrootcandidates",4096),"Rational-root candidate budget");
+    dimension<=16 && trials<=100000 && candidates<=65536 ?_> .Error("Spectral budget exceeds supported hard bounds");
+    {= maxDimension=dimension,maxRootTrials=trials,maxRootCandidates=candidates };
+};
+LinalgSpectralRows(value,limits) -> {;
+    map=LinalgLinearMapIs(value);
+    (!map || LinalgSameSpace(value[:domain],value[:codomain])) ?_> .Error("Spectral services require an endomorphism of one VectorSpace");
+    input=map ?: value[:matrix] ?_ value;
+    shaped=input ? :Shaped;
+    (shaped || (input ? :Array)) ?_> .Error("Spectral matrix must be Shaped or an Array of rows");
+    count=shaped ?: input.Shape()[1] ?_ input.Len();
+    count>=1 && count<=limits[:maxdimension] ?_> .Error("Spectral matrix exceeds the dimension budget or is empty");
+    square=shaped ?: (input.Shape().Len()==2 && input.Shape()[2]==count)
+      ?_ input.All((row)->(row ? :Array) ?: row.Len()==count ?_ ((row ? :Shaped) && row.Shape().Len()==1 && row.Size()==count));
+    square ?_> .Error("Spectral services require a square Rational matrix");
+    rows=map ?: LinalgMultiplyRows(LinalgChangeRows(value[:targetframe],value[:sourceframe]),LinalgMatrixRows(value[:matrix]))
+      ?_ LinalgMatrixRows(value,"Spectral matrix");
+    rows.Len()==rows[1].Len() ?_> .Error("Spectral services require a square Rational matrix");
+    rows.Len()<=limits[:maxdimension] ?_> .Error("Spectral matrix exceeds the dimension budget"); rows;
+};
+LinalgSpectralShift(rows,scalar) -> rows.Map((row,i)->row.Map((entry,j)->i==j ?: entry+scalar ?_ entry));
+LinalgSpectralTrace(rows) -> {;
+    result:=0; {@ index=1;index<=@rows.Len();{; @result+=@rows[index][index]; };index+=1 }; result;
+};
+LinalgCharacteristicRows(rows,variable) -> {;
+    n=rows.Len(); recurrence:=LinalgIdentityRows(n); descending:=[1];
+    {@ degree=1;degree<=@n;{;
+        product=LinalgMultiplyRows(@rows,@recurrence); coefficient=-LinalgSpectralTrace(product)/degree;
+        @descending ~= @descending.Push(coefficient);
+        @recurrence ~= LinalgSpectralShift(product,coefficient);
+    };degree+=1 };
+    .poly.Polynomial({= coefficients=descending,order=:descending,variable=variable });
+};
+LinalgPolynomialMatrixRows(rows,polynomial) -> {;
+    coefficients=polynomial.Coefficients(); result:=rows.Map((row)->row.Map((entry)->0));
+    {@ index=1;index<=@coefficients.Len();{;
+        @result ~= LinalgSpectralShift(LinalgMultiplyRows(@result,@rows),@coefficients[index]);
+    };index+=1 }; result;
+};
+LinalgAnnihilates(rows,polynomial) -> LinalgPolynomialMatrixRows(rows,polynomial).All((row)->LinalgAllZero(row));
+LinalgMinimalRows(rows,variable) -> {;
+    n=rows.Len(); identity=LinalgIdentityRows(n); powers:=[LinalgFlattenRows(identity)]; current:=identity;
+    {@ degree=1;degree<=@n;{;
+        @current ~= LinalgMultiplyRows(@current,@rows);
+        target=LinalgFlattenRows(@current).Map((entry)->-entry);
+        columns=@powers; system=target.Map((entry,index)->columns.Map((power)->power[index]));
+        solved=LinalgSolveValues(system,target);
+        solved[:status]=="inconsistent" ?_> .poly.Polynomial({= coefficients=LinalgVectorValues(solved[:particular]).Push(1),order=:ascending,variable=@variable });
+        @powers ~= @powers.Push(LinalgFlattenRows(@current));
+    };degree+=1 };
+    .Error("Exact minimal-polynomial search did not find a Cayley-Hamilton relation");
+};
+LinalgCharacteristicPolynomial(value,variable ?= :x,options ?= {= }) -> {;
+    limits=LinalgSpectralLimits(options); rows=LinalgSpectralRows(value,limits);
+    selected=.ExpressionVariableSelector(_,variable); result=LinalgCharacteristicRows(rows,selected);
+    LinalgAnnihilates(rows,result) ?_> .Error("Characteristic-polynomial annihilation verification failed"); result;
+};
+LinalgMinimalPolynomial(value,variable ?= :x,options ?= {= }) -> {;
+    limits=LinalgSpectralLimits(options); rows=LinalgSpectralRows(value,limits);
+    selected=.ExpressionVariableSelector(_,variable); result=LinalgMinimalRows(rows,selected);
+    LinalgAnnihilates(rows,result) ?_> .Error("Minimal-polynomial annihilation verification failed"); result;
+};
+LinalgIntegerGcd(left,right) -> {;
+    a:=(left ~!: :Integer).Abs();b:=(right ~!: :Integer).Abs();
+    {@ step=1;@b!=0;{; remainder:=@a%@b;@a~=@b;@b~=remainder; };step+=1 };a;
+};
+LinalgPrimitivePolynomial(polynomial) -> {;
+    coefficients=polynomial.AscendingCoefficients(); denominator:=1;
+    {@ index=1;index<=@coefficients.Len();{;
+        d:=@coefficients[index].Denominator();@denominator ~= (@denominator//LinalgIntegerGcd(@denominator,d))*d;
+    };index+=1 };
+    integers=coefficients.Map((coefficient)->coefficient.Numerator()*(denominator//coefficient.Denominator())); content:=0;
+    {@ index=1;index<=@integers.Len();{; @content ~= LinalgIntegerGcd(@content,@integers[index]); };index+=1 };
+    integers.Map((entry)->entry//content);
+};
+LinalgBoundedDivisors(value,state) -> {;
+    number=value.Abs();lower:=[];upper:=[];
+    {@ candidate=1;candidate*candidate<=@number;{;
+        @state[:trials]+=1;
+        @state[:trials]<=@state[:limit] ?_> _;
+        @number%candidate==0 ?: {;
+            @lower ~= @lower.Push(@candidate);pair=@number//@candidate;
+            pair!=@candidate ?: {; @upper ~= @upper.Push(@pair); } ?_ _;
+        } ?_ _;
+    };candidate+=1 };
+    lower.Concat(upper.Reverse());
+};
+LinalgRationalRootSearch(polynomial,limits) -> {;
+    coefficients=LinalgPrimitivePolynomial(polynomial); nonzero=coefficients.Filter((entry)->entry!=0);
+    zero=coefficients[1]==0; known=zero ?: [0] ?_ [];
+    state={= trials=0,limit=limits[:maxroottrials] };state._mutable=1;
+    numerators=LinalgBoundedDivisors(nonzero[1],state);
+    numerators!=_ ?_> {= complete=_,roots=known,reason=:rootTrialBudget,trials=state[:trials],candidates=0 };
+    denominators=LinalgBoundedDivisors(coefficients.Last(),state);
+    denominators!=_ ?_> {= complete=_,roots=known,reason=:rootTrialBudget,trials=state[:trials],candidates=0 };
+    count=2*numerators.Len()*denominators.Len()+known.Len();
+    count<=limits[:maxrootcandidates] ?_> {= complete=_,roots=known,reason=:rootCandidateBudget,trials=state[:trials],candidates=0 };
+    candidates:=known;
+    {@ i=1;i<=@numerators.Len();{;
+        {@ j=1;j<=@denominators.Len();{;
+            q=@numerators[@i]/@denominators[j];@candidates ~= @candidates.Push(q).Push(-q);
+        };j+=1 };
+    };i+=1 };
+    roots=candidates.Distinct().Sort().Filter((candidate)->polynomial.Evaluate(candidate)==0);
+    {= complete=1,roots=roots,reason=_,trials=state[:trials],candidates=candidates.Len() };
+};
+LinalgRootMultiplicity(polynomial,root) -> {;
+    residual:=[polynomial]; multiplicity:=0;
+    {@ step=1;step<=@polynomial.Degree() && @residual[1].Evaluate(@root)==0;{;
+        division=@residual[1].SyntheticDiv(@root);@residual ~= [division[:quotient]];@multiplicity+=1;
+    };step+=1 };
+    {= multiplicity=multiplicity,residual=residual[1] };
+};
+LinalgEigenspaceRecord(rows,polynomial,root) -> {;
+    kernel=LinalgNullSpace(LinalgMatrixValue(LinalgSpectralShift(rows,-root)));
+    kernel.Verify() ?_> .Error("Exact eigenspace residual verification failed");
+    {= root=root,algebraicMultiplicity=LinalgRootMultiplicity(polynomial,root)[:multiplicity],
+       geometricMultiplicity=kernel[:dimension],basis=kernel[:basis].Map((vector)->LinalgVectorValues(vector)),
+       rank=rows.Len()-kernel[:dimension] };
+};
+LinalgSpectralRecord(rows,variable,limits) -> {;
+    characteristic=LinalgCharacteristicRows(rows,variable);minimal=LinalgMinimalRows(rows,variable);
+    LinalgAnnihilates(rows,characteristic) && LinalgAnnihilates(rows,minimal)
+      ?_> .Error("Spectral polynomial annihilation verification failed");
+    roots=LinalgRationalRootSearch(characteristic,limits);
+    spaces=roots[:roots].Map((root)->LinalgEigenspaceRecord(rows,characteristic,root));
+    residual:=[characteristic]; dimension:=0;
+    {@ index=1;index<=@spaces.Len();{;
+        @residual ~= [LinalgRootMultiplicity(@residual[1],@spaces[index][:root])[:residual]];
+        @dimension+=@spaces[index][:geometricmultiplicity];
+    };index+=1 };
+    {= schema="rix.linalg.spectral@1",kind=:rationalSpectral,field=:Rational,source=rows,variable=variable,
+       characteristic=characteristic.AscendingCoefficients(),minimal=minimal.AscendingCoefficients(),
+       eigenspaces=spaces,rootSearch=roots,residual=residual[1].AscendingCoefficients(),
+       diagonalizableOverRational=dimension==rows.Len() ?: 1 ?_ roots[:complete] ?: _ ?_ ?,
+       canonicalForms={= status=:unsupported,reason=:canonicalFormsNotImplemented,extensionFieldRequired=roots[:complete] ?: residual[1].Degree()>0 ?_ ? },
+       budgets=limits };
+};
+LinalgRationalEigenspaces(value,variable ?= :x,options ?= {= }) -> {;
+    limits=LinalgSpectralLimits(options);rows=LinalgSpectralRows(value,limits);selected=.ExpressionVariableSelector(_,variable);
+    record=LinalgSpectralRecord(rows,selected,limits);result=record.Merge({= verified=1 });
+    result.__type="RationalSpectralEvidence";
+    result._proto={=
+        Verify=(self)->LinalgVerifySpectral(self.Record(),limits),
+        Record=(self)->record,
+        Spaces=(self)->self[:eigenspaces],Roots=(self)->self[:rootsearch][:roots],
+        CharacteristicPolynomial=(self)->.poly.Polynomial({= coefficients=self[:characteristic],order=:ascending,variable=self[:variable] }),
+        MinimalPolynomial=(self)->.poly.Polynomial({= coefficients=self[:minimal],order=:ascending,variable=self[:variable] })
+    };
+    .ImmutableValue(result);
+};
+LinalgVerifySpectral(value,options ?= _) -> {;
+    record=.MathDecodeJSON(.MathEncodeJSON(value));
+    LinalgGraphKeys(record,["schema","kind","field","source","variable","characteristic","minimal","eigenspaces","rootsearch","residual","diagonalizableoverrational","canonicalforms","budgets"]);
+    record[:schema]=="rix.linalg.spectral@1" && record[:kind]==:rationalSpectral && record[:field]==:Rational
+      ?_> .Error("Unsupported spectral evidence record");
+    LinalgGraphKeys(record[:budgets],["maxdimension","maxroottrials","maxrootcandidates"]);
+    limits=LinalgSpectralLimits(options==_ ?: record[:budgets] ?_ options); rows=LinalgSpectralRows(record[:source],limits);variable=LinalgGraphVariable(record[:variable]);
+    computed=LinalgSpectralRecord(rows,variable,limits);
+    .MathEncodeJSON(record)==.MathEncodeJSON(computed) ?_> .Error("Spectral evidence does not reproduce under the supplied verification budgets"); 1;
 };
 
 LinalgRationalField() -> {;
@@ -1754,7 +1947,8 @@ LinalgRationalField() -> {;
 };
 LinalgCoordinateStorage(input) -> {;
     storage=LinalgTensorIs(input) ?: input[:components] ?_ input;
-    storage ? :Shaped ?_> .Error("The finite coordinate-storage adapter requires Shaped components");
+    !LinalgSparseIs(storage) ?_> storage;
+    storage ? :Shaped ?_> .Error("Coordinate storage requires Shaped or finite-support components");
     LinalgVectorValues(storage.Flatten());
     value={= schema="rix.coordinate-storage@1",kind=:denseShaped,finite=1,scalarField="rix.scalar-field.rational@1",storage=storage };
     value._proto={=
@@ -1769,6 +1963,296 @@ LinalgCoordinateMaterialize(value,maxCellsValue) -> {;
     maxCells=LinalgPositiveInteger(maxCellsValue,"Coordinate materialization budget");
     value[:storage].Size()<=maxCells ?_> .Error("Coordinate materialization component budget exceeded");
     value[:storage] ~!: :Shaped;
+};
+
+### Canonical algebraic finite support. Countable axes use nonnegative keys.
+LinalgSparseIs(value) -> (value ? :Map) && value[:schema]=="rix.coordinate-storage@1" && value[:kind]==:finiteSupport;
+LinalgSparseLimits(options) -> {;
+    support=LinalgPositiveInteger(LinalgOption(options,"maxsupport",256),"Sparse support budget");
+    work=LinalgPositiveInteger(LinalgOption(options,"maxwork",65536),"Sparse work budget");
+    index=LinalgPositiveInteger(LinalgOption(options,"maxindex",4096),"Sparse index budget");
+    support<=2048 && work<=1048576 && index<=65536 ?_> .Error("Sparse budget exceeds supported hard bounds");
+    {= maxSupport=support,maxWork=work,maxIndex=index };
+};
+LinalgSparseShape(value) -> {;
+    shape=value ? :Tuple ?: value.ToArray() ?_ value;
+    shape ? :Array ?_> .Error("Sparse shape must be an Array or Tuple");
+    shape.Len()>=1 && shape.Len()<=32 ?_> .Error("Sparse rank must be between one and 32");
+    shape.All((extent)->extent==:countable || ((extent ? :Integer) && extent>=1 && extent<=65536))
+      ?_> .Error("Sparse dimensions must be finite positive Integers or :countable");shape;
+};
+LinalgSparseIndices(value,shape,limits) -> {;
+    indices=value ? :Tuple ?: value.ToArray() ?_ value;
+    indices ? :Array ?_> .Error("Sparse indices must be an Array or Tuple");
+    indices.Len()==shape.Len() ?_> .Error("Sparse index rank mismatch");
+    indices.All((key,axis)->(key ? :Integer) && key<=limits[:maxindex] && (shape[axis]==:countable ?: key>=0 ?_ key>=1 && key<=shape[axis]))
+      ?_> .Error("Sparse index is outside its axis or index budget");indices;
+};
+LinalgSparseCompare(left,right) -> {;
+    {@ axis=1;axis<=@left.Len();{;
+        @left[axis]==@right[axis] ?_> (@left[axis]<@right[axis] ?: -1 ?_ 1);
+    };axis+=1 };0;
+};
+LinalgSparseCanonical(terms,shape,limits) -> {;
+    terms ? :Array ?_> .Error("Sparse terms must be an Array");
+    terms.Len()<=limits[:maxwork] ?_> .Error("Sparse input exceeds the work budget");
+    result:=[];work:=0;
+    {@ index=1;index<=@terms.Len();{;
+        term=@terms[index];LinalgGraphKeys(term,["indices","value"]);
+        indices=LinalgSparseIndices(term[:indices],@shape,@limits);scalar=LinalgExact(term[:value],"Sparse coefficient");
+        scalar!=0 ?: {;
+            position:=1;found:=_;
+            {@ scan=1;scan<=@result.Len() && !@found;{;
+                @work+=1;@work<=@limits[:maxwork] ?_> .Error("Sparse canonicalization exceeds the work budget");
+                comparison=LinalgSparseCompare(@indices,@result[scan][:indices]);
+                comparison>0 ?: {; @position+=1; } ?_ {; @found=1; };
+            };scan+=1 };
+            match=position<=@result.Len() ?: LinalgSparseCompare(@indices,@result[position][:indices])==0 ?_ _;
+            match ?: {;
+                sum=@result[@position][:value]+@scalar;
+                @result ~= sum==0 ?: @result.RemoveAt(@position) ?_ @result.Set(@position,{= indices=@indices,value=sum });
+            } ?_ {;
+                @result.Len()<@limits[:maxsupport] ?_> .Error("Sparse support budget exceeded");
+                @result ~= @result.Slice(1,@position).Push({= indices=@indices,value=@scalar }).Concat(@result.Slice(@position));
+            };
+        } ?_ _;
+    };index+=1 };result;
+};
+LinalgSparseCoordinates(terms,shapeValue,options ?= {= }) -> {;
+    limits=LinalgSparseLimits(options);shape=LinalgSparseShape(shapeValue);
+    canonical=LinalgSparseCanonical(terms,shape,limits);
+    value={= schema="rix.coordinate-storage@1",kind=:finiteSupport,finite=1,scalarField="rix.scalar-field.rational@1",shape=shape,terms=canonical,budgets=limits };
+    value._proto={=
+        Shape=(self)->self[:shape],Size=(self)->LinalgSparseSize(self),SupportSize=(self)->self[:terms].Len(),
+        Entries=(self)->self[:terms],Get=(self,indices)->LinalgSparseGet(self,indices),
+        Materialize=(self,maxCells ?= 65536)->LinalgSparseMaterialize(self,maxCells),
+        Add=(self,other)->LinalgSparseAdd(self,other),Scale=(self,scalar)->LinalgSparseScale(self,scalar),
+        TensorProduct=(self,other)->LinalgSparseProduct(self,other),Permute=(self,order)->LinalgSparsePermute(self,order),
+        Equal=(self,other)->LinalgSparseEqual(self,other),ScalarField=(self)->LinalgRationalField(),
+        Record=(self)->{= schema=self[:schema],kind=self[:kind],finite=self[:finite],scalarField=self[:scalarfield],shape=self[:shape],terms=self[:terms],budgets=self[:budgets] },
+        Verify=(self)->LinalgVerifyCoordinates(self.Record())
+    };
+    .ImmutableValue(value);
+};
+LinalgSparseSize(value) -> {;
+    value[:shape].All((extent)->extent!=:countable) ?_> _;
+    count:=1;{@ axis=1;axis<=@value[:shape].Len();{; @count*=@value[:shape][axis]; };axis+=1 };count;
+};
+LinalgSparseGet(value,indicesValue) -> {;
+    indices=LinalgSparseIndices(indicesValue,value[:shape],value[:budgets]);
+    terms=value[:terms].Filter((term)->LinalgSparseCompare(term[:indices],indices)==0);
+    terms.Len()==0 ?: 0 ?_ terms[1][:value];
+};
+LinalgSparseMaterialize(value,maxCellsValue) -> {;
+    maxCells=LinalgPositiveInteger(maxCellsValue,"Sparse materialization budget");count=value.Size();
+    count!=_ ?_> .Error("Countable coordinates require an explicit finite projection before materialization");
+    maxCells<=262144 && count<=maxCells ?_> .Error("Sparse materialization component budget exceeded");
+    entries:=LinalgZeros(count);strides=LinalgStrides(value[:shape]);
+    {@ term=1;term<=@value[:terms].Len();{;
+        item=@value[:terms][term];linear:=1;
+        {@ axis=1;axis<=@strides.Len();{; @linear+=(@item[:indices][axis]-1)*@strides[axis]; };axis+=1 };
+        @entries ~= @entries.Set(linear,item[:value]);
+    };term+=1 };LinalgShapedFromFlat(entries,value[:shape]);
+};
+LinalgAsSparse(value,options ?= _) -> {;
+    LinalgSparseIs(value) ?_> LinalgDenseSparse(value,options==_ ?: {= } ?_ options);
+    value;
+};
+LinalgDenseSparse(value,options) -> {;
+    storage=LinalgCoordinateStorage(value);dense=storage.Materialize(65536);shape=dense.Shape().ToArray();strides=LinalgStrides(shape);terms:=[];flat=dense.Flatten();
+    flat.Size()<=LinalgSparseLimits(options)[:maxwork] ?_> .Error("Dense conversion exceeds the sparse work budget");
+    {@ linear=0;linear<@flat.Size();{;
+        @flat[linear+1]!=0 ?: {; @terms ~= @terms.Push({= indices=LinalgTupleForLinear(@linear,@shape,@strides).Map((index)->index+1),value=@flat[@linear+1] }); } ?_ _;
+    };linear+=1 };LinalgSparseCoordinates(terms,shape,options);
+};
+LinalgSparseCommon(left,right) -> {;
+    a=LinalgAsSparse(left);b=LinalgAsSparse(right,a[:budgets]);
+    a[:shape].Len()==b[:shape].Len() && a[:shape].All((extent,index)->extent==b[:shape][index]) ?_> .Error("Sparse coordinate shapes must agree");b;
+};
+LinalgSparseAdd(left,right) -> {;
+    a=LinalgAsSparse(left);b=LinalgSparseCommon(a,right);LinalgSparseCoordinates(a[:terms].Concat(b[:terms]),a[:shape],a[:budgets]);
+};
+LinalgSparseScale(value,scalarValue) -> {;
+    a=LinalgAsSparse(value);scalar=LinalgExact(scalarValue,"Sparse scalar");
+    LinalgSparseCoordinates(a[:terms].Map((term)->{= indices=term[:indices],value=term[:value]*scalar }),a[:shape],a[:budgets]);
+};
+LinalgSparseProduct(left,right) -> {;
+    a=LinalgAsSparse(left);b=LinalgAsSparse(right,a[:budgets]);count=a[:terms].Len()*b[:terms].Len();
+    count<=a[:budgets][:maxsupport] && count<=a[:budgets][:maxwork] ?_> .Error("Sparse tensor-product support/work budget exceeded");terms:=[];
+    {@ i=1;i<=@a[:terms].Len();{;
+        {@ j=1;j<=@b[:terms].Len();{;
+            @terms ~= @terms.Push({= indices=@a[:terms][@i][:indices].Concat(@b[:terms][j][:indices]),value=@a[:terms][@i][:value]*@b[:terms][j][:value] });
+        };j+=1 };
+    };i+=1 };LinalgSparseCoordinates(terms,a[:shape].Concat(b[:shape]),a[:budgets]);
+};
+LinalgSparsePermute(value,orderValue) -> {;
+    order=LinalgAxes(orderValue,value[:shape].Len());
+    LinalgSparseCoordinates(value[:terms].Map((term)->{= indices=order.Map((axis)->term[:indices][axis]),value=term[:value] }),order.Map((axis)->value[:shape][axis]),value[:budgets]);
+};
+LinalgSparseEqual(left,right) -> {;
+    a=LinalgAsSparse(left);b=LinalgSparseCommon(a,right);
+    a[:terms].Len()==b[:terms].Len() && a[:terms].All((term,index)->LinalgSparseCompare(term[:indices],b[:terms][index][:indices])==0 && term[:value]==b[:terms][index][:value]);
+};
+LinalgRestoreCoordinates(recordValue) -> {;
+    record=.MathDecodeJSON(.MathEncodeJSON(recordValue));
+    LinalgGraphKeys(record,["schema","kind","finite","scalarfield","shape","terms","budgets"]);
+    record[:schema]=="rix.coordinate-storage@1" && record[:kind]==:finiteSupport && record[:finite]==1 && record[:scalarfield]=="rix.scalar-field.rational@1"
+      ?_> .Error("Unsupported sparse coordinate record");
+    LinalgGraphKeys(record[:budgets],["maxsupport","maxwork","maxindex"]);
+    restored=LinalgSparseCoordinates(record[:terms],record[:shape],record[:budgets]);
+    .MathEncodeJSON(restored.Record())==.MathEncodeJSON(record) ?_> .Error("Sparse coordinate record must be canonical");restored;
+};
+LinalgVerifyCoordinates(record) -> {; LinalgRestoreCoordinates(record);1;};
+
+LinalgSparsePair(left,right) -> {;
+    a=LinalgAsSparse(left);b=LinalgSparseCommon(a,right);
+    a.SupportSize()*b.SupportSize()<=a[:budgets][:maxwork] ?_> .Error("Sparse pairing work budget exceeded");sum:=0;
+    {@ index=1;index<=@a[:terms].Len();{; @sum+=@a[:terms][index][:value]*@b.Get(@a[:terms][index][:indices]); };index+=1 };sum;
+};
+LinalgSparseTransformed(value,targets) -> {;
+    components:=[value[:components]];changes:=[];
+    {@ axis=1;axis<=@value[:slots].Len();{;
+        slot=@value[:slots][axis];target=LinalgRequireFrame(@targets[axis]);
+        LinalgSameSpace(slot,target) ?_> .Error("Target Frame must belong to the sparse tensor slot's VectorSpace");
+        same=LinalgSameFrame(slot,target);
+        same ?: {; @changes ~= @changes.Push(_); } ?_ {;
+            @slot[:frame][:space][:dimension]!=:countable ?_> .Error("Countable coordinates currently support only their monomial Frame");
+            change=LinalgChangeRows(@slot[:frame],@target);applied=@slot[:dual] ?: LinalgInverseRows(LinalgTransposeRows(change)) ?_ change;
+            storage=@components[1];terms:=[];extent=storage[:shape][@axis];
+            storage.SupportSize()*extent<=storage[:budgets][:maxwork] ?_> .Error("Sparse frame-change work budget exceeded");
+            {@ term=1;term<=@storage.SupportSize();{;
+                item=@storage[:terms][term];
+                {@ row=1;row<=@extent;{;
+                    coefficient=@item[:value]*@applied[row][@item[:indices][@axis]];
+                    coefficient!=0 ?: {; @terms ~= @terms.Push({= indices=@item[:indices].Set(@axis,@row),value=@coefficient }); } ?_ _;
+                };row+=1 };
+            };term+=1 };
+            @components ~= [LinalgSparseCoordinates(terms,storage[:shape],storage[:budgets])];
+            @changes ~= @changes.Push(LinalgMatrixValue(applied));
+        };
+    };axis+=1 };{= components=components[1],changes=changes };
+};
+LinalgSparseContract(tensor,first,second) -> {;
+    storage=tensor[:components];remaining=LinalgZeros(tensor[:slots].Len()).Map((unused,index)->index).Filter((axis)->axis!=first && axis!=second);
+    selected=storage[:terms].Filter((term)->term[:indices][first]==term[:indices][second]);
+    remaining.Len()>0 ?_> {;
+        sum:=0;{@ index=1;index<=@selected.Len();{; @sum+=@selected[index][:value]; };index+=1 };sum;
+    };
+    terms=selected.Map((term)->{= indices=remaining.Map((axis)->term[:indices][axis]),value=term[:value] });
+    shape=remaining.Map((axis)->storage[:shape][axis]);slots=remaining.Map((axis)->tensor[:slots][axis]);
+    LinalgTensorValue(LinalgSparseCoordinates(terms,shape,storage[:budgets]),slots,{= derivedFrom=[tensor],transform={= kind=:contraction,axes=[first,second] } });
+};
+
+### Countable monomial Frames describe finite polynomials, never series.
+LinalgCountablePolynomialSpace(variableValue,options) -> {;
+    variable=.ExpressionVariableSelector(_,variableValue);limits=LinalgSparseLimits(options);
+    space=LinalgVectorSpace({= name=LinalgOption(options,"name",@"Q[@{variable}]"),dimension=1,over=:Rational,lineageLimit=LinalgOption(options,"lineagelimit",30),metadata={= construction=:finitePolynomialSpace,variable=variable } });
+    space[:dimension]=:countable;space.dimension=:countable;
+    frame={= valueKind=:frame,schema="rix.linalg.frame@1",name="monomial",space=space,spaceIdentity=space[:spaceidentity],spaceToken=space[:identitytoken],identityToken=LinalgNewIdentity(),frameIdentity=LinalgNextIdentity(:frame),
+        relativeTo=_,localBasis=_,basis=_,inverseBasis=_,defining=1,metadata={= construction=:countableMonomial,variable=variable,budgets=limits } };
+    frame.__type="Frame";frame._mutable=1;
+    frame._proto={= BasisAt=(self,index)->LinalgMonomialBasisAt(self,index),ScalarField=(self)->LinalgRationalField() };
+    frame.space=space;frame.spaceIdentity=frame[:spaceidentity];frame.frameIdentity=frame[:frameidentity];frame.name=frame[:name];frame.defining=1;
+    space[:definingframe]=frame;space.definingFrame=frame;
+    LinalgPolynomialSpaceValue(space,frame,:unbounded,variable);
+};
+LinalgMonomialBasisAt(frame,indexValue) -> {;
+    index=LinalgGraphInteger(indexValue,0,frame[:metadata][:budgets][:maxindex],"Monomial degree");
+    .poly.Polynomial({= coefficients=LinalgZeros(index).Push(1),order=:ascending,variable=frame[:metadata][:variable] });
+};
+LinalgPolynomialSparseRealize(adapter,polynomial,frameValue) -> {;
+    frame=frameValue==_ ?: adapter[:frame] ?_ LinalgRequireFrame(frameValue);
+    LinalgSameFrame(frame,adapter[:frame]) ?_> .Error("Countable polynomial realization requires its monomial Frame");
+    limits=frame[:metadata][:budgets];polynomial.Degree()<=limits[:maxindex] ?_> .Error("Polynomial degree exceeds the finite-support index budget");
+    terms=polynomial.AscendingCoefficients().Map((coefficient,index)->{= indices=[index-1],value=coefficient }).Filter((term)->term[:value]!=0);
+    vector=LinalgVector(LinalgSparseCoordinates(terms,[:countable],limits),frame);vector[:viewof]=polynomial;vector.viewOf=polynomial;
+    LinalgRealizationValue(adapter,polynomial,vector);
+};
+LinalgPolynomialSparseReconstruct(adapter,storage) -> {;
+    storage[:shape].Len()==1 && storage[:shape][1]==:countable ?_> .Error("Polynomial reconstruction requires one countable monomial axis");
+    degree=storage.SupportSize()==0 ?: 0 ?_ storage[:terms].Last()[:indices][1];
+    degree<=adapter[:frame][:metadata][:budgets][:maxindex] ?_> .Error("Polynomial reconstruction index budget exceeded");
+    coefficients:=LinalgZeros(degree+1);
+    {@ term=1;term<=@storage.SupportSize();{; item=@storage[:terms][term];@coefficients ~= @coefficients.Set(item[:indices][1]+1,item[:value]); };term+=1 };
+    .poly.Polynomial({= coefficients=coefficients,order=:ascending,variable=adapter[:variable] });
+};
+LinalgPolynomialBounded(adapter,degreeValue) -> {;
+    adapter[:maxdegree]==:unbounded ?_> .Error("Bounded requires a countable PolynomialSpace");
+    degree=LinalgGraphInteger(degreeValue,0,255,"Bounded polynomial degree");
+    ordinary=LinalgPolynomialSpace(degree,adapter[:variable]);
+    LinalgPolynomialSpaceValue(ordinary[:space],ordinary[:frame],degree,adapter[:variable],adapter);
+};
+LinalgPolynomialInclude(adapter,realization) -> {;
+    adapter[:maxdegree]==:unbounded ?_> .Error("Include requires the countable ambient PolynomialSpace");
+    ((realization ? :Map) && realization[:schema]=="rix.linalg.linear-realization@1") ?_> .Error("Include requires a bounded polynomial realization");
+    source=realization[:realization];
+    source[:maxdegree]!=:unbounded && source[:ambient]!=_ && source[:ambient][:identitytoken]==adapter[:identitytoken]
+      ?_> .Error("Polynomial inclusion requires a Bounded subspace of this ambient PolynomialSpace");
+    polynomial=realization[:domain];reconstructed=LinalgPolynomialReconstruct(source,realization[:vector]);
+    (polynomial==reconstructed)==1 ?_> .Error("Polynomial inclusion source coordinates do not reconstruct their domain");
+    LinalgPolynomialRealize(adapter,polynomial);
+};
+LinalgPolynomialProjectionRecord(variable,degree,source,kept,discarded) -> {=
+    schema="rix.linalg.polynomial-projection@1",kind=:degreeProjection,field=:Rational,variable=variable,maxDegree=degree,
+    source=source.AscendingCoefficients(),kept=kept.AscendingCoefficients(),discarded=discarded.AscendingCoefficients()
+};
+LinalgPolynomialProject(adapter,realization) -> {;
+    adapter[:maxdegree]!=:unbounded && adapter[:ambient]!=_ ?_> .Error("Project requires a Bounded subspace of a countable PolynomialSpace");
+    ((realization ? :Map) && realization[:schema]=="rix.linalg.linear-realization@1") ?_> .Error("Project requires a countable polynomial realization");
+    realization[:realization][:identitytoken]==adapter[:ambient][:identitytoken] ?_> .Error("Polynomial projection requires this bounded subspace's ambient realization");
+    source=realization[:domain];reconstructed=LinalgPolynomialReconstruct(adapter[:ambient],realization[:vector]);
+    (source==reconstructed)==1 ?_> .Error("Polynomial projection source coordinates do not reconstruct their domain");
+    coefficients=source.AscendingCoefficients();degree=adapter[:maxdegree];
+    kept=.poly.Polynomial({= coefficients=coefficients.Slice(1,degree+2),order=:ascending,variable=adapter[:variable] });
+    discarded=source-kept;record=LinalgPolynomialProjectionRecord(adapter[:variable],degree,source,kept,discarded);
+    LinalgVerifyProjection(record);
+    result={= schema="rix.linalg.polynomial-projection-result@1",source=realization,projection=LinalgPolynomialRealize(adapter,kept),discarded=discarded,verified=1,exactInclusion=discarded.AscendingCoefficients().All((entry)->entry==0) };
+    result._proto={= Record=(self)->record,Verify=(self)->LinalgVerifyProjection(record),Realization=(self)->self[:projection],Vector=(self)->self[:projection].Vector(),Remainder=(self)->self[:discarded] };
+    .ImmutableValue(result);
+};
+LinalgVerifyProjection(recordValue) -> {;
+    record=.MathDecodeJSON(.MathEncodeJSON(recordValue));
+    LinalgGraphKeys(record,["schema","kind","field","variable","maxdegree","source","kept","discarded"]);
+    record[:schema]=="rix.linalg.polynomial-projection@1" && record[:kind]==:degreeProjection && record[:field]==:Rational ?_> .Error("Unsupported polynomial projection record");
+    variable=LinalgGraphVariable(record[:variable]);degree=LinalgGraphInteger(record[:maxdegree],0,255,"Projection degree bound");
+    lists=[record[:source],record[:kept],record[:discarded]];
+    lists.All((items)->(items ? :Array) && items.Len()>=1 && items.Len()<=65537) ?_> .Error("Projection coefficients exceed finite work bounds");
+    lists.All((items)->items.All((entry)->(entry ? :Integer)||(entry ? :Rational))) ?_> .Error("Projection coefficients must be exact Rational scalars");
+    polynomials=lists.Map((items)->.poly.Polynomial({= coefficients=items,order=:ascending,variable=variable }));
+    source=polynomials[1];kept=polynomials[2];discarded=polynomials[3];
+    kept.Degree()<=degree && discarded.AscendingCoefficients().Slice(1,degree+2).All((entry)->entry==0) && (source==kept+discarded)==1
+      ?_> .Error("Polynomial projection evidence does not reproduce");1;
+};
+
+LinalgSparseAxis(storage,axis,matrix) -> {;
+    sourceExtent=storage[:shape][axis];sourceExtent!=:countable ?_> .Error("Countable axes have no finite matrix action");
+    matrix[1].Len()==sourceExtent ?_> .Error("Sparse matrix action input dimension mismatch");extent=matrix.Len();
+    storage.SupportSize()*extent<=storage[:budgets][:maxwork] ?_> .Error("Sparse matrix-action work budget exceeded");terms:=[];
+    {@ term=1;term<=@storage.SupportSize();{;
+        item=@storage[:terms][term];
+        {@ row=1;row<=@extent;{;
+            coefficient=@item[:value]*@matrix[row][@item[:indices][@axis]];
+            coefficient!=0 ?: {; @terms ~= @terms.Push({= indices=@item[:indices].Set(@axis,@row),value=@coefficient }); } ?_ _;
+        };row+=1 };
+    };term+=1 };LinalgSparseCoordinates(terms,storage[:shape].Set(axis,extent),storage[:budgets]);
+};
+LinalgSparseSymmetry(tensor,axes,choices,antisymmetric) -> {;
+    storage=tensor[:components];rank=tensor[:slots].Len();first=tensor[:slots][axes[1]];
+    choices.Len()*(storage.SupportSize()+1)^2*rank<=storage[:budgets][:maxwork] ?_> .Error("Sparse symmetry work budget exceeded");
+    frames=tensor[:slots].Map((slot,index)->axes.Any((axis)->axis==index) ?: first[:frame] ?_ slot[:frame]);
+    aligned=LinalgTransformed(tensor,frames)[:components];total:=[LinalgSparseCoordinates([],storage[:shape],storage[:budgets])];
+    {@ choice=1;choice<=@choices.Len();{;
+        order:=LinalgZeros(@rank).Map((unused,index)->index);selected=@choices[choice];inversions:=0;
+        {@ position=1;position<=@axes.Len();{;
+            @order ~= @order.Set(@axes[position],@selected[position]);
+            {@ later=@position+1;later<=@axes.Len();{; @axes.IndexOf(@selected[@position])>@axes.IndexOf(@selected[later]) ?: {; @inversions+=1; } ?_ _; };later+=1 };
+        };position+=1 };
+        sign=(@antisymmetric && inversions%2==1) ?: -1 ?_ 1;
+        @total ~= [LinalgSparseAdd(@total[1],LinalgSparseScale(LinalgSparsePermute(@aligned,order),sign))];
+    };choice+=1 };
+    common={= components=LinalgSparseScale(total[1],1/choices.Len()),slots=tensor[:slots].Map((slot,index)->LinalgSlot(frames[index],slot[:dual])) };
+    final=LinalgTransformed(common,tensor[:slots].Map((slot)->slot[:frame]))[:components];
+    LinalgTensorValue(final,tensor[:slots],{= derivedFrom=[tensor],transform={= kind=antisymmetric ?: :antisymmetrize ?_ :symmetrize,axes=axes,terms=choices.Len() } });
 };
 
 ### Closed, bounded, data-only identity graph. IDs below are document-local.
@@ -1797,6 +2281,10 @@ LinalgGraphToken(value,kind) -> kind==:polynomial ?: value.sourceIdentity
 LinalgGraphRef(state,value) -> {;
     value!=_ ?_> _;
     kind=LinalgGraphKind(value); token=LinalgGraphToken(value,kind);
+    countable=(kind==:vectorSpace && value[:dimension]==:countable)
+      || (kind==:frame && value[:space][:dimension]==:countable)
+      || (kind==:polynomialSpace && value[:maxdegree]==:unbounded);
+    !countable ?_> .Error("Identity graph v1 requires finite spaces and Frames; countable monomial identities cannot be exported");
     token!=_ ?_> .Error("Linear graph value is missing its runtime identity token");
     found=state[:nodes].Filter((node)->node[:kind]==kind && node[:token]==token);
     found.Len()==0 ?_> found[1][:id];
@@ -1807,7 +2295,9 @@ LinalgGraphRef(state,value) -> {;
     id;
 };
 LinalgGraphStorage(state,value) -> {;
-    storage=LinalgCoordinateStorage(value); entries=storage.Entries();
+    storage=LinalgCoordinateStorage(value);
+    !LinalgSparseIs(storage) ?_> .Error("Identity graph v1 requires finite dense coordinates; use sparse Record/RestoreCoordinates or materialize a finite tensor first");
+    entries=storage.Entries();
     state[:components]+=entries.Len();
     state[:components]<=state[:limits][:maxcomponents] ?_> .Error("Linear graph component budget exceeded");
     {= schema="rix.coordinate-storage@1",kind=:denseShaped,scalarField="rix.scalar-field.rational@1",shape=storage.Shape().ToArray(),data=entries };
@@ -2403,6 +2893,10 @@ LinalgImportGraph(graph,options ?= {= }) -> {;
 linalgNamespace={= };
 linalgNamespace._mutable=1;
 linalgNamespace._proto={=
+    CharacteristicPolynomial=(self,value,variable ?= :x,options ?= {= })->LinalgCharacteristicPolynomial(value,variable,options),
+    MinimalPolynomial=(self,value,variable ?= :x,options ?= {= })->LinalgMinimalPolynomial(value,variable,options),
+    RationalEigenspaces=(self,value,variable ?= :x,options ?= {= })->LinalgRationalEigenspaces(value,variable,options),
+    VerifySpectral=(self,value,options ?= _)->LinalgVerifySpectral(value,options),
     Rref=(self,value)->LinalgRref(value), Rank=(self,value)->LinalgRank(value),
     Determinant=(self,value)->LinalgDeterminant(value), Inverse=(self,value)->LinalgInverse(value),
     Solve=(self,first,second ?= _)->second==_ ?: LinalgSolve(first) ?_ LinalgSolveValues(first,second),
@@ -2434,6 +2928,9 @@ linalgNamespace._proto={=
     Serialize=(self,value)->LinalgSerialize(value),
     SameSource=(self,left,right)->LinalgSameSource(left,right),
     ScalarField=(self)->LinalgRationalField(),CoordinateStorage=(self,value)->LinalgCoordinateStorage(value),
+    SparseCoordinates=(self,terms,shape,options ?= {= })->LinalgSparseCoordinates(terms,shape,options),
+    RestoreCoordinates=(self,record)->LinalgRestoreCoordinates(record),VerifyCoordinates=(self,record)->LinalgVerifyCoordinates(record),
+    VerifyProjection=(self,record)->LinalgVerifyProjection(record),
     ExportGraph=(self,values,options ?= {= })->LinalgExportGraph(values,options),
     ImportGraph=(self,graph,options ?= {= })->LinalgImportGraph(graph,options),
     ChangeMatrix=(self,source,target)->LinalgChangeMatrix(source,target),
@@ -2460,3 +2957,7 @@ linalgNamespace._proto["TRANSFORM!"]=(self,value,target)->LinalgTransformBang(va
 .Host.RegisterMethod("Matrix","RowSpace",(value)->LinalgRowSpace(value),"linalg","linalg");
 .Host.RegisterMethod("Matrix","ColumnSpace",(value)->LinalgColumnSpace(value),"linalg","linalg");
 .Host.RegisterMethod("Matrix","NullSpace",(value)->LinalgNullSpace(value),"linalg","linalg");
+
+.Host.RegisterMethod("Matrix","CharacteristicPolynomial",(value,variable ?= :x,options ?= {= })->LinalgCharacteristicPolynomial(value,variable,options),"linalg","linalg");
+.Host.RegisterMethod("Matrix","MinimalPolynomial",(value,variable ?= :x,options ?= {= })->LinalgMinimalPolynomial(value,variable,options),"linalg","linalg");
+.Host.RegisterMethod("Matrix","RationalEigenspaces",(value,variable ?= :x,options ?= {= })->LinalgRationalEigenspaces(value,variable,options),"linalg","linalg");

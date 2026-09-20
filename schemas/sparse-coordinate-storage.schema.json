@@ -1,0 +1,102 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "kind",
+    "finite",
+    "scalarfield",
+    "shape",
+    "terms",
+    "budgets"
+  ],
+  "properties": {
+    "schema": {
+      "const": "rix.coordinate-storage@1"
+    },
+    "kind": {
+      "const": "finiteSupport"
+    },
+    "finite": {
+      "const": 1
+    },
+    "scalarfield": {
+      "const": "rix.scalar-field.rational@1"
+    },
+    "shape": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "oneOf": [
+          {
+            "const": "countable"
+          },
+          {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65536
+          }
+        ]
+      },
+      "maxItems": 32
+    },
+    "terms": {
+      "type": "array",
+      "minItems": 0,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "indices",
+          "value"
+        ],
+        "properties": {
+          "indices": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 65536
+            },
+            "maxItems": 32
+          },
+          "value": {
+            "description": "Exact RiX Integer or Rational, carried by the mathematical JSON tagged codec."
+          }
+        }
+      },
+      "maxItems": 2048
+    },
+    "budgets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "maxsupport",
+        "maxwork",
+        "maxindex"
+      ],
+      "properties": {
+        "maxsupport": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2048
+        },
+        "maxwork": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1048576
+        },
+        "maxindex": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65536
+        }
+      }
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/sparse-coordinate-storage/v1.schema.json",
+  "title": "Canonical finite-support Rational coordinates v1",
+  "description": "Normalized data record before mathematical JSON tagging. Finite axes use 1-based keys; countable monomial axes use nonnegative degree keys. Runtime rejects zero coefficients, duplicate or unsorted numeric lexicographic keys, out-of-shape coordinates and bounded-work overruns. finite describes support, not ambient dimension. No closure or infinite sequence is restored."
+}

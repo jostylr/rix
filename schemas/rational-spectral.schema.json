@@ -1,0 +1,213 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "kind",
+    "field",
+    "source",
+    "variable",
+    "characteristic",
+    "minimal",
+    "eigenspaces",
+    "rootsearch",
+    "residual",
+    "diagonalizableoverrational",
+    "canonicalforms",
+    "budgets"
+  ],
+  "properties": {
+    "schema": {
+      "const": "rix.linalg.spectral@1"
+    },
+    "kind": {
+      "const": "rationalSpectral"
+    },
+    "field": {
+      "const": "Rational"
+    },
+    "source": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+          "description": "Exact RiX Integer or Rational, carried by the mathematical JSON tagged codec."
+        },
+        "maxItems": 16
+      },
+      "maxItems": 16
+    },
+    "variable": {
+      "description": "Univariate string/symbol or scoped expression variable; mathematical JSON preserves document-local symbol sharing."
+    },
+    "characteristic": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "description": "Exact RiX Integer or Rational, carried by the mathematical JSON tagged codec."
+      },
+      "maxItems": 17
+    },
+    "minimal": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "description": "Exact RiX Integer or Rational, carried by the mathematical JSON tagged codec."
+      },
+      "maxItems": 17
+    },
+    "eigenspaces": {
+      "type": "array",
+      "minItems": 0,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "root",
+          "algebraicmultiplicity",
+          "geometricmultiplicity",
+          "basis",
+          "rank"
+        ],
+        "properties": {
+          "root": {
+            "description": "Exact RiX Integer or Rational, carried by the mathematical JSON tagged codec."
+          },
+          "algebraicmultiplicity": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 16
+          },
+          "geometricmultiplicity": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 16
+          },
+          "basis": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "description": "Exact RiX Integer or Rational, carried by the mathematical JSON tagged codec."
+              },
+              "maxItems": 16
+            },
+            "maxItems": 16
+          },
+          "rank": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 15
+          }
+        }
+      },
+      "maxItems": 16
+    },
+    "rootsearch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "complete",
+        "roots",
+        "reason",
+        "trials",
+        "candidates"
+      ],
+      "properties": {
+        "complete": {
+          "description": "RiX truth: Integer 1, decided negative/null _, or undecided ? as stated by root-search completeness. Transported by mathematical JSON."
+        },
+        "roots": {
+          "type": "array",
+          "minItems": 0,
+          "items": {
+            "description": "Exact RiX Integer or Rational, carried by the mathematical JSON tagged codec."
+          },
+          "maxItems": 16
+        },
+        "reason": {
+          "enum": [
+            null,
+            "rootTrialBudget",
+            "rootCandidateBudget"
+          ]
+        },
+        "trials": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100001
+        },
+        "candidates": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65536
+        }
+      }
+    },
+    "residual": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "description": "Exact RiX Integer or Rational, carried by the mathematical JSON tagged codec."
+      },
+      "maxItems": 17
+    },
+    "diagonalizableoverrational": {
+      "description": "RiX truth: Integer 1, decided negative/null _, or undecided ? as stated by root-search completeness. Transported by mathematical JSON."
+    },
+    "canonicalforms": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "reason",
+        "extensionfieldrequired"
+      ],
+      "properties": {
+        "status": {
+          "const": "unsupported"
+        },
+        "reason": {
+          "const": "canonicalFormsNotImplemented"
+        },
+        "extensionfieldrequired": {
+          "description": "RiX truth: Integer 1, decided negative/null _, or undecided ? as stated by root-search completeness. Transported by mathematical JSON."
+        }
+      }
+    },
+    "budgets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "maxdimension",
+        "maxroottrials",
+        "maxrootcandidates"
+      ],
+      "properties": {
+        "maxdimension": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16
+        },
+        "maxroottrials": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100000
+        },
+        "maxrootcandidates": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65536
+        }
+      }
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/rational-spectral/v1.schema.json",
+  "title": "Exact Rational spectral evidence v1",
+  "description": "Ascending polynomial coefficients and exact eigenvector bases. VerifySpectral replays bounded characteristic/minimal-polynomial computation, exact annihilation, Rational-root enumeration and nullspaces. Incomplete root search leaves diagonalizability and coefficient-extension requirements undecided unless already proved. No canonical/Jordan basis or extension field is asserted."
+}

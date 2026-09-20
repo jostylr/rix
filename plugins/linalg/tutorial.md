@@ -279,3 +279,48 @@ abstract tensor identity. Imported sources are frozen coefficient snapshots;
 they retain no provider closure or reactive subscription. Invalid references,
 contradictory coordinates and budget overruns are rejected before results are
 returned. See the README for graph limits and finite storage protocols.
+
+## Exact spectral information without a field extension
+
+```{.rix exec=true id=rational-spectral-tutorial}
+.Plugin.Load("linalg");
+matrix := [1/2,1;0,2/3] ~!: :Matrix;
+spectral := matrix.RationalEigenspaces();
+spectral.CharacteristicPolynomial().Coefficients().All((entry,index)->entry==[1,-7/6,1/3][index]) ##@ == 1
+spectral.Roots().All((entry,index)->entry==[1/2,2/3][index]) ##@ == 1
+spectral.Verify() ##@ == 1
+rotation := .linalg.RationalEigenspaces([0,-1;1,0]);
+rotation.Roots().Len() ##@ == 0
+rotation[:canonicalforms][:extensionfieldrequired] ##@ == 1
+```
+
+The rotation has characteristic polynomial `x^2+1` and no Rational eigenvalue.
+RiX records the need for a coefficient extension; it does not manufacture a
+Jordan basis over Q. An incomplete bounded root search reports `?` for claims
+it has not decided.
+
+## Finite support in a countable polynomial space
+
+```{.rix exec=true id=finite-support-tutorial}
+.Plugin.Load("linalg");
+polynomials := .linalg.PolynomialSpace(:unbounded);
+small := polynomials.Bounded(2);
+p := .p`x^5+3*x^2+2`;
+r := polynomials.Realize(p);
+r.Vector().components.SupportSize() ##@ == 3
+r.Reconstruct()==p ##@ == 1
+projected := small.Project(r);
+projected.Verify() ##@ == 1
+projected.Vector().components[1] ##@ == 2
+projected.Vector().components[2] ##@ == 0
+projected.Vector().components[3] ##@ == 3
+polynomials.Include(projected.Realization()).Reconstruct()+projected.Remainder()==p ##@ == 1
+saved := .MathEncodeJSON(r.Vector().components.Record());
+.linalg.RestoreCoordinates(.MathDecodeJSON(saved)).Verify() ##@ == 1
+```
+
+The countable Frame supplies monomials by nonnegative degree; every value has
+finite support. The bounded projection keeps degrees zero through two and
+reports the exact discarded term `x^5`. Sparse tensor products combine ordered
+coordinate slots with explicit support budgets. They do not create multivariate
+Polynomials or infinite series.

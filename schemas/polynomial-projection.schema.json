@@ -1,0 +1,61 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "kind",
+    "field",
+    "variable",
+    "maxdegree",
+    "source",
+    "kept",
+    "discarded"
+  ],
+  "properties": {
+    "schema": {
+      "const": "rix.linalg.polynomial-projection@1"
+    },
+    "kind": {
+      "const": "degreeProjection"
+    },
+    "field": {
+      "const": "Rational"
+    },
+    "variable": {
+      "description": "Univariate string/symbol or scoped expression variable; mathematical JSON preserves document-local symbol sharing."
+    },
+    "maxdegree": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 255
+    },
+    "source": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "description": "Exact RiX Integer or Rational, carried by the mathematical JSON tagged codec."
+      },
+      "maxItems": 65537
+    },
+    "kept": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "description": "Exact RiX Integer or Rational, carried by the mathematical JSON tagged codec."
+      },
+      "maxItems": 65537
+    },
+    "discarded": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "description": "Exact RiX Integer or Rational, carried by the mathematical JSON tagged codec."
+      },
+      "maxItems": 65537
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/polynomial-projection/v1.schema.json",
+  "title": "Exact bounded-degree Polynomial projection evidence v1",
+  "description": "Ascending Rational coefficients. VerifyProjection checks source=kept+discarded, degree(kept)<=maxdegree and all discarded coefficients through maxdegree are zero. Ambient runtime identities are not recreated by this data-only evidence."
+}

@@ -339,3 +339,130 @@ changes scalar domains. `NormSquared` is exact for every accepted metric;
 for an indefinite form this is the bilinear self-pairing, not a positive norm.
 Metrics and explicit dual Frames participate in `ExportGraph`/`ImportGraph`;
 `Serialize` remains available for inspecting an individual identity record.
+
+## Rational spectral evidence
+
+`CharacteristicPolynomial(A, variable?, options?)` and `MinimalPolynomial`
+return genuine univariate Polynomials over Q and check `p(A)=0` exactly.
+The minimal polynomial is the first dependence among `I,A,...,A^n`, with
+exact solving at every degree. Both accept matrix rows, rank-2 Shaped, Matrix,
+or a finite Rational endomorphism. A LinearMap with different source/target
+Frames is expressed in its source Frame before computing either invariant.
+Typed Matrix receivers expose the same methods.
+
+`RationalEigenspaces` returns an immutable report with `Roots()`, `Spaces()`,
+`CharacteristicPolynomial()`, `MinimalPolynomial()`, `Record()`, and `Verify()`.
+Each eigenspace gives the exact Rational root, algebraic/geometric
+multiplicities, an independent kernel basis, and rank. The report also gives
+the remaining characteristic factor and `diagonalizableOverRational`.
+
+```{.rix exec=true id=rational-spectral-readme}
+.Plugin.Load("linalg");
+spectral := .linalg.RationalEigenspaces([2,1;0,2]);
+{: spectral.CharacteristicPolynomial().Coefficients(),
+   spectral.MinimalPolynomial().Coefficients(),spectral.Roots(),
+   spectral[:diagonalizableoverrational],spectral.Verify() };
+```
+
+The two polynomials are `(x-2)^2`, the only root is `2`, and the one-dimensional
+eigenspace proves this matrix is not diagonalizable over Q. The verifier
+recomputes the entire report, including annihilation and eigenvector residuals;
+`.linalg.VerifySpectral(record)` accepts a data-only `Record()` after
+`MathEncodeJSON`/`MathDecodeJSON`. Scoped variables retain document-local sharing.
+
+Spectral budgets are `maxDimension=8`, `maxRootTrials=10000`, and
+`maxRootCandidates=4096`, with hard maxima 16, 100000, and 65536. Root enumeration
+uses a bounded Rational-root theorem search. A trial/candidate budget exhaustion
+returns a partial report: roots already proved remain exact, while root-search
+completeness is `_` and unresolved diagonalizability/extension requirements are
+`?`. It never treats an incomplete search as proof of no Rational roots.
+`VerifySpectral` uses the record's hard-bounded budgets by default; explicitly
+supplied verification budgets must reproduce the same report. Rational
+canonical forms, Jordan bases, and extension-field eigenspaces are unsupported;
+`canonicalForms` records that boundary explicitly.
+
+## Canonical sparse coordinates
+
+`SparseCoordinates(terms, shape, options?)` implements `rix.coordinate-storage@1`
+with `kind=:finiteSupport`. Each input term is `{= indices=[...],value=q }`.
+Coordinates are exact Integer/Rational values; duplicates are combined, zeros
+removed, and keys sorted numerically in lexicographic order. Finite axes use
+1-based indices. A `:countable` axis uses nonnegative monomial degree keys.
+`finite=1` means the support is finite, even when the ambient dimension is not.
+
+```{.rix exec=true id=sparse-coordinates-readme}
+.Plugin.Load("linalg");
+coordinates := .linalg.SparseCoordinates([
+  {= indices=[2],value=3 },{= indices=[1],value=2 },
+  {= indices=[2],value=-1 }
+],[3]);
+{: coordinates.Entries(),coordinates.Materialize(),coordinates.Verify() };
+```
+
+Methods include `Shape`, `Size`, `SupportSize`, `Entries`, `Get`, `ScalarField`,
+`Add`, `Scale`, `TensorProduct`, `Permute`, `Equal`, `Materialize`, `Record`, and
+`Verify`. `Entries()` contains canonical sparse terms; dense adapters retain
+logical row-major scalar entries. `Size()` is the finite ambient cell count or
+`_` for countable axes. `Get` selects one exact coordinate; it is not a range
+slice. `Materialize(maxCells=65536)` requires all axes finite and respects a
+hard ceiling of 262144 cells. Countable coordinates require an explicit bounded
+polynomial projection before materialization.
+
+Budgets are `maxSupport=256`, `maxWork=65536`, `maxIndex=4096`, with hard maxima
+2048, 1048576, and 65536. Rank is at most 32; each finite axis is at most 65536.
+Index, input/work, canonicalization, intermediate support, matrix action and
+product growth are checked before or during bounded work. A product of supports
+of sizes `a` and `b` must fit `a*b` within its left operand's limits; cancellation
+in later operations does not authorize exceeding the intermediate support.
+
+`Vector`, `Covector`, and `Tensor` accept sparse components through the same
+ordered Frame slots and exact Rational scalar field. Add/subtract, scale/divide,
+equality, Frame transforms, pairing, finite LinearMap application/pullback,
+permutation, contraction, metric index changes, symmetry, and tensor powers
+retain exact sparse semantics and preserve the existing identity rules. Mixing
+dense and sparse components selects sparse output with bounded conversion.
+No operation infers a new scalar domain or a multivariate Polynomial from a
+tensor product's independent slots.
+
+`RestoreCoordinates(record)` restores only closed canonical sparse data;
+`VerifyCoordinates(record)` checks it without trusting a method or callback.
+`MathEncodeJSON` is the transport codec. Identity graph v1 remains finite and
+dense: it rejects sparse tensors/countable Frames explicitly. Use sparse
+records for their coordinates, or explicitly materialize finite components and
+construct the finite tensor graph required by an application. Sparse records
+alone do not assert or restore mathematical space/tensor identity.
+
+## Finite polynomials in a countable monomial Frame
+
+`PolynomialSpace(:unbounded, variable?, options?)` (or a settings Map with
+`maxDegree=:unbounded`) describes finite polynomials of any admissible degree.
+It exposes a countable monomial Frame via `Frame()` and `Frame().BasisAt(degree)`.
+`Realize(p).Vector().Components()` is sparse, and `Reconstruct` returns a genuine
+Polynomial. Addition, cancellation, scaling, pairing with explicit finite-support
+Covectors, and tensor products remain algebraic and finite. The full algebraic
+dual of a countable space is not finite-support, so `DualSpace` rejects that
+request rather than equating the two. General infinite basis changes, series,
+convergent expansions and topology remain later work.
+
+```{.rix exec=true id=polynomial-support-readme}
+.Plugin.Load("linalg");
+polynomials := .linalg.PolynomialSpace(:unbounded);
+bounded := polynomials.Bounded(2);
+source := polynomials.Realize(.p`x^5+3*x^2+2`);
+projected := bounded.Project(source);
+{: source.Vector().components.Entries(),projected.Vector().components,
+   projected.Remainder().Coefficients(),projected.Verify(),
+   polynomials.Include(projected.Realization()).Reconstruct()+projected.Remainder()==source.Domain() };
+```
+
+`Bounded(n)` provides the finite dense `P_<=n` subspace for `0<=n<=255`.
+`Include` accepts a realization from a subspace created by that same ambient
+adapter and preserves its Polynomial source identity. `Project` requires that
+ambient realization and returns its bounded realization plus the discarded
+Polynomial. It checks `source = kept + discarded`, the degree bound on `kept`,
+and the zero low-degree coefficients of `discarded`. Its `Record()` carries
+replayable `rix.linalg.polynomial-projection@1` evidence accepted by
+`.linalg.VerifyProjection`; it makes no claim to transport ambient identity.
+`exactInclusion` is true precisely when nothing was discarded. Projecting to
+one bound then including and projecting to another gives the corresponding
+finite subspace maps without conflating their tensor identities.
