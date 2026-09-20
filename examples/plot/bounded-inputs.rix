@@ -1,0 +1,8 @@
+.Plugin.Load("plot");
+state := .plot.Stream(6);
+state := .plot.StreamAppend(state, [[1,1/3],[2,2/3],[3,1],[4,7/3]]);
+state := .plot.StreamAppend(state, [[5,-1/3],[6,1/2],[7,3/4],[8,1]]);
+.Fragment([
+    .plot.StreamLine(state, {= maxPoints=4,title="Bounded exact stream tail" }),
+    .plot.HeatMapData([[1,2,3,4],[5,6,7,8],[9,10,11,12]], [0,4], [0,3], {= maxCells=4,title="Exact block means" })
+])

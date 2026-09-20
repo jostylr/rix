@@ -1,0 +1,58 @@
+{
+  "schema": "rix.plot.performance@1",
+  "runtime": "1.4.0",
+  "platform": "darwin",
+  "architecture": "arm64",
+  "date": "2026-09-20T12:12:58.935Z",
+  "notes": [
+    "One bounded workload per case after plugin initialization; timing is observational, not a pass/fail threshold.",
+    "All 4096 source values are validated; bounding reduces retained scene/output size, not inputscan cost.",
+    "Heap delta includes temporary allocations; it is not retained-memory usage or hard memory isolation."
+  ],
+  "results": [
+    {
+      "name": "line-all",
+      "inputCount": 4096,
+      "evaluateMs": 798.27,
+      "renderMs": 76.68,
+      "heapDeltaBytes": 122049501,
+      "children": 8,
+      "htmlBytes": 5892212,
+      "sha256": "172abdb22997be4bfbe993759527ed4c259c8d0966b1ed9fa94a34620c07d54e",
+      "deterministicReplay": true
+    },
+    {
+      "name": "line-bounded",
+      "inputCount": 4096,
+      "evaluateMs": 398.57,
+      "renderMs": 3,
+      "heapDeltaBytes": 101038507,
+      "children": 8,
+      "htmlBytes": 202772,
+      "sha256": "1906df740d1b13dd073844afc863fb1c59f65ded6b06bbbee8931235db517379",
+      "deterministicReplay": true
+    },
+    {
+      "name": "heatmap-1024",
+      "inputCount": 4096,
+      "evaluateMs": 474.96,
+      "renderMs": 36.03,
+      "heapDeltaBytes": 24110522,
+      "children": 1026,
+      "htmlBytes": 3135025,
+      "sha256": "4cc9d597a568025fabe64b9e558b296ba7ae59d2b0ff1e30e2b323987af92175",
+      "deterministicReplay": true
+    },
+    {
+      "name": "heatmap-64",
+      "inputCount": 4096,
+      "evaluateMs": 255.8,
+      "renderMs": 1.83,
+      "heapDeltaBytes": 38003718,
+      "children": 66,
+      "htmlBytes": 199870,
+      "sha256": "5049c7245a7c041bb3067fe9682733f68d88c1d0fcb84c8e0538588c7aa43ce6",
+      "deterministicReplay": true
+    }
+  ]
+}

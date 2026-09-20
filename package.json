@@ -17,6 +17,7 @@
     "examples/geometry/",
     "examples/newton/",
     "examples/plugins/",
+    "examples/plot/",
     "examples/problems/",
     "examples/publication-workflow/",
     "examples/quadratic/*.rix",

@@ -44,6 +44,15 @@ function valueText(value, format) {
     }
 }
 
+function exactValueText(value) {
+    // Portable exact records have no custom toString; preserve their rational
+    // spelling instead of the generic object label or a host decimal formatter.
+    if (typeof value?.numerator === "bigint" && typeof value?.denominator === "bigint" && String(value) === "[object Object]") {
+        return `${value.numerator}/${value.denominator}`;
+    }
+    return String(value);
+}
+
 /** Classify the epistemic status retained by a value, never by its pixels. */
 export function graphicValueExactness(value) {
     if (value === null || value === undefined) return "unresolved";
@@ -158,6 +167,7 @@ function seriesPlans(plot, format) {
     return Object.freeze(sequenceValue(mapField(plot, "series")).map((entry, seriesIndex) => {
         const lowered = sequenceValue(mapField(entry, "data"));
         const original = sequenceValue(mapField(entry, "originalData"));
+        const sampleIds = sequenceValue(mapField(entry, "sampleIds"));
         const samples = lowered.map((pointValue, index) => {
             const point = sequenceValue(pointValue);
             const retained = sequenceValue(original[index]);
@@ -168,10 +178,11 @@ function seriesPlans(plot, format) {
             const source = retained.length >= 2 ? retained : point;
             return Object.freeze({
                 index,
+                id: stringValue(sampleIds[index]) || `series-${seriesIndex + 1}-sample-${index + 1}`,
                 x,
                 y,
-                xText: valueText(source[0], ["exact", "certified-enclosure"].includes(graphicValueExactness(source[0])) ? String : format),
-                yText: valueText(source[1], ["exact", "certified-enclosure"].includes(graphicValueExactness(source[1])) ? String : format),
+                xText: valueText(source[0], ["exact", "certified-enclosure"].includes(graphicValueExactness(source[0])) ? exactValueText : format),
+                yText: valueText(source[1], ["exact", "certified-enclosure"].includes(graphicValueExactness(source[1])) ? exactValueText : format),
                 exactness: combinedExactness(source.slice(0, 2)),
             });
         }).filter(Boolean);
@@ -326,6 +337,10 @@ function retainedFieldEvidenceEvents(plot, format) {
         const edgeEvidence = stringValue(mapField(record, "edgeExistenceEvidence"));
         const bounds = sequenceValue(mapField(record, "bounds"));
         const level = mapField(record, "level");
+        if (evidence === "exactAggregate") {
+            return Object.freeze({ type: "exact-grid-aggregate", id, exactness: "exact",
+                label: `${id}: exact mean ${valueText(mapField(record, "value"), format)} of ${valueText(mapField(record, "count"), format)} source cells; minimum ${valueText(mapField(record, "minimum"), format)}, maximum ${valueText(mapField(record, "maximum"), format)}. Within-block variation is not reconstructed.` });
+        }
         if (edgeEvidence === "proof") {
             return Object.freeze({
                 type: "certified-boundary-existence",
@@ -432,7 +447,8 @@ export function createGraphicsTextPlan(graphic, format = String, lowering = null
     const relations = constructionRelations(graphic, format);
     const pointsOfInterest = Object.freeze([...series.flatMap((entry) => entry.events), ...marks, ...intersections, ...fieldEvidence]);
     const domainSummary = x && y ? ` Domain x ${x.minimumText} to ${x.maximumText}; range y ${y.minimumText} to ${y.maximumText}.` : "";
-    const summary = `${title}. ${series.length ? `${series.length} series and ` : ""}${objects.length} retained scene object${objects.length === 1 ? "" : "s"}.${domainSummary} ${unresolved.length} unresolved region${unresolved.length === 1 ? "" : "s"}.${refinement.length ? ` ${refinement.map((entry) => entry.summary).join(" ")}` : ""}`;
+    const samplingDisclosure = stringValue(mapField(mapField(plot, "sampling"), "disclosure"));
+    const summary = `${title}. ${series.length ? `${series.length} series and ` : ""}${objects.length} retained scene object${objects.length === 1 ? "" : "s"}.${domainSummary} ${unresolved.length} unresolved region${unresolved.length === 1 ? "" : "s"}.${refinement.length ? ` ${refinement.map((entry) => entry.summary).join(" ")}` : ""}${samplingDisclosure ? ` ${samplingDisclosure}` : ""}`;
     const axes = Object.freeze([
         x && Object.freeze({ axis: "x", label: stringValue(mapField(plot, "xLabel")) || "x", scale: stringValue(mapField(graphic?.metadata, "xScale")) || "linear", range: x }),
         y && Object.freeze({ axis: "y", label: stringValue(mapField(plot, "yLabel")) || "y", scale: stringValue(mapField(graphic?.metadata, "yScale")) || "linear", range: y }),

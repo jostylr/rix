@@ -324,3 +324,13 @@ finite support. The bounded projection keeps degrees zero through two and
 reports the exact discarded term `x^5`. Sparse tensor products combine ordered
 coordinate slots with explicit support budgets. They do not create multivariate
 Polynomials or infinite series.
+
+## Finite sparse matrix application
+
+```rix
+.Plugin.Load("linalg");
+matrix = .linalg.SparseCoordinates([{= indices=[1,2], value=1/3 }], [1000,1000]);
+vector = .linalg.SparseCoordinates([{= indices=[2], value=6 }], [1000]);
+image = matrix.Apply(vector);
+[image.Get([1]), image.SupportSize(), image.Verify()]; ## [2,1,1], no dense expansion
+```

@@ -5,6 +5,8 @@ import {
   extractFences,
   runDocuments,
   runDocumentsAsync,
+  runFence,
+  runFenceAsync,
 } from "../../documentation/scripts/check-examples.js";
 
 describe("documentation RiX examples", () => {
@@ -127,4 +129,20 @@ describe("documentation RiX examples", () => {
     expect(result.status).toBe("pass");
     expect(result.assertions).toBe(1);
   });
+});
+
+
+test("parse-only examples allocate no session while hidden setup retains its semantics", async () => {
+  const sessions = new Map();
+  const fence = {file:"lazy.md",source:"1 / 0",attrs:{parse:"true",session:"shared"}};
+  expect(runFence(fence,sessions).status).toBe("pass");
+  expect(sessions.size).toBe(0);
+  expect((await runFenceAsync({...fence,attrs:{...fence.attrs,async:"true"}},sessions)).status).toBe("pass");
+  expect(sessions.size).toBe(0);
+  const setup = {...fence,source:"##SETUP##\nx := 7\n##SETUP##\nx + 1"};
+  expect(runFence(setup,sessions).status).toBe("pass");
+  expect(sessions.size).toBe(1);
+  const next = runFence({file:"lazy.md",source:"x + 1 ##@ == 8",attrs:{exec:"true",session:"shared"}},sessions);
+  expect(next.status).toBe("pass");
+  expect(next.assertions).toBe(1);
 });

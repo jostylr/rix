@@ -1,0 +1,47 @@
+{
+  "runtime": "1.4.0",
+  "platform": "darwin",
+  "architecture": "arm64",
+  "date": "2026-09-20T12:07:46.956Z",
+  "notes": [
+    "Times are per-call warm samples, not thresholds. Heap deltas depend on GC and are not peak memory or isolation guarantees.",
+    "Matrix boxed scalar reference represents explicit per-operation Float allocation; no existing public dense MatMul is replaced. Typed kernel includes a defensive output copy.",
+    "Float results are approximate, sequential per-product/per-add rounding. Exact sparse kernels remain Rational; no certified evidence generated."
+  ],
+  "pairwise": {
+    "length": 65536,
+    "iterations": 12,
+    "reference": {
+      "ms": 5.353566,
+      "heapDelta": 521678,
+      "arrayBufferDelta": 0,
+      "result": -18.000000000000007
+    },
+    "optimized": {
+      "ms": 3.280614583333334,
+      "heapDelta": 20992,
+      "arrayBufferDelta": 0,
+      "result": -18.000000000000007
+    },
+    "referenceTemporaryArraysPerCall": 131070,
+    "referenceCopiedElementsPerCall": 1048576,
+    "optimizedTemporaryArrays": 0
+  },
+  "matmul": {
+    "size": 48,
+    "reference": {
+      "ms": 65.37948975,
+      "heapDelta": 204128,
+      "arrayBufferDelta": 0
+    },
+    "typed": {
+      "ms": 9.470927000000017,
+      "heapDelta": 144352,
+      "arrayBufferDelta": 0
+    },
+    "checksum": 6,
+    "equalEveryElement": true,
+    "referenceFloatObjectsPerCall": 223488,
+    "typedNumericBufferBytes": 18432
+  }
+}

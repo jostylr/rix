@@ -68,7 +68,7 @@ function makeSystemContext(extraDefs = {}) {
     const ctx = createDefaultSystemContext({ frozen: false });
     for (const [name, impl] of Object.entries(extraDefs)) {
         ctx.register(name, {
-            impl,
+            ...(typeof impl === "function" ? { impl } : impl),
             doc: `Test capability ${name}`,
         });
     }
@@ -308,8 +308,11 @@ describe("script import execution", () => {
         });
         const releases = new Map();
         const systemContext = makeSystemContext({
-            wait([value]) {
-                return new Promise((resolve) => releases.set(Number(value.value), resolve));
+            wait: {
+                concurrency: "safe",
+                impl([value]) {
+                    return new Promise((resolve) => releases.set(Number(value.value), resolve));
+                },
             },
         });
         const context = enableNodeHost(new Context());

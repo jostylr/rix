@@ -1,0 +1,28 @@
+{
+  "schema": "rix.render-performance-baseline@1",
+  "runtime": "1.4.0",
+  "fixture": {
+    "paths": 200,
+    "pointsPerPath": 100,
+    "frames": 30
+  },
+  "measurement": "CPU-only counting Path host: parses source numeric tokens; not browser/GPU timing",
+  "before": {
+    "milliseconds": 32.854457999999994,
+    "pathConstructions": 6000,
+    "checksum": 119100000
+  },
+  "after": {
+    "milliseconds": 8.699166999999996,
+    "pathConstructions": 200,
+    "checksum": 119100000
+  },
+  "cache": {
+    "hits": 5800,
+    "misses": 200,
+    "evictions": 0,
+    "entries": 200,
+    "sourceLength": 152695
+  },
+  "limitations": "Wall times vary. Source/command/cache/pixel bounds are cooperative limits, not process memory isolation."
+}

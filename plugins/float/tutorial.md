@@ -121,3 +121,13 @@ product := .float.ComplexMul(z,w);
 ```
 
 These values never acquire the exact Complex type or its arithmetic overloads.
+
+## Typed tensor multiplication
+
+```rix
+.Plugin.Load("float");
+left = .float.Tensor([1,2,3,4], [2,2], :binary32);
+right = .float.Tensor([5,6], [2], :binary32);
+product = .float.MatMul(left, right);
+.float.ToShaped(product);  ## Float cells 17 and 39; status remains approximate
+```

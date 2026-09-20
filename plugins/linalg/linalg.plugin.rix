@@ -2026,6 +2026,7 @@ LinalgSparseCoordinates(terms,shapeValue,options ?= {= }) -> {;
         Shape=(self)->self[:shape],Size=(self)->LinalgSparseSize(self),SupportSize=(self)->self[:terms].Len(),
         Entries=(self)->self[:terms],Get=(self,indices)->LinalgSparseGet(self,indices),
         Materialize=(self,maxCells ?= 65536)->LinalgSparseMaterialize(self,maxCells),
+        MatMul=(self,other)->LinalgSparseMatMul(self,other),Apply=(self,other)->LinalgSparseApply(self,other),
         Add=(self,other)->LinalgSparseAdd(self,other),Scale=(self,scalar)->LinalgSparseScale(self,scalar),
         TensorProduct=(self,other)->LinalgSparseProduct(self,other),Permute=(self,order)->LinalgSparsePermute(self,order),
         Equal=(self,other)->LinalgSparseEqual(self,other),ScalarField=(self)->LinalgRationalField(),
@@ -2071,6 +2072,32 @@ LinalgSparseCommon(left,right) -> {;
 };
 LinalgSparseAdd(left,right) -> {;
     a=LinalgAsSparse(left);b=LinalgSparseCommon(a,right);LinalgSparseCoordinates(a[:terms].Concat(b[:terms]),a[:shape],a[:budgets]);
+};
+### Finite sparse linear kernels: no dense intermediate and no approximate conversion.
+LinalgSparseMatMul(left,right) -> {;
+    a=LinalgAsSparse(left);b=LinalgAsSparse(right,a[:budgets]);
+    a[:shape].Len()==2 && b[:shape].Len()==2 ?_> .Error("Sparse MatMul requires two rank-2 matrices");
+    a[:shape].All((n)->n!=:countable) && b[:shape].All((n)->n!=:countable) ?_> .Error("Sparse MatMul requires finite axes");
+    a[:shape][2]==b[:shape][1] ?_> .Error("Sparse MatMul dimensions must agree");
+    a.SupportSize()*b.SupportSize()<=a[:budgets][:maxwork] ?_> .Error("Sparse MatMul work budget exceeded");
+    terms:=[];
+    {@ i=1;i<=@a.SupportSize();{;
+        x=@a[:terms][i];
+        {@ j=1;j<=@b.SupportSize();{;
+            y=@b[:terms][j];
+            @x[:indices][2]==y[:indices][1] ?: {;
+                @terms ~= @terms.Push({= indices=[@x[:indices][1],@y[:indices][2]],value=@x[:value]*@y[:value] });
+            } ?_ _;
+        };j+=1 };
+    };i+=1 };LinalgSparseCoordinates(terms,[a[:shape][1],b[:shape][2]],a[:budgets]);
+};
+LinalgSparseApply(left,right) -> {;
+    a=LinalgAsSparse(left);b=LinalgAsSparse(right,a[:budgets]);
+    a[:shape].Len()==2 && b[:shape].Len()==1 ?_> .Error("Sparse Apply requires a rank-2 matrix and rank-1 vector");
+    b[:shape][1]!=:countable ?_> .Error("Sparse Apply requires finite axes");
+    column=LinalgSparseCoordinates(b[:terms].Map((term)->{= indices=[term[:indices][1],1],value=term[:value] }),[b[:shape][1],1],a[:budgets]);
+    result=LinalgSparseMatMul(a,column);
+    LinalgSparseCoordinates(result[:terms].Map((term)->{= indices=[term[:indices][1]],value=term[:value] }),[a[:shape][1]],a[:budgets]);
 };
 LinalgSparseScale(value,scalarValue) -> {;
     a=LinalgAsSparse(value);scalar=LinalgExact(scalarValue,"Sparse scalar");

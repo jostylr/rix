@@ -38,9 +38,9 @@ function semanticId(node, path) {
 
 function boundsOfPoints(points) {
     if (!points.length) return null;
-    const xs = points.map(([x]) => x);
-    const ys = points.map(([, y]) => y);
-    return { x: Math.min(...xs), y: Math.min(...ys), width: Math.max(...xs) - Math.min(...xs), height: Math.max(...ys) - Math.min(...ys) };
+    let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity;
+    for (const [x, y] of points) { left = Math.min(left, x); top = Math.min(top, y); right = Math.max(right, x); bottom = Math.max(bottom, y); }
+    return { x: left, y: top, width: right - left, height: bottom - top };
 }
 
 function pathBounds(node) {
@@ -287,12 +287,13 @@ function paintShape(context, path, style) {
 }
 
 /** Execute a serialized RiX Canvas plan against CanvasRenderingContext2D. */
-export function paintCanvasPlan(context, plan) {
+export function paintCanvasPlan(context, plan, options = {}) {
     if (!context || typeof context.save !== "function") throw new Error("Canvas plan requires CanvasRenderingContext2D");
-    if (context.canvas) {
+    if (context.canvas && !options.retainBacking) {
         context.canvas.width = plan.backingWidth || plan.width;
         context.canvas.height = plan.backingHeight || plan.height;
     }
+    const Path = options.Path || globalThis.Path2D;
     const ratio = plan.pixelRatio || 1;
     const transform = plan.viewport?.transform || [1, 0, 0, 1, 0, 0];
     if (typeof context.setTransform === "function") context.setTransform(
@@ -306,14 +307,14 @@ export function paintCanvasPlan(context, plan) {
         else if (name === "clipRect") {
             context.beginPath(); context.rect(...args); context.clip();
         } else if (name === "path2d") {
-            if (typeof Path2D !== "function") throw new Error("This Canvas host does not provide Path2D for Graphics paths");
-            paintShape(context, new Path2D(args[0]), args[1]);
+            if (typeof Path !== "function") throw new Error("This Canvas host does not provide Path2D for Graphics paths");
+            paintShape(context, options.pathCache ? options.pathCache.get(args[0]) : new Path(args[0]), args[1]);
         } else if (name === "rectangle") {
             const [x, y, width, height, style] = args;
-            const path = new Path2D(); path.rect(x, y, width, height); paintShape(context, path, style);
+            const path = new Path(); path.rect(x, y, width, height); paintShape(context, path, style);
         } else if (name === "circle") {
             const [x, y, radius, style] = args;
-            const path = new Path2D(); path.arc(x, y, radius, 0, Math.PI * 2); paintShape(context, path, style);
+            const path = new Path(); path.arc(x, y, radius, 0, Math.PI * 2); paintShape(context, path, style);
         } else if (name === "text") {
             const [x, y, text, style] = args;
             context.save(); applyStyle(context, style);

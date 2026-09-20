@@ -60,11 +60,11 @@ function divide(left, right, format) {
     return roundToFormat(left / right, format);
 }
 
-function pairwise(numbers, format) {
-    if (numbers.length === 0) return roundToFormat(0, format);
-    if (numbers.length === 1) return numbers[0];
-    const middle = Math.floor(numbers.length / 2);
-    return add(pairwise(numbers.slice(0, middle), format), pairwise(numbers.slice(middle), format), format);
+export function pairwise(numbers, format, start = 0, end = numbers.length) {
+    if (end === start) return roundToFormat(0, format);
+    if (end - start === 1) return numbers[start];
+    const middle = start + Math.floor((end - start) / 2);
+    return add(pairwise(numbers, format, start, middle), pairwise(numbers, format, middle, end), format);
 }
 
 function sumWithPolicy(numbers, format, policy) {

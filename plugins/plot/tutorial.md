@@ -253,3 +253,22 @@ scale := .plot.ColorScale({=
   .stats.HistogramGraphic([1,2,2,3,4],{= bins=3,colorScale=scale })
 ]);
 ```
+
+## Bounded stream tails and finite grids
+
+```rix
+.Plugin.Load("plot");
+state := .plot.Stream(4);
+state := .plot.StreamAppend(state, [[1,1/3],[2,2/3],[3,1]]);
+state := .plot.StreamAppend(state, [[4,4/3],[5,5/3],[6,2]]);
+.Fragment([
+  .plot.StreamLine(state, {= maxPoints=4,title="Last four exact samples" }),
+  .plot.HeatMapData([[1,2,3],[4,5,6]], [0,3], [0,2], {= maxCells=2,title="Two exact mean blocks" })
+])
+```
+
+The stream retains source IDs 3–6 and discloses two discarded older samples.
+The heat-map retains exact block means 3 and 9/2, with each block's exact
+minimum, maximum, count and original bounds. Static graphics and text
+alternatives disclose what was omitted or aggregated. These explicit immutable
+records do not create background network or file readers.

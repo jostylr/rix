@@ -1,5 +1,6 @@
 .Plugin.Load("numerics");
 .Plugin.Load("data");
+.Plugin.Load("document");
 saved := """
 {"schema":"rix.refinable-real@1","subject":{"kind":"expression","graph":{"kind":"call","semanticId":"rix.function.sqrt@1","branch":"nonnegative","arguments":[{"kind":"constant","value":{"$integer":"2"}}]}},"snapshot":{"interval":{"$interval":[{"$integer":"1"},{"$integer":"2"}]},"status":"certified","evidenceLevel":"proof","verification":"unavailable","evidence":[],"achievedWidth":{"$integer":"1"},"work":{"calls":"0","iterations":"0"}},"recipe":{"kind":"expression","provider":"numerics","providerVersion":"2","algorithm":"semantic-enclosure","algorithmVersion":"1","checker":"rix.real.numerics-replay@1","graph":{"kind":"call","semanticId":"rix.function.sqrt@1","branch":"nonnegative","arguments":[{"kind":"constant","value":{"$integer":"2"}}]}}}
 """;
@@ -13,5 +14,5 @@ rows := .data.Relation(["stage","verification","enclosure"],[
 copy := .data.ParseCSV(.data.RenderCSV(rows));
 view := .data.TableView(copy,{= caption="Saved declarations and locally replayed evidence" });
 .Out("interchange.html",view);
-.Out("interchange.rixdoc.json",view);
+.Out("interchange.rixdoc.json",.document.EncodeJSON(view));
 _

@@ -13,7 +13,9 @@ import {
     typeRegistry,
     valueMethod,
 } from "../../src/runtime/type-system.js";
+import { createShaped } from "../../src/runtime/shaped.js";
 import { mathFunctions } from "./math-functions.js";
+import { createFloatTensorAdapters, FLOAT_TENSOR_EXPORTS } from "./tensor-adapters.js";
 import { createApproximateAlgorithms, FLOAT_ALGORITHM_EXPORTS } from "./approximate-algorithms.js";
 import { Enclose, NumericsCapabilities, Refine, Sample, exactFloatRational } from "./protocol.js";
 import {
@@ -260,6 +262,15 @@ export function installBrowserApproxMathPlugin({ systemContext, registry, metada
         add(name, (args, _context, evaluate) => evaluate({ fn: name.toUpperCase(), args: [requireFloat(args[1], evaluate)] }));
     }
     add("Atan2", (args, _context, evaluate) => evaluate({ fn: "ATAN2", args: [requireFloat(args[1], evaluate), requireFloat(args[2], evaluate)] }));
+    const tensors = createFloatTensorAdapters(NATIVE_TYPE);
+    for (const name of FLOAT_TENSOR_EXPORTS) add(name, (args, _context, evaluate) => {
+        const result = tensors[name](...args.slice(1));
+        if (name !== "ToShaped") return result;
+        // Attach the normal Float semantic methods without discarding buffer provenance.
+        return createShaped(result.shape, result.data.map((value) => ({
+            ...requireFloat(value, evaluate), diagnostics: value.diagnostics, operation: value.operation,
+        })));
+    });
     const algorithms = createApproximateAlgorithms(NATIVE_TYPE);
     for (const name of FLOAT_ALGORITHM_EXPORTS) {
         add(name, (args) => algorithms[name](...args.slice(1)));

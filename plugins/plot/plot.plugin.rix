@@ -3,12 +3,12 @@ id: plot
 description: Pure-RiX exact and numerics-backed 2D plotting that lowers to portable core Graphics scenes.
 kind: rix
 mount: plot
-exports: [Polynomial, PolynomialPOI, Function, Parametric, Scatter, Line, Bar, Step, Polar, ErrorBand, Interval, CertifiedRegions, Trajectory, PhasePortrait, EventTrajectory, EventPhasePortrait, LinkedTrajectory, LinkedEvents, Implicit, Inequality, Contour, HeatMap, VectorField, ColorScale]
+exports: [Polynomial, PolynomialPOI, Function, Parametric, Scatter, Line, Bar, Step, Polar, ErrorBand, Interval, CertifiedRegions, Trajectory, PhasePortrait, EventTrajectory, EventPhasePortrait, LinkedTrajectory, LinkedEvents, Implicit, Inequality, Contour, HeatMap, VectorField, ColorScale, Downsample, BoundedLine, Stream, StreamAppend, StreamLine, HeatMapData]
 groups: [Plot, Graphics, Exact]
 permissions: []
 requires: [rix.numerics@1]
 provides: [rix.plot@1, rix.plot.poi@1, rix.plot.refinement-policy@1]
-schemas: [rix.plot@1, rix.plot.poi@1, rix.plot.band-evidence@1, rix.color-scale@1, rix.plot.linked-trajectory@1]
+schemas: [rix.plot.samples@1, rix.plot.stream@1, rix.plot.sampling-budget@1, rix.plot@1, rix.plot.poi@1, rix.plot.band-evidence@1, rix.color-scale@1, rix.plot.linked-trajectory@1]
 snapshot: true
 deterministic: true
 defaultEnabled: false
@@ -542,7 +542,9 @@ PlotGeneral(data, settings, kind) -> {;
                }; index += 1 };
                current.Len()>1 ?: {; @segments ~= @segments.Push(@current); } ?_ _;
                {@ index=1; index <= @segments.Len(); {;
-                   @children ~= @children.Push(.Graphics.Path(@segments[index], @style));
+                   hit=PlotOption(@style,"hitid");
+                   segmentStyle=hit==_ ?: @style ?_ @style.Merge({= hitId=@"@{hit}-segment-@{index}" });
+                   @children ~= @children.Push(.Graphics.Path(@segments[index], segmentStyle));
                }; index += 1 };
                @unresolved += segments.Len() > 1 ?: segments.Len()-1 ?_ 0;
            };
@@ -578,11 +580,13 @@ PlotGeneral(data, settings, kind) -> {;
                 data=samples.Map((sample)->sample[:point]),
                 originalData=samples.Map((sample)->sample[:original]),
                 sourceData=PlotOption(settings,"sourcedata"),
+                sampleIds=PlotOption(settings,"sampleids",[]),
                 style=style,
                 label=PlotOption(settings,"label")
             }],
             domain=PlotOption(settings,"sourcedomain"),
-            sampling={= method=:uniform_parameter,samples=samples.Len() },
+            sampling=PlotOption(settings,"sampling",{= method=:uniform_parameter,samples=samples.Len() }),
+            records=PlotOption(settings,"records",[]),
             status=unresolved==0 ?: :sampled ?_ :partial,
             rendering=:series,
             tickCount=tickCount,
@@ -1564,8 +1568,158 @@ PlotEventView(result,settings,phase) -> {;
     PlotTrajectory(result[:solution],settings,phase,[result]);
 };
 
+
+PlotBudgetInteger(value,minimum,maximum,label) ?!- [
+    value ? :Integer ?_> .Error(@"@{label} must be an Integer"),
+    (value>=minimum&&value<=maximum) ?_> .Error(@"@{label} must be between @{minimum} and @{maximum}")
+] -> value;
+
+PlotBoundedRows(data,allowEmpty ?= _) ?!- [
+    data ? :Array ?_> .Error("bounded plot data must be an Array"),
+    data.Len()<=4096 ?_> .Error("bounded plot input exceeds 4096 rows"),
+    (allowEmpty||data.Len()>=2) ?_> .Error("bounded plot data needs at least two rows")
+] -> {;
+    previous:=_;
+    data.Map((row)->{;
+        row ? :Array ?_> .Error("bounded plot rows must be Arrays");
+        row.Len()==2 ?_> .Error("bounded plot rows must contain [x,y]");
+        x=PlotExact(row[1],"bounded plot x"); y=PlotExact(row[2],"bounded plot y");
+        (@previous==_||x>@previous) ?_> .Error("bounded plot x values must increase strictly");
+        @previous~=x; [x,y];
+    });
+};
+
+PlotDownsample(data,settings ?= {= },offset ?= 0) ?!- [
+    settings ? :Map ?_> .Error("downsample options must be a map"),
+    maximum=PlotBudgetInteger(PlotOption(settings,"maxpoints",256),4,1024,"maxPoints"),
+    rows=PlotBoundedRows(data),
+    count=rows.Len()
+] -> {;
+    indices:=[];
+    count<=maximum ?: {; @indices=@rows.Map((row,index)->index); } ?_ {;
+        @indices=[1]; buckets=(@maximum-2)//2; interior=@count-2;
+        {@ bucket=0; bucket<@buckets; {;
+            first=2+(bucket*@interior)//@buckets; last=1+((bucket+1)*@interior)//@buckets;
+            low:=first; high:=first;
+            {@ position=@first+1; position<=@last; {;
+                @rows[position][2]<@rows[@low][2] ?: {; @low~=@position; } ?_ _;
+                @rows[position][2]>@rows[@high][2] ?: {; @high~=@position; } ?_ _;
+            }; position+=1 };
+            @indices~=@indices.Push(.Min(low,high));
+            low!=high ?: {; @indices~=@indices.Push(.Max(@low,@high)); } ?_ _;
+        }; bucket+=1 };
+        @indices~=@indices.Push(@count);
+    };
+    retained=indices.Map((index)->@rows[index]);
+    records=indices.Map((index)->{= id=@"sample-@{@offset+index}",sourceIndex=@offset+index,point=@rows[index],status=:exact,evidenceLevel=:exactSample });
+    omitted=count-retained.Len();
+    .DeepMutable({= schema="rix.plot.samples@1",data=retained,records=records,
+        sampling={= schema="rix.plot.sampling-budget@1",method=:minmax_buckets,inputCount=count,retainedCount=retained.Len(),omittedCount=omitted,maxPoints=maximum,
+            evidenceLevel=:exactRetainedSamples,reconstruction=:uncertified,firstSourceIndex=offset+1,lastSourceIndex=offset+count,
+            disclosure=@"Retained @{retained.Len()} of @{count} exact input samples; omitted @{omitted}. Min/max buckets preserve endpoints and bucket extrema; connecting lines do not certify the omitted curve."
+        }
+    },_);
+};
+
+PlotBoundedLine(data,settings ?= {= },offset ?= 0,streamInfo ?= _) -> {;
+    selected=PlotDownsample(data,settings,offset);
+    sampling=streamInfo==_ ?: selected[:sampling] ?_ selected[:sampling].Merge({= stream=streamInfo,
+        disclosure=@"@{selected[:sampling][:disclosure]} Stream dropped @{streamInfo[:dropped]} older samples; retained tail is bounded by @{streamInfo[:capacity]}."
+    });
+    PlotGeneral(selected[:data],settings.Merge({= sampling=sampling,records=selected[:records],sampleids=selected[:records].Map((record)->record[:id]),style=PlotStyle(settings,"#2563eb",2).Merge({= hitId="bounded-line" }) }),:line);
+};
+
+PlotStream(capacity ?= 1024) ?!- [
+    capacity=PlotBudgetInteger(capacity,2,4096,"stream capacity")
+] -> .DeepMutable({= schema="rix.plot.stream@1",capacity=capacity,nextIndex=1,dropped=0,data=[] },_);
+
+PlotStreamValidate(state) ?!- [
+    state ? :Map ?_> .Error("plot stream requires a stream record"),
+    state[:schema]=="rix.plot.stream@1" ?_> .Error("plot stream schema mismatch"),
+    capacity=PlotBudgetInteger(state[:capacity],2,4096,"stream capacity"),
+    rows=PlotBoundedRows(state[:data],1),
+    rows.Len()<=capacity ?_> .Error("stream retained data exceeds capacity"),
+    state[:nextindex] ? :Integer ?_> .Error("stream nextIndex must be an Integer"),
+    state[:dropped] ? :Integer ?_> .Error("stream dropped must be an Integer"),
+    (state[:dropped]>=0&&state[:nextindex]==state[:dropped]+rows.Len()+1) ?_> .Error("stream sequence metadata is inconsistent")
+] -> rows;
+
+PlotStreamAppend(state,batch) ?!- [
+    old=PlotStreamValidate(state),
+    incoming=PlotBoundedRows(batch,1),
+    (old.Len()==0||incoming.Len()==0||incoming[1][1]>old.Last()[1]) ?_> .Error("stream x values must increase across batches")
+] -> {;
+    combined=old.Concat(incoming); drop=.Max(0,combined.Len()-state[:capacity]);
+    .DeepMutable({= schema="rix.plot.stream@1",capacity=state[:capacity],nextIndex=state[:nextindex]+incoming.Len(),dropped=state[:dropped]+drop,data=combined.Slice(drop+1) },_);
+};
+
+PlotStreamLine(state,settings ?= {= }) -> {;
+    rows=PlotStreamValidate(state);
+    PlotBoundedLine(rows,settings,state[:dropped],{= capacity=state[:capacity],dropped=state[:dropped],nextIndex=state[:nextindex] });
+};
+
+PlotHeatMapData(data,xDomain,yDomain,settings ?= {= }) ?!- [
+    settings ? :Map ?_> .Error("heat-map data options must be a map"),
+    maximum=PlotBudgetInteger(PlotOption(settings,"maxcells",256),1,1024,"maxCells"),
+    data ? :Array ?_> .Error("heat-map data must be an Array of rows"),
+    data.Len()>=1 ?_> .Error("heat-map data must contain rows"),
+    data.Len()<=4096 ?_> .Error("heat-map input exceeds 4096 cells"),
+    data[1] ? :Array ?_> .Error("heat-map rows must be Arrays"),
+    rows=data.Len(), columns=data[1].Len(),
+    (columns>=1&&rows*columns<=4096) ?_> .Error("heat-map input must contain 1..4096 cells"),
+    config=PlotFieldConfig(xDomain,yDomain,settings.Merge({= grid=[2,2] }))
+] -> {;
+    checked=data.Map((row)->{;
+        row ? :Array ?_> .Error("heat-map rows must be Arrays");
+        row.Len()==@columns ?_> .Error("heat-map rows must have equal length");
+        row.Map((value)->PlotExact(value,"heat-map value"));
+    });
+    stride:=1;
+    {@ iteration=1; ((@columns+@stride-1)//@stride)*((@rows+@stride-1)//@stride)>@maximum; {; @stride+=1; }; iteration+=1 };
+    records:=[];
+    {@ firstRow=1; firstRow<=@rows; {;
+        lastRow=.Min(@rows,firstRow+@stride-1);
+        {@ firstColumn=1; firstColumn<=@columns; {;
+            lastColumn=.Min(@columns,firstColumn+@stride-1); sum:=0; low:=@checked[@firstRow][firstColumn]; high:=low;
+            {@ r=@firstRow+0; r<=@lastRow; {;
+                {@ c=@firstColumn+0; c<=@lastColumn; {;
+                    v=@checked[@r][c]; @sum+=v; @low~=.Min(@low,v); @high~=.Max(@high,v);
+                }; c+=1 };
+            }; r+=1 };
+            count=(@lastRow-@firstRow+1)*(lastColumn-firstColumn+1);
+            @records~=@records.Push({= id=@"heatmap-source-@{@firstRow}-@{firstColumn}-@{@lastRow}-@{lastColumn}",sourceBounds=[[@firstRow,firstColumn],[@lastRow,lastColumn]],count=count,value=sum/count,minimum=low,maximum=high,status=count==1 ?: :exact ?_ :aggregated,evidenceLevel=:exactAggregate });
+        }; firstColumn+=@stride };
+    }; firstRow+=@stride };
+    paletteSpec=PlotReadColorScale(settings); palette=paletteSpec[:colors];
+    minimum=records.Map((record)->record[:minimum]).Reduce((a,b)->.Min(a,b),records[1][:minimum]); maximumValue=records.Map((record)->record[:maximum]).Reduce((a,b)->.Max(a,b),records[1][:maximum]);
+    colorDomain=PlotOption(settings,"colordomain");
+    colorDomain!=_ ?: {; bounds=PlotFixedYBounds(@colorDomain); @minimum=bounds[1]; @maximumValue=bounds[2]; } ?_ _;
+    paletteSpec[:minimum]!=_ ?: {; @minimum=@paletteSpec[:minimum]; @maximumValue=@paletteSpec[:maximum]; } ?_ _;
+    children=records.Map((record)->{;
+        bounds=record[:sourcebounds];
+        lower=[@config[:xmin]+(@config[:xmax]-@config[:xmin])*(bounds[1][2]-1)/@columns,@config[:ymin]+(@config[:ymax]-@config[:ymin])*(bounds[1][1]-1)/@rows];
+        upper=[@config[:xmin]+(@config[:xmax]-@config[:xmin])*bounds[2][2]/@columns,@config[:ymin]+(@config[:ymax]-@config[:ymin])*bounds[2][1]/@rows];
+        origin=PlotProject([lower[1],upper[2]],@config); end=PlotProject([upper[1],lower[2]],@config);
+        color=@paletteSpec[:kind]==:continuous ?: PlotContinuousColor(record[:value],@minimum,@maximumValue,@paletteSpec[:huerange]) ?_ @palette[PlotPaletteIndex(record[:value],@minimum,@maximumValue,@palette.Len())];
+        .Graphics.Rectangle(origin,[end[1]-origin[1],end[2]-origin[2]],{= fill=color,stroke=color,width=0,hitId=record[:id] });
+    });
+    PlotFieldGraphic(:heatmap,config.Merge({= columns=(columns+stride-1)//stride,rows=(rows+stride-1)//stride }),settings,children,{=
+        records=records,status=records.Len()==rows*columns ?: :exact ?_ :aggregated,evidence={= exactCells=rows*columns,exactAggregateMeans=records.Len(),plotAddsCertification=_ },
+        colorScale=paletteSpec.Merge({= minimum=minimum,maximum=maximumValue }),legend=[{= label="minimum",value=minimum,color=palette[1] },{= label="maximum",value=maximumValue,color=palette.Last() }],
+        sampling={= schema="rix.plot.sampling-budget@1",method=:block_mean,inputCount=rows*columns,retainedCount=records.Len(),maxCells=maximum,sourceShape=[rows,columns],stride=stride,reconstruction=:uncertified,
+            disclosure=@"Displayed @{records.Len()} blocks for @{rows*columns} exact grid cells. Each block retains its exact mean, minimum, maximum and source bounds; colors do not reconstruct within-block variation."
+        }
+    });
+};
+
 plotNamespace = {= };
 plotNamespace._proto = {=
+    Downsample=(self, data, options ?= {= })->PlotDownsample(data,options),
+    BoundedLine=(self, data, options ?= {= })->PlotBoundedLine(data,options),
+    Stream=(self, capacity ?= 1024)->PlotStream(capacity),
+    StreamAppend=(self, state, batch)->PlotStreamAppend(state,batch),
+    StreamLine=(self, state, options ?= {= })->PlotStreamLine(state,options),
+    HeatMapData=(self, data, xDomain, yDomain, options ?= {= })->PlotHeatMapData(data,xDomain,yDomain,options),
     Polynomial=(self, coefficients, domain, options ?= {= })->PlotPolynomial(coefficients, domain, options),
     PolynomialPOI=(self, coefficients, domain, options ?= {= })->PlotPolynomialPOI(coefficients, domain, options),
     Function=(self, fn, domain, options ?= {= })->PlotFunction(fn, domain, options),

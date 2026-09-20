@@ -234,7 +234,8 @@ function createRuntime(file, sessionRuntime, session) {
 export function runFence(fence, sessionRuntime = new Map()) {
   const attrs = fence.attrs;
   const { setup, visible } = splitHiddenSetup(fence.source);
-  const runtime = createRuntime(fence.file, sessionRuntime, attrs.session);
+  const runtime = boolAttr(attrs.parse) && !boolAttr(attrs.exec) && isBlank(setup)
+    ? null : createRuntime(fence.file, sessionRuntime, attrs.session);
   const result = {
     ...fence,
     visibleSource: visible,
@@ -282,7 +283,8 @@ export async function runFenceAsync(fence, sessionRuntime = new Map()) {
 
   const attrs = fence.attrs;
   const { setup, visible } = splitHiddenSetup(fence.source);
-  const runtime = createRuntime(fence.file, sessionRuntime, attrs.session);
+  const runtime = boolAttr(attrs.parse) && !boolAttr(attrs.exec) && isBlank(setup)
+    ? null : createRuntime(fence.file, sessionRuntime, attrs.session);
   const result = {
     ...fence,
     visibleSource: visible,

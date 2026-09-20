@@ -466,3 +466,15 @@ replayable `rix.linalg.polynomial-projection@1` evidence accepted by
 `exactInclusion` is true precisely when nothing was discarded. Projecting to
 one bound then including and projecting to another gives the corresponding
 finite subspace maps without conflating their tensor identities.
+
+### Finite sparse linear kernels
+
+A `SparseCoordinates` value now supports `matrix.MatMul(otherMatrix)` and
+`matrix.Apply(vector)`. Both return canonical exact Rational finite-support
+storage, including cancellation of zero terms, without allocating a dense
+matrix. Finite dimensions must agree; countable axes require a prior explicit
+finite projection. The left operand's existing support/work/index budgets apply
+to the output, pair matching, and canonicalization. These bounded reference
+kernels scan pairs of stored terms (not the dense domain); they do not add sparse
+factorization, approximate solvers, or certified Float evidence. Use Float's
+explicit typed adapters when approximate dense arithmetic is intended.

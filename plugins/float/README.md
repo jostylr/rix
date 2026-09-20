@@ -81,3 +81,37 @@ source `floats.js.rix` and its JavaScript bridge `floats.js`. Browser hosts use
 implementation requests network or filesystem access at evaluation time.
 
 See [tutorial.md](tutorial.md).
+
+## Bounded typed tensor adapters
+
+`.float.Tensor(values, shape, format ?= :binary64)` explicitly converts a flat
+Array or Shaped view into copy-owned Float32/Float64 storage. Shaped input may
+omit `shape`; strided views are traversed in logical order. The opaque adapter's `shape`,
+`format`, `diagnostics`, `status="approximate"`, and `certified=_` describe the
+adapter; `.float.ToShaped(tensor)` creates ordinary Float cells on demand.
+`.float.MatMul(matrix, matrixOrVector)` computes finite-dimensional products in
+row/column/inner-index order, rounding each product and addition in the chosen
+format. Both operands must use the same explicit format. This is approximate
+arithmetic, not a Rational result, error enclosure, or spectral certificate.
+
+The limits are 262,144 cells, 16 positive finite axes, and 4,194,304 scalar
+multiply/add steps per product. Sparse/countable coordinates use exact linalg
+methods instead. Conversion and arithmetic diagnostics are retained per output
+cell and in aggregate; `ToShaped` retains that cell's provenance and operation.
+Explicit NaN/infinity inputs carry `nonFiniteInput`; signed zero is retained at
+import/export, while matrix sums follow the stated IEEE sequential policy.
+
+The JS bridge exports `floatTensorFromTypedArray` and
+`floatTensorToTypedArray` from `tensor-adapters.js`. Both copy buffers, preventing
+external mutations from changing results. RiX assignment and nested containers
+retain the live handle. In-process snapshots can share the read-only numeric handle safely. Serialization
+and worker boundaries must transfer ordinary `ToShaped` values and reconstruct
+the adapter on the receiving side; a cloned/forged handle fails with an explicit diagnostic.
+Adapters are an in-process acceleration boundary, not an interchange format or
+hard memory-isolation promise.
+
+`benchmarks/numeric-adapters.js` compares the prior pairwise slicing reduction
+with the allocation-free index traversal, retaining its exact operation tree.
+It also compares a boxed scalar matrix reference to the typed kernel and checks
+every result bit-for-bit. The checked-in baseline records measured timings,
+GC-sensitive heap deltas, and deterministic temporary-allocation counts.

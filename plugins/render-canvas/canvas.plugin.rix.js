@@ -63,3 +63,5 @@ export function install(api) {
 }
 
 export { createCanvasPlan, hitTestCanvasPlan, invertCanvasPoint, loadCanvasAssets, paintCanvasPlan } from "./canvas-plan.js";
+
+export { createCanvasPathCache, createCanvasPainter, createCanvasWorkerHandler } from "./retained-canvas.js";

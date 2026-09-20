@@ -303,3 +303,64 @@ Usual plot `size`, `margin`, and title options apply. At most 4097 complete-cove
 leaves are displayed. Shared boundaries may overlap and no distinct-root count
 or unknown topology is inferred. See
 [checked geometry examples](../geometry/validated-implicit-tutorial.md).
+
+## Bounded finite and streaming inputs
+
+These opt-in APIs bound retained work before constructing the portable scene:
+
+| Command | Contract |
+| --- | --- |
+| `.plot.Downsample(data, options?)` | Return `rix.plot.samples@1`: exact retained `[x,y]` rows, original sample IDs and sampling provenance. |
+| `.plot.BoundedLine(data, options?)` | Draw those retained samples as an ordinary portable line graphic. |
+| `.plot.Stream(capacity?)` | Create an empty immutable `rix.plot.stream@1` tail (default 1024). |
+| `.plot.StreamAppend(state, rows)` | Return a new tail, discarding oldest excess rows and tracking total dropped rows and next source index. |
+| `.plot.StreamLine(state, options?)` | Draw a bounded tail with stable monotonic source IDs and drop disclosure. |
+| `.plot.HeatMapData(rows, xDomain, yDomain, options?)` | Draw finite exact grid data using at most `maxCells` block-mean rectangles. |
+
+Line inputs have 2–4096 `[x,y]` rows with strictly increasing exact x values and
+exact y values. `maxPoints` is an Integer from 4 to 1024 (default 256). Retained
+endpoints and each deterministic interior bucket's minimum and maximum preserve
+sharp sampled extrema; ties choose the first occurrence. This bounds output
+size and does **not** certify the connecting line, recover omitted oscillations,
+or turn exact samples into approximate numeric values. The semantic scene
+retains source indexes, stable `sample-N` IDs and `rix.plot.sampling-budget@1`
+provenance; SVG, Canvas and text companions use the same scene.
+
+A stream capacity is 2–4096 rows; each append accepts at most 4096 rows (empty
+batches are allowed). Appends validate before publishing, require increasing x
+across batches, and retain only the last `capacity` rows. Old states remain
+usable. A stream is an explicit immutable input record, with no background
+reader, timer or transport; the host owns arrival cadence and cancellation.
+`StreamLine` requires at least two retained samples. `dropped`, `nextIndex` and
+source IDs persist across appends, so retained selections remain meaningful.
+Downsampling and dropped-tail counts are included in accessible text and static
+output. These APIs do not install an Async, Files or Net capability.
+
+Heat-map input is a rectangular Array of rows containing 1–4096 exact cells.
+`maxCells` is an Integer from 1 to 1024 (default 256). Row one is the low-y edge
+and column one the low-x edge of the requested domain. A deterministic square
+stride groups adjacent cells until the output meets the budget; remainder
+blocks have their actual physical extents. Each retained block stores exact
+mean/minimum/maximum, cell count, inclusive source bounds, and a stable
+`heatmap-source-row1-col1-row2-col2` hit ID. Aggregation is explicitly disclosed;
+a block color does not imply uniform values or certified interpolation inside
+it. Existing palette/color-domain settings apply. Exact unaggregated data has
+`:exact` status; grouped data has `:aggregated` status.
+
+All input cells/rows are validated even when fewer marks are retained. Limits
+bound counts and retained scene size, not arbitrary integer digit counts,
+already-allocated caller inputs, or hard process memory. Float, interval,
+algorithm-real and unresolved samples are rejected by these finite exact input
+adapters; existing Function/HeatMap/Interval plotting contracts remain available
+for those evidence-bearing cases. Rendering styles and dimensions retain their
+existing independent contracts.
+
+Run `rix/examples/plot/bounded-inputs.rix` for a stream and finite heat-map example.
+The benchmark `scripts/bench-bounded-plot.js` records measured full/retained line
+and heat-map costs with HTML checksums in
+`benchmarks/bounded-plot-performance.json`. On the recorded Bun run, a 4096-row
+line fell from 5.89 MB to 0.20 MB of accessible HTML, with rendering 76.68 ms to
+3.00 ms; a 4096-cell grid at 1024 versus 64 retained blocks fell from 3.14 MB to
+0.20 MB, with rendering 36.03 ms to 1.83 ms. These are observations, not timing
+assertions. Temporary-allocation heap deltas are reported separately and are
+not claimed as memory savings.

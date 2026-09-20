@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { readdirSync } from "node:fs";
+import { readdirSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 
@@ -14,19 +14,26 @@ describe("shipped RiX examples", () => {
             .sort();
         const failures = [];
 
-        for (const name of files) {
-            const result = spawnSync(
-                "bun",
-                [cli, "--no-config", path.join(evalDirectory, name)],
-                { cwd: rixRoot, encoding: "utf8" },
-            );
-            if (result.status !== 0) {
-                failures.push({
-                    name,
-                    status: result.status,
-                    error: (result.stderr || result.stdout).trim(),
-                });
+        mkdirSync(path.join(rixRoot, "tmp"), { recursive: true });
+        const output = mkdtempSync(path.join(rixRoot, "tmp", "cli-examples-"));
+        try {
+            for (const name of files) {
+                const result = spawnSync(
+                    "bun",
+                    [cli, "--no-config", `--out=${output}`, path.join(evalDirectory, name)],
+                    { cwd: rixRoot, encoding: "utf8" },
+                );
+                if (result.status !== 0) {
+                    failures.push({
+                        name,
+                        status: result.status,
+                        error: (result.stderr || result.stdout).trim(),
+                    });
+                }
             }
+
+        } finally {
+            rmSync(output, { recursive: true, force: true });
         }
 
         expect(files.length).toBeGreaterThanOrEqual(14);
