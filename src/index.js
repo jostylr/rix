@@ -28,8 +28,8 @@ export {
     createFormulaSheet, isFormulaSheet, createLiveView, isLiveView, isReactiveSource,
     RIXCEL_FORMAT, RIXCEL_VERSION, RIXCEL_ASSIGNMENT_MODES,
     appendRixCelEvent, clearRixCelDraft, createRixCelDocument,
-    materializeRixCelDocument, parseRixCelDocument, exportRixCelDocument,
-    rixCelEventCommand, setRixCelCursor, setRixCelDraft, stringifyRixCelDocument,
+    materializeRixCelDocument, parseRixCelDocument, replayRixCelDocument, exportRixCelDocument,
+    rixCelCellFormat, rixCelEventCommand, setRixCelCursor, setRixCelDraft, stringifyRixCelDocument,
     importRixCelDocument, rewriteRixCelReferences,
     createReactiveGraph, isReactiveGraph, isReactiveNode, REACTIVE_READ_ENV,
     getDiagnostics, RixAbort, isRixAbort, createEvent, runtimeDefaults,
@@ -191,3 +191,5 @@ export { createLinkedViews } from "./runtime/linked-views.js";
 
 export { RIXCEL_WORKBOOK_FORMAT, RIXCEL_WORKBOOK_LIMITS, parseRixCelWorkbook, createRixCelWorkbookDocument, stringifyRixCelWorkbook, createRixCelWorkbook } from "./runtime/rixcel-workbook.js";
 export { createRixCelWorkbookHost } from "./eval/rixcel-host.js";
+
+export { rixCelTensorPlane, createRixCelTensorSheet, materializeRixCelTensorPlane } from "./runtime/rixcel-tensor.js";

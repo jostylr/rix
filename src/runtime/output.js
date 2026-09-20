@@ -1,4 +1,6 @@
-import { numericFormatter, numericFormatterPolicy, numericSourceFormatter } from "./numeric-presentation.js";
+import { sheetCellStyleCss } from "./sheet-format.js";
+import { rixCelCellFormat } from "./rixcel-document.js";
+import { presentNumericValue, numericFormatter, numericFormatterPolicy, numericSourceFormatter } from "./numeric-presentation.js";
 /** Portable structured-output values and host-neutral render helpers. */
 
 import { CertifiedApproximation, Integer, Rational, RationalInterval } from "@ratmath/core";
@@ -1644,6 +1646,7 @@ export function createSheet(args) {
                 axisLabels[axisIndex]?.[coordinate - 1] ?? null);
             return Object.freeze({
                 value: data.at(index),
+                style: Object.freeze(rixCelCellFormat(documentView ?? {}, index)),
                 formulaSource: data.formulaSourceAt?.(index) ?? null,
                 slotId: formulaMetadata?.slotId ?? null,
                 assignmentMode: formulaMetadata?.assignmentMode ?? null,
@@ -2756,9 +2759,14 @@ function graphicIsInteractive(graphic) {
     return graphic.children.some(visit);
 }
 
+export function sheetFormattedNumber(cell) {
+    if (!["exact", "decimal"].includes(cell.style?.numberFormat) || !(cell.value instanceof Integer || cell.value instanceof Rational)) return null;
+    return presentNumericValue(cell.value, { notation: cell.style.numberFormat, decimalPlaces: cell.style.precision ?? 6 }).text;
+}
+
 function formatSheetText(sheet, format) {
     const strings = sheet.cells.map((row) => row.map((cell) =>
-        cell.blank ? "" : cell.value === null ? "_" : cellText(cell.value, format)));
+        cell.blank ? "" : cell.value === null ? "_" : sheetFormattedNumber(cell) ?? cellText(cell.value, format)));
     const rowHeaderWidth = Math.max(1, ...sheet.rowHeaders.map((header) => header.length));
     const columnWidths = sheet.columnHeaders.map((header, column) =>
         Math.max(header.length, 1, ...strings.map((row) => row[column]?.length ?? 0)));
@@ -3218,7 +3226,9 @@ export function renderOutputHtml(value, format = (item) => String(item ?? "")) {
             : "";
         const renderSheetCell = (cell, rowIndex, columnIndex) => {
             const diagnostic = cell.diagnostics[0] ?? null;
-            const cellValue = cell.blank ? "" : cell.value === null ? "_" : text(cell.value);
+            const cellValue = cell.blank ? "" : cell.value === null ? "_" : sheetFormattedNumber(cell) !== null ? escapeHtml(sheetFormattedNumber(cell)) : text(cell.value);
+            const style = cell.style ?? {};
+            const css = sheetCellStyleCss(style);
             const title = [
                 cell.coordinateLabel,
                 cell.displayAddress,
@@ -3229,7 +3239,7 @@ export function renderOutputHtml(value, format = (item) => String(item ?? "")) {
             const diagnosticAttributes = diagnostic === null
                 ? ""
                 : ` data-rix-state="error" data-rix-diagnostic-kind="${escapeHtml(cell.diagnosticKind ?? "runtime")}" data-rix-diagnostics="${escapeHtml(JSON.stringify(cell.diagnostics))}"${cell.diagnosticSource === null ? "" : ` data-rix-diagnostic-source="${escapeHtml(cell.diagnosticSource)}"`} aria-invalid="true"`;
-            return `<td data-rix-row="${rowIndex + 1}" data-rix-column="${columnIndex + 1}" data-rix-index="${cell.index.join(",")}" data-rix-address="${escapeHtml(cell.address)}" data-rix-display-address="${escapeHtml(cell.displayAddress)}"${cell.blank ? ' data-rix-blank="true"' : ""}${cell.coordinateLabel === null ? "" : ` data-rix-coordinate-labels="${escapeHtml(JSON.stringify(cell.coordinateLabels))}" data-rix-coordinate-label="${escapeHtml(cell.coordinateLabel)}"`}${cell.formulaSource === null ? "" : ` data-rix-formula-source="${escapeHtml(cell.formulaSource)}"`}${cell.slotId === null ? "" : ` data-rix-slot-id="${escapeHtml(cell.slotId)}"`}${cell.assignmentMode === null ? "" : ` data-rix-assignment-mode="${escapeHtml(cell.assignmentMode)}"`}${cell.dependencies.length === 0 ? "" : ` data-rix-dependencies="${escapeHtml(JSON.stringify(cell.dependencies))}"`}${diagnosticAttributes} title="${escapeHtml(title)}">${cellValue}</td>`;
+            return `<td${css ? ` style="${escapeHtml(css)}"` : ""} data-rix-row="${rowIndex + 1}" data-rix-column="${columnIndex + 1}" data-rix-index="${cell.index.join(",")}" data-rix-address="${escapeHtml(cell.address)}" data-rix-display-address="${escapeHtml(cell.displayAddress)}"${cell.blank ? ' data-rix-blank="true"' : ""}${cell.coordinateLabel === null ? "" : ` data-rix-coordinate-labels="${escapeHtml(JSON.stringify(cell.coordinateLabels))}" data-rix-coordinate-label="${escapeHtml(cell.coordinateLabel)}"`}${cell.formulaSource === null ? "" : ` data-rix-formula-source="${escapeHtml(cell.formulaSource)}"`}${cell.slotId === null ? "" : ` data-rix-slot-id="${escapeHtml(cell.slotId)}"`}${cell.assignmentMode === null ? "" : ` data-rix-assignment-mode="${escapeHtml(cell.assignmentMode)}"`}${cell.dependencies.length === 0 ? "" : ` data-rix-dependencies="${escapeHtml(JSON.stringify(cell.dependencies))}"`}${diagnosticAttributes} title="${escapeHtml(title)}">${cellValue}</td>`;
         };
         const bodies = value.planes.map((plane) => `<tbody data-rix-plane-key="${escapeHtml(plane.key)}" data-rix-slice="${plane.slice.map((item) => item ?? "").join(",")}"${plane.key === value.selectedPlaneKey ? "" : " hidden"}>${plane.cells.map((row, rowIndex) => {
             const rowCoordinate = value.window?.rowStart + rowIndex || rowIndex + 1;

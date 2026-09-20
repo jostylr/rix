@@ -12,7 +12,7 @@ export const RIXCEL_VERSION = 3;
 export const RIXCEL_ASSIGNMENT_MODES = FORMULA_SHEET_ASSIGNMENT_MODES;
 
 const ASSIGNMENT_MODES = new Set(RIXCEL_ASSIGNMENT_MODES);
-const EVENT_TYPES = new Set(["slot:set", "slot:batch", "view:axis-label", "axis:insert"]);
+const EVENT_TYPES = new Set(["slot:set", "slot:batch", "view:axis-label", "axis:insert", "view:region", "view:format"]);
 const importedDocuments = new WeakMap();
 const DOCUMENT_VIEW_KEYS = Object.freeze([
     "title",
@@ -22,6 +22,8 @@ const DOCUMENT_VIEW_KEYS = Object.freeze([
     "slice",
     "columnLabels",
     "address",
+    "regions",
+    "formats",
 ]);
 
 function fail(path, message) {
@@ -143,6 +145,48 @@ function normalizeView(value, path) {
     return jsonClone(value, path);
 }
 
+function normalizeBounds(value, shape, path) {
+    const start = normalizeIndex(value.start, shape, `${path}.start`);
+    const end = normalizeIndex(value.end, shape, `${path}.end`);
+    if (start.some((n, axis) => n > end[axis])) fail(path, "start must not exceed end on any axis");
+    return { start, end };
+}
+
+function regionName(value, path) {
+    if (typeof value !== "string" || !/^[A-Za-z][A-Za-z0-9_]{0,63}$/u.test(value)) fail(path, "must be a 1..64 character identifier starting with a letter");
+    return value;
+}
+
+function normalizeFormat(value, path) {
+    plainObject(value, path);
+    const result = {};
+    for (const [key, item] of Object.entries(value)) {
+        let valid = false;
+        if (["bold", "italic"].includes(key)) valid = typeof item === "boolean";
+        else if (["color", "background"].includes(key)) valid = typeof item === "string" && /^#[0-9a-fA-F]{6}$/u.test(item);
+        else if (key === "align") valid = ["left", "center", "right"].includes(item);
+        else if (key === "numberFormat") valid = ["exact", "decimal"].includes(item);
+        else if (key === "precision") valid = Number.isInteger(item) && item >= 0 && item <= 20;
+        else fail(`${path}.${key}`, "unsupported formatting property");
+        if (item !== null && !valid) fail(`${path}.${key}`, "invalid formatting value");
+        result[key] = item;
+    }
+    return result;
+}
+
+/** Resolve sparse inclusive rank-N format layers without materializing their cells. */
+export function rixCelCellFormat(view, index) {
+    const result = {};
+    for (const layer of view.formats ?? []) {
+        if (index.length !== layer.start.length || !index.every((n, axis) => n >= layer.start[axis] && n <= layer.end[axis])) continue;
+        for (const [key, value] of Object.entries(layer.style)) {
+            if (value === null) delete result[key];
+            else result[key] = value;
+        }
+    }
+    return result;
+}
+
 function normalizeDocumentView(value, path, shape) {
     const view = normalizeView(value, path);
     const entries = Object.entries(view);
@@ -153,6 +197,19 @@ function normalizeDocumentView(value, path, shape) {
             delete view[matches[0][0]];
             view[canonical] = matches[0][1];
         }
+    }
+    if (view.regions !== undefined) {
+        plainObject(view.regions, `${path}.regions`);
+        if (Object.keys(view.regions).length > 256) fail(`${path}.regions`, "exceeds 256 named regions");
+        view.regions = Object.fromEntries(Object.entries(view.regions).map(([name, bounds]) => [regionName(name, `${path}.regions`), normalizeBounds(plainObject(bounds, `${path}.regions.${name}`), shape, `${path}.regions.${name}`)]));
+    }
+    if (view.formats !== undefined) {
+        if (!Array.isArray(view.formats) || view.formats.length > 10000) fail(`${path}.formats`, "must be an array with at most 10000 format layers");
+        view.formats = view.formats.map((layer, offset) => {
+            const at = `${path}.formats[${offset}]`;
+            plainObject(layer, at);
+            return { ...normalizeBounds(layer, shape, at), style: normalizeFormat(layer.style, `${at}.style`) };
+        });
     }
     if (view.title !== undefined && typeof view.title !== "string") {
         fail(`${path}.title`, "must be a string");
@@ -248,6 +305,8 @@ function sourceString(value) {
 }
 
 export function rixCelEventCommand(event, binding = "document") {
+    if (event.type === "view:region") return `${binding} := ${binding}.SetRegion(${sourceString(event.name)}, ${event.start === null ? "_, _" : `[${event.start.join(",")}], [${event.end.join(",")}]`})`;
+    if (event.type === "view:format") return `${binding} := ${binding}.FormatRegion([${event.start.join(",")}], [${event.end.join(",")}], ${sourceString(JSON.stringify(event.style))})`;
     if (event.type === "axis:insert") return `${binding} := ${binding}.InsertAxis(${event.axis}, ${event.coordinate}, ${event.count})`;
     if (event.type === "slot:set") {
         return `${binding}.SetSource(${event.index.join(", ")}, ${sourceString(event.source)}, ${sourceString(event.assignmentMode)})`;
@@ -267,7 +326,13 @@ function normalizeEvent(rawEvent, offset, id, shape) {
     const sequence = offset + 1;
     const type = event.type;
     if (!EVENT_TYPES.has(type)) fail(`${path}.type`, `is not supported: ${type}`);
-    const normalized = type === "axis:insert" ? (() => {
+    const normalized = type === "view:region" ? (() => {
+        const name = regionName(event.name, `${path}.name`);
+        const bounds = event.start === null && event.end === null ? { start: null, end: null } : normalizeBounds(event, shape, path);
+        return { id: eventId(id, sequence), sequence, type, name, ...bounds };
+    })() : type === "view:format" ? {
+        id: eventId(id, sequence), sequence, type, ...normalizeBounds(event, shape, path), style: normalizeFormat(event.style, `${path}.style`),
+    } : type === "axis:insert" ? (() => {
         const { axis, coordinate, count = 1 } = event;
         if (!Number.isSafeInteger(axis) || axis < 1 || axis > shape.length) fail(`${path}.axis`, "is out of range");
         if (!Number.isSafeInteger(coordinate) || coordinate < 1 || coordinate > shape[axis-1]+1) fail(`${path}.coordinate`, "is out of range");
@@ -481,7 +546,7 @@ export function appendRixCelEvent(value, event) {
     // Failed editor drafts have no authoritative compiled reference graph.
     if (event.type === "axis:insert" && document.drafts.length) throw new Error("Resolve formula drafts before inserting an axis");
     const candidate = parseRixCelDocument({ ...document, shape, events, cursor: events.length, drafts: document.drafts });
-    if (event.type === "axis:insert") replayRixCelDocument(candidate); // Validate every rewrite before publication.
+    if (["axis:insert", "view:region", "view:format"].includes(event.type)) replayRixCelDocument(candidate); // Validate every rewrite before publication.
     return candidate;
 }
 
@@ -571,7 +636,21 @@ export function replayRixCelDocument(value) {
                 view = {...view,axisLabels:labels};
             }
             if (view.slice?.[event.axis-1] >= event.coordinate) { view = {...view,slice:[...view.slice]}; view.slice[event.axis-1] += event.count; }
+            const moveBounds = bounds => {
+                const start = [...bounds.start], end = [...bounds.end], axis = event.axis - 1;
+                if (start[axis] >= event.coordinate) start[axis] += event.count;
+                if (end[axis] >= event.coordinate) end[axis] += event.count;
+                return { ...bounds, start, end };
+            };
+            if (view.regions) view.regions = Object.fromEntries(Object.entries(view.regions).map(([name, bounds]) => [name, moveBounds(bounds)]));
+            if (view.formats) view.formats = view.formats.map(moveBounds);
             shape[event.axis-1] += event.count;
+        } else if (event.type === "view:region") {
+            view.regions = { ...view.regions };
+            if (event.start === null) delete view.regions[event.name];
+            else Object.defineProperty(view.regions, event.name, { value: { start: [...event.start], end: [...event.end] }, enumerable: true, configurable: true, writable: true });
+        } else if (event.type === "view:format") {
+            view.formats = [...(view.formats ?? []), { start: [...event.start], end: [...event.end], style: { ...event.style } }];
         } else if (event.type === "view:axis-label") {
             const labels = Array.from({ length: document.shape.length }, (_unused, axis) => {
                 const existing = view.axisLabels?.[axis];

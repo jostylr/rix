@@ -44,6 +44,9 @@ export function deferredSource(formula) {
 
 export function createFormulaSheetRuntimeOptions(context, evaluate, systemContext) {
     return {
+        editDocumentView(sheet, event) {
+            return importRixCelDocument(appendRixCelEvent(exportRixCelDocument(sheet), event), createFormulaSheetRuntimeOptions(context,evaluate,systemContext));
+        },
         insertAxis(sheet, axis, coordinate, count) {
             return importRixCelDocument(appendRixCelEvent(exportRixCelDocument(sheet), { type: "axis:insert", axis, coordinate, count }), createFormulaSheetRuntimeOptions(context,evaluate,systemContext));
         },

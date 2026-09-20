@@ -46,7 +46,41 @@
       }
     },
     "view": {
-      "type": "object"
+      "type": "object",
+      "properties": {
+        "regions": {
+          "type": "object",
+          "maxProperties": 256,
+          "propertyNames": {
+            "pattern": "^[A-Za-z][A-Za-z0-9_]{0,63}$"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/regionBounds"
+          }
+        },
+        "formats": {
+          "type": "array",
+          "maxItems": 10000,
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/regionBounds"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "style"
+                ],
+                "properties": {
+                  "style": {
+                    "$ref": "#/$defs/formatStyle"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
     },
     "defaultSlot": {
       "type": "object",
@@ -99,7 +133,9 @@
               "slot:set",
               "slot:batch",
               "view:axis-label",
-              "axis:insert"
+              "axis:insert",
+              "view:region",
+              "view:format"
             ]
           },
           "command": {
@@ -189,6 +225,33 @@
                 }
               }
             }
+          },
+          "start": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/boundsIndex"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "end": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/boundsIndex"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_]{0,63}$"
+          },
+          "style": {
+            "$ref": "#/$defs/formatStyle"
           }
         },
         "allOf": [
@@ -254,6 +317,68 @@
                 "count"
               ]
             }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "view:region"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "name",
+                "start",
+                "end"
+              ],
+              "anyOf": [
+                {
+                  "properties": {
+                    "start": {
+                      "type": "null"
+                    },
+                    "end": {
+                      "type": "null"
+                    }
+                  }
+                },
+                {
+                  "properties": {
+                    "start": {
+                      "$ref": "#/$defs/boundsIndex"
+                    },
+                    "end": {
+                      "$ref": "#/$defs/boundsIndex"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "view:format"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "start",
+                "end",
+                "style"
+              ],
+              "properties": {
+                "start": {
+                  "$ref": "#/$defs/boundsIndex"
+                },
+                "end": {
+                  "$ref": "#/$defs/boundsIndex"
+                }
+              }
+            }
           }
         ]
       }
@@ -302,6 +427,87 @@
           "message": {
             "type": "string"
           }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "boundsIndex": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 9007199254740991
+      }
+    },
+    "formatStyle": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "bold": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "italic": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "color": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^#[0-9a-fA-F]{6}$"
+        },
+        "background": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^#[0-9a-fA-F]{6}$"
+        },
+        "align": {
+          "enum": [
+            "left",
+            "center",
+            "right",
+            null
+          ]
+        },
+        "numberFormat": {
+          "enum": [
+            "exact",
+            "decimal",
+            null
+          ]
+        },
+        "precision": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 20
+        }
+      }
+    },
+    "regionBounds": {
+      "type": "object",
+      "required": [
+        "start",
+        "end"
+      ],
+      "properties": {
+        "start": {
+          "$ref": "#/$defs/boundsIndex"
+        },
+        "end": {
+          "$ref": "#/$defs/boundsIndex"
         }
       }
     }

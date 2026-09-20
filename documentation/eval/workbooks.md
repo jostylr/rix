@@ -145,3 +145,11 @@ requires a host reader; published pages retain the initial static result and
 diagnose the missing reader. Use the Notebook `examples/cel-embedding` project
 for named exports and the storage-backed path. No Excel-formula translation is
 implied by these RiX APIs.
+
+## Tensor snapshots, regions and formatting
+
+The C4 host adapters use the shared [tensor-plane helpers](rixcel-tensors.md) for
+bounded, explicit snapshots and linked read-only views. [Named rank-N regions and
+block formatting](rixcel-regions.md) are replayable document events; neither
+changes numeric addresses or exact stored values. Cel exposes these controls in
+its editor, and Notebook exposes them on its embedded workbook handle.

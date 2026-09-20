@@ -5,7 +5,7 @@
  * event, updates its Binding, and publishes a newly-created portable snapshot.
  */
 
-import { createSheet, createSheetSnapshot, isOutputValue } from "../runtime/output.js";
+import { sheetFormattedNumber, createSheet, createSheetSnapshot, isOutputValue } from "../runtime/output.js";
 import { isBinding } from "../runtime/binding.js";
 import { isFormulaSheet } from "../runtime/formula-sheet.js";
 import { isReactiveNode } from "../runtime/reactive-graph.js";
@@ -117,7 +117,8 @@ export class WidgetSession {
         return this.widget.planes.flatMap((plane) => plane.cells.flatMap((row) =>
             row.map((cell) => ({
                 address: cell.address,
-                text: cell.blank === true ? "" : format(cell.value),
+                style: cell.style ?? {},
+                text: cell.blank === true ? "" : sheetFormattedNumber(cell) ?? format(cell.value),
                 blank: cell.blank === true,
                 formulaSource: cell.formulaSource,
                 slotId: cell.slotId,

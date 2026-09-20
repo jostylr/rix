@@ -1,3 +1,4 @@
+import { sheetCellStyleCss } from "../runtime/sheet-format.js";
 /**
  * Host-side interaction for portable Sheet output.
  *
@@ -211,6 +212,7 @@ function enhanceSheet(sheet, options) {
             const candidate = cells.find((cell) => cell.dataset.rixAddress === update.address);
             if (!candidate) continue;
             candidate.textContent = update.text;
+            if (update.style) candidate.setAttribute?.("style", sheetCellStyleCss(update.style));
             if (update.blank) candidate.dataset.rixBlank = "true";
             else delete candidate.dataset.rixBlank;
             if (typeof update.formulaSource === "string") {

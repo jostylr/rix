@@ -192,6 +192,8 @@ function method(name, impl) {
 
 function formulaSheetMethods() {
     return new Map([
+        ["SETREGION", method("SetRegion", ([target, name, start, end]) => target.setRegion(name,start,end))],
+        ["FORMATREGION", method("FormatRegion", ([target, start, end, style]) => target.formatRegion(start,end,style))],
         ["INSERTAXIS", method("InsertAxis", ([target, axis, coordinate, count = new Integer(1n)]) => target.insertAxis(axis,coordinate,count))],
         ["GETFORMULA", method("GetFormula", ([target, ...index]) => target.getFormula(index))],
         ["SETFORMULA", method("SetFormula", ([target, ...args]) => {
@@ -391,6 +393,15 @@ export function createFormulaSheet(formulasValue, options = {}) {
         track() {
             visitLogicalIndices(shape, (index) => sheet.get(index));
             return sheet;
+        },
+        setRegion(name, start, end) {
+            if (typeof options.editDocumentView !== "function") throw new Error("FormulaSheet region editing requires a document host");
+            const bounds = start === null && end === null ? { start: null, end: null } : { start: valuesOf(start, "Region start").map(v => exactIndex(v)), end: valuesOf(end, "Region end").map(v => exactIndex(v)) };
+            return options.editDocumentView(sheet, { type: "view:region", name: text(name, "Region name"), ...bounds });
+        },
+        formatRegion(start, end, style) {
+            if (typeof options.editDocumentView !== "function") throw new Error("FormulaSheet region editing requires a document host");
+            return options.editDocumentView(sheet, { type: "view:format", start: valuesOf(start, "Region start").map(v => exactIndex(v)), end: valuesOf(end, "Region end").map(v => exactIndex(v)), style: JSON.parse(text(style, "Region style JSON")) });
         },
         insertAxis(axis, coordinate, count = 1) {
             if (typeof options.insertAxis !== "function") throw new Error("FormulaSheet structural editing requires a document host");
