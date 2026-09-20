@@ -94,7 +94,7 @@ The `documentation/` directory is authored source. The `docs/` directory is gene
 
 For packaging, `bun run test:pack` checks the tarball contents and
 `bun run smoke:package` installs RiX against its declared registry dependencies.
-The latter currently reports the missing `NumeralSystem` export in published
-Core. In the umbrella workspace, `bun scripts/package-consumer-smoke.js
+Run that gate after Core 0.6.0 is published; an unpublished dependency version
+cannot pass the registry check. In the umbrella workspace, `bun scripts/package-consumer-smoke.js
 --workspace-core` checks both local tarballs in an isolated consumer. Keep that
 rehearsal distinct from the registry release gate; neither command publishes.

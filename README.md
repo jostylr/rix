@@ -37,9 +37,9 @@ bun install
 bun --cwd rix test
 ```
 
-The manifest currently declares `@ratmath/core` ^0.5.0, but the published
-package does not yet include the `NumeralSystem` export used by this checkout.
-Use the workspace until coordinated Core/RiX versions are released. The package
+The manifest requires `@ratmath/core` ^0.6.0 for the `NumeralSystem` API.
+Standalone installation requires Core 0.6.0 to be published first; before that,
+use the matching workspace checkout. The package
 name is `@ratmath/rix`; unscoped `rix` belongs to an unrelated package.
 
 RiX uses Bun 1.4 and provides explicit test depths:

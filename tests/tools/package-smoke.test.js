@@ -4,10 +4,10 @@ import path from "node:path";
 const rixRoot = path.resolve(import.meta.dir, "../..");
 
 describe("standalone package", () => {
-  test("uses released dependencies and Bun for the package worker", async () => {
+  test("declares compatible dependencies and Bun for the package worker", async () => {
     const manifest = await Bun.file(path.join(rixRoot, "package.json")).json();
     expect(manifest.name).toBe("@ratmath/rix");
-    expect(manifest.dependencies["@ratmath/core"]).toBe("^0.5.0");
+    expect(manifest.dependencies["@ratmath/core"]).toBe("^0.6.0");
     expect(manifest.engines).toEqual({ bun: ">=1.4.0" });
 
     const worker = await Bun.file(path.join(rixRoot, "bin/rix-worker.js")).text();
@@ -17,6 +17,7 @@ describe("standalone package", () => {
 
     const core = await import("@ratmath/core");
     for (const required of [
+      "NumeralSystem",
       "CertifiedApproximation",
       "Relation",
       "parseCertifiedApproximation",

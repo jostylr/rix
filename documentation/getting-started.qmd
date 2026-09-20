@@ -23,10 +23,9 @@ bun --cwd rix run test:short
 ```
 
 The workspace preparation command initializes pinned repositories and installs
-their dependencies. The manifest declares Core ^0.5.0, but the registry package
-is missing the newer `NumeralSystem` export at this revision. Standalone registry
-installation therefore needs a coordinated release; workspace development uses
-the matching local Core implementation. Use `bun --cwd rix run test:suite` for
+their dependencies. The manifest requires Core ^0.6.0 for `NumeralSystem`.
+Standalone registry installation requires that Core version to be published
+first; workspace development uses the matching local Core implementation. Use `bun --cwd rix run test:suite` for
 the complete verification (longer than the short development checks).
 
 The RiX test suite exercises tokenizer, parser, lowering, evaluator, runtime, CLI, examples, exact values, types, methods, Shaped storage, mathematical tensors, generators, and diagnostics.
