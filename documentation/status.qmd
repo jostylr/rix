@@ -6,7 +6,7 @@ description: "The current supported surface and the boundary between working RiX
 RiX is an active alpha. Its parser, AST-to-IR lowering, and broad evaluator are working; the language remains free to change before a stable release. This page is the current status boundary. Older reports and design notes are valuable history but are not authoritative status pages.
 
 The umbrella `ratmath/WORK_PLAN.md` consolidates the current execution queue
-and later decisions (reconciled 2026-09-19).
+and later decisions (reconciled 2026-09-20).
 
 The repository test suite has broad automated coverage across parser, evaluator,
 runtime, CLI, tooling, documentation, and examples. Run `bun test` in `rix/`
@@ -29,6 +29,8 @@ for the exact count and result at your revision.
 | Tooling | REPL/runner, IR converter, native `.test.rix` runner, structured diagnostics, source locations, trace/debug |
 | Structured output | typed `Text`, `Paragraph`, `Heading`, `Fragment`, `Table`, `Grid`, `Graphic`, `Figure`, `Slide`, `Slides`, and reactive `ControlPanel` values; intrinsic 2D scene primitives under `.Graphics` include `DragPoint`, while `.Controls.Slider($$name, ...)` performs exact identity-preserving updates; optional bundled `.draw` and `.plot` producers; `.Renderer`/`.Render` negotiation and SVG, Canvas-plan, TikZ, PNG, Markdown, HTML, Quarto, LaTeX, PDF, and glTF plugins; extension-driven CLI `.Out` text/binary export; `@"..."`/`@"""..."""` templates; exact synthetic division through `.Algebra.SyntheticDivision` |
 | 3D and higher dimensions | optional `.scene3d` retained `rix.scene3d@1` values with exact meshes, polylines, point clouds, transforms, perspective/orthographic cameras, and deterministic wireframe-to-Graphics snapshots; `.nd` exact affine/Cayley projection records and polytopes; browser-safe embedded-buffer glTF 2.0 export; runnable 4D tesseract example |
+| Finite numeric acceleration | Copy-owned binary32/binary64 Float tensors and bounded matrix multiplication remain approximate; exact sparse finite matrix products stay Rational. Canvas has bounded path caching, conservative dirty repaint and explicit OffscreenCanvas worker support; Plot has bounded downsampling, stream tails and exact heatmap aggregates. |
+| RiXCel | Structural editing with reference-aware undo, atomic cross-document workbooks, CSV/TSV/XLSX interchange and bounded virtual rank-N regions; imported formula text is inert unless explicitly activated under the host policy. |
 | Embedding | parser exports, evaluator/runtime exports, configurable system loader and system context |
 | Exact symbolic core | identity/expression/system specs, inert definitions and constraints, normalized symbol roles, substitution and composition, name-preserving arithmetic, attached pure-function specs, polynomial compilation, exact derivatives/integrals, explicit simplification, quote calculus syntax |
 
@@ -38,11 +40,11 @@ for the exact count and result at your revision.
 |---|---|
 | Symbolic work | `{# ... }` represents multi-symbol systems. The core exact subset is complemented by opt-in Calculus/CAS rules, Numerics quadrature/refinement and Solve adapters. General solving, unrestricted simplification, global assumption/branch semantics and multivariate elimination remain separate follow-ups. |
 | FractionFunction migration | `.fracfun` remains the sole host-backed computational exact-algebra plugin because it clones and rewrites private symbolic IR, closure scopes, and source-domain restrictions. Its canonical projections already use pure-RiX `.poly` and `.ratfun`; migration waits for a versioned public symbolic-expression builder. |
-| Mathematical systems and async follow-up | `{# ... }` retains inert symbolic systems. Solve supports affine systems, inequalities through Optimize, polynomial root dispatch, and scalar Numerics adapters; multidimensional subdivision consumers and multivariate elimination remain separate follow-ups. Async finite collections, bounded lazy pull, streams, captured-value snapshots/write rejection, cancellation, and cleanup are implemented. Host/editor execution workers and budgets exist; a scheduler-owned CPU worker pool, complete structural task paths, capability-safety metadata, and Notebook async integration remain follow-up work. |
+| Mathematical systems and async | Solve includes bounded multidimensional subdivision/feasibility consumers; multivariate elimination remains outside the supported scope. Async includes bounded lazy pull/streams, task snapshots, cancellation/cleanup, capability-safety metadata, structural task paths, a restricted pure CPU worker pool and Notebook async execution. Arbitrary host JavaScript cannot be forcibly preempted in-process; workers provide the termination boundary. |
 | Real approximation | certified radix/continued-fraction prefixes and three-state comparisons are in Core/RiX; optional Float, Oracle, Ball, Cauchy, continued-fraction, algebraic-real, and Numerics plugins provide backend-specific computation and bounded refinement. |
 | Browser use | the parser and evaluator are browser-safe. Browser hosts can preload RiX sources and explicitly trusted JavaScript modules with `createBrowserHostAdapter`; Node filesystem and module loading live behind the separate Node host adapter. |
-| Packaging | the standalone manifest is `@ratmath/rix` 0.1.0 and targets `@ratmath/core` 0.5. Its opt-in release gate covers the complete suite with coverage, native RiX tests, documentation, editor policy, package contents, and an isolated tarball install. The 0.1 line is explicitly alpha and makes no compatibility commitment. |
-| 3D rendering | Retained scenes, pure-RiX realization/projection, wireframe and flat-lit snapshots, adaptive parametric surfaces, Canvas/PNG lowering, interactive WebGL orbit/selection, and glTF JSON export exist. Certified implicit surfaces, volume/slice policies, textures, GLB/import, and broader 3D interchange remain follow-up work. Static camera projection belongs to Scene3D rather than the 2D SVG/Canvas/TikZ renderers. |
+| Packaging | the standalone manifest is `@ratmath/rix` 0.1.0 and targets `@ratmath/core` 0.5. The published Core package lacks the newer `NumeralSystem` export at this revision; use the matched workspace until a coordinated release. Paired local tarballs pass the isolated-consumer check. Its opt-in release gate covers the complete suite with coverage, native RiX tests, documentation, editor policy, package contents, and an isolated tarball install. The 0.1 line is explicitly alpha and makes no compatibility commitment. |
+| 3D rendering | Retained scenes, pure-RiX realization/projection, wireframe and flat-lit snapshots, adaptive parametric surfaces, Canvas/PNG lowering, interactive WebGL orbit/selection, and glTF JSON export exist. Bounded implicit cell covers, volume/slice views and ND sections retain unresolved regions and do not certify reconstructed topology. Textures, GLB/import and broader 3D interchange remain follow-up work. Static camera projection belongs to Scene3D rather than the 2D SVG/Canvas/TikZ renderers. |
 
 ## Documentation authority
 
@@ -55,3 +57,13 @@ When pages disagree, use this order:
 5. historical reports, early phase documents, scratch notes, and generated legacy HTML.
 
 The build regenerates the runtime catalog from the implementation, which makes missing or renamed system capabilities visible in every documentation change.
+
+## Learn the delivered workflows
+
+Start with the [runnable capstones](tutorial/capstones.md), then use the
+[publication workflow](eval/publication-workflows.md),
+[validated scene views](eval/validated-scene-views.md),
+[exact exploration](eval/exact-exploration.md),
+[task workers](eval/task-workers.md), and [workbooks](eval/workbooks.md)
+guides for contracts and limits. Plugin tutorials remain the executable API
+examples; generated method catalogs describe the current runtime surface.

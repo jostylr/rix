@@ -6,7 +6,7 @@ a document from the toolbar. Editing an input document updates every dependent
 output together. Each document keeps its own history; undo also recomputes other
 documents. Save/reopen and local recovery preserve the complete workbook.
 
-Try [cross-sheet.rixbook](../../examples/rixcel/cross-sheet.rixbook): `sales`
+Try [cross-sheet.rixbook](https://github.com/jostylr/rix/blob/main/examples/rixcel/cross-sheet.rixbook): `sales`
 exports a subtotal and `report` applies its own tax rate. The report formula is:
 
 ```rix
@@ -115,7 +115,7 @@ per candidate. Refresh allows four concurrent sources and a 5000ms timeout.
 The mathematical JSON codec additionally bounds each snapshot. These are
 cooperative work/data bounds, not claims of process memory isolation.
 
-See [the workbook schema](../../schemas/rixcel-workbook-v1.schema.json) and
+See [the workbook schema](https://github.com/jostylr/rix/blob/main/schemas/rixcel-workbook-v1.schema.json) and
 [the document format](../design/eval/rixcel-format.md).
 
 ## Notebook embedding and host reuse

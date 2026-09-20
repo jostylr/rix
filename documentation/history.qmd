@@ -1,0 +1,33 @@
+---
+title: "Historical specifications and delivery records"
+---
+
+These pages preserve the reasoning and delivery history behind RiX. They can
+include proposed syntax, superseded APIs, old implementation gaps, or completed
+checklists. They are excluded from the site's search index in both documentation
+build modes so a search for today's API leads to current guides. Existing URLs
+remain available for citations and links.
+
+For supported behavior, start with [implementation status](status.qmd), the
+[language reference](eval/syntax-guide.md), the [plugin catalog](plugin-catalog.md),
+or the [generated runtime catalog](reference/system-reference.md).
+
+| Historical material | Current starting point |
+|---|---|
+| [Early language specification](design/parser/spec.md) and [open design questions](design/parser/questions.md) | [Language reference](eval/syntax-guide.md) |
+| [April 2026 review](report-2026-04-02.md) | [Implementation status](status.qmd) |
+| [Handwritten IR snapshot](design/eval/ir-format.md) | [Generated IR registry](reference/system-reference.md#internal-ir-registry) |
+| [Document roadmap and notation proposals](design/eval/document-output-todo.md) | [Document persistence](eval/document-persistence.md), [publication layout](eval/publication-plan.md), and [assets](eval/output-assets.md) |
+| [Reactive control delivery plan](design/eval/control-panel-todo.md) | [Reactive controls](eval/controls-guide.md) |
+| [RiXCel delivery checklist](design/eval/rixcel-todo.md) | [Workbooks](eval/workbooks.md), [tensor editing](eval/rixcel-tensors.md), and [regional output](eval/rixcel-regions.md) |
+| [Structural arithmetic completion record](design/eval/structural-arithmetic-todo.md) | [Structural values](eval/objects/structural-values.md) |
+| [Plugin roadmap and rendering proposals](design/plugins.md) | [Plugin catalog](plugin-catalog.md) and [renderer guide](eval/renderer-guide.md) |
+
+Current implementation contracts remain searchable even when their source lives
+under `design/`. In particular, concurrency semantics, runtime performance
+measurements, output contracts, and the RiXCel format are useful current
+references. File location alone does not determine whether a page is historical.
+
+Unpublished scratch notes, old generated parser HTML, and reports outside the
+explicit site render list remain repository history; they are not documentation
+search results.

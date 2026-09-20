@@ -1,4 +1,14 @@
+---
+search: false
+---
+
 # Document blocks, inline content, and assets
+
+::: {.callout-note title="Historical planning and delivery record"}
+This page preserves earlier plans and completion notes; proposed APIs and
+remaining-work statements below are not the current implementation contract.
+Use the [history index](../../history.qmd) for links to current guides.
+:::
 
 ::: {.callout-note title="Status — records, templates, and baseline exporters implemented"}
 Reconciled 2026-09-19. Block/inline/media records, strict template directives

@@ -1,7 +1,7 @@
 # RiXCel sheet-view examples
 
-The first RiXCel slice is the portable `.Sheet(...)` output constructor. Run
-the examples from the `rix/` directory:
+These examples cover portable `.Sheet(...)` views, reactive formulas, exact
+value interchange, and source-backed persistence. Run them from the `rix/` directory:
 
 ```sh
 bun bin/rix.js examples/rixcel/sheet-views.rix
@@ -44,5 +44,10 @@ can call `renderOutputHtml` to render the same value as an address-aware grid.
 fresh FormulaSheet context. The format is specified in
 [`rixcel-format.md`](../../documentation/design/eval/rixcel-format.md);
 the standalone browser editor can open, save, recover, and replay that history.
-Remaining scalability work is tracked on the
-[implementation checklist](../../documentation/design/eval/rixcel-todo.md).
+For current capabilities and limits, see [workbooks](../../documentation/eval/workbooks.md),
+[tensor views](../../documentation/eval/rixcel-tensors.md), and
+[regions and finite windows](../../documentation/eval/rixcel-regions.md). The
+[six-workflow capstone tutorial](../../documentation/tutorial/capstones.md) connects
+these examples to publication, exact-number views, and safe interchange. The
+[implementation checklist](../../documentation/design/eval/rixcel-todo.md) is historical
+planning context, not the user-facing feature reference.

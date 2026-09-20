@@ -1,4 +1,14 @@
+---
+search: false
+---
+
 # Structural arithmetic implementation record
+
+::: {.callout-note title="Historical planning and delivery record"}
+This page preserves earlier plans and completion notes; proposed APIs and
+remaining-work statements below are not the current implementation contract.
+Use the [history index](../../history.qmd) for links to current guides.
+:::
 
 All items from the first backtick-parser follow-up are implemented. This page
 remains as the completion record and as a compact index to the supported

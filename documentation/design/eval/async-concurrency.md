@@ -6,11 +6,11 @@ toc-depth: 4
 
 # Status
 
-Reconciled 2026-09-19. The umbrella `ratmath/WORK_PLAN.md` tasks R1–R4 and
-H2 order the remaining work. Existing host/editor execution workers are not a
-scheduler-owned CPU worker pool; Section 8 still tracks that separate feature.
-Notebook async integration is also still outstanding. Historical delivery slices
-below do not re-open completed foundations.
+Reconciled 2026-09-20 after R1–R4 and H2. The restricted scheduler-owned
+pure CPU worker pool and Notebook async integration are implemented; their
+current transport, budgets and fallback boundary are documented in
+[task workers](../../eval/task-workers.md). Historical delivery slices below
+explain the design; unchecked proposals are not a separate active work queue.
 
 This is the normative design and implementation tracker. The current runtime
 slice includes syntax and IR, code-block import headers, async host APIs,
@@ -34,7 +34,8 @@ deterministic seeded random substreams per source branch. R1 now also supplies
 async recurrence callbacks with concrete committed caches, conservative capability
 effect/cancellation/concurrency metadata, an owner serial lane, structural task
 paths, bounded retained work/errors/output/traces, and detached admission limits.
-Scheduler-owned CPU worker execution remains separate R2 work. See
+Scheduler-owned pure CPU worker execution is implemented within the supported
+transferable subset; unsupported operations stay with the owner executor. See
 [implemented safety contracts](../../eval/concurrency-safety.md) for host settings,
 adapter metadata, diagnostics, cancellation boundaries, and acceptance coverage.
 
@@ -1073,7 +1074,7 @@ reactive batch later publishes `result` and `status` together.
   boundaries.
 - [x] Add cancellation checkpoints to event-loop loops, lazy source pulls, and
   stage/evaluator boundaries.
-- [ ] Add worker message-boundary checkpoints with the worker executor.
+- [x] Check cancellation/budgets at worker message boundaries and before owner publication.
 - [x] Implement fail-fast admission stop followed by queued-sibling cancellation and
   cleanup drain.
 - [x] Preserve body failure as primary and attach later cleanup failures as
@@ -1105,8 +1106,9 @@ reactive batch later publishes `result` and `status` together.
   bindings.
 - [x] Reject ordinary outer-cell writes and detached spawn during reactive
   formula evaluation.
-- [ ] Transfer background reactive updates as resolved literal messages to the
-  graph owner; support atomic `${ ... }` batches.
+- [x] Keep reactive handles on the owner and commit resolved ordinary worker
+  results to host-selected targets through atomic `graph.replaceValues` batches.
+  Workers cannot select graph targets or transfer live reactive references.
 - [x] Document and test arrival-order conflicts between multiple background
   writers on the owner event loop.
 - [x] Add a supervisor drain API for hosts without exposing task
@@ -1114,13 +1116,18 @@ reactive batch later publishes `result` and `status` together.
 
 ## 8. Worker-backed CPU parallelism
 
-- [ ] Define the serializable IR, closure-value, random-state, capability,
-  result, diagnostic, and cancellation message protocol.
-- [ ] Add a bounded worker executor for pure/worker-safe RiX tasks.
-- [ ] Keep non-serializable and host-owned capabilities on the owner executor.
-- [ ] Route reactive commits and output events back through owner messages.
-- [ ] Add worker termination and grace-period behavior.
-- [ ] Compare event-loop and worker execution for semantic equivalence.
+- [x] Define versioned IR, captures, seeded random-state, capability, result,
+  diagnostic and cancellation messages for the supported pure subset.
+- [x] Add a bounded pure worker executor and keep unsupported IR, functions,
+  imports and host-owned capabilities on the owner executor.
+- [x] Return inert results through stale/budget-checked owner commits; reactive
+  handles and `.Out` effects stay on the owner, not arbitrary worker callbacks.
+- [x] Add termination/replacement after cancellation grace and compare real
+  worker/event-loop exact results and seeded random results.
+
+See [the supported protocol and host API](../../eval/task-workers.md) for limits,
+transfer exclusions and Notebook lifecycle behavior. This is a restricted worker
+backend, not general transfer of arbitrary JavaScript capabilities.
 
 ## 8a. Settled async runtime additions
 
@@ -1163,7 +1170,7 @@ reactive batch later publishes `result` and `status` together.
   to bounded traces, plus worker dispatch/result/failure snapshots and task paths.
 - [x] Run `bun test` from `rix/` after every implementation slice.
 
-# Recommended delivery slices
+# Historical delivery sequence
 
 1. **Async foundation:** promise-aware evaluator plus sequential implicit await,
    with no concurrency syntax enabled.
@@ -1177,5 +1184,6 @@ reactive batch later publishes `result` and `status` together.
 6. **True CPU parallelism:** worker-safe tasks after event-loop semantics are
    stable.
 
-Each slice must leave ordinary synchronous RiX behavior unchanged and keep the
-existing test suite green.
+These delivery slices are implemented within the bounded contracts described
+above. The umbrella execution plan owns later work; the sequence is retained
+to explain the architecture, not to schedule completed features again.

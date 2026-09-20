@@ -91,3 +91,10 @@ bun run build:docs
 Every `rix/` change should keep the Bun tests green. Documentation builds generate the runtime catalog first, so changes to registered names appear in the reference without a manual inventory pass.
 
 The `documentation/` directory is authored source. The `docs/` directory is generated GitHub Pages output. Historical design material may remain useful, but current behavior belongs in the canonical guides and status page.
+
+For packaging, `bun run test:pack` checks the tarball contents and
+`bun run smoke:package` installs RiX against its declared registry dependencies.
+The latter currently reports the missing `NumeralSystem` export in published
+Core. In the umbrella workspace, `bun scripts/package-consumer-smoke.js
+--workspace-core` checks both local tarballs in an isolated consumer. Keep that
+rehearsal distinct from the registry release gate; neither command publishes.

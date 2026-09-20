@@ -1,0 +1,31 @@
+## A bounded nonlinear search and ODE tube report; all unresolved work stays visible.
+.Plugin.Load("numerics");
+.Plugin.Load("ode");
+x := .calculus.Variable(:x);
+y := .calculus.Variable(:y);
+equations := [x^2-1,y^2-1];
+jacobian := .calculus.JacobianResult(equations,[:x,:y]);
+search := .numerics.SubdivideBoxes(equations,jacobian,
+  {= x=(-3/2):(3/2),y=(-3/2):(3/2) },{= maxBoxes=5,maxDepth=12 });
+resumed := .numerics.ResumeBoxes(search,{= maxBoxes=26 });
+problem := .ode.IVP(y,0,1,0:1);
+approximate := problem.RK4({= steps=1 });
+validated := problem.ValidatedPicard({= steps=4,maxTubeIterations=8,maxSubintervals=2 });
+unresolved := .ode.IVP(100*y,0,1,0:1).ValidatedPicard({=
+  steps=1,maxTubeIterations=1,tubeRadius=1
+});
+.Fragment([
+  .Heading(1,"What was proved, approximated, or left open"),
+  .Table(["search stage","status","pending boxes","unresolved leaves"],[
+    ["initial",search[:status],search[:pending].Len(),search[:unresolved].Len()],
+    ["resumed",resumed[:status],resumed[:pending].Len(),resumed[:unresolved].Len()]
+  ]),
+  .Paragraph(["Search replay accepted: ",.numerics.CheckBoxSubdivision(resumed)[:accepted],
+    ". Unique boxes may share a boundary root; their count is not a distinct-root count."]),
+  .Table(["ODE method","status","certified","endpoint or retained interval"],[
+    ["RK4",approximate[:status],approximate[:certified],approximate[:finalState]],
+    ["Picard",validated[:status],validated[:certified],validated[:finalState]],
+    ["Insufficient tube budget",unresolved[:status],unresolved[:certified],unresolved[:coveredInterval]]
+  ]),
+  .Paragraph("Exact rational RK4 steps still have discretization error. An unresolved tube is not proof that a solution does not exist.")
+]);

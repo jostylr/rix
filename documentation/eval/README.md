@@ -36,7 +36,7 @@ The main entry points are:
 
 ## Known Gaps
 
-The following evaluator capabilities are intentionally still stubs or partial:
+These boundaries distinguish supported bounded operations from open-ended work:
 
 - Exact symbolic derivative/integral support is intentionally bounded; general
   transcendental and multi-equation calculus remains future work.
@@ -45,14 +45,15 @@ The following evaluator capabilities are intentionally still stubs or partial:
 - `{# ... }` retains symbolic definitions and constraints for plugins without
   solving them. The async runtime supports finite collections, matrices,
   tensors, fused `|>>`/`|>?`/`|>||`/`|>&&`, and finite structural barriers.
-  Lazy bounded pull, worker execution, snapshot/COW task isolation, and full
-  cooperative capability cancellation remain follow-up work.
+  Bounded lazy pull, ordinary-value task snapshots, cooperative cancellation and
+  restricted pure task workers are implemented. See [concurrency safety](concurrency-safety.md)
+  and [Notebook/task workers](task-workers.md) for capability and host limits.
 - General algebraic field composition and user-declared cross-generator
   relations remain future work; built-in exact generators reduce their known
   single-generator relations.
 
-Run the evaluator tests from this directory with:
+Run the evaluator tests from the `rix/` repository root with:
 
 ```bash
-bun test
+bun test tests/eval
 ```

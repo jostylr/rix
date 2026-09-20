@@ -303,3 +303,27 @@ projection, picking, and annotation controls. Static snapshots preserve their
 projection and approximation evidence; they do not claim certified visibility.
 OBJ/MTL, STL, PLY, USD/USDZ, and GLB remain later format work. See the complete
 [3D and n-dimensional guide](scene3d-guide.md).
+
+## Repeated Canvas frames and large finite inputs
+
+The Canvas host can reuse a bounded `createCanvasPathCache` and
+`createCanvasPainter` from the Canvas plugin's `retained-canvas.js` module.
+`paint(plan)` reports full, dirty or unchanged replay; call `invalidate()` after
+an external same-size canvas reset and `dispose()` when the view closes.
+Dirty repaint is conservative: transforms, paths, text and viewport changes
+use full replay. Parsed paths are keyed by geometry, so style changes reuse
+paths without reusing stale paint state.
+
+An explicit `createCanvasWorkerHandler` can paint on OffscreenCanvas where the
+host provides it. The host owns worker startup/disposal and main-thread or SVG
+fallback. Accessibility text and semantic hit IDs travel beside the raster;
+pixels do not replace the exact source. Browser support is detected at use time.
+
+For finite large inputs, `.plot.BoundedLine`, `.plot.StreamLine` and
+`.plot.HeatMapData` bound retained output. Downsampled endpoints/extrema retain
+source IDs, and heatmap blocks retain exact means, extrema and source bounds.
+Discard counts and aggregation disclosures remain visible in static output;
+these operations do not reconstruct omitted data or start background readers.
+See the [runnable capstones](../tutorial/capstones.md), the
+[Plot tutorial](https://rix.ratmath.com/tutorial/plugin-plot.html), and the
+[measured limits](../design/eval/runtime-performance.md).

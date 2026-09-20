@@ -98,4 +98,4 @@ Host code may explicitly construct a `RealRecipeRegistry` and register trusted
 versioned `refine`/`check` functions. Deserialized input cannot access that API.
 Opaque functions, external providers, general root/ODE recipe revival and
 cryptographic canonicalization remain later scope. The full design is in
-[refinable-real JSON](../../plugins/numerics/refinable-real-json.md).
+[refinable-real JSON](https://github.com/jostylr/rix/blob/main/plugins/numerics/refinable-real-json.md).

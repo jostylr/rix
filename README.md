@@ -27,8 +27,8 @@ support RiX without porting or enabling them.
 
 ## Local development
 
-RiX uses Bun and requires the released `@ratmath/core` 0.5 line. The RatMath
-umbrella workspace links the local Core checkout for coordinated development:
+RiX uses Bun 1.4 and the matching Core checkout. The RatMath umbrella workspace
+links local packages for coordinated development:
 
 ```sh
 git clone https://github.com/jostylr/ratmath.git
@@ -37,9 +37,10 @@ bun install
 bun --cwd rix test
 ```
 
-A standalone RiX checkout can install the compatible Core release with
-`bun install` and run `bun test`. RiX is published as `@ratmath/rix`; the
-unscoped `rix` npm name belongs to an unrelated package.
+The manifest currently declares `@ratmath/core` ^0.5.0, but the published
+package does not yet include the `NumeralSystem` export used by this checkout.
+Use the workspace until coordinated Core/RiX versions are released. The package
+name is `@ratmath/rix`; unscoped `rix` belongs to an unrelated package.
 
 RiX uses Bun 1.4 and provides explicit test depths:
 
@@ -71,6 +72,11 @@ editor-policy consistency check, package-content assertions, an npm package dry
 run, and an isolated-consumer smoke against the published Core dependency. It is
 also available as the manually dispatched **Release verification** GitHub
 Actions workflow; ordinary push and pull-request CI remains the faster gate.
+
+For a local paired-package rehearsal, run
+`bun scripts/package-consumer-smoke.js --workspace-core` from `rix/`. This installs
+packed copies of both local repositories in a fresh consumer; it is **not** a
+substitute for the default registry-dependency release gate and publishes nothing.
 
 ## API
 

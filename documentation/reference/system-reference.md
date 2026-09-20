@@ -8,7 +8,7 @@ toc-depth: 2
 This page is generated from the current RiX implementation by `documentation/scripts/generate-reference.js`. Do not edit it by hand. Descriptions come from registry documentation strings; the narrative [syntax guide](../eval/syntax-guide.md) and [methods guide](../eval/methods-guide.md) provide signatures and examples.
 :::
 
-At this revision RiX exposes **321 named entries** on the default system context and registers **263 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
+At this revision RiX exposes **354 named entries** on the default system context and registers **286 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
 
 ## Public system context
 
@@ -33,6 +33,8 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.AUDIO` | function | — | Create a portable audio asset |
 | `.BIND` | lazy function | Output | Capture a live Binding to a RiX variable |
 | `.BLOCK` | lazy function | — | Sequential block execution, returns last value |
+| `.BOXRESUME` | function | — | Replay and extend a retained deterministic box subdivision queue |
+| `.BOXSUBDIVIDE` | function | — | Classify a bounded complete cover with deterministic exact box subdivision |
 | `.CALCULUSDERIVATIVECHECK` | function | — | Independently recompute and check a primitive Calculus derivative transformation |
 | `.CALCULUSDERIVATIVEPROOF` | function | — | Build and independently check a first-derivative proof record without trusted leaves |
 | `.CALCULUSDERIVATIVESIGN` | function | — | Certify a uniform derivative sign for a checked primitive Calculus transformation |
@@ -97,6 +99,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.EXPRESSIONVARIABLESELECTOR` | function | — | Validate an identity-preserving mathematical variable selector |
 | `.FACTORIAL` | function | Arith | Factorial of a non-negative integer |
 | `.FIGURE` | function | Output | Wrap output with figure metadata |
+| `.FILESTREAM` | function | — | UTF-8 file byte stream through an explicitly granted host service |
 | `.FILTER` | lazy function | Collections, Arrays | Filter a collection with a predicate — callback receives (val, locator, src) |
 | `.FIRST` | function | Core, Collections, Arrays | First element of a collection |
 | `.FORMULASHEET` | function | RiXCel | Create a formula-backed sheet from a shaped or rectangular array of deferred RiX formulas |
@@ -110,10 +113,17 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.GTE` | function | Logic | Greater than or equal — returns 1 or null |
 | `.HEADING` | function | Output | Create a portable document heading |
 | `.HOST` | function | — | Host/plugin capability registration and discovery |
+| `.HTTPSTREAM` | function | — | UTF-8 HTTP byte stream through an explicitly granted host service |
 | `.HULL` | function | — | Smallest exact interval containing both rational ranges |
 | `.IF` | lazy function | Core | Decision conditional: condition ?: truthExpr ?\_ nullExpr ?? undecidedExpr |
 | `.IMAGE` | function | — | Create a portable image asset |
 | `.IMMUTABLEVALUE` | function | — | Mark a newly constructed structured value immutable and return it |
+| `.IMPLICITREGION` | function | — | Bound an implicit set by a complete classified box cover without asserting surface topology |
+| `.IMPLICITREGIONCHECK` | function | — | Replay implicit-region classifications and complete coverage |
+| `.IMPLICITREGIONREFINE` | function | — | Recheck and refine an implicit region under bounded work limits |
+| `.IMPLICITTRACE` | function | — | Trace checked local implicit charts with a complete bounded box cover |
+| `.IMPLICITTRACECHECK` | function | — | Replay all implicit chart, coverage, and topology claims |
+| `.IMPLICITTRACEREFINE` | function | — | Recheck an implicit trace and refine its original box with bounded options |
 | `.IMPORTJS` | function | — | Import a local JavaScript module for use from a .js.rix startup file |
 | `.INFO` | function | — | Emit an info event: .Info(label, level ?= 1, dataMap ?= {=}) |
 | `.INFOVALUE` | lazy function | — | Inspect expression value: .InfoValue(label, depth ?= 1, expr) — returns expr value |
@@ -123,6 +133,8 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.INTERSECT` | function | — | Intersection of two collections (set intersection or interval overlap) |
 | `.INTERSECTS` | function | — | Check if two collections intersect (1 if true, null otherwise) |
 | `.INTERVAL` | function | — | Create an interval [lo, hi] or test betweenness like a:b:c |
+| `.INTERVALLINEARSOLVE` | function | — | Validate an interval linear system by exact preconditioned interval elimination |
+| `.INTERVALNEWTONBOX` | function | — | Contract a checked nonlinear system with a validated interval Newton operator |
 | `.IRANGE` | function | Core, Collections, Arrays | Create an integer range [start, end] |
 | `.ISEXPRESSION` | function | — | Recognize a core mathematical expression |
 | `.JACOBIANBOXRANGE` | function | — | Certify a scalar range on a rational box using checked Jacobian bounds |
@@ -138,9 +150,15 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.LESSEQUAL` | function | — | Less than or equal — returns 1 or null |
 | `.LINEBREAK` | function | — | Create an intentional inline line break |
 | `.LINK` | function | — | Create a portable link |
+| `.LINKEDVIEWS` | function | — | Compose retained Graphics/snapshot panels with explicit linked semantic IDs |
 | `.LIST` | function | — | Create an ordered or unordered document list |
 | `.LISTITEM` | function | — | Create a document list item |
 | `.LIVEVIEW` | function | Output | Deprecated compatibility wrapper for a reactive output derived from a subscribable source; prefer a named $$ output and final $ read |
+| `.LOGICCHECKPROPOSITION` | function | — | Recheck an exact arithmetic proposition record |
+| `.LOGICCHECKSEQUENT` | function | — | Replay every rule and retained budget/countermodel claim in a sequent record |
+| `.LOGICEXACTPROPOSITION` | function | — | Decide exact rational or interval comparisons without importing assumptions |
+| `.LOGICSEQUENT` | function | — | Build a bounded classical propositional sequent derivation |
+| `.LOGICSEQUENTTREE` | function | — | Render a checked sequent as bounded Graphics and an exact text table |
 | `.LOOP` | lazy function | Core | Loop construct with init, condition, body[, update[, after]] |
 | `.LT` | function | Logic | Less than — returns 1 or null |
 | `.LTE` | function | Logic | Less than or equal — returns 1 or null |
@@ -169,6 +187,11 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.NOT` | function | Logic | Logical NOT — returns Integer(1) for null input, null otherwise |
 | `.NOTATIONPARSER` | function | — | Wrap a RiX callable as a registered backtick parser object |
 | `.NOTEQUAL` | function | — | Inequality check — returns 1 or null |
+| `.NUMERALFORMAT` | function | — | Bounded exact numeral system NumeralFormat |
+| `.NUMERALLOCALE` | function | — | Bounded exact numeral system NumeralLocale |
+| `.NUMERALPARSE` | function | — | Bounded exact numeral system NumeralParse |
+| `.NUMERALPLACES` | function | — | Bounded exact numeral system NumeralPlaces |
+| `.NUMERALSYSTEM` | function | — | Bounded exact numeral system NumeralSystem |
 | `.OR` | lazy function | Logic | Logical OR (short-circuits on first truthy, returns deciding value) |
 | `.OUT` | function | Output | Declare an output artifact for the active host output sink |
 | `.PAIR` | function | — | Create a key/value entry for .Map |
@@ -198,6 +221,11 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.RANGESUBTRACT` | function | — | Exact Cartesian image of range-set subtraction |
 | `.RATIONALBOX` | function | — | Construct a checked Cartesian box of closed bounded rational intervals |
 | `.REACTIVEGRAPH` | function | RiXCel | Create a transactional graph of reactive source and computed nodes |
+| `.REACTIVESTREAM` | function | — | Bounded events from an explicitly passed reactive source |
+| `.REALEXPORTJSON` | function | — | Export a deterministic real envelope with exact scalar tags |
+| `.REALIMPORTINFO` | function | — | Inspect imported real evidence without activating a provider |
+| `.REALIMPORTJSON` | function | — | Load a bounded frozen real envelope without executing recipes |
+| `.REALREFINEIMPORTED` | function | — | Explicitly refine with an already-installed permitted Numerics provider and replay checker |
 | `.REDUCE` | lazy function | Collections, Arrays | Reduce a collection with an accumulator function — callback receives (acc, val, locator, src) |
 | `.REFINEMENTCHECK` | function | — | Validate a numerical provider result against its request and capabilities |
 | `.REFINEMENTEFFECTIVELIMITS` | function | — | Intersect requester and numerical-provider resource limits |
@@ -251,6 +279,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.TESTSTOP` | lazy function | — | Abort test: .TestStop(label, setup, expr) — passes if expr aborts via .Stop() |
 | `.TEXT` | function | Output | Create a portable text output node |
 | `.TIMELINE` | value | — | Portable exact timeline constructors |
+| `.TIMERSTREAM` | function | — | Cold monotonic timer stream; optional finite tick count |
 | `.TRACE` | lazy function | — | Trace execution: .Trace(label, depth, trackedVars?, thunkOrCallable) |
 | `.TRAITREGISTER` | function | — | Register an immutable semantic trait from a RiX map spec |
 | `.TRANSFORM` | function | Symbolic | Apply ordered exact symbolic transformations |
@@ -260,13 +289,17 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.TYPEINSTALL` | function | — | Install a registered semantic type into system multifunctions |
 | `.TYPEKNOWN` | function | — | Return 1 when a semantic type or alias is already registered, otherwise null |
 | `.TYPEREGISTER` | function | — | Register an immutable semantic type from a RiX map spec |
+| `.UISTREAM` | function | — | Bounded events from a named host-supplied UI target |
 | `.UNDECIDED` | function | — | Construct an undecided decision carrying a reason and optional evidence |
 | `.UNION` | function | — | Join/Union of two collections (set union or interval hull) |
 | `.UNITS` | value | Units | Canonical RiX unit collection |
 | `.UPPER` | function | Strings | Convert string to uppercase |
+| `.VALIDATEDBOXCHECK` | function | — | Independently replay retained linear, interval Newton, and box coverage claims |
+| `.VALIDATEDCLAIMEQUAL` | function | — | Compare typed retained claims under the shared replay data limits |
 | `.VALUES` | function | Core, Maps | Get the values of a map as a set (obj\|.) |
 | `.VIDEO` | function | — | Create a portable video asset |
 | `.WARN` | function | — | Emit a warning event: .Warn(label, dataMap ?= {=}) |
+| `.WEBSOCKETSTREAM` | function | — | Bounded WebSocket messages through an explicitly granted host service |
 | `.algebra` | function | — | Exact Polynomial and RationalFunction algorithms with checked presentations. |
 | `.algebraicreal` | function | — | Exact real algebraic roots certified by canonical Polynomial values and Sturm isolating intervals. |
 | `.analysis` | function | — | Effective scalar and function limits, infinite series, Cauchy criteria, and justified limit exchanges over portable Calculus functions. |
@@ -304,14 +337,14 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.graph` | function | Graph | Exact validated weighted graphs with shortest paths, traversal, components, and topological sorting. |
 | `.html` | function | — | Standalone semantic HTML renderer for portable RiX output trees. |
 | `.latex` | function | — | Standalone LaTeX renderer for portable RiX documents and figures. |
-| `.linalg` | function | — | Pure-RiX exact dense linear algebra and coordinate-aware tensor transformations. |
+| `.linalg` | function | — | Pure-RiX exact linear algebra, Rational spectral evidence and finite-support tensors. |
 | `.logic` | function | — | Portable propositional formulas, bounded truth tables, checked normal forms, scoped natural deduction, and educational tree views. |
 | `.markdown` | function | — | CommonMark-oriented renderer for portable RiX documents. |
 | `.nd` | function | — | Pure-RiX exact n-dimensional geometry with affine and Cayley projection records and explicit Scene3D adaptation. |
 | `.numerics` | function | — | Backend-neutral bounded enclosure and refinement orchestration. |
 | `.octonion` | function | — | Certified octonion facade with explicit nonassociativity and intrinsic one-variable functions. |
 | `.ode` | function | — | Portable initial-value problems, vector trajectories, adaptive demonstrations, checked Picard and configurable-order Taylor tubes, and certified event isolation. |
-| `.optimize` | function | — | Pure-RiX exact general linear programs, two-phase simplex, and checkable certificates. |
+| `.optimize` | function | — | Bounded exact LP/MILP, convex quadratic certificates, and global box optimization. |
 | `.oracle` | function | — | Exact rational-betweenness oracles, certified refinement funnels, and coarse eta-resolution models. |
 | `.p` | function | — | Semantic callable univariate polynomials with structural and symbolic entry forms. |
 | `.pdf` | function | — | PDF document and figure renderer orchestrated through LaTeX. |
@@ -349,7 +382,7 @@ Method lookup is case-flexible at the language boundary. The table uses the regi
 | Rational interval | `BITLENGTH`, `CONTAINS`, `CONTAINSVALUE`, `CONTAINSZERO`, `DENOMINATORINTERVAL`, `E`, `END`, `HIGH`, `HULL`, `INTERSECTION`, `ISASCENDING`, `LOW`, `MEDIANT`, `MIDPOINT`, `NEGATE`, `OVERLAPS`, `RANDOM`, `RANDOMPARTITION`, `RECIPROCAL`, `SHORTESTDECIMAL`, `SPLIT`, `START`, `TOCOMPACTDECIMAL`, `TOMIXEDSTRING`, `TORELATIVEDECIMAL`, `TORELATIVEMIDDECIMAL`, `TOREPEATINGDECIMAL`, `TOSTRING`, `UNION`, `WIDTH` |
 | Array | `ALL`, `ANY`, `CONCAT`, `CONCAT!`, `COUNT`, `DISTINCT`, `DISTINCT!`, `DROPFIRST`, `DROPLAST`, `FILTER`, `FIND`, `FINDINDEX`, `FIRST`, `FLATTEN`, `FLATTEN!`, `GET`, `HASAT`, `INCLUDES`, `INDEXOF`, `INSERT`, `INSERT!`, `ISEMPTY`, `ITERATOR`, `JOIN`, `LAST`, `LASTINDEXOF`, `LEN`, `MAP`, `MOVE`, `MOVE!`, `POP!`, `PUSH`, `PUSH!`, `REDUCE`, `REMOVEAT`, `REMOVEAT!`, `REVERSE`, `REVERSE!`, `SET`, `SET!`, `SHIFT!`, `SLICE`, `SORT`, `SORT!`, `SWAP`, `SWAP!`, `UNSHIFT`, `UNSHIFT!` |
 | Lazy sequence | `FIRST`, `GET`, `ISEMPTY`, `ITERATOR`, `LAST`, `LEN`, `MATERIALIZE` |
-| Async stream | `CHUNK`, `CLOSE`, `COLLECT`, `COUNT`, `DONE`, `DROP`, `FILTER`, `FIND`, `FIRST`, `FOREACH`, `MAP`, `REDUCE`, `STATUS`, `TAKE`, `WINDOW` |
+| Async stream | `CHUNK`, `CHUNKBY`, `CLOSE`, `COLLECT`, `COUNT`, `DEBOUNCE`, `DONE`, `DROP`, `FILTER`, `FIND`, `FIRST`, `FOREACH`, `LATEST`, `MAP`, `MERGE`, `REDUCE`, `STATUS`, `TAKE`, `THROTTLE`, `TIMEOUT`, `WINDOW` |
 | Iterator | `DONE`, `INDEX`, `NEXT`, `PEEK`, `RESET` |
 | Map | `ALL`, `ANY`, `COUNT`, `DEFAULT`, `DEFAULT!`, `ENTRIES`, `FILTER`, `GET`, `HAS`, `ISEMPTY`, `ITERATOR`, `KEEP`, `KEEP!`, `KEYS`, `LEN`, `MAPVALUES`, `MERGE`, `MERGE!`, `OMIT`, `OMIT!`, `REDUCE`, `REDUCEKEYS`, `REMOVE`, `REMOVE!`, `SET`, `SET!`, `UPDATE`, `UPDATE!`, `VALUES` |
 | Set | `ADD`, `ADD!`, `ALL`, `ANY`, `COUNT`, `DIFF`, `DIFF!`, `DISJOINT`, `FILTER`, `HAS`, `INTERSECT`, `INTERSECT!`, `ISEMPTY`, `ITERATOR`, `LEN`, `REDUCE`, `REMOVE`, `REMOVE!`, `SUBSETOF`, `SUPERSETOF`, `SYMDIFF`, `SYMDIFF!`, `UNION`, `UNION!`, `VALUES` |
@@ -427,29 +460,32 @@ Imported scripts can add or withhold named groups. Permission-like names are int
 | --- | --- |
 | `Output` | `OUT`, `BIND`, `LIVEVIEW`, `TEXT`, `PARAGRAPH`, `HEADING`, `FRAGMENT`, `SNAPSHOTS`, `TABLE`, `GRID`, `SHEET`, `CONTROLPANEL`, `FIGURE`, `SLIDE`, `SLIDES`, `Algebra`, `Timeline` |
 | `Controls` | `CONTROLPANEL`, `Controls` |
-| `Graphics` | `Graphics` |
+| `Graphics` | `Graphics`, `LinkedViews` |
+| `Radix` | `NumeralSystem`, `NumeralParse`, `NumeralFormat`, `NumeralPlaces`, `NumeralLocale` |
+| `Geometry` | `ImplicitRegion`, `ImplicitRegionCheck`, `ImplicitRegionRefine`, `ImplicitTrace`, `ImplicitTraceCheck`, `ImplicitTraceRefine` |
 | `Draw` | `draw` |
 | `Plot` | `plot` |
 | `Core` | `LEN`, `FIRST`, `LAST`, `GETEL`, `IRANGE`, `IF`, `LOOP`, `MULTI`, `RAND_NAME`, `PRINT`, `Shaped`, `KEYOF`, `KEYS`, `VALUES`, `REGISTERMETHOD`, `CertifiedApproximation`, `Undecided`, `RefinementRequest`, `RefinementEffectiveLimits`, `RefinementSupports`, `RefinementCheck`, `RefinementUnsupported`, `TypeKnown`, `ImmutableValue` |
 | `Methods` | `REGISTERMETHOD` |
+| `Numerics` | `IntervalLinearSolve`, `IntervalNewtonBox`, `BoxSubdivide`, `BoxResume`, `ValidatedBoxCheck`, `ValidatedClaimEqual`, `RationalBox`, `KrawczykBox`, `KrawczykCheck` |
 | `Arith` | `ADD`, `SUB`, `MUL`, `DIV`, `INTDIV`, `DIVMOD`, `MOD`, `POW`, `FACTORIAL`, `DOUBLEFACTORIAL`, `RANGE_POLICY`, `RANGE_EVIDENCE`, `RANGE_ADD`, `RANGE_SUBTRACT`, `RANGE_MULTIPLY`, `RANGE_DIVIDE`, `RANGE_NEGATE`, `RANGE_ABSOLUTE_VALUE`, `RANGE_RECIPROCAL`, `RANGE_INTEGER_POWER`, `CALCULUS_RANGE`, `CALCULUS_RANGE_CHECK`, `CALCULUS_RANGE_RECOGNIZE`, `CALCULUS_GRAPH_SIMPLIFY`, `CALCULUS_GRAPH_SIMPLIFICATION_CHECK`, `CALCULUS_DERIVATIVE_CHECK`, `CALCULUS_DERIVATIVE_SIGN`, `CALCULUS_LIPSCHITZ_RANGE`, `CALCULUS_TAYLOR_RANGE` |
-| `Logic` | `EQ`, `NEQ`, `LT`, `GT`, `LTE`, `GTE`, `AND`, `OR`, `NOT`, `GUARD_RETURN` |
+| `Logic` | `EQ`, `NEQ`, `LT`, `GT`, `LTE`, `GTE`, `AND`, `OR`, `NOT`, `GUARD_RETURN`, `LogicSequent`, `LogicCheckSequent`, `LogicSequentTree`, `LogicExactProposition`, `LogicCheckProposition` |
 | `Collections` | `LEN`, `FIRST`, `LAST`, `GETEL`, `IRANGE`, `MAP`, `FILTER`, `REDUCE`, `Shaped`, `Stream` |
-| `Async` | `Stream`, `Retry` |
+| `Async` | `Stream`, `Retry`, `TimerStream`, `ReactiveStream`, `UIStream` |
 | `Background` | `BACKGROUND` |
 | `Maps` | `MAP`, `KEYOF`, `KEYS`, `VALUES` |
 | `Arrays` | `LEN`, `FIRST`, `LAST`, `GETEL`, `IRANGE`, `MAP`, `FILTER`, `REDUCE`, `Shaped` |
 | `Strings` | `UPPER`, `SUBSTR`, `PRINT` |
 | `Imports` | `IMPORTS` |
 | `Plugins` | `PLUGINS` |
-| `Net` | `NET` |
-| `Files` | `FILES` |
+| `Net` | `NET`, `HttpStream`, `WebSocketStream` |
+| `Files` | `FILES`, `FileStream` |
 | `Units` | `UNITS`, `Units`, `CONVERTUNIT`, `ConvertUnit`, `DEFINEUNIT`, `DefineUnit` |
 | `Exact` | `EXACT`, `Exact`, `COMPLEX`, `Complex`, `DEFINEEXACTGENERATOR`, `DefineExactGenerator`, `exactalgebras` |
 | `Symbolic` | `POLY`, `DERIV`, `INTEGRATE`, `TRANSFORM`, `SIMPLIFY`, `SPEC`, `SPECCABILITY`, `INSPECTSPEC`, `SPECROLES`, `SPECFRACTIONPARTS`, `SArith`, `ExpressionVariable`, `ExpressionConstant`, `ExpressionOperation`, `ExpressionApply`, `IsExpression`, `ExpressionKey`, `ExpressionHasScopedSymbols`, `SameSymbol`, `SYMBOL_RETRIEVE`, `SYMBOL_DEFINE`, `ExpressionDefinition`, `ExpressionExpand`, `ExpressionVariableSelector`, `ExpressionVariableMatches` |
 | `MathematicalContexts` | `MATH_CONTEXT`, `BOUND_SYMBOL` |
 | `MathematicalProof` | `CALCULUS_DERIVATIVE_PROOF` |
-| `MathematicalSerialization` | `MathEncodeJSON`, `MathDecodeJSON`, `MathEncodeJSONL`, `MathDecodeJSONL` |
+| `MathematicalSerialization` | `RealImportJSON`, `RealExportJSON`, `RealImportInfo`, `RealRefineImported`, `MathEncodeJSON`, `MathDecodeJSON`, `MathEncodeJSONL`, `MathDecodeJSONL` |
 | `MathematicalLocalization` | `MathSubstitute`, `MathEvaluate`, `MathInstantiate`, `MathBudgets`, `MathEvaluateCalculus`, `MathPolynomialCoefficients` |
 | `SymbolicConstants` | `ExpressionConstantInfo`, `ExpressionHasExtendedConstants`, `ExpressionReal`, `ExpressionRefine` |
 | `Notation` | `SArith`, `Poly`, `NotationParser` |
@@ -467,9 +503,9 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 
 | IR function | Dispatch | Implementation description |
 | --- | --- | --- |
-| `ABS` | eager, pure, multifunction | Absolute value |
+| `ABS` | eager, effectful/unspecified, multifunction | Absolute value |
 | `ACTIVE_BASE_LITERAL` | eager, effectful/unspecified | Parse a strict numeral using the session's active input base |
-| `ADD` | eager, pure, multifunction | Addition or string concatenation |
+| `ADD` | eager, effectful/unspecified, multifunction | Addition or string concatenation |
 | `AFFINE_BOX_RANGE` | eager, pure | Certify a rational-box range with correlation-preserving affine arithmetic |
 | `AND` | lazy, pure | Logical AND (short-circuits on first falsy, returns deciding value) |
 | `ARRAY` | lazy, pure | Create an array/sequence (supports sequence generators) |
@@ -490,6 +526,8 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `BINOP` | eager, pure | Fallback for unrecognized binary operators |
 | `BLOCK` | lazy, effectful/unspecified | Sequential block execution, returns last value |
 | `BOUND_SYMBOL` | lazy, effectful/unspecified | — |
+| `BOX_RESUME` | eager, pure | Replay and extend a retained deterministic box subdivision queue |
+| `BOX_SUBDIVIDE` | eager, pure | Classify a bounded complete cover with deterministic exact box subdivision |
 | `BRACKET_GET` | lazy, effectful/unspecified | Shaped-aware bracket indexing and slicing |
 | `BRACKET_SET` | lazy, effectful/unspecified | Shaped-aware bracket assignment |
 | `BREAK` | lazy, effectful/unspecified | Structured break block that exits the nearest matching breakable construct |
@@ -526,7 +564,7 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `DERIVATIVE` | eager, pure | Postfix exact symbolic derivative |
 | `DESTRUCTURE_ASSIGN` | lazy, effectful/unspecified | General lhs destructuring assignment |
 | `DISJOINT` | eager, pure | Check if two collections are disjoint (1 if true, null otherwise) |
-| `DIV` | eager, pure, multifunction | Division |
+| `DIV` | eager, effectful/unspecified, multifunction | Division |
 | `DIVIDE` | eager, pure | Return n lazy equally spaced points including interval endpoints |
 | `DIVMOD` | eager, pure | Floor quotient and exact remainder for a positive divisor |
 | `DIVROUND` | eager, pure | Rounded division |
@@ -556,6 +594,12 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `HULL` | eager, pure | Smallest exact interval containing both rational ranges |
 | `IMAGE` | eager, pure | Create a portable image asset |
 | `IMMUTABLE_VALUE` | eager, effectful/unspecified | Mark a newly constructed structured value immutable and return it |
+| `IMPLICIT_REGION` | eager, pure | Bound an implicit set by a complete classified box cover without asserting surface topology |
+| `IMPLICIT_REGION_CHECK` | eager, pure | Replay implicit-region classifications and complete coverage |
+| `IMPLICIT_REGION_REFINE` | eager, pure | Recheck and refine an implicit region under bounded work limits |
+| `IMPLICIT_TRACE` | eager, pure | Trace checked local implicit charts with a complete bounded box cover |
+| `IMPLICIT_TRACE_CHECK` | eager, pure | Replay all implicit chart, coverage, and topology claims |
+| `IMPLICIT_TRACE_REFINE` | eager, pure | Recheck an implicit trace and refine its original box with bounded options |
 | `IMPORT_JS` | eager, effectful/unspecified | Import a local JavaScript module for use from a .js.rix startup file |
 | `INDEX_GET` | eager, effectful/unspecified | Index into collection (1-based for sequences; string or value keys for maps) — obj[i] |
 | `INDEX_SET` | lazy, effectful/unspecified | Set index in collection (requires .\_mutable meta flag) — obj[i] = val |
@@ -565,6 +609,8 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `INTERSECT` | eager, pure | Intersection of two collections (set intersection or interval overlap) |
 | `INTERSECTS` | eager, pure | Check if two collections intersect (1 if true, null otherwise) |
 | `INTERVAL` | eager, pure | Create an interval [lo, hi] or test betweenness like a:b:c |
+| `INTERVAL_LINEAR_SOLVE` | eager, pure | Validate an interval linear system by exact preconditioned interval elimination |
+| `INTERVAL_NEWTON_BOX` | eager, pure | Contract a checked nonlinear system with a validated interval Newton operator |
 | `JACOBIAN_BOX_RANGE` | eager, pure | Certify a scalar range on a rational box using checked Jacobian bounds |
 | `JS_CALL` | eager, effectful/unspecified | Call a named export from a local JavaScript module |
 | `KEYOF` | eager, pure | Resolve canonical map key string for a value |
@@ -575,10 +621,16 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `LAMBDA` | lazy, effectful/unspecified | Create a lambda/anonymous function |
 | `LINEBREAK` | eager, pure | Create an intentional inline line break |
 | `LINK` | eager, pure | Create a portable link |
+| `LINKED_VIEWS` | eager, pure | Compose retained Graphics/snapshot panels with explicit linked semantic IDs |
 | `LIST` | eager, pure | Create an ordered or unordered document list |
 | `LISTITEM` | eager, pure | Create a document list item |
 | `LITERAL` | eager, pure | Parse a number literal string into a ratmath type |
 | `LIVEVIEW` | eager, effectful/unspecified | Deprecated compatibility wrapper for a reactive output derived from a subscribable source; prefer a named $$ output and final $ read |
+| `LOGIC_CHECK_PROPOSITION` | eager, pure | Recheck an exact arithmetic proposition record |
+| `LOGIC_CHECK_SEQUENT` | eager, pure | Replay every rule and retained budget/countermodel claim in a sequent record |
+| `LOGIC_EXACT_PROPOSITION` | eager, pure | Decide exact rational or interval comparisons without importing assumptions |
+| `LOGIC_SEQUENT` | eager, pure | Build a bounded classical propositional sequent derivation |
+| `LOGIC_SEQUENT_TREE` | eager, pure | Render a checked sequent as bounded Graphics and an exact text table |
 | `LOOP` | lazy, effectful/unspecified | Loop construct with init, condition, body[, update[, after]] |
 | `LT` | eager, effectful/unspecified, multifunction | Less than — returns 1 or null |
 | `LTE` | eager, effectful/unspecified, multifunction | Less than or equal — returns 1 or null |
@@ -598,7 +650,7 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `METHOD_LIFT` | eager, effectful/unspecified | Create a receiver-first callable from prefix ..Method syntax |
 | `MIN` | eager, pure, multifunction | Minimum over n arguments (ignores nulls) |
 | `MOD` | eager, pure, multifunction | Floor modulo with a positive divisor |
-| `MUL` | eager, pure, multifunction | Multiplication (Product of values) |
+| `MUL` | eager, effectful/unspecified, multifunction | Multiplication (Product of values) |
 | `MULTIFUNCDEF` | lazy, effectful/unspecified | Append or prepend a multifunction variant |
 | `MULTIFUNCTION` | lazy, effectful/unspecified | Create an ordered multifunction literal, flattening nested multifunctions |
 | `MULTIVARIATE_RANGE_CHECK` | eager, pure | Independently recompute a Jacobian, affine, or Taylor-model enclosure |
@@ -608,12 +660,17 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `NARY_CONCAT` | eager, pure | N-ary concatenation fold |
 | `NARY_INTERSECT` | eager, pure | N-ary intersection/overlap fold for sets or intervals |
 | `NARY_UNION` | eager, pure | N-ary true union fold for sets or rational interval sets |
-| `NEG` | eager, pure, multifunction | Negation |
+| `NEG` | eager, effectful/unspecified, multifunction | Negation |
 | `NEQ` | eager, effectful/unspecified, multifunction | Inequality check — returns 1 or null |
 | `NOP` | eager, pure | No operation |
 | `NOT` | eager, pure | Logical NOT — returns Integer(1) for null input, null otherwise |
 | `NOT_MEMBER` | eager, effectful/unspecified | Check non-membership (1 if not present, null otherwise) |
 | `NULL` | eager, pure | Null value |
+| `NUMERAL_FORMAT` | eager, pure | Bounded exact numeral system NumeralFormat |
+| `NUMERAL_LOCALE` | eager, pure | Bounded exact numeral system NumeralLocale |
+| `NUMERAL_PARSE` | eager, pure | Bounded exact numeral system NumeralParse |
+| `NUMERAL_PLACES` | eager, pure | Bounded exact numeral system NumeralPlaces |
+| `NUMERAL_SYSTEM` | eager, pure | Bounded exact numeral system NumeralSystem |
 | `NUM_DISPLAY` | eager, effectful/unspecified | Set the session's comma-separated number display profile |
 | `NUM_INPUT` | eager, effectful/unspecified | Set the session's strict # numeral input base |
 | `OR` | lazy, pure | Logical OR (short-circuits on first truthy, returns deciding value) |
@@ -635,7 +692,7 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `PLACEHOLDER` | eager, pure | Numbered placeholder for partial application and explicit pipes |
 | `PLUGIN_IMPORT` | eager, effectful/unspecified | Import selected plugin exports as bare callables in the current lexical scope |
 | `PMAP` | lazy, effectful/unspecified | Map a function over a collection — callback receives (val, locator, src) |
-| `POW` | eager, pure, multifunction | Exponentiation |
+| `POW` | eager, effectful/unspecified, multifunction | Exponentiation |
 | `POWPROD` | eager, pure, multifunction | Exponentiation/product power (currently same implementation as POW) |
 | `PREDUCE` | lazy, effectful/unspecified | Reduce a collection with an accumulator function — callback receives (acc, val, locator, src) |
 | `PREP_TRIAL` | lazy, effectful/unspecified | Evaluate a candidate through ordered soft/strict prep gates, returning null on soft failure |
@@ -702,7 +759,7 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `STEP` | eager, pure | Lazy exact stepped range over a rational interval |
 | `STRING` | eager, pure | Create a string value |
 | `STRONG` | eager, pure | Create semantic inline strong content |
-| `SUB` | eager, pure, multifunction | Subtraction |
+| `SUB` | eager, effectful/unspecified, multifunction | Subtraction |
 | `SYMBOL_DEFINE` | lazy, effectful/unspecified | — |
 | `SYMBOL_RETRIEVE` | lazy, effectful/unspecified | — |
 | `SYSREF` | eager, pure | Reference to a system function |
@@ -727,6 +784,8 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `UNDECIDED_DIAGNOSTIC` | eager, pure | Construct an undecided decision carrying a reason and optional evidence |
 | `UNION` | eager, pure | Join/Union of two collections (set union or interval hull) |
 | `UNIT` | eager, pure | Resolve scientific unit sugar through the active Units RiX collection |
+| `VALIDATED_BOX_CHECK` | eager, pure | Independently replay retained linear, interval Newton, and box coverage claims |
+| `VALIDATED_CLAIM_EQUAL` | eager, pure | Compare typed retained claims under the shared replay data limits |
 | `VALUES` | eager, pure | Get the values of a map as a set (obj\|.) |
 | `VALUE_OUTFIT` | lazy, effectful/unspecified | Apply semantic/value outfitting metadata to a value |
 | `VIDEO` | eager, pure | Create a portable video asset |

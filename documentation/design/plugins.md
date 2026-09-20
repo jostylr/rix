@@ -1,4 +1,14 @@
+---
+search: false
+---
+
 # Plugin Roadmap and Rendering Contracts
+
+::: {.callout-note title="Historical planning and delivery record"}
+This page preserves earlier plans and completion notes; proposed APIs and
+remaining-work statements below are not the current implementation contract.
+Use the [history index](../history.qmd) for links to current guides.
+:::
 
 ::: {.callout-note title="Design roadmap, not implemented surface"}
 This document distinguishes capabilities already bundled with RiX from useful

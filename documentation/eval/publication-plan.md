@@ -76,4 +76,4 @@ Compile the saved project with an installed Quarto toolchain.
 deck to HTML, QMD, TeX, PDF and inert exact JSON sidecars. Actual article/Beamer
 compilation, multipage repeated headers, RevealJS and a linked book are acceptance
 fixtures. See [portable assets](output-assets.md) for moved/offline packaging and
-[the execution plan](../../../WORK_PLAN.md) for deferred publishing guarantees.
+[the execution plan](https://github.com/jostylr/ratmath/blob/main/WORK_PLAN.md) for deferred publishing guarantees.

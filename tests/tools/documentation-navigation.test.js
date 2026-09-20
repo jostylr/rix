@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
   documentationNavigation,
@@ -7,6 +7,8 @@ import {
   navigationPages,
   staticNavigationProfile,
 } from "../../documentation/navigation.js";
+
+import { checkSearchIndex, renderedSources } from "../../documentation/scripts/check-search-index.js";
 
 const rixRoot = resolve(import.meta.dir, "../..");
 
@@ -29,7 +31,7 @@ test("the published documentation manifest omits build-only source paths", () =>
   expect(manifest[0]).toEqual({ text: "Overview", href: "index.html" });
   const languageReference = manifest.find(({ section }) => section === "Language reference");
   expect(languageReference?.contents.length).toBe(9);
-  expect(languageReference?.contents.find(({ section }) => section === "Object methods")?.contents.length).toBe(16);
+  expect(languageReference?.contents.find(({ section }) => section === "Object methods")?.contents.length).toBe(17);
 });
 
 test("the renderer reference covers every first-party target and host boundary", async () => {
@@ -58,4 +60,52 @@ test("dynamic and static documentation modes share one navigation catalog", asyn
   expect(config).toContain("- [dynamic, static]");
   expect(dynamic).toContain("include-after-body: _includes/dynamic-navigation.html");
   expect(dynamic).toContain("page-navigation: false");
+});
+
+
+test("current guides are rendered while historical records are excluded from search", () => {
+  const root = resolve(rixRoot, "documentation");
+  const sources = new Set(renderedSources(readFileSync(resolve(root, "_quarto.yml"), "utf8")));
+  for (const file of readdirSync(resolve(root, "eval"))) {
+    if (file.endsWith(".md")) expect(sources.has(`eval/${file}`), file).toBe(true);
+  }
+  const historical = [
+    "design/parser/spec.md", "design/parser/questions.md", "report-2026-04-02.md",
+    "design/eval/ir-format.md", "design/eval/document-output-todo.md",
+    "design/eval/rixcel-todo.md", "design/eval/structural-arithmetic-todo.md",
+    "design/eval/control-panel-todo.md", "design/plugins.md",
+  ];
+  const history = readFileSync(resolve(root, "history.qmd"), "utf8");
+  for (const source of historical) {
+    expect(sources.has(source), source).toBe(true);
+    expect(readFileSync(resolve(root, source), "utf8"), source).toMatch(/^---\nsearch: false\n---/);
+    expect(history).toContain(`](${source})`);
+    expect(navigationPages().some((page) => page.source === source), source).toBe(false);
+  }
+  for (const source of ["design/eval/runtime-performance.md", "design/eval/async-concurrency.md", "design/eval/rixcel-format.md"]) {
+    expect(readFileSync(resolve(root, source), "utf8"), source).not.toMatch(/^search: false$/m);
+    expect(navigationPages().some((page) => page.source === source), source).toBe(true);
+  }
+});
+
+
+test("generated search validation rejects historical leaks, stale entries, and missing current guides", () => {
+  mkdirSync(resolve(rixRoot, "tmp"), { recursive: true });
+  const root = mkdtempSync(resolve(rixRoot, "tmp/documentation-search-"));
+  try {
+    writeFileSync(resolve(root, "_quarto.yml"), "project:\n  render:\n    - guide.md\n    - old.md\n\nfilters: []\n");
+    writeFileSync(resolve(root, "guide.md"), "# Current guide\n");
+    writeFileSync(resolve(root, "old.md"), "---\nsearch: false\n---\n# History\n");
+    const index = (hrefs) => writeFileSync(resolve(root, "search.json"), JSON.stringify(hrefs.map((href) => ({ href }))));
+    index(["guide.html", "guide.html#examples"]);
+    expect(checkSearchIndex(root, root)).toEqual({ pages: 1, records: 2 });
+    index(["guide.html", "old.html#old-api"]);
+    expect(() => checkSearchIndex(root, root)).toThrow("historical page is indexed");
+    index(["guide.html", "removed.html"]);
+    expect(() => checkSearchIndex(root, root)).toThrow("stale or unlisted page is indexed");
+    index([]);
+    expect(() => checkSearchIndex(root, root)).toThrow("current page is missing from search");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });

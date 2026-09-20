@@ -1,3 +1,7 @@
+---
+search: false
+---
+
 # RiX Mathematical Expression Language Specification
 
 ::: {.callout-warning title="Early design specification"}

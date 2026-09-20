@@ -264,7 +264,7 @@ state := .plot.StreamAppend(state, [[4,4/3],[5,5/3],[6,2]]);
 .Fragment([
   .plot.StreamLine(state, {= maxPoints=4,title="Last four exact samples" }),
   .plot.HeatMapData([[1,2,3],[4,5,6]], [0,3], [0,2], {= maxCells=2,title="Two exact mean blocks" })
-])
+]);
 ```
 
 The stream retains source IDs 3–6 and discloses two discarded older samples.

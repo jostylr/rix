@@ -54,6 +54,8 @@ describe("standalone package", () => {
       "bin/rix-language-server.js",
       "bin/rix-worker.js",
       "examples/plugins/example-array-js/array-js.plugin.rix.js",
+      "examples/capstones/certified-exploration.rix",
+      "examples/capstones/async-cancellation.mjs",
       "explorations/numerics/lipschitz-midpoint.rix",
       "explorations/numerics/second-derivative-taylor.rix",
       "explorations/continued-fractions/gosper-arithmetic.rix",

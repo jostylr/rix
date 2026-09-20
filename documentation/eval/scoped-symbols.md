@@ -35,16 +35,16 @@ remains slicing syntax: `[::]` is a full slice and `[::x]` is not a symbolic
 index (currently an invalid slice). Parentheses, as in `[(::x)]`, explicitly
 select an expression; an ordinary array still need not accept that index type.
 
-## Staged consumer conversion
+## Identity-aware consumers
 
-Core symbolic arithmetic is available without loading plugins. Existing
-name-based calculus/CAS, range, and specification consumers deliberately
-reject scoped expressions until their identity-aware conversion lands. This
-prevents silent identification of distinct same-named symbols. Existing
-constructor-based plugin examples are unaffected.
+Core symbolic arithmetic is available without plugins. Calculus, CAS and bounded
+range consumers accept their documented identity-aware expression subset; they
+preserve distinct same-named symbols and reject unsupported expression families
+rather than identifying them by display name. See
+[scoped calculus and CAS](scoped-calculus-cas.md) for the supported operations,
+budgets and unresolved outcomes. Constructor-based plugin examples remain valid.
 
 `:::x` introduces a bound identity in a [mathematical context](mathematical-contexts.md).
-Remaining stages are recorded in [the implementation ledger](../../docs/design/core-mathematics.md).
 Supported scalar promotion and its limits are described in
 [mathematical constant providers](mathematical-constants.md).
 

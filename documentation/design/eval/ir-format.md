@@ -1,3 +1,7 @@
+---
+search: false
+---
+
 # RiX IR Format Reference
 
 ::: {.callout-warning title="IR design snapshot"}

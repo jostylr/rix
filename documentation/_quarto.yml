@@ -93,10 +93,26 @@ project:
     - design/eval/rixcel-format.md
     - design/eval/rixcel-todo.md
     - design/plugins.md
+    - design/mathematical-json.md
     - rix-rationales.md
     - design/parser/spec.md
     - design/parser/questions.md
     - report-2026-04-02.md
+    - eval/mathematical-constants.md
+    - eval/mathematical-contexts.md
+    - eval/mathematical-localization.md
+    - eval/mathematical-reals.md
+    - eval/mathematical-serialization.md
+    - eval/observed-evaluation.md
+    - eval/output-widget-hosting.md
+    - eval/rixcel-regions.md
+    - eval/rixcel-tensors.md
+    - eval/safe-interchange.md
+    - eval/scoped-calculus-cas.md
+    - eval/scoped-symbols.md
+    - eval/validated-scene-views.md
+    - history.qmd
+    - tutorial/capstones.md
 
 profile:
   group:

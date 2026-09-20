@@ -63,8 +63,9 @@ grid until its exact midpoint-deviation test meets `tolerance` or a bound
 stops refinement, then records `rix.scene3d.surface-sampling@1` metadata with
 the chosen depth, work, `resolved`, and `limitedBy`. The midpoint test is a
 deterministic sampling policy, not a certificate over unsampled points.
-Implicit surfaces remain a future bounded producer rather than adding an
-unevaluated function to interchange files.
+Bounded `ImplicitSurface` and `Volume` adapters consume validated region covers;
+they retain unknown cells rather than claiming reconstructed surface topology.
+See [validated scene views](validated-scene-views.md).
 
 ## Orbit descriptions, annotations, and picking
 
@@ -200,8 +201,10 @@ before, then after.” `ToScene3D` requires dimension 3 and reports an error if
 the caller has not explicitly projected first.
 
 Projection, slice, fiber, and marginalization remain different notions. This
-slice implements affine projection; sections/slices and fibers remain future
-operations and will not be aliases for `Project`.
+plugin implements `AffineSlice`, exact edge-defined `Section`, finite/implicit
+`Fiber`, and bounded implicit region adapters separately from `Project`. Sections
+retain proved edge intersections without inventing missing face topology;
+implicit fibers need an explicit bounded solver before they become geometry.
 
 ## glTF export
 

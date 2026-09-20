@@ -1,4 +1,14 @@
+---
+search: false
+---
+
 # RiXCel implementation checklist
+
+::: {.callout-note title="Historical planning and delivery record"}
+This page preserves earlier plans and completion notes; proposed APIs and
+remaining-work statements below are not the current implementation contract.
+Use the [history index](../../history.qmd) for links to current guides.
+:::
 
 > Reconciled 2026-09-19. Remaining milestones are ordered in the umbrella
 > `ratmath/WORK_PLAN.md` (C1–C4). Existing checked milestones remain completion

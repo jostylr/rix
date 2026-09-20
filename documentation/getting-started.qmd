@@ -5,12 +5,11 @@ description: "Install RiX in the RatMath workspace, run the REPL, execute script
 
 RiX uses Bun. The package is an active alpha and is not yet presented as a
 stable registry release: the public npm name `rix` belongs to an unrelated
-project. Standalone development installs the compatible `@ratmath/core` 0.4
-release.
+project. Use the matching RiX and Core checkouts in the RatMath workspace.
 
 ## Requirements
 
-- [Bun](https://bun.sh/) 1.2 or newer
+- [Bun](https://bun.sh/) 1.4 or newer
 - Git
 - Quarto 1.6 or newer only if you want to build this documentation site
 
@@ -19,12 +18,16 @@ release.
 ```sh
 git clone https://github.com/jostylr/ratmath.git
 cd ratmath
-bun install
-bun --cwd rix test
+bun run prep
+bun --cwd rix run test:short
 ```
 
-The standalone repository supports `bun install` and `bun test`; the RatMath
-umbrella workspace instead links its local Core checkout.
+The workspace preparation command initializes pinned repositories and installs
+their dependencies. The manifest declares Core ^0.5.0, but the registry package
+is missing the newer `NumeralSystem` export at this revision. Standalone registry
+installation therefore needs a coordinated release; workspace development uses
+the matching local Core implementation. Use `bun --cwd rix run test:suite` for
+the complete verification (longer than the short development checks).
 
 The RiX test suite exercises tokenizer, parser, lowering, evaluator, runtime, CLI, examples, exact values, types, methods, Shaped storage, mathematical tensors, generators, and diagnostics.
 

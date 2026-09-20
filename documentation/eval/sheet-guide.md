@@ -253,7 +253,8 @@ context containing:
 The model evaluates all slots in a new atomic epoch. A read of a slot already
 being evaluated reports the complete path, such as
 `grid[1,1] -> grid[1,2] -> grid[1,1]`. The cycle never reads a stale prior
-value. Caller variables are unavailable; future imports will be explicit.
+value. Caller variables are unavailable. Cross-document imports are explicit
+workbook namespaces; see [workbooks](workbooks.md).
 
 The formula and slot APIs are:
 
@@ -340,7 +341,8 @@ origin and axis; `near[0,0]` is a normal self-cycle and is rejected.
 The public `model.Near(origin, offsets)` form applies the same coordinate rule
 outside a formula and can be used with a different FormulaSheet object. It
 does not implicitly import that object into another sheet's isolated formula
-context; cross-document formulas will use the future explicit import namespace.
+context. Cross-document formulas use the explicit `book`, `names` and `imports`
+namespaces supplied by the [workbook host](workbooks.md).
 
 Formula copy/paste keeps source semantics explicit. `grid[1,1]` is copied as
 an absolute coordinate and `near[0,-1]` remains relative to whichever cell

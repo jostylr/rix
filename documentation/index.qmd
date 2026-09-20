@@ -83,7 +83,7 @@ RiX is especially interesting when a calculation is more than “feed numbers to
 - research into language semantics for mathematical work;
 - embedding a configurable mathematical parser and evaluator in another tool.
 
-It is an active alpha, not yet a finished general-purpose ecosystem. The parser, lowering pipeline, and broad evaluator are working and heavily tested; full equation solving and symbolic rules beyond the exact arithmetic subset remain design territory. See [implementation status](status.qmd) for the honest boundary.
+It is an active alpha, not yet a finished general-purpose ecosystem. The parser, lowering pipeline, and broad evaluator are working and heavily tested; bounded equation solvers and opt-in symbolic rules are available, while general solving and multivariate elimination remain outside the supported scope. See [implementation status](status.qmd) for the honest boundary.
 
 ## The design bet
 

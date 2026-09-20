@@ -7,7 +7,7 @@ remote service.
 
 ## CLI builds
 
-Run the [complete showcase](../../examples/publication-workflow/README.md):
+Run the [complete showcase](https://github.com/jostylr/rix/blob/main/examples/publication-workflow/README.md):
 
 ```sh
 bun bin/rix.js publish examples/publication-workflow/build.json --out=tmp/publication

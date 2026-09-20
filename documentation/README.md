@@ -4,7 +4,7 @@ This directory contains the authored source for the RiX documentation site. Quar
 
 The documentation has three authority levels:
 
-1. Current guides and generated reference: `index.qmd`, `getting-started.qmd`, `language-at-a-glance.qmd`, `status.qmd`, `introduction.md`, `plugin-catalog.md`, `eval/`, and `reference/`. RiX Web's `../rix-web/tutorials/` directory plus each first-party plugin's `tutorial.md` are the learner-facing tutorial authority; `eval/output-guide.md`, `eval/renderer-guide.md`, and `eval/controls-guide.md` are the reference material for output, renderers, and controls.
+1. Current guides and generated reference: `index.qmd`, `getting-started.qmd`, `language-at-a-glance.qmd`, `status.qmd`, `introduction.md`, `plugin-catalog.md`, `eval/`, and `reference/`. RiX Web's sibling-repository `../../rix-web/tutorials/` directory plus each first-party plugin's `tutorial.md` are the learner-facing tutorial authority; `eval/output-guide.md`, `eval/renderer-guide.md`, and `eval/controls-guide.md` are the reference material for output, renderers, and controls.
 2. Implementation and design material: `developer-guide.qmd`, selected `parser/` pages, `design/eval/`, `design/plugins.md`, and `rix-rationales.md`.
 3. Historical/archive material: dated reports, early phase specs, scratch text, the old parser Pages build, and pre-generated parser HTML. These files preserve design history but are not the current language contract.
 
@@ -32,6 +32,16 @@ the page list into every generated HTML file. The static profile instead uses a
 generated `_quarto-static.yml` so its pre-rendered navigation cannot drift from
 the dynamic manifest. Also add or remove the source in `project.render` in
 `_quarto.yml`.
+
+Historical specifications and delivery checklists listed in `history.qmd` carry
+Quarto front matter `search: false`. They remain rendered at their original URLs,
+but neither the dynamic nor static build adds them to `search.json`. Keep current
+implementation contracts searchable even when they live under `design/`.
+When retiring another page, add the metadata and a current-reference pointer,
+link it from the history index, and update the search-policy regression list in
+`tests/tools/documentation-navigation.test.js`. Unpublished scratch/archive files
+stay outside `project.render`. Do not disable search for an entire design tree.
+The build validates the generated search index before copying it to `docs/`.
 
 The generated HTML retains a link to the overview while the manifest loads or
 when JavaScript is unavailable.

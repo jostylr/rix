@@ -1,3 +1,7 @@
+---
+search: false
+---
+
 # Open Language Design Areas and Checklist
 
 ::: {.callout-note title="Design backlog, not a feature checklist"}

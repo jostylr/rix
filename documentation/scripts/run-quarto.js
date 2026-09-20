@@ -5,6 +5,8 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { navigationManifest, navigationPages, staticNavigationProfile } from "../navigation.js";
 
+import { checkSearchIndex } from "./check-search-index.js";
+
 const here = dirname(fileURLToPath(import.meta.url));
 const rixRoot = resolve(here, "../..");
 const cacheRoot = resolve(rixRoot, "tmp/quarto-home");
@@ -46,6 +48,9 @@ const examples = Bun.spawn(
 );
 const examplesExitCode = await examples.exited;
 if (examplesExitCode !== 0) process.exit(examplesExitCode);
+
+// A full render must not retain HTML/search entries from pages removed from the render list.
+if (mode === "render") rmSync(resolve(rixRoot, "documentation/_site"), { recursive: true, force: true });
 
 const child = Bun.spawn(
   ["quarto", mode, "./documentation", ...process.argv.slice(3)],
@@ -107,6 +112,9 @@ if (exitCode === 0 && mode === "render") {
     process.exit(1);
   }
   console.log(`Validated ${htmlFiles.length} HTML pages and ${localLinkCount} local asset/link references`);
+
+  const search = checkSearchIndex(resolve(rixRoot, "documentation"), stagedSite);
+  console.log(`Validated documentation search: ${search.pages} current pages, ${search.records} records`);
 
   rmSync(pagesSite, { recursive: true, force: true });
   cpSync(stagedSite, pagesSite, { recursive: true });
