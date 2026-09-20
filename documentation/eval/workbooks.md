@@ -117,3 +117,31 @@ cooperative work/data bounds, not claims of process memory isolation.
 
 See [the workbook schema](../../schemas/rixcel-workbook-v1.schema.json) and
 [the document format](../design/eval/rixcel-format.md).
+
+## Notebook embedding and host reuse
+
+`createRixCelWorkbookHost(record, options)` is the shared isolated evaluator,
+exported from `@ratmath/rix` and `@ratmath/rix/rixcel-host`. Cel and Notebook
+use the same fresh-context epochs and withheld file/network/plugin capabilities.
+Reading a workbook never grants its formulas access to the notebook's bindings.
+
+Notebook exposes `.cel(jsonText, documentId?)` and the explicitly authorized
+project reader `.celOpen(relativePath, documentId?)`. A session provides `Sheet`
+for editable output, `Get` for a declared export's current exact value, and `View`
+for a live output subscribed to that export. `Set(index, source)` commits an
+ordinary RiX formula edit atomically. `Record()` returns portable workbook JSON;
+edits are session-local until the caller explicitly saves it. `Dispose` and
+Notebook rerun/close release the private workbook and observers.
+
+Embedding accepts at most 16 sessions per run. Each Sheet defaults to 20 rows
+and 8 columns, capped by its dimensions; explicit windows are limited to 1024
+cells across at most 32 hidden-axis planes. Large sheets stay sparse. Source
+files are bounded to 8 MB and resolved by existing native project/folder grants
+or browser project ZIP storage. Workbook dependency cycles fail atomically;
+notebook/script imports are not available to workbook formulas.
+
+Self-contained `.cel` JSON works in published live HTML. External `.celOpen`
+requires a host reader; published pages retain the initial static result and
+diagnose the missing reader. Use the Notebook `examples/cel-embedding` project
+for named exports and the storage-backed path. No Excel-formula translation is
+implied by these RiX APIs.

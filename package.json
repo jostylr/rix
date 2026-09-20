@@ -53,7 +53,8 @@
     "./publication-workflow": "./src/runtime/publication-workflow.js",
     "./output-assets": "./src/runtime/output-assets.js",
     "./output-assets/node": "./src/runtime/output-assets-node.js",
-    "./rixcel-workbook": "./src/runtime/rixcel-workbook.js"
+    "./rixcel-workbook": "./src/runtime/rixcel-workbook.js",
+    "./rixcel-host": "./src/eval/rixcel-host.js"
   },
   "bin": {
     "rix": "./bin/rix.js",

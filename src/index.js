@@ -190,3 +190,4 @@ export { IMPLICIT_REGION_SCHEMA, IMPLICIT_REGION_CHECKER, evaluateImplicitRegion
 export { createLinkedViews } from "./runtime/linked-views.js";
 
 export { RIXCEL_WORKBOOK_FORMAT, RIXCEL_WORKBOOK_LIMITS, parseRixCelWorkbook, createRixCelWorkbookDocument, stringifyRixCelWorkbook, createRixCelWorkbook } from "./runtime/rixcel-workbook.js";
+export { createRixCelWorkbookHost } from "./eval/rixcel-host.js";
