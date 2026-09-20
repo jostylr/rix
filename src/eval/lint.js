@@ -984,6 +984,7 @@ export function analyzeRix(source, options = {}) {
                     visit(elements[index], scope, {
                         ...state,
                         role: "value",
+                        sharedScope: false,
                         tail: state.tail && index === elements.length - 1,
                         discarded: index < elements.length - 1,
                     });
@@ -1008,6 +1009,7 @@ export function analyzeRix(source, options = {}) {
                 visit(elements[index], child, {
                     ...state,
                     role: "value",
+                    sharedScope: false,
                     tail: state.tail && index === elements.length - 1,
                     discarded: index < elements.length - 1,
                 });

@@ -54,6 +54,15 @@ describe("RiX static lint diagnostics", () => {
         expect(diagnostics.some(({ code }) => code === "RX1401")).toBe(false);
     });
 
+    test("loop body sharing does not leak into nested case or ordinary blocks", () => {
+        for (const body of ["{? 1 ? {; @total += @item; }; }", "{; @total += @item; }"]) {
+            const source = `total:=0; {@ index=1; index<=2; {; item=index; ${body}; }; index+=1 }; total;`;
+            expect(parseAndEvaluate(source).toString()).toBe("3");
+            expect(codes(source).filter(code => ["RX1001", "RX1002", "RX1003"].includes(code))).toEqual([]);
+            expect(codes(source.replace("+= @item", "+= item"))).toContain("RX1001");
+        }
+    });
+
     test("treats function closures as lexical and lazy blocks as capture boundaries", () => {
         expect(codes("Make=(a)->(x)->a*x; F=Make(2); F(3);")).not.toContain("RX1001");
 

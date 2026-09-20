@@ -1,5 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/scene3d-validated-adapters.schema.json",
   "title": "RiX bounded scene source adapters v1",
   "description": "Native/RiX field names are case insensitive; exact numeric values retain their native representations. These adapters preserve source claims, not certify projected pixels. Exact unit quaternion records require independent norm verification. Cell meshes are conservative box boundaries, not reconstructed surface topology.",
   "oneOf": [

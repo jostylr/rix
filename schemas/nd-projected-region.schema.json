@@ -1,5 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/nd-projected-region.schema.json",
   "title": "RiX affine enclosure of implicit source cells v1",
   "type": "object",
   "description": "RiX/native field names are case insensitive. Exact interval images may overlap and lose dependence. The complete checked source and source IDs remain retained.",

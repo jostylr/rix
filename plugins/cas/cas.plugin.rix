@@ -677,7 +677,7 @@ CasCourseVisit(expression,state,depth) -> {;
     (depth<=64 && state[:nodes]<=4096) ?_> .Error("Course graph exceeds depth 64 or 4096 nodes");
     kind=expression[:kind];
     children=kind==:operator ?: expression[:operands] ?_ kind==:apply ?: expression[:arguments] ?_ [];
-    children.Map(child->CasCourseVisit(child,state,depth+1));1;
+    _ := children.Map(child->CasCourseVisit(child,state,depth+1));1;
 };
 CasReplace(expression,variable,replacement) -> {;
     kind=expression[:kind];
@@ -788,7 +788,7 @@ CasRequireApplication(expression,id) -> {;
 CasCourseRewrite(value,rule,premises ?= []) -> {;
     source=CasCourseGraph(value);
     (premises ? :Array) && premises.Len()<=32 ?_> .Error("Rewrite premises must be an Array with at most 32 conditions");
-    premises.Map(condition->{;
+    _ := premises.Map(condition->{;
         (condition ? :Map) && condition[:schema]=="rix.calculus.obligation@1" && condition[:kind]==:domain
           && [:defined,:real,:positive,:nonnegative,:nonpositive,:nonzero].Includes(condition[:relation]) ?_> .Error("Expected existing local Calculus domain obligations");
         CasCourseGraph(condition[:expression]);

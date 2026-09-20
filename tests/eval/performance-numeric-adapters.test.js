@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 import { Integer, Rational } from '@ratmath/core';
-import { parseAndEvaluate, formatValue } from '../../src/index.js';
+import { parseAndEvaluate, parseAndEvaluateAsync, formatValue } from '../../src/index.js';
 import { createFloatTensorAdapters, floatTensorFromTypedArray, floatTensorToTypedArray } from '../../plugins/float/tensor-adapters.js';
 import { createShaped, createShapedView } from '../../src/runtime/shaped.js';
 import { deepCopyValue } from '../../src/runtime/cell.js';
@@ -88,4 +88,15 @@ test('materialized Float cells retain semantic methods and diagnostics',()=>{
  expect(result.values[0].value).toBe('binary32');
  expect(result.values[1].values.map(x=>x.value)).toContain('overflow');
  expect(result.values[2].entries.get('operation').value).toBe('tensorConvert');
+});
+
+test('async Float tensor materialization resolves semantic cells and preserves provenance', async () => {
+ const value = await parseAndEvaluateAsync('.Plugin.Load("float"); a=.float.Tensor([1,2,3,4],[2,2],:binary32); b=.float.Tensor([5,6],[2],:binary32); .float.ToShaped(.float.MatMul(a,b));');
+ expect(value.data.map(cell=>cell.value)).toEqual([17,39]);
+ expect(value.data.every(cell=>cell.type==='float_ieee754')).toBe(true);
+ expect(value.data.map(cell=>cell.operation)).toEqual(['tensorMatMul','tensorMatMul']);
+ const overflow=await parseAndEvaluateAsync('.Plugin.Load("float"); t=.float.Tensor([10^50],[1],:binary32); x=.float.ToShaped(t)[1]; [x.Format(),x.Diagnostics(),x.Classify()];');
+ expect(overflow.values[0].value).toBe('binary32');
+ expect(overflow.values[1].values.map(x=>x.value)).toContain('overflow');
+ expect(overflow.values[2].entries.get('operation').value).toBe('tensorConvert');
 });

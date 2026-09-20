@@ -1,5 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/complex-graph4d.schema.json",
   "title": "RiX bounded four-coordinate complex graph samples v1",
   "type": "object",
   "description": "Exact input samples and exact outputs or supplied enclosure claims; null output bounds mean unknown position. Sampling does not certify unsampled cells, roots, branches, or graph topology. RiX field names are case insensitive.",

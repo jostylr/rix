@@ -8,6 +8,9 @@ import {
 import path from "node:path";
 
 const rixRoot = path.resolve(import.meta.dir, "..");
+const workspaceCore = process.argv.includes("--workspace-core");
+const unknownArgs = process.argv.slice(2).filter((arg) => arg !== "--workspace-core");
+if (unknownArgs.length) throw new Error("Usage: bun scripts/package-consumer-smoke.js [--workspace-core]");
 const tmpRoot = path.join(rixRoot, "tmp");
 mkdirSync(tmpRoot, { recursive: true });
 
@@ -42,7 +45,7 @@ try {
     const manifest = await Bun.file(path.join(rixRoot, "package.json")).json();
     const coreRange = manifest.dependencies?.["@ratmath/core"];
     if (!coreRange) throw new Error("RiX package manifest must declare @ratmath/core");
-    run([
+    if (!workspaceCore) run([
         "npm",
         "view",
         `@ratmath/core@${coreRange}`,
@@ -66,6 +69,18 @@ try {
     const [packReport] = JSON.parse(packOutput);
     const tarball = path.join(packDirectory, packReport.filename);
 
+    let coreTarball;
+    if (workspaceCore) {
+        const coreRoot = path.resolve(rixRoot, "../packages/core");
+        const coreManifest = await Bun.file(path.join(coreRoot, "package.json")).json();
+        if (coreManifest.name !== "@ratmath/core") throw new Error("Expected sibling @ratmath/core package");
+        const [coreReport] = JSON.parse(run([
+            "npm", "pack", "--json", "--ignore-scripts", "--pack-destination", packDirectory,
+            "--cache", cacheDirectory,
+        ], coreRoot));
+        coreTarball = path.join(packDirectory, coreReport.filename);
+    }
+
     await Bun.write(path.join(consumerDirectory, "package.json"), `${JSON.stringify({
         name: "rix-package-consumer-smoke",
         private: true,
@@ -83,6 +98,7 @@ try {
         "--cache",
         cacheDirectory,
         tarball,
+        ...(coreTarball ? [coreTarball] : []),
     ], consumerDirectory);
 
     const probe = `
@@ -92,6 +108,7 @@ const requiredCoreExports = [
     "Relation",
     "parseCertifiedApproximation",
     "possibleRelations",
+    "NumeralSystem",
 ];
 const missingCoreExports = requiredCoreExports.filter((name) => !(name in core));
 if (missingCoreExports.length > 0) {
@@ -125,7 +142,7 @@ if (rix.formatValue(result) !== "3") {
         run([path.join(consumerDirectory, "node_modules", ".bin", command), "--help"], consumerDirectory);
     }
 
-    console.log(`Installed and exercised ${packReport.filename} with registry dependencies.`);
+    console.log(`Installed and exercised ${packReport.filename} with ${workspaceCore ? "a staged workspace Core tarball (not a registry release check)" : "registry dependencies"}.`);
 } finally {
     if (process.env.RIX_KEEP_PACKAGE_SMOKE !== "1") {
         rmSync(smokeRoot, { recursive: true, force: true });

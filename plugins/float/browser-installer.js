@@ -267,9 +267,15 @@ export function installBrowserApproxMathPlugin({ systemContext, registry, metada
         const result = tensors[name](...args.slice(1));
         if (name !== "ToShaped") return result;
         // Attach the normal Float semantic methods without discarding buffer provenance.
-        return createShaped(result.shape, result.data.map((value) => ({
-            ...requireFloat(value, evaluate), diagnostics: value.diagnostics, operation: value.operation,
-        })));
+        const cells = result.data.map((value) => {
+            const converted = requireFloat(value, evaluate);
+            const preserve = (cell) => ({ ...cell, diagnostics: value.diagnostics, operation: value.operation });
+            return converted && typeof converted.then === "function"
+                ? converted.then(preserve) : preserve(converted);
+        });
+        return cells.some((cell) => cell && typeof cell.then === "function")
+            ? Promise.all(cells).then((resolved) => createShaped(result.shape, resolved))
+            : createShaped(result.shape, cells);
     });
     const algorithms = createApproximateAlgorithms(NATIVE_TYPE);
     for (const name of FLOAT_ALGORITHM_EXPORTS) {

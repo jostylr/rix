@@ -1,5 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/linked-views.schema.json",
   "title": "RiX linked retained graphics panel metadata v1",
   "type": "object",
   "description": "Renderer-neutral metadata. Native/RiX field names are case insensitive. IDs are namespaced per panel, and overlapping selection groups are transitively merged. No selection adds a mathematical claim.",

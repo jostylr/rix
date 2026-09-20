@@ -78,7 +78,7 @@ OdeNormalizeNames(value, count) -> {;
     names.Len() == count
       ?: _
       ?_ .Error("ODE stateNames length must match the state dimension");
-    names.Map((name)->name ? :String ?: name ?_ .Error("ODE state names must be strings"));
+    _ := names.Map((name)->name ? :String ?: name ?_ .Error("ODE state names must be strings"));
     names.Map((name)->name.Lower()).Distinct().Len()==count ?_> .Error("ODE stateNames must be distinct");names;
 };
 
@@ -732,12 +732,12 @@ OdeTimePolynomialRange(coefficientsValue,domainValue,options ?= {= }) -> {;
     {@ cell=1;cell<=@subdivisions;{;
         low=@domain.Low()+(@domain.High()-@domain.Low())*(cell-1)/@subdivisions;
         high=@domain.Low()+(@domain.High()-@domain.Low())*cell/@subdivisions;
-        range:=_;data:=_;
+        cellRange:=_;data:=_;
         @mode==:affine ?: {;
             center=(@low+@high)/2;centerValue=OdePolynomialHorner(@coefficients,center:center);
             derivative=@coefficients.DropFirst().Map((value,index)->value*index);
             slope=derivative.Len()==0 ?: (0:0) ?_ OdePolynomialHorner(derivative,@low:@high);
-            @range~=centerValue+((@low:@high)-(center:center))*slope;
+            @cellRange~=centerValue+((@low:@high)-(center:center))*slope;
             @data~={= center=center,value=centerValue,slope=slope };
         } ?_ {;
             power:=[];
@@ -755,9 +755,9 @@ OdeTimePolynomialRange(coefficientsValue,domainValue,options ?= {= }) -> {;
                 {@ j=0;j<=@i;{; @sum+=@power[j+1]*OdeChoose(@i,j)/OdeChoose(@degree,j); };j+=1};
                 @bernstein~=@bernstein.Push(sum);
             };i+=1};
-            @range~=OdeIntervalHull(bernstein);@data~={= shiftedPowerCoefficients=power,bernsteinCoefficients=bernstein };
+            @cellRange~=OdeIntervalHull(bernstein);@data~={= shiftedPowerCoefficients=power,bernsteinCoefficients=bernstein };
         };
-        @partitions~=@partitions.Push({= interval=low:high,range=range,evidence=data });
+        @partitions~=@partitions.Push({= interval=low:high,range=cellRange,evidence=data });
     };cell+=1};
     range=OdeIntersectIntervals(OdeIntervalHull(partitions.Map((part)->part[:range])),natural,"dependency model");
     result={= schema="rix.ode.time-polynomial-range@1",status=:enclosed,range=range,certified=1,applied=1,mode=mode,
@@ -1481,9 +1481,9 @@ OdeBVP(rhs,initialTime,initialExpressions,interval,residuals,shootingBox,options
     parameters=OdeOption(options,"parameters",{= });
     .ValidatedClaimEqual([rhs,initials,equations,shootingBox,options],[rhs,initials,equations,shootingBox,options]);
     bounds=initials.Map((expression)->.numerics.GraphRange(expression,shootingBox));
-    bounds.Map((bound)->bound[:certified]==1 ?_> .Error("ODE could not enclose the initial shooting family"));
+    _ := bounds.Map((bound)->bound[:certified]==1 ?_> .Error("ODE could not enclose the initial shooting family"));
     problem=OdeIVP(rhs,initialTime,bounds.Map((bound)->bound[:interval]),interval,options);
-    variables.Map((name)->@problem[:stateNames].Includes(name)==_ && name!=@problem[:independent] && @parameters.Has(name)==_
+    _ := variables.Map((name)->@problem[:stateNames].Includes(name)==_ && name!=@problem[:independent] && @parameters.Has(name)==_
       ?_> .Error("ODE shooting parameters must differ from time, states and fixed parameters"));
     .ValidatedClaimEqual([problem,initials,equations,shootingBox],[problem,initials,equations,shootingBox]);
     .ImmutableValue({= schema="rix.ode.boundary-problem@1",problem=problem,initialExpressions=initials,
@@ -1492,12 +1492,12 @@ OdeBVP(rhs,initialTime,initialExpressions,interval,residuals,shootingBox,options
 };
 OdeShootingMap(bvp,options) -> {;
     problem=bvp[:problem];
-    problem[:rhs].Map((rhs)->OdePolynomialGraph(rhs));
-    bvp[:initialExpressions].Map((rhs)->OdePolynomialGraph(rhs));bvp[:residuals].Map((rhs)->OdePolynomialGraph(rhs));
+    _ := problem[:rhs].Map((rhs)->OdePolynomialGraph(rhs));
+    _ := bvp[:initialExpressions].Map((rhs)->OdePolynomialGraph(rhs));_ := bvp[:residuals].Map((rhs)->OdePolynomialGraph(rhs));
     order=OdeRequirePositiveInteger(OdeOption(options,"order",4),"ODE shooting Taylor order",8);
     construction=OdePrepareTaylor(problem,{= order=order,maxConstructionWork=OdeOption(options,"maxconstructionwork",4096) });
     last=construction[:derivativeRows][order].Map((expression)->OdeConstantGraph(expression));
-    last.Map((entry)->entry[:value]==0 ?: _ ?_ .Error("ODE terminal map has a nonzero Taylor remainder"));
+    _ := last.Map((entry)->entry[:value]==0 ?: _ ?_ .Error("ODE terminal map has a nonzero Taylor remainder"));
     replacements:=problem[:parameters].MapValues((value)->.calculus.Constant(value)).Set(problem[:independent],.calculus.Constant(problem[:initialTime]));
     {@ axis=1;axis<=@problem[:dimension];{; @replacements~=@replacements.Set(@problem[:stateNames][axis],@bvp[:initialExpressions][axis]); };axis+=1};
     h=problem[:interval].End()-problem[:initialTime];
@@ -1553,8 +1553,8 @@ OdeShoot(bvp,options ?= {= }) -> {;
         branch=@subdivision[:unique][index];
         bindings=branch[:box][:axes];
         initial=@bvp[:initialExpressions].Map((expression)->.numerics.GraphRange(expression,@bindings)[:interval]);
-        base=@bvp[:problem];
-        ivp=OdeIVP(base[:rhs],base[:initialTime],initial,base[:interval],{= stateNames=base[:stateNames],independent=base[:independent],parameters=base[:parameters] });
+        branchProblem=@bvp[:problem];
+        ivp=OdeIVP(branchProblem[:rhs],branchProblem[:initialTime],initial,branchProblem[:interval],{= stateNames=branchProblem[:stateNames],independent=branchProblem[:independent],parameters=branchProblem[:parameters] });
         flow=OdeValidatedTaylor2(ivp,@flowOptions,_,1);
         candidate=@trajectories.Push({= branchId=branch[:id],parameterBox=branch[:box],flow=flow });
         OdeFitsClaim([@retained,@retained,candidate,candidate])
