@@ -6,8 +6,9 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
+<meta name="description" content="Six runnable workflows connecting publication, checked numerics, exact views, coordinates, cancellation, and spreadsheet interchange.">
 
-<title>document-persistence – RiX</title>
+<title>Capstones: from exact computation to a portable result – RiX</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -22,6 +23,41 @@ ul.task-list li input[type="checkbox"] {
   width: 0.8em;
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
 }
 </style>
 
@@ -302,7 +338,7 @@ ul.task-list li input[type="checkbox"] {
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
         <a class="flex-grow-1 no-decor" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
-          <h1 class="quarto-secondary-nav-title"></h1>
+          <h1 class="quarto-secondary-nav-title">Capstones: from exact computation to a portable result</h1>
         </a>     
     </div>
   </nav>
@@ -329,67 +365,95 @@ ul.task-list li input[type="checkbox"] {
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#saving-portable-output" id="toc-saving-portable-output" class="nav-link active" data-scroll-target="#saving-portable-output">Saving portable output</a>
-  <ul class="collapse">
-  <li><a href="#live-widgets-become-explicit-snapshots" id="toc-live-widgets-become-explicit-snapshots" class="nav-link" data-scroll-target="#live-widgets-become-explicit-snapshots">Live widgets become explicit snapshots</a></li>
-  <li><a href="#import-policy-and-limits" id="toc-import-policy-and-limits" class="nav-link" data-scroll-target="#import-policy-and-limits">Import policy and limits</a></li>
-  <li><a href="#version-one-wire-contract" id="toc-version-one-wire-contract" class="nav-link" data-scroll-target="#version-one-wire-contract">Version-one wire contract</a></li>
-  </ul></li>
+  <li><a href="#publish-an-exact-report-and-an-interactive-companion" id="toc-publish-an-exact-report-and-an-interactive-companion" class="nav-link active" data-scroll-target="#publish-an-exact-report-and-an-interactive-companion">1. Publish an exact report and an interactive companion</a></li>
+  <li><a href="#report-proved-roots-ode-bounds-and-unfinished-work-together" id="toc-report-proved-roots-ode-bounds-and-unfinished-work-together" class="nav-link" data-scroll-target="#report-proved-roots-ode-bounds-and-unfinished-work-together">2. Report proved roots, ODE bounds, and unfinished work together</a></li>
+  <li><a href="#display-rounded-numbers-without-replacing-exact-source" id="toc-display-rounded-numbers-without-replacing-exact-source" class="nav-link" data-scroll-target="#display-rounded-numbers-without-replacing-exact-source">3. Display rounded numbers without replacing exact source</a></li>
+  <li><a href="#resolve-tensor-coordinates-before-choosing-a-sheet-projection" id="toc-resolve-tensor-coordinates-before-choosing-a-sheet-projection" class="nav-link" data-scroll-target="#resolve-tensor-coordinates-before-choosing-a-sheet-projection">4. Resolve tensor coordinates before choosing a sheet projection</a></li>
+  <li><a href="#cancel-concurrent-host-work-and-verify-cleanup" id="toc-cancel-concurrent-host-work-and-verify-cleanup" class="nav-link" data-scroll-target="#cancel-concurrent-host-work-and-verify-cleanup">5. Cancel concurrent host work and verify cleanup</a></li>
+  <li><a href="#rebuild-a-spreadsheet-from-portable-source-and-exchange-values" id="toc-rebuild-a-spreadsheet-from-portable-source-and-exchange-values" class="nav-link" data-scroll-target="#rebuild-a-spreadsheet-from-portable-source-and-exchange-values">6. Rebuild a spreadsheet from portable source and exchange values</a></li>
+  <li><a href="#verification-and-next-experiments" id="toc-verification-and-next-experiments" class="nav-link" data-scroll-target="#verification-and-next-experiments">Verification and next experiments</a></li>
   </ul>
-<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/document-persistence.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/tutorial/capstones.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
 <!-- main -->
-<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"></header>
+<main class="content" id="quarto-document-content">
 
 
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title d-none d-lg-block">Capstones: from exact computation to a portable result</h1>
+</div>
+
+<div>
+  <div class="description">
+    Six runnable workflows connecting publication, checked numerics, exact views, coordinates, cancellation, and spreadsheet interchange.
+  </div>
+</div>
 
 
+<div class="quarto-title-meta">
 
-<section id="saving-portable-output" class="level1">
-<h1>Saving portable output</h1>
-<p>The opt-in <code>document</code> plugin saves an evaluated output tree without keeping an execution scope, reactive handle, callback, or filesystem grant. Loading never fetches an asset, runs a recipe, imports a plugin, or evaluates RiX source.</p>
-<pre class="rix" data-exec="true"><code>.Plugin.Load("document");
-report := .Fragment([
-    .Paragraph([.Strong("Exact results"), 1/3]),
-    .Table(["oriented interval"], [[5:4]])
-]);
-saved := .document.EncodeJSON(report);
-imported := .document.DecodeJSON(saved);
-.document.EncodeJSON(imported[:value]) == saved ##@ == 1;
-imported[:diagnostics].Len() ##@ == 0;</code></pre>
-<p><code>DecodeJSON</code> returns a map with <code>value</code>, <code>diagnostics</code>, and <code>schema</code>. Display its warnings alongside the imported value. <code>EncodeJSON</code> returns a String and does not write a file. The host JavaScript functions <code>encodeOutputJSON</code>, <code>decodeOutputJSON</code>, and <code>snapshotOutputDocument</code> are exported from RiX and its runtime entry point, with the same behavior in CLI, Web, and Notebook hosts.</p>
-<section id="live-widgets-become-explicit-snapshots" class="level2">
-<h2 class="anchored" data-anchor-id="live-widgets-become-explicit-snapshots">Live widgets become explicit snapshots</h2>
-<p>Call <code>.document.Snapshot(value)</code> before persisting a live tree. It captures current control values and selected Sheet planes, removes reactive/action handles, disables controls, and turns draggable points/actions into static circles/groups. It never invokes an action. The original tree stays live.</p>
-<pre class="rix" data-exec="true"><code>.Plugin.Load("document");
-$$amount := 1/2;
-panel := .ControlPanel([.Controls.Slider($$amount, 0:1, 1/10, "Amount")]);
-portable := .document.Snapshot(panel);
-.document.DecodeJSON(.document.EncodeJSON(portable))[:value];</code></pre>
-<p>A direct attempt to encode live controls, bindings, functions, promises, host objects, or accessors fails. Imported Sheet snapshots retain safe <code>Index</code>/<code>At</code> lookup over saved cells; an unsaved plane is unavailable, not lazily evaluated. Frame-aware mathematical tensor graphs require the separate Linalg identity import adapter; bare Shaped and rank-two Matrix values are supported now.</p>
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>These capstones connect implemented features into useful results. Run commands from the <strong><code>rix/</code> repository directory</strong>, after the workspace’s <code>bun run prep</code>. Bun and the checked-out dependencies are required. Each source is linked below; read and modify that source instead of copying a second version from this page. Generated method reference chips remain the API reference.</p>
+<p>The CLI is the reproducible baseline. Web and Notebook can render portable output values, but live controls require their installed runtime and plugins. A static HTML, SVG, or text result remains useful when a live host is unavailable. No capstone requires RiX-Ed, network access, or a hosted service.</p>
+<section id="publish-an-exact-report-and-an-interactive-companion" class="level2">
+<h2 class="anchored" data-anchor-id="publish-an-exact-report-and-an-interactive-companion">1. Publish an exact report and an interactive companion</h2>
+<p><strong>Prerequisites:</strong> the <a href="../eval/output-guide.html">output guide</a> and <a href="../eval/publication-workflows.html">publication workflows</a>. Start with the existing <a href="https://github.com/jostylr/rix/blob/main/examples/publication-workflow/README.md">publication project</a>, which already contains two sources, local SVG media, named inputs, and a Notebook project.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js publish examples/publication-workflow/build.json <span class="at">--out</span><span class="op">=</span>tmp/capstone-publication</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js publish examples/publication-workflow/build.json <span class="at">--profile</span><span class="op">=</span>live <span class="at">--out</span><span class="op">=</span>tmp/capstone-live</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Open the report’s <code>document.html</code> and compare the small and large named inputs. Inspect <code>manifest.json</code>: source hashes, artifact checksums, and diagnostics make this a repeatable build. The review profile emits HTML, Markdown, Quarto, LaTeX, and an inert bundle. PDF requires <code>pdflatex</code>; an unavailable PDF produces a readable <code>.unavailable.txt</code> artifact rather than an invented successful PDF. The exact <code>n/3</code> source stays rational even when a target chooses a decimal display.</p>
+<p>Open a live <code>document.html</code>, change the input, and compare the recomputed result with its initial static content. Use the review profile when scripts or the live runtime are unavailable. For a bounded failure exercise, add <code>--watch</code>, introduce a syntax error in a source, and confirm the last successful output survives; repair the source to publish the next complete result. Stop watch when finished. See the project README for the native and browser Notebook export path.</p>
 </section>
-<section id="import-policy-and-limits" class="level2">
-<h2 class="anchored" data-anchor-id="import-policy-and-limits">Import policy and limits</h2>
-<p>The <code>unknownTags</code> option is one of:</p>
-<ul>
-<li><code>"warn-and-skip"</code> (default): replace an unsupported record with visible text and a source-path warning. Required malformed known records still fail.</li>
-<li><code>"strict-error"</code>: reject an unsupported tag.</li>
-<li><code>"preserve-opaque"</code>: show the same fallback while retaining bounded inert data for re-export. This never installs behavior for the unknown record.</li>
-</ul>
-<p>Exact integers/rationals, formal unreduced Fractions, interval endpoint order, certified approximation enclosures/source sharing, undecided values, collection sharing and mathematical graph identities survive. Scoped mathematical imports create fresh runtime identities while preserving sharing within the document. Unscoped rational Calculus graphs retain their name-based structure as inert records, so saved derivative selectors and checked numerical evidence can be replayed without inventing a new symbol binding. Live extension methods are omitted from these known graph records.</p>
-<p>Defaults are 4,000,000 UTF-8 bytes, 20,000 graph nodes, 100,000 traversal steps, 128 nesting levels and 4,096 integer characters. Options <code>maxBytes</code>, <code>maxNodes</code>, <code>maxEdges</code>, <code>maxDepth</code>, and <code>maxDigits</code> can lower them or raise them by at most a factor of sixteen. The strict mathematical subgraph keeps its own independent limits. Cycles, dangling/duplicate identities, unsafe keys, nonfinite numbers, missing required fields and oversized records fail with an error code and path.</p>
+<section id="report-proved-roots-ode-bounds-and-unfinished-work-together" class="level2">
+<h2 class="anchored" data-anchor-id="report-proved-roots-ode-bounds-and-unfinished-work-together">2. Report proved roots, ODE bounds, and unfinished work together</h2>
+<p><strong>Prerequisites:</strong> <a href="https://github.com/jostylr/rix/blob/main/plugins/numerics/validated-boxes-tutorial.md">validated box search</a> and <a href="https://github.com/jostylr/rix/blob/main/plugins/ode/tutorial.md">ODE tubes</a>. These bundled plugins are loaded by <a href="https://github.com/jostylr/rix/blob/main/examples/capstones/certified-exploration.rix">the capstone source</a>.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js examples/capstones/certified-exploration.rix</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The first nonlinear search processes only five boxes: it reports <code>budgetExhausted</code>, six pending boxes, and six unresolved leaves. Resuming with 26 boxes completes this fixture; replay acceptance is displayed beside the report. A unique box is not necessarily a distinct root: boundary roots may occur in multiple boxes. Preserve pending and unresolved regions in downstream views.</p>
+<p>The same report compares exact-rational RK4 steps (<code>approximate</code>) with a checked Picard tube (<code>validated</code>). Rational arithmetic alone does not certify ODE truncation error. The deliberately too-small tube budget returns <code>partial</code> and a covered interval of <code>0:0</code>; it does not prove nonexistence. Increase budgets only explicitly. This capstone needs no native numerical provider. The Fragment/Table result renders as static HTML or CLI text without a plotting or worker host.</p>
 </section>
-<section id="version-one-wire-contract" class="level2">
-<h2 class="anchored" data-anchor-id="version-one-wire-contract">Version-one wire contract</h2>
-<p><code>rix.output.document@1</code> contains <code>root</code>, a document-local <code>nodes</code> table, and an optional strict <code>rix.math.document@1</code> graph. References are <code>{"$ref":"n0"}</code>; IDs are traversal-order identifiers, not global identities or signed hashes.</p>
-<p>Each node has exactly <code>id</code>, <code>tag</code>, and <code>data</code>. Tags <code>integer</code>, <code>rational</code>, <code>fraction</code>, <code>interval</code>, <code>certified</code>, <code>shaped</code>, <code>undecided</code>, <code>hole</code>, <code>array</code>, <code>map</code>, <code>record</code>, and <code>math</code> have explicit scalar/collection forms. <code>output:KIND</code> carries ordered name/value pairs for a validated core output record. Numbers embedded as native JSON numbers are host presentation data, never exact RiX integers or rationals. Mathematical expressions share one strict graph across the tree.</p>
-<p>Intrinsic methods are rebuilt from installed constructors and never saved. Metadata, labels, captions, references, asset declarations, styles and evidence remain ordinary inert data. Unknown-tag import does not change strict Core mathematical decoding. Existing <code>rix.control-panel</code> version-one JSON migrates on import and emits an informational diagnostic. No general legacy reader or implicit source execution is provided.</p>
-<p>To move images/audio/video together with a saved document, use the <a href="../eval/output-assets.html">portable asset bundle APIs</a>. Plain document JSON retains asset references and never resolves their bytes.</p>
-<p>The <code>interval-set</code> scalar tag retains normalized rational interval-set components with exact nullable endpoints and explicit closure flags. <code>null</code> means negative infinity on the lower side and positive infinity on the upper side; infinite endpoints must be open. Empty sets and closed singleton components round-trip. Malformed, reversed, overlapping or unsorted wire components are rejected rather than silently normalized. The ordinary digit, edge, node and depth budgets apply.</p>
-<p>The <code>fraction-interval</code> tag stores two exact Fraction references in their stored low/high order, without reducing endpoint representations. Formal Fraction values may retain nonzero numerators over zero as signed infinity, using the existing explicit infinite-Fraction constructor policy. <code>0/0</code>, reversed interval endpoints, non-Fraction endpoints and infinite Rational values are rejected.</p>
+<section id="display-rounded-numbers-without-replacing-exact-source" class="level2">
+<h2 class="anchored" data-anchor-id="display-rounded-numbers-without-replacing-exact-source">3. Display rounded numbers without replacing exact source</h2>
+<p><strong>Prerequisites:</strong> <a href="../eval/numeric-presentation.html">numeric presentation</a>. The existing <a href="https://github.com/jostylr/rix/blob/main/examples/renderers/numeric-presentation.rix">numeric-presentation source</a> contains fractions, a reversed interval, a table, a sheet, a control snapshot, and a graphic under one presentation policy.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js <span class="at">--out</span><span class="op">=</span>tmp/capstone-numbers examples/renderers/numeric-presentation.rix</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Open <code>numbers.html</code>, then inspect <code>numbers-source.txt</code>. The display of one third is <code>0.333</code>, while the portable JSON retains the exact rational <code>1/3</code>. The explicit mixed-fraction override illustrates a local choice inside the report-wide policy. The source interval direction also survives formatting. Markdown, Quarto, and LaTeX are alternative static outputs; the PDF target requires its supported native backend and reports unavailability when it is missing.</p>
+<p>The control is deliberately snapshotted, so the saved report does not imply a live connection to a future evaluation. Change the rational source and rebuild to update every format. For positional numeral systems, continue with <a href="https://github.com/jostylr/rix/blob/main/plugins/radix/tutorial.md">the radix tutorial</a> and its exact parsing rules.</p>
+</section>
+<section id="resolve-tensor-coordinates-before-choosing-a-sheet-projection" class="level2">
+<h2 class="anchored" data-anchor-id="resolve-tensor-coordinates-before-choosing-a-sheet-projection">4. Resolve tensor coordinates before choosing a sheet projection</h2>
+<p><strong>Prerequisites:</strong> <a href="../eval/rixcel-tensors.html">tensor sheets</a> and the <a href="../eval/sheet-guide.html">Sheet guide</a>. Reuse the tested <a href="https://github.com/jostylr/rix/blob/main/examples/rixcel/sheet-views.rix">sheet-view source</a>.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js examples/rixcel/sheet-views.rix</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The cube has named <code>region</code>, <code>measure</code>, and <code>scenario</code> axes. Select the Forecast plane, then resolve South/Cost/Forecast by labels: the result is <strong>11</strong>. Compare that coordinate with the alternate row-by-depth view. A projection changes what you see, not the stored coordinates or values. CLI text provides the static alternative to the browser’s address-aware grid; there is no Float conversion.</p>
+<p>As a deliberate failure exercise, change <code>Forecast</code> in the <code>.At(...)</code> selector to an unknown label. Lookup rejects it instead of guessing an index. Restore the label before continuing. Large/infinite layouts need an explicit finite window; <a href="../eval/rixcel-regions.html">region and window contracts</a> describe those limits.</p>
+</section>
+<section id="cancel-concurrent-host-work-and-verify-cleanup" class="level2">
+<h2 class="anchored" data-anchor-id="cancel-concurrent-host-work-and-verify-cleanup">5. Cancel concurrent host work and verify cleanup</h2>
+<p><strong>Prerequisites:</strong> basic JavaScript hosting and <a href="../eval/concurrency-safety.html">concurrency safety</a>. Run the <a href="https://github.com/jostylr/rix/blob/main/examples/capstones/async-cancellation.mjs">host source</a> with Bun:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> examples/capstones/async-cancellation.mjs</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The host registers a read capability explicitly as safe for overlap and cooperative with cancellation. Two admitted branches start before the controller aborts; both release their listeners and execute <code>finally</code> once. The printed record has <code>status: "cancelled"</code>, two started IDs, two cleaned IDs, and a fresh static result of <code>1/2</code>. It uses a deterministic admission gate, not a timer race.</p>
+<p>This is a <strong>host JavaScript program</strong>, not source to paste into a RiX editor. An editor without the registered <code>.pending</code> capability cannot run its inner expression. That is an unavailable-host boundary, not an arithmetic failure. Ordinary exact expressions or saved static output remain available there. Cancellation cannot roll back completed writes or forcibly interrupt synchronous JavaScript. Mark only truly cooperative adapters accordingly; a non-cooperative adapter may remain active until it returns. The example performs no external I/O.</p>
+</section>
+<section id="rebuild-a-spreadsheet-from-portable-source-and-exchange-values" class="level2">
+<h2 class="anchored" data-anchor-id="rebuild-a-spreadsheet-from-portable-source-and-exchange-values">6. Rebuild a spreadsheet from portable source and exchange values</h2>
+<p><strong>Prerequisites:</strong> <a href="../eval/workbooks.html">workbooks</a> and the <a href="https://github.com/jostylr/rix/blob/main/examples/rixcel/README.md">RiXCel example guide</a>. Reuse both sources:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js examples/rixcel/persistence.rix</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js examples/rixcel/delimited.rix</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The first builds a FormulaSheet, exports canonical RiXCel JSON, imports it into a fresh context, and displays recomputed values: 10, 20, 3, and <strong>23</strong>. Inspect the printed JSON: formulas are saved source, not trusted serialized closures or cached executable state. The browser Cel app can open the existing <a href="https://github.com/jostylr/rix/blob/main/examples/rixcel/budget.rixcel"><code>budget.rixcel</code></a> fixture and save edits.</p>
+<p>The second imports CSV values, displays a sheet, and exports TSV. Its foreign <code>=SUM(A1:A2)</code> formula remains <strong>inert text</strong>. Decimal 4.5 is exact rational input; CSV/TSV do not preserve a workbook’s formula graph, history, or complete metadata. Use RiXCel/RiXBook for those semantics. See the <a href="../design/eval/rixcel-format.html">format and validation contract</a> for version migration and rejected malformed input. Spreadsheet export capability differs by host: portable JSON and CSV remain available without a native dialog or XLSX host. Do not treat an unavailable save dialog as a failed numerical computation.</p>
+</section>
+<section id="verification-and-next-experiments" class="level2">
+<h2 class="anchored" data-anchor-id="verification-and-next-experiments">Verification and next experiments</h2>
+<p><code>bun test tests/cli/capstones.test.js</code> checks the actual linked sources for exact values, static disclosure, interchange, and cleanup. Publication has its existing CLI and host integration tests; the project manifest remains its single source. Experiment by lowering a numerical budget, changing a tensor label, choosing a static publication profile, or changing an exact fraction. Keep the resulting status and host diagnostics visible in the output you share.</p>
 
 
-</section>
 </section>
 
 <a onclick="window.scrollTo(0, 0); return false;" role="button" id="quarto-back-to-top"><i class="bi bi-arrow-up"></i> Back to top</a></main> <!-- /main -->
@@ -823,7 +887,7 @@ portable := .document.Snapshot(panel);
 </div>   
     <div class="nav-footer-center">
       &nbsp;
-    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/document-persistence.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/tutorial/capstones.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
 <p>Documentation built with <a href="https://quarto.org/">Quarto</a></p>
 </div>

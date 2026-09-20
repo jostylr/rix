@@ -380,7 +380,7 @@ Note
 <p>This page is generated from the current RiX implementation by <code>documentation/scripts/generate-reference.js</code>. Do not edit it by hand. Descriptions come from registry documentation strings; the narrative <a href="../eval/syntax-guide.html">syntax guide</a> and <a href="../eval/methods-guide.html">methods guide</a> provide signatures and examples.</p>
 </div>
 </div>
-<p>At this revision RiX exposes <strong>321 named entries</strong> on the default system context and registers <strong>263 internal IR operations</strong>. Aliases with different spelling are listed separately because they are separately addressable names.</p>
+<p>At this revision RiX exposes <strong>354 named entries</strong> on the default system context and registers <strong>286 internal IR operations</strong>. Aliases with different spelling are listed separately because they are separately addressable names.</p>
 <section id="public-system-context" class="level2">
 <h2 class="anchored" data-anchor-id="public-system-context">Public system context</h2>
 <p>These names are available through the leading-dot system object, such as <code>.Len(value)</code>. Uppercase names are also used by explicit system/operator forms where applicable.</p>
@@ -501,6 +501,18 @@ Note
 <td>lazy function</td>
 <td>—</td>
 <td>Sequential block execution, returns last value</td>
+</tr>
+<tr class="even">
+<td><code>.BOXRESUME</code></td>
+<td>function</td>
+<td>—</td>
+<td>Replay and extend a retained deterministic box subdivision queue</td>
+</tr>
+<tr class="odd">
+<td><code>.BOXSUBDIVIDE</code></td>
+<td>function</td>
+<td>—</td>
+<td>Classify a bounded complete cover with deterministic exact box subdivision</td>
 </tr>
 <tr class="even">
 <td><code>.CALCULUSDERIVATIVECHECK</code></td>
@@ -887,82 +899,94 @@ Note
 <td>Wrap output with figure metadata</td>
 </tr>
 <tr class="even">
+<td><code>.FILESTREAM</code></td>
+<td>function</td>
+<td>—</td>
+<td>UTF-8 file byte stream through an explicitly granted host service</td>
+</tr>
+<tr class="odd">
 <td><code>.FILTER</code></td>
 <td>lazy function</td>
 <td>Collections, Arrays</td>
 <td>Filter a collection with a predicate — callback receives (val, locator, src)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.FIRST</code></td>
 <td>function</td>
 <td>Core, Collections, Arrays</td>
 <td>First element of a collection</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.FORMULASHEET</code></td>
 <td>function</td>
 <td>RiXCel</td>
 <td>Create a formula-backed sheet from a shaped or rectangular array of deferred RiX formulas</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.FRAGMENT</code></td>
 <td>function</td>
 <td>Output</td>
 <td>Compose portable output values</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.GETEL</code></td>
 <td>function</td>
 <td>Core, Collections, Arrays</td>
 <td>Get element at index (1-based)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.GRAPHICS</code></td>
 <td>value</td>
 <td>—</td>
 <td>Intrinsic portable 2D scene language</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.GREATER</code></td>
 <td>function</td>
 <td>—</td>
 <td>Greater than — returns 1 or null</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.GREATEREQUAL</code></td>
 <td>function</td>
 <td>—</td>
 <td>Greater than or equal — returns 1 or null</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.GRID</code></td>
 <td>function</td>
 <td>Output</td>
 <td>Create a mathematical layout grid</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.GT</code></td>
 <td>function</td>
 <td>Logic</td>
 <td>Greater than — returns 1 or null</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.GTE</code></td>
 <td>function</td>
 <td>Logic</td>
 <td>Greater than or equal — returns 1 or null</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.HEADING</code></td>
 <td>function</td>
 <td>Output</td>
 <td>Create a portable document heading</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.HOST</code></td>
 <td>function</td>
 <td>—</td>
 <td>Host/plugin capability registration and discovery</td>
+</tr>
+<tr class="even">
+<td><code>.HTTPSTREAM</code></td>
+<td>function</td>
+<td>—</td>
+<td>UTF-8 HTTP byte stream through an explicitly granted host service</td>
 </tr>
 <tr class="odd">
 <td><code>.HULL</code></td>
@@ -987,6 +1011,42 @@ Note
 <td>function</td>
 <td>—</td>
 <td>Mark a newly constructed structured value immutable and return it</td>
+</tr>
+<tr class="odd">
+<td><code>.IMPLICITREGION</code></td>
+<td>function</td>
+<td>—</td>
+<td>Bound an implicit set by a complete classified box cover without asserting surface topology</td>
+</tr>
+<tr class="even">
+<td><code>.IMPLICITREGIONCHECK</code></td>
+<td>function</td>
+<td>—</td>
+<td>Replay implicit-region classifications and complete coverage</td>
+</tr>
+<tr class="odd">
+<td><code>.IMPLICITREGIONREFINE</code></td>
+<td>function</td>
+<td>—</td>
+<td>Recheck and refine an implicit region under bounded work limits</td>
+</tr>
+<tr class="even">
+<td><code>.IMPLICITTRACE</code></td>
+<td>function</td>
+<td>—</td>
+<td>Trace checked local implicit charts with a complete bounded box cover</td>
+</tr>
+<tr class="odd">
+<td><code>.IMPLICITTRACECHECK</code></td>
+<td>function</td>
+<td>—</td>
+<td>Replay all implicit chart, coverage, and topology claims</td>
+</tr>
+<tr class="even">
+<td><code>.IMPLICITTRACEREFINE</code></td>
+<td>function</td>
+<td>—</td>
+<td>Recheck an implicit trace and refine its original box with bounded options</td>
 </tr>
 <tr class="odd">
 <td><code>.IMPORTJS</code></td>
@@ -1041,6 +1101,18 @@ Note
 <td>function</td>
 <td>—</td>
 <td>Create an interval [lo, hi] or test betweenness like a:b:c</td>
+</tr>
+<tr class="even">
+<td><code>.INTERVALLINEARSOLVE</code></td>
+<td>function</td>
+<td>—</td>
+<td>Validate an interval linear system by exact preconditioned interval elimination</td>
+</tr>
+<tr class="odd">
+<td><code>.INTERVALNEWTONBOX</code></td>
+<td>function</td>
+<td>—</td>
+<td>Contract a checked nonlinear system with a validated interval Newton operator</td>
 </tr>
 <tr class="even">
 <td><code>.IRANGE</code></td>
@@ -1133,22 +1205,58 @@ Note
 <td>Create a portable link</td>
 </tr>
 <tr class="odd">
+<td><code>.LINKEDVIEWS</code></td>
+<td>function</td>
+<td>—</td>
+<td>Compose retained Graphics/snapshot panels with explicit linked semantic IDs</td>
+</tr>
+<tr class="even">
 <td><code>.LIST</code></td>
 <td>function</td>
 <td>—</td>
 <td>Create an ordered or unordered document list</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.LISTITEM</code></td>
 <td>function</td>
 <td>—</td>
 <td>Create a document list item</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.LIVEVIEW</code></td>
 <td>function</td>
 <td>Output</td>
 <td>Deprecated compatibility wrapper for a reactive output derived from a subscribable source; prefer a named $$ output and final $ read</td>
+</tr>
+<tr class="odd">
+<td><code>.LOGICCHECKPROPOSITION</code></td>
+<td>function</td>
+<td>—</td>
+<td>Recheck an exact arithmetic proposition record</td>
+</tr>
+<tr class="even">
+<td><code>.LOGICCHECKSEQUENT</code></td>
+<td>function</td>
+<td>—</td>
+<td>Replay every rule and retained budget/countermodel claim in a sequent record</td>
+</tr>
+<tr class="odd">
+<td><code>.LOGICEXACTPROPOSITION</code></td>
+<td>function</td>
+<td>—</td>
+<td>Decide exact rational or interval comparisons without importing assumptions</td>
+</tr>
+<tr class="even">
+<td><code>.LOGICSEQUENT</code></td>
+<td>function</td>
+<td>—</td>
+<td>Build a bounded classical propositional sequent derivation</td>
+</tr>
+<tr class="odd">
+<td><code>.LOGICSEQUENTTREE</code></td>
+<td>function</td>
+<td>—</td>
+<td>Render a checked sequent as bounded Graphics and an exact text table</td>
 </tr>
 <tr class="even">
 <td><code>.LOOP</code></td>
@@ -1319,178 +1427,238 @@ Note
 <td>Inequality check — returns 1 or null</td>
 </tr>
 <tr class="even">
+<td><code>.NUMERALFORMAT</code></td>
+<td>function</td>
+<td>—</td>
+<td>Bounded exact numeral system NumeralFormat</td>
+</tr>
+<tr class="odd">
+<td><code>.NUMERALLOCALE</code></td>
+<td>function</td>
+<td>—</td>
+<td>Bounded exact numeral system NumeralLocale</td>
+</tr>
+<tr class="even">
+<td><code>.NUMERALPARSE</code></td>
+<td>function</td>
+<td>—</td>
+<td>Bounded exact numeral system NumeralParse</td>
+</tr>
+<tr class="odd">
+<td><code>.NUMERALPLACES</code></td>
+<td>function</td>
+<td>—</td>
+<td>Bounded exact numeral system NumeralPlaces</td>
+</tr>
+<tr class="even">
+<td><code>.NUMERALSYSTEM</code></td>
+<td>function</td>
+<td>—</td>
+<td>Bounded exact numeral system NumeralSystem</td>
+</tr>
+<tr class="odd">
 <td><code>.OR</code></td>
 <td>lazy function</td>
 <td>Logic</td>
 <td>Logical OR (short-circuits on first truthy, returns deciding value)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.OUT</code></td>
 <td>function</td>
 <td>Output</td>
 <td>Declare an output artifact for the active host output sink</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.PAIR</code></td>
 <td>function</td>
 <td>—</td>
 <td>Create a key/value entry for .Map</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.PARAGRAPH</code></td>
 <td>function</td>
 <td>Output</td>
 <td>Create a portable paragraph output node</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.PARAMS</code></td>
 <td>function</td>
 <td>—</td>
 <td>Create a positional parameter descriptor from names</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.PIPE</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Pipe a value into a function</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.PIPEEXPLICIT</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Explicit pipe operator — placeholders _1, _2, … map tuple elements to specific argument positions</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.PLUGIN</code></td>
 <td>function</td>
 <td>—</td>
 <td>Discover and load host-approved RiX plugins</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.PMAP</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Map a function over a collection — callback receives (val, locator, src)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.POLY</code></td>
 <td>function</td>
 <td>Symbolic</td>
 <td>Compile a symbolic spec or structural arithmetic form into an exact callable; exposes .Parse for backtick polynomial forms</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.POW</code></td>
 <td>function</td>
 <td>Arith</td>
 <td>Exponentiation</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.POWPROD</code></td>
 <td>function</td>
 <td>—</td>
 <td>Exponentiation/product power (currently same implementation as POW)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.PRINT</code></td>
 <td>function</td>
 <td>Core, Strings</td>
 <td>Print each argument through the replaceable __io__ hook</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.PRODUCT</code></td>
 <td>function</td>
 <td>—</td>
 <td>Core operation SET_PROD</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.QUOTE</code></td>
 <td>function</td>
 <td>—</td>
 <td>Create a document quotation block</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.RANDOMSEED</code></td>
 <td>function</td>
 <td>Random</td>
 <td>Install a fresh default RNG with an explicit seed in the current lexical scope</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.RAND_NAME</code></td>
 <td>function</td>
 <td>Core, Random</td>
 <td>Generate a random name string RAND_NAME(len=10, alphabet=a-zA-Z)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.RANGEABSOLUTEVALUE</code></td>
 <td>function</td>
 <td>—</td>
 <td>Exact image of range-set absolute value</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.RANGEADD</code></td>
 <td>function</td>
 <td>—</td>
 <td>Exact Cartesian image of range-set addition</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.RANGEDIVIDE</code></td>
 <td>function</td>
 <td>—</td>
 <td>Exact defined image of range-set division</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.RANGEEVIDENCE</code></td>
 <td>function</td>
 <td>—</td>
 <td>Return the checked rangeEvidence metadata attached to a range result</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.RANGEINTEGERPOWER</code></td>
 <td>function</td>
 <td>—</td>
 <td>Exact defined image of a range set raised to an integer power</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.RANGEMULTIPLY</code></td>
 <td>function</td>
 <td>—</td>
 <td>Exact Cartesian image of range-set multiplication</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.RANGENEGATE</code></td>
 <td>function</td>
 <td>—</td>
 <td>Exact image of range-set negation</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.RANGEPOLICY</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Evaluate an expression under an inherited range-domain policy</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.RANGERECIPROCAL</code></td>
 <td>function</td>
 <td>—</td>
 <td>Exact defined image of range-set reciprocal</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.RANGESUBTRACT</code></td>
 <td>function</td>
 <td>—</td>
 <td>Exact Cartesian image of range-set subtraction</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.RATIONALBOX</code></td>
 <td>function</td>
 <td>—</td>
 <td>Construct a checked Cartesian box of closed bounded rational intervals</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.REACTIVEGRAPH</code></td>
 <td>function</td>
 <td>RiXCel</td>
 <td>Create a transactional graph of reactive source and computed nodes</td>
+</tr>
+<tr class="even">
+<td><code>.REACTIVESTREAM</code></td>
+<td>function</td>
+<td>—</td>
+<td>Bounded events from an explicitly passed reactive source</td>
+</tr>
+<tr class="odd">
+<td><code>.REALEXPORTJSON</code></td>
+<td>function</td>
+<td>—</td>
+<td>Export a deterministic real envelope with exact scalar tags</td>
+</tr>
+<tr class="even">
+<td><code>.REALIMPORTINFO</code></td>
+<td>function</td>
+<td>—</td>
+<td>Inspect imported real evidence without activating a provider</td>
+</tr>
+<tr class="odd">
+<td><code>.REALIMPORTJSON</code></td>
+<td>function</td>
+<td>—</td>
+<td>Load a bounded frozen real envelope without executing recipes</td>
+</tr>
+<tr class="even">
+<td><code>.REALREFINEIMPORTED</code></td>
+<td>function</td>
+<td>—</td>
+<td>Explicitly refine with an already-installed permitted Numerics provider and replay checker</td>
 </tr>
 <tr class="odd">
 <td><code>.REDUCE</code></td>
@@ -1811,58 +1979,70 @@ Note
 <td>Portable exact timeline constructors</td>
 </tr>
 <tr class="even">
+<td><code>.TIMERSTREAM</code></td>
+<td>function</td>
+<td>—</td>
+<td>Cold monotonic timer stream; optional finite tick count</td>
+</tr>
+<tr class="odd">
 <td><code>.TRACE</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Trace execution: .Trace(label, depth, trackedVars?, thunkOrCallable)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.TRAITREGISTER</code></td>
 <td>function</td>
 <td>—</td>
 <td>Register an immutable semantic trait from a RiX map spec</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.TRANSFORM</code></td>
 <td>function</td>
 <td>Symbolic</td>
 <td>Apply ordered exact symbolic transformations</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.TUPLE</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Create a tuple</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.TYPEEXPORT</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Export a semantically typed value through its registered type exporter</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.TYPEIMPORT</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Import a value from a tagged type export map</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.TYPEINSTALL</code></td>
 <td>function</td>
 <td>—</td>
 <td>Install a registered semantic type into system multifunctions</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.TYPEKNOWN</code></td>
 <td>function</td>
 <td>—</td>
 <td>Return 1 when a semantic type or alias is already registered, otherwise null</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.TYPEREGISTER</code></td>
 <td>function</td>
 <td>—</td>
 <td>Register an immutable semantic type from a RiX map spec</td>
+</tr>
+<tr class="even">
+<td><code>.UISTREAM</code></td>
+<td>function</td>
+<td>—</td>
+<td>Bounded events from a named host-supplied UI target</td>
 </tr>
 <tr class="odd">
 <td><code>.UNDECIDED</code></td>
@@ -1889,6 +2069,18 @@ Note
 <td>Convert string to uppercase</td>
 </tr>
 <tr class="odd">
+<td><code>.VALIDATEDBOXCHECK</code></td>
+<td>function</td>
+<td>—</td>
+<td>Independently replay retained linear, interval Newton, and box coverage claims</td>
+</tr>
+<tr class="even">
+<td><code>.VALIDATEDCLAIMEQUAL</code></td>
+<td>function</td>
+<td>—</td>
+<td>Compare typed retained claims under the shared replay data limits</td>
+</tr>
+<tr class="odd">
 <td><code>.VALUES</code></td>
 <td>function</td>
 <td>Core, Maps</td>
@@ -1907,420 +2099,426 @@ Note
 <td>Emit a warning event: .Warn(label, dataMap ?= {=})</td>
 </tr>
 <tr class="even">
+<td><code>.WEBSOCKETSTREAM</code></td>
+<td>function</td>
+<td>—</td>
+<td>Bounded WebSocket messages through an explicitly granted host service</td>
+</tr>
+<tr class="odd">
 <td><code>.algebra</code></td>
 <td>function</td>
 <td>—</td>
 <td>Exact Polynomial and RationalFunction algorithms with checked presentations.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.algebraicreal</code></td>
 <td>function</td>
 <td>—</td>
 <td>Exact real algebraic roots certified by canonical Polynomial values and Sturm isolating intervals.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.analysis</code></td>
 <td>function</td>
 <td>—</td>
 <td>Effective scalar and function limits, infinite series, Cauchy criteria, and justified limit exchanges over portable Calculus functions.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.ar</code></td>
 <td>function</td>
 <td>—</td>
 <td>Exact real algebraic roots certified by canonical Polynomial values and Sturm isolating intervals.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.ball</code></td>
 <td>function</td>
 <td>—</td>
 <td>Certified real and complex rational balls with precision-negotiated elementary functions.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.bessel</code></td>
 <td>function</td>
 <td>—</td>
 <td>Clearly named Bessel-function namespace backed by certified universal Numerics algorithms.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.calculus</code></td>
 <td>function</td>
 <td>—</td>
 <td>Portable abstract functions, obligation-bearing higher differentiation, and provenance-recording evaluation through semantic-ID implementation links.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.canvas</code></td>
 <td>function</td>
 <td>—</td>
 <td>Serializable Canvas 2D drawing plans for core Graphics scenes.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.cas</code></td>
 <td>function</td>
 <td>—</td>
 <td>Browser-safe course-level symbolic simplification, polynomial forms, and exact integration with checked replay.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.cauchy</code></td>
 <td>function</td>
 <td>—</td>
 <td>Rational Cauchy sequences with explicit certified tail bounds and moduli.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.cayley</code></td>
 <td>function</td>
 <td>—</td>
 <td>Scalar-generic Cayley-Dickson values with certified component enclosures.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.cf</code></td>
 <td>function</td>
 <td>—</td>
 <td>Finite, lazy, transduced, and certified-extracted simple continued fractions.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.comb</code></td>
 <td>function</td>
 <td>Combinatorics</td>
 <td>Lazy finite Cartesian products, permutations, combinations, and exact counting.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.combinatorics</code></td>
 <td>function</td>
 <td>Combinatorics</td>
 <td>Lazy finite Cartesian products, permutations, combinations, and exact counting.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.complex</code></td>
 <td>function</td>
 <td>—</td>
 <td>Representation-generic certified complex singletons over RiX real backends.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.complexviz</code></td>
 <td>function</td>
 <td>—</td>
 <td>Certified complex coloring, enclosure-aware surfaces, and Riemann-sphere scenes.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.continuedfraction</code></td>
 <td>function</td>
 <td>—</td>
 <td>Finite, lazy, transduced, and certified-extracted simple continued fractions.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.csv</code></td>
 <td>function</td>
 <td>—</td>
 <td>Schema-aware CSV/TSV import and export with exact numeric, sidecar, and streaming-row policies.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.data</code></td>
 <td>function</td>
 <td>—</td>
 <td>Immutable typed relations with joins, grouping, exact aggregation, missing-data policy, and bounded row sources.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.document</code></td>
 <td>function</td>
 <td>—</td>
 <td>Portable report templates with citations, assets, numbering policies, and safe target-specific nodes.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.domaincoloring</code></td>
 <td>function</td>
 <td>—</td>
 <td>Certified complex coloring, enclosure-aware surfaces, and Riemann-sphere scenes.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.draw</code></td>
 <td>function</td>
 <td>Draw</td>
 <td>Convenient 2D drawing helpers that produce core Graphics nodes.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.exactalgebras</code></td>
 <td>function</td>
 <td>Exact</td>
 <td>Exact rational quaternion and octonion values.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.f</code></td>
 <td>function</td>
 <td>—</td>
 <td>Representation-sensitive fractions, fraction intervals, mediants, and exact classroom policies.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.ff</code></td>
 <td>function</td>
 <td>—</td>
 <td>Form-preserving callable polynomial and rational expressions with explicit transformations and canonical projections.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.float</code></td>
 <td>function</td>
 <td>—</td>
 <td>Configurable IEEE-754 binary32/binary64 conversion, diagnostics, and optional approximate math.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.frac</code></td>
 <td>function</td>
 <td>—</td>
 <td>Representation-sensitive fractions, fraction intervals, mediants, and exact classroom policies.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.fracfun</code></td>
 <td>function</td>
 <td>—</td>
 <td>Form-preserving callable polynomial and rational expressions with explicit transformations and canonical projections.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.fractals</code></td>
 <td>function</td>
 <td>—</td>
 <td>Pure-RiX iteration, bifurcation, cobweb, and escape-time mathematics with portable Graphics lowering.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.fraction</code></td>
 <td>function</td>
 <td>—</td>
 <td>Representation-sensitive fractions, fraction intervals, mediants, and exact classroom policies.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.fractionfunction</code></td>
 <td>function</td>
 <td>—</td>
 <td>Form-preserving callable polynomial and rational expressions with explicit transformations and canonical projections.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.geometry</code></td>
 <td>function</td>
 <td>—</td>
 <td>Pure-RiX exact geometry, transformations, conics, constraints, and bounded portable Graphics refinement.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.gif</code></td>
 <td>function</td>
 <td>—</td>
 <td>Deterministic animated GIF rendering from Slides, Timelines, or Snapshots through PNG frames.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.gltf</code></td>
 <td>function</td>
 <td>—</td>
 <td>Browser-safe glTF 2.0 JSON exporter for retained Scene3D values.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.graph</code></td>
 <td>function</td>
 <td>Graph</td>
 <td>Exact validated weighted graphs with shortest paths, traversal, components, and topological sorting.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.html</code></td>
 <td>function</td>
 <td>—</td>
 <td>Standalone semantic HTML renderer for portable RiX output trees.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.latex</code></td>
 <td>function</td>
 <td>—</td>
 <td>Standalone LaTeX renderer for portable RiX documents and figures.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.linalg</code></td>
 <td>function</td>
 <td>—</td>
-<td>Pure-RiX exact dense linear algebra and coordinate-aware tensor transformations.</td>
+<td>Pure-RiX exact linear algebra, Rational spectral evidence and finite-support tensors.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.logic</code></td>
 <td>function</td>
 <td>—</td>
 <td>Portable propositional formulas, bounded truth tables, checked normal forms, scoped natural deduction, and educational tree views.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.markdown</code></td>
 <td>function</td>
 <td>—</td>
 <td>CommonMark-oriented renderer for portable RiX documents.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.nd</code></td>
 <td>function</td>
 <td>—</td>
 <td>Pure-RiX exact n-dimensional geometry with affine and Cayley projection records and explicit Scene3D adaptation.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.numerics</code></td>
 <td>function</td>
 <td>—</td>
 <td>Backend-neutral bounded enclosure and refinement orchestration.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.octonion</code></td>
 <td>function</td>
 <td>—</td>
 <td>Certified octonion facade with explicit nonassociativity and intrinsic one-variable functions.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.ode</code></td>
 <td>function</td>
 <td>—</td>
 <td>Portable initial-value problems, vector trajectories, adaptive demonstrations, checked Picard and configurable-order Taylor tubes, and certified event isolation.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.optimize</code></td>
 <td>function</td>
 <td>—</td>
-<td>Pure-RiX exact general linear programs, two-phase simplex, and checkable certificates.</td>
+<td>Bounded exact LP/MILP, convex quadratic certificates, and global box optimization.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.oracle</code></td>
 <td>function</td>
 <td>—</td>
 <td>Exact rational-betweenness oracles, certified refinement funnels, and coarse eta-resolution models.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.p</code></td>
 <td>function</td>
 <td>—</td>
 <td>Semantic callable univariate polynomials with structural and symbolic entry forms.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.pdf</code></td>
 <td>function</td>
 <td>—</td>
 <td>PDF document and figure renderer orchestrated through LaTeX.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.plot</code></td>
 <td>function</td>
 <td>Plot</td>
 <td>Pure-RiX exact and numerics-backed 2D plotting that lowers to portable core Graphics scenes.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.png</code></td>
 <td>function</td>
 <td>—</td>
 <td>PNG snapshot renderer for core Graphics through a host rasterizer.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.poly</code></td>
 <td>function</td>
 <td>—</td>
 <td>Semantic callable univariate polynomials with structural and symbolic entry forms.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.polynomial</code></td>
 <td>function</td>
 <td>—</td>
 <td>Semantic callable univariate polynomials with structural and symbolic entry forms.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.prob</code></td>
 <td>function</td>
 <td>—</td>
 <td>Exact finite probability, certified undergraduate distribution functions, and replayable simulation with explicit approximation policies.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.probability</code></td>
 <td>function</td>
 <td>Probability</td>
 <td>Exact finite probability, certified undergraduate distribution functions, and replayable simulation with explicit approximation policies.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.quarto</code></td>
 <td>function</td>
 <td>—</td>
 <td>Quarto Markdown renderer with front matter and portable figure lowering.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.quaternion</code></td>
 <td>function</td>
 <td>—</td>
 <td>Certified quaternion facade with order-aware arithmetic and intrinsic slice functions.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.radix</code></td>
 <td>function</td>
 <td>—</td>
 <td>Exact positional expansions, cloneable lazy digit streams, configurable formatting, and bounded period analysis.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.ratfun</code></td>
 <td>function</td>
 <td>—</td>
 <td>Canonical callable univariate rational functions with exact cancellation and Polynomial interoperability.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.rationalfunction</code></td>
 <td>function</td>
 <td>—</td>
 <td>Canonical callable univariate rational functions with exact cancellation and Polynomial interoperability.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.rf</code></td>
 <td>function</td>
 <td>—</td>
 <td>Canonical callable univariate rational functions with exact cancellation and Polynomial interoperability.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.scene3d</code></td>
 <td>function</td>
 <td>—</td>
 <td>Pure-RiX exact retained 3D scenes, explicit realization and projection, and portable Graphics snapshots.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.solve</code></td>
 <td>function</td>
 <td>—</td>
 <td>Domain-dispatched exact/certified solution objects for linear, optimization, polynomial, and scalar numerical problems.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.statistics</code></td>
 <td>function</td>
 <td>—</td>
 <td>Exact descriptive statistics, undergraduate hypothesis tests, confidence objects, linear regression, certified distribution functions, and portable diagnostics.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.stats</code></td>
 <td>function</td>
 <td>—</td>
 <td>Exact descriptive statistics, undergraduate hypothesis tests, confidence objects, linear regression, certified distribution functions, and portable diagnostics.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.sternbrocot</code></td>
 <td>function</td>
 <td>—</td>
 <td>Pure RiX Stern-Brocot and Farey records, bounded trees, exact paths, and classroom grids.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.svg</code></td>
 <td>function</td>
 <td>—</td>
 <td>Portable SVG renderer with outward-safe exact-coordinate lowering.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.symbolic</code></td>
 <td>function</td>
 <td>—</td>
 <td>Meta-plugin joining representation-sensitive FractionFunction work with portable abstract Calculus expressions.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.terminalascii</code></td>
 <td>function</td>
 <td>—</td>
 <td>Deterministic terminal rendering with strict ASCII and explicit Unicode/ANSI profiles.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.tikz</code></td>
 <td>function</td>
 <td>—</td>
 <td>Editable TikZ/PGF source renderer for core Graphics scenes.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.webgl</code></td>
 <td>function</td>
 <td>—</td>
@@ -2366,7 +2564,7 @@ Note
 </tr>
 <tr class="even">
 <td>Async stream</td>
-<td><code>CHUNK</code>, <code>CLOSE</code>, <code>COLLECT</code>, <code>COUNT</code>, <code>DONE</code>, <code>DROP</code>, <code>FILTER</code>, <code>FIND</code>, <code>FIRST</code>, <code>FOREACH</code>, <code>MAP</code>, <code>REDUCE</code>, <code>STATUS</code>, <code>TAKE</code>, <code>WINDOW</code></td>
+<td><code>CHUNK</code>, <code>CHUNKBY</code>, <code>CLOSE</code>, <code>COLLECT</code>, <code>COUNT</code>, <code>DEBOUNCE</code>, <code>DONE</code>, <code>DROP</code>, <code>FILTER</code>, <code>FIND</code>, <code>FIRST</code>, <code>FOREACH</code>, <code>LATEST</code>, <code>MAP</code>, <code>MERGE</code>, <code>REDUCE</code>, <code>STATUS</code>, <code>TAKE</code>, <code>THROTTLE</code>, <code>TIMEOUT</code>, <code>WINDOW</code></td>
 </tr>
 <tr class="odd">
 <td>Iterator</td>
@@ -2730,7 +2928,15 @@ Note
 </tr>
 <tr class="odd">
 <td><code>Graphics</code></td>
-<td><code>Graphics</code></td>
+<td><code>Graphics</code>, <code>LinkedViews</code></td>
+</tr>
+<tr class="even">
+<td><code>Radix</code></td>
+<td><code>NumeralSystem</code>, <code>NumeralParse</code>, <code>NumeralFormat</code>, <code>NumeralPlaces</code>, <code>NumeralLocale</code></td>
+</tr>
+<tr class="odd">
+<td><code>Geometry</code></td>
+<td><code>ImplicitRegion</code>, <code>ImplicitRegionCheck</code>, <code>ImplicitRegionRefine</code>, <code>ImplicitTrace</code>, <code>ImplicitTraceCheck</code>, <code>ImplicitTraceRefine</code></td>
 </tr>
 <tr class="even">
 <td><code>Draw</code></td>
@@ -2749,106 +2955,110 @@ Note
 <td><code>REGISTERMETHOD</code></td>
 </tr>
 <tr class="even">
+<td><code>Numerics</code></td>
+<td><code>IntervalLinearSolve</code>, <code>IntervalNewtonBox</code>, <code>BoxSubdivide</code>, <code>BoxResume</code>, <code>ValidatedBoxCheck</code>, <code>ValidatedClaimEqual</code>, <code>RationalBox</code>, <code>KrawczykBox</code>, <code>KrawczykCheck</code></td>
+</tr>
+<tr class="odd">
 <td><code>Arith</code></td>
 <td><code>ADD</code>, <code>SUB</code>, <code>MUL</code>, <code>DIV</code>, <code>INTDIV</code>, <code>DIVMOD</code>, <code>MOD</code>, <code>POW</code>, <code>FACTORIAL</code>, <code>DOUBLEFACTORIAL</code>, <code>RANGE_POLICY</code>, <code>RANGE_EVIDENCE</code>, <code>RANGE_ADD</code>, <code>RANGE_SUBTRACT</code>, <code>RANGE_MULTIPLY</code>, <code>RANGE_DIVIDE</code>, <code>RANGE_NEGATE</code>, <code>RANGE_ABSOLUTE_VALUE</code>, <code>RANGE_RECIPROCAL</code>, <code>RANGE_INTEGER_POWER</code>, <code>CALCULUS_RANGE</code>, <code>CALCULUS_RANGE_CHECK</code>, <code>CALCULUS_RANGE_RECOGNIZE</code>, <code>CALCULUS_GRAPH_SIMPLIFY</code>, <code>CALCULUS_GRAPH_SIMPLIFICATION_CHECK</code>, <code>CALCULUS_DERIVATIVE_CHECK</code>, <code>CALCULUS_DERIVATIVE_SIGN</code>, <code>CALCULUS_LIPSCHITZ_RANGE</code>, <code>CALCULUS_TAYLOR_RANGE</code></td>
 </tr>
-<tr class="odd">
-<td><code>Logic</code></td>
-<td><code>EQ</code>, <code>NEQ</code>, <code>LT</code>, <code>GT</code>, <code>LTE</code>, <code>GTE</code>, <code>AND</code>, <code>OR</code>, <code>NOT</code>, <code>GUARD_RETURN</code></td>
-</tr>
 <tr class="even">
+<td><code>Logic</code></td>
+<td><code>EQ</code>, <code>NEQ</code>, <code>LT</code>, <code>GT</code>, <code>LTE</code>, <code>GTE</code>, <code>AND</code>, <code>OR</code>, <code>NOT</code>, <code>GUARD_RETURN</code>, <code>LogicSequent</code>, <code>LogicCheckSequent</code>, <code>LogicSequentTree</code>, <code>LogicExactProposition</code>, <code>LogicCheckProposition</code></td>
+</tr>
+<tr class="odd">
 <td><code>Collections</code></td>
 <td><code>LEN</code>, <code>FIRST</code>, <code>LAST</code>, <code>GETEL</code>, <code>IRANGE</code>, <code>MAP</code>, <code>FILTER</code>, <code>REDUCE</code>, <code>Shaped</code>, <code>Stream</code></td>
 </tr>
-<tr class="odd">
-<td><code>Async</code></td>
-<td><code>Stream</code>, <code>Retry</code></td>
-</tr>
 <tr class="even">
+<td><code>Async</code></td>
+<td><code>Stream</code>, <code>Retry</code>, <code>TimerStream</code>, <code>ReactiveStream</code>, <code>UIStream</code></td>
+</tr>
+<tr class="odd">
 <td><code>Background</code></td>
 <td><code>BACKGROUND</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>Maps</code></td>
 <td><code>MAP</code>, <code>KEYOF</code>, <code>KEYS</code>, <code>VALUES</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>Arrays</code></td>
 <td><code>LEN</code>, <code>FIRST</code>, <code>LAST</code>, <code>GETEL</code>, <code>IRANGE</code>, <code>MAP</code>, <code>FILTER</code>, <code>REDUCE</code>, <code>Shaped</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>Strings</code></td>
 <td><code>UPPER</code>, <code>SUBSTR</code>, <code>PRINT</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>Imports</code></td>
 <td><code>IMPORTS</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>Plugins</code></td>
 <td><code>PLUGINS</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>Net</code></td>
-<td><code>NET</code></td>
+<td><code>NET</code>, <code>HttpStream</code>, <code>WebSocketStream</code></td>
+</tr>
+<tr class="even">
+<td><code>Files</code></td>
+<td><code>FILES</code>, <code>FileStream</code></td>
 </tr>
 <tr class="odd">
-<td><code>Files</code></td>
-<td><code>FILES</code></td>
-</tr>
-<tr class="even">
 <td><code>Units</code></td>
 <td><code>UNITS</code>, <code>Units</code>, <code>CONVERTUNIT</code>, <code>ConvertUnit</code>, <code>DEFINEUNIT</code>, <code>DefineUnit</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>Exact</code></td>
 <td><code>EXACT</code>, <code>Exact</code>, <code>COMPLEX</code>, <code>Complex</code>, <code>DEFINEEXACTGENERATOR</code>, <code>DefineExactGenerator</code>, <code>exactalgebras</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>Symbolic</code></td>
 <td><code>POLY</code>, <code>DERIV</code>, <code>INTEGRATE</code>, <code>TRANSFORM</code>, <code>SIMPLIFY</code>, <code>SPEC</code>, <code>SPECCABILITY</code>, <code>INSPECTSPEC</code>, <code>SPECROLES</code>, <code>SPECFRACTIONPARTS</code>, <code>SArith</code>, <code>ExpressionVariable</code>, <code>ExpressionConstant</code>, <code>ExpressionOperation</code>, <code>ExpressionApply</code>, <code>IsExpression</code>, <code>ExpressionKey</code>, <code>ExpressionHasScopedSymbols</code>, <code>SameSymbol</code>, <code>SYMBOL_RETRIEVE</code>, <code>SYMBOL_DEFINE</code>, <code>ExpressionDefinition</code>, <code>ExpressionExpand</code>, <code>ExpressionVariableSelector</code>, <code>ExpressionVariableMatches</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>MathematicalContexts</code></td>
 <td><code>MATH_CONTEXT</code>, <code>BOUND_SYMBOL</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>MathematicalProof</code></td>
 <td><code>CALCULUS_DERIVATIVE_PROOF</code></td>
 </tr>
-<tr class="odd">
-<td><code>MathematicalSerialization</code></td>
-<td><code>MathEncodeJSON</code>, <code>MathDecodeJSON</code>, <code>MathEncodeJSONL</code>, <code>MathDecodeJSONL</code></td>
-</tr>
 <tr class="even">
+<td><code>MathematicalSerialization</code></td>
+<td><code>RealImportJSON</code>, <code>RealExportJSON</code>, <code>RealImportInfo</code>, <code>RealRefineImported</code>, <code>MathEncodeJSON</code>, <code>MathDecodeJSON</code>, <code>MathEncodeJSONL</code>, <code>MathDecodeJSONL</code></td>
+</tr>
+<tr class="odd">
 <td><code>MathematicalLocalization</code></td>
 <td><code>MathSubstitute</code>, <code>MathEvaluate</code>, <code>MathInstantiate</code>, <code>MathBudgets</code>, <code>MathEvaluateCalculus</code>, <code>MathPolynomialCoefficients</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>SymbolicConstants</code></td>
 <td><code>ExpressionConstantInfo</code>, <code>ExpressionHasExtendedConstants</code>, <code>ExpressionReal</code>, <code>ExpressionRefine</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>Notation</code></td>
 <td><code>SArith</code>, <code>Poly</code>, <code>NotationParser</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>Random</code></td>
 <td><code>RNG</code>, <code>RANDOMSEED</code>, <code>RandomSeed</code>, <code>RAND_NAME</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>Probability</code></td>
 <td><code>probability</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>Graph</code></td>
 <td><code>graph</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>Combinatorics</code></td>
 <td><code>combinatorics</code>, <code>comb</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>RiXCel</code></td>
 <td><code>FORMULASHEET</code>, <code>REACTIVEGRAPH</code>, <code>RIXCELEXPORT</code>, <code>RIXCELIMPORT</code>, <code>RIXCELIMPORTCSV</code>, <code>RIXCELIMPORTTSV</code>, <code>RIXCELEXPORTCSV</code>, <code>RIXCELEXPORTTSV</code></td>
 </tr>
@@ -2875,7 +3085,7 @@ Note
 <tbody>
 <tr class="odd">
 <td><code>ABS</code></td>
-<td>eager, pure, multifunction</td>
+<td>eager, effectful/unspecified, multifunction</td>
 <td>Absolute value</td>
 </tr>
 <tr class="even">
@@ -2885,7 +3095,7 @@ Note
 </tr>
 <tr class="odd">
 <td><code>ADD</code></td>
-<td>eager, pure, multifunction</td>
+<td>eager, effectful/unspecified, multifunction</td>
 <td>Addition or string concatenation</td>
 </tr>
 <tr class="even">
@@ -2987,6 +3197,16 @@ Note
 <td><code>BOUND_SYMBOL</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>—</td>
+</tr>
+<tr class="even">
+<td><code>BOX_RESUME</code></td>
+<td>eager, pure</td>
+<td>Replay and extend a retained deterministic box subdivision queue</td>
+</tr>
+<tr class="odd">
+<td><code>BOX_SUBDIVIDE</code></td>
+<td>eager, pure</td>
+<td>Classify a bounded complete cover with deterministic exact box subdivision</td>
 </tr>
 <tr class="even">
 <td><code>BRACKET_GET</code></td>
@@ -3170,7 +3390,7 @@ Note
 </tr>
 <tr class="even">
 <td><code>DIV</code></td>
-<td>eager, pure, multifunction</td>
+<td>eager, effectful/unspecified, multifunction</td>
 <td>Division</td>
 </tr>
 <tr class="odd">
@@ -3319,6 +3539,36 @@ Note
 <td>Mark a newly constructed structured value immutable and return it</td>
 </tr>
 <tr class="even">
+<td><code>IMPLICIT_REGION</code></td>
+<td>eager, pure</td>
+<td>Bound an implicit set by a complete classified box cover without asserting surface topology</td>
+</tr>
+<tr class="odd">
+<td><code>IMPLICIT_REGION_CHECK</code></td>
+<td>eager, pure</td>
+<td>Replay implicit-region classifications and complete coverage</td>
+</tr>
+<tr class="even">
+<td><code>IMPLICIT_REGION_REFINE</code></td>
+<td>eager, pure</td>
+<td>Recheck and refine an implicit region under bounded work limits</td>
+</tr>
+<tr class="odd">
+<td><code>IMPLICIT_TRACE</code></td>
+<td>eager, pure</td>
+<td>Trace checked local implicit charts with a complete bounded box cover</td>
+</tr>
+<tr class="even">
+<td><code>IMPLICIT_TRACE_CHECK</code></td>
+<td>eager, pure</td>
+<td>Replay all implicit chart, coverage, and topology claims</td>
+</tr>
+<tr class="odd">
+<td><code>IMPLICIT_TRACE_REFINE</code></td>
+<td>eager, pure</td>
+<td>Recheck an implicit trace and refine its original box with bounded options</td>
+</tr>
+<tr class="even">
 <td><code>IMPORT_JS</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Import a local JavaScript module for use from a .js.rix startup file</td>
@@ -3362,6 +3612,16 @@ Note
 <td><code>INTERVAL</code></td>
 <td>eager, pure</td>
 <td>Create an interval [lo, hi] or test betweenness like a:b:c</td>
+</tr>
+<tr class="odd">
+<td><code>INTERVAL_LINEAR_SOLVE</code></td>
+<td>eager, pure</td>
+<td>Validate an interval linear system by exact preconditioned interval elimination</td>
+</tr>
+<tr class="even">
+<td><code>INTERVAL_NEWTON_BOX</code></td>
+<td>eager, pure</td>
+<td>Contract a checked nonlinear system with a validated interval Newton operator</td>
 </tr>
 <tr class="odd">
 <td><code>JACOBIAN_BOX_RANGE</code></td>
@@ -3414,24 +3674,54 @@ Note
 <td>Create a portable link</td>
 </tr>
 <tr class="odd">
+<td><code>LINKED_VIEWS</code></td>
+<td>eager, pure</td>
+<td>Compose retained Graphics/snapshot panels with explicit linked semantic IDs</td>
+</tr>
+<tr class="even">
 <td><code>LIST</code></td>
 <td>eager, pure</td>
 <td>Create an ordered or unordered document list</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>LISTITEM</code></td>
 <td>eager, pure</td>
 <td>Create a document list item</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>LITERAL</code></td>
 <td>eager, pure</td>
 <td>Parse a number literal string into a ratmath type</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>LIVEVIEW</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Deprecated compatibility wrapper for a reactive output derived from a subscribable source; prefer a named $$ output and final $ read</td>
+</tr>
+<tr class="even">
+<td><code>LOGIC_CHECK_PROPOSITION</code></td>
+<td>eager, pure</td>
+<td>Recheck an exact arithmetic proposition record</td>
+</tr>
+<tr class="odd">
+<td><code>LOGIC_CHECK_SEQUENT</code></td>
+<td>eager, pure</td>
+<td>Replay every rule and retained budget/countermodel claim in a sequent record</td>
+</tr>
+<tr class="even">
+<td><code>LOGIC_EXACT_PROPOSITION</code></td>
+<td>eager, pure</td>
+<td>Decide exact rational or interval comparisons without importing assumptions</td>
+</tr>
+<tr class="odd">
+<td><code>LOGIC_SEQUENT</code></td>
+<td>eager, pure</td>
+<td>Build a bounded classical propositional sequent derivation</td>
+</tr>
+<tr class="even">
+<td><code>LOGIC_SEQUENT_TREE</code></td>
+<td>eager, pure</td>
+<td>Render a checked sequent as bounded Graphics and an exact text table</td>
 </tr>
 <tr class="odd">
 <td><code>LOOP</code></td>
@@ -3530,7 +3820,7 @@ Note
 </tr>
 <tr class="even">
 <td><code>MUL</code></td>
-<td>eager, pure, multifunction</td>
+<td>eager, effectful/unspecified, multifunction</td>
 <td>Multiplication (Product of values)</td>
 </tr>
 <tr class="odd">
@@ -3580,7 +3870,7 @@ Note
 </tr>
 <tr class="even">
 <td><code>NEG</code></td>
-<td>eager, pure, multifunction</td>
+<td>eager, effectful/unspecified, multifunction</td>
 <td>Negation</td>
 </tr>
 <tr class="odd">
@@ -3609,581 +3899,616 @@ Note
 <td>Null value</td>
 </tr>
 <tr class="even">
+<td><code>NUMERAL_FORMAT</code></td>
+<td>eager, pure</td>
+<td>Bounded exact numeral system NumeralFormat</td>
+</tr>
+<tr class="odd">
+<td><code>NUMERAL_LOCALE</code></td>
+<td>eager, pure</td>
+<td>Bounded exact numeral system NumeralLocale</td>
+</tr>
+<tr class="even">
+<td><code>NUMERAL_PARSE</code></td>
+<td>eager, pure</td>
+<td>Bounded exact numeral system NumeralParse</td>
+</tr>
+<tr class="odd">
+<td><code>NUMERAL_PLACES</code></td>
+<td>eager, pure</td>
+<td>Bounded exact numeral system NumeralPlaces</td>
+</tr>
+<tr class="even">
+<td><code>NUMERAL_SYSTEM</code></td>
+<td>eager, pure</td>
+<td>Bounded exact numeral system NumeralSystem</td>
+</tr>
+<tr class="odd">
 <td><code>NUM_DISPLAY</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Set the session’s comma-separated number display profile</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>NUM_INPUT</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Set the session’s strict # numeral input base</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>OR</code></td>
 <td>lazy, pure</td>
 <td>Logical OR (short-circuits on first truthy, returns deciding value)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>OUT</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Declare an output artifact for the active host output sink</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>OUTER_ASSIGN</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Assign a value to an existing outer scope variable</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>OUTER_RETRIEVE</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Look up a variable strictly in the outer scope chains</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>OUTER_UPDATE</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>In-place value replacement on an outer scope variable (~= / <sub></sub>= with @)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>PALL</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Every: returns last element if predicate is truthy for ALL elements, null on first failure — callback receives (val, locator, src)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>PANY</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Any: returns first item that passed predicate, null if none pass — callback receives (val, locator, src)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>PARAGRAPH</code></td>
 <td>eager, pure</td>
 <td>Create a portable paragraph output node</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>PARENT_SELF</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Resolve the parent multifunction inside a variant body</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>PARTITION</code></td>
 <td>eager, pure</td>
 <td>Partition an interval into n equal touching subintervals</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>PCHUNK</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Chunk a collection into subarrays by size or boundary predicate</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>PEXPECT</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Recover expected {: :error, … } values or skip when the handler returns null</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>PFILTER</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Filter a collection with a predicate — callback receives (val, locator, src)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>PFOREACH</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Drain a source through a callback, ignore callback results, and return null</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>PIPE</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Pipe a value into a function</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>PIPE_EXPLICIT</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Explicit pipe operator — placeholders _1, _2, … map tuple elements to specific argument positions</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>PLACEHOLDER</code></td>
 <td>eager, pure</td>
 <td>Numbered placeholder for partial application and explicit pipes</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>PLUGIN_IMPORT</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Import selected plugin exports as bare callables in the current lexical scope</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>PMAP</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Map a function over a collection — callback receives (val, locator, src)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>POW</code></td>
-<td>eager, pure, multifunction</td>
+<td>eager, effectful/unspecified, multifunction</td>
 <td>Exponentiation</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>POWPROD</code></td>
 <td>eager, pure, multifunction</td>
 <td>Exponentiation/product power (currently same implementation as POW)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>PREDUCE</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Reduce a collection with an accumulator function — callback receives (acc, val, locator, src)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>PREP_TRIAL</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Evaluate a candidate through ordered soft/strict prep gates, returning null on soft failure</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>PREP_TRIAL_CASE</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Evaluate a prepared-trial case arm while preserving its no-match status</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>PREVERSE</code></td>
 <td>eager, pure</td>
 <td>Reverse a collection (returns new copy)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>PSLICE_CLAMP</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Clamped slice operator |&gt;//</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>PSLICE_STRICT</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Strict slice operator |&gt;/</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>PSORT</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Sort a collection with comparator function (returns new copy)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>PSPLIT</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Split a collection by a delimiter or predicate</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>QUOTE</code></td>
 <td>eager, pure</td>
 <td>Create a document quotation block</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>RANDOM</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Sample exact rational points from an interval</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>RANDOM_PARTITION</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Partition an interval at distinct random rational points</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>RANGE_ABSOLUTE_VALUE</code></td>
 <td>eager, pure</td>
 <td>Exact image of range-set absolute value</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>RANGE_ADD</code></td>
 <td>eager, pure</td>
 <td>Exact Cartesian image of range-set addition</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>RANGE_DIVIDE</code></td>
 <td>eager, pure</td>
 <td>Exact defined image of range-set division</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>RANGE_EVIDENCE</code></td>
 <td>eager, pure</td>
 <td>Return the checked rangeEvidence metadata attached to a range result</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>RANGE_INTEGER_POWER</code></td>
 <td>eager, pure</td>
 <td>Exact defined image of a range set raised to an integer power</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>RANGE_MULTIPLY</code></td>
 <td>eager, pure</td>
 <td>Exact Cartesian image of range-set multiplication</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>RANGE_NEGATE</code></td>
 <td>eager, pure</td>
 <td>Exact image of range-set negation</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>RANGE_POLICY</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Evaluate an expression under an inherited range-domain policy</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>RANGE_RECIPROCAL</code></td>
 <td>eager, pure</td>
 <td>Exact defined image of range-set reciprocal</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>RANGE_SUBTRACT</code></td>
 <td>eager, pure</td>
 <td>Exact Cartesian image of range-set subtraction</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>RATIONAL_BOX</code></td>
 <td>eager, pure</td>
 <td>Construct a checked Cartesian box of closed bounded rational intervals</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>REACTIVEGRAPH</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Create a transactional graph of reactive source and computed nodes</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>REACTIVE_DECLARE</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Declare a new reactive cell from a deferred definition</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>REACTIVE_INDEX_NODE</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Retrieve a FormulaSheet cell identity without dereferencing it</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>REACTIVE_INDEX_READ</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Read a FormulaSheet cell and record a dependency</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>REACTIVE_INDEX_UPDATE</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Replace a FormulaSheet cell’s deferred formula</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>REACTIVE_NODE</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Retrieve a reactive cell identity without dereferencing it</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>REACTIVE_READ</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Read a reactive cell value and record a dependency</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>REACTIVE_TRANSACTION</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Stage reactive declarations and updates and commit one atomic graph epoch</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>REACTIVE_UPDATE</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Replace a reactive cell definition while preserving its identity</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>REFINEMENT_CHECK</code></td>
 <td>eager, pure</td>
 <td>Validate a numerical provider result against its request and capabilities</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>REFINEMENT_EFFECTIVE_LIMITS</code></td>
 <td>eager, pure</td>
 <td>Intersect requester and numerical-provider resource limits</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>REFINEMENT_REQUEST</code></td>
 <td>eager, pure</td>
 <td>Normalize a shared bounded numerical refinement request</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>REFINEMENT_SUPPORTS</code></td>
 <td>eager, pure</td>
 <td>Check whether numerical provider capabilities support an operation</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>REFINEMENT_UNSUPPORTED</code></td>
 <td>eager, pure</td>
 <td>Construct a structured unsupported numerical result</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>REGEX</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Create a regex matching function</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>RETRIEVE</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Look up a variable in the current scope chain</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>RIXCELEXPORT</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Serialize a FormulaSheet to canonical versioned RiXCel JSON</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>RIXCELEXPORTCSV</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Export the computed values of a rank-2 FormulaSheet as CSV</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>RIXCELEXPORTTSV</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Export the computed values of a rank-2 FormulaSheet as TSV</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>RIXCELIMPORT</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Rebuild a FormulaSheet by compiling authoritative source from RiXCel JSON</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>RIXCELIMPORTCSV</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Import CSV values into a rank-2 FormulaSheet; optional header=1 uses the first row as labels</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>RIXCELIMPORTTSV</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Import TSV values into a rank-2 FormulaSheet; optional header=1 uses the first row as labels</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>SAME_CELL</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Identity comparison (===) — returns 1 if both sides refer to the same cell, null otherwise</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>SARITH_FUNCTION_BODY</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Resolve a structural-arithmetic function template against its arguments</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>SECTION</code></td>
 <td>eager, pure</td>
 <td>Create a structural document section</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>SELF</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Resolve the current callable object inside a function body</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>SEMANTIC_CONVERT_SOFT</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Convert a value to a semantic type, returning null on failure</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>SEMANTIC_CONVERT_STRICT</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Convert a value to a semantic type, throwing on failure</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>SEMANTIC_HAS</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Check semantic type/trait membership against __type, _type, and __traits</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>SEQ</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Expression sequence: evaluate arguments left-to-right in the current scope and return the last value</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>SET</code></td>
 <td>lazy, pure</td>
 <td>Create a set (unique values)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>SET_DIFF</code></td>
 <td>eager, pure</td>
 <td>—</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>SET_PROD</code></td>
 <td>eager, pure</td>
 <td>—</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>SET_SYMDIFF</code></td>
 <td>eager, pure</td>
 <td>—</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>SHAPED_LITERAL</code></td>
 <td>lazy, pure</td>
 <td>Shaped literal with explicit shape</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>SHAPED_TRANSPOSE</code></td>
 <td>eager, pure</td>
 <td>Transpose a rank-2 Shaped or Matrix view</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>SHEET</code></td>
 <td>eager, pure</td>
 <td>Create a portable sheet view of indexable data</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>SLIDE</code></td>
 <td>eager, pure</td>
 <td>Create a presentation slide</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>SLIDES</code></td>
 <td>eager, pure</td>
 <td>Create a sequential presentation deck</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>SNAPSHOTS</code></td>
 <td>eager, pure</td>
 <td>Materialize [scene, states] tuples into a portable ordered snapshot list</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>STEP</code></td>
 <td>eager, pure</td>
 <td>Lazy exact stepped range over a rational interval</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>STRING</code></td>
 <td>eager, pure</td>
 <td>Create a string value</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>STRONG</code></td>
 <td>eager, pure</td>
 <td>Create semantic inline strong content</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>SUB</code></td>
-<td>eager, pure, multifunction</td>
+<td>eager, effectful/unspecified, multifunction</td>
 <td>Subtraction</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>SYMBOL_DEFINE</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>—</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>SYMBOL_RETRIEVE</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>—</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>SYSREF</code></td>
 <td>eager, pure</td>
 <td>Reference to a system function</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>SYSTEM</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Mathematical system container, currently evaluates as a block</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>SYSTEM_SPEC</code></td>
 <td>lazy, pure</td>
 <td>Create a first-class symbolic system specification</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>TABLE</code></td>
 <td>eager, pure</td>
 <td>Create a structured output table</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>TAIL_SELF</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Tail-position self call that reuses the current function frame</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>TAYLOR_MODEL_BOX_RANGE</code></td>
 <td>eager, pure</td>
 <td>Certify a rational-box range with a multivariate Taylor model and Hessian remainder</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>TEMPLATE_TEXT</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Create interpolated text with <span class="citation" data-cites="expression">@expression</span> insertions</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>TERNARY</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Decision conditional: condition ?: truthExpr ?_ nullExpr ?? undecidedExpr</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>TEXT</code></td>
 <td>eager, pure</td>
 <td>Create a portable text output node</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>TOBASE</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Format number to base string: expr _&gt; baseSpec</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>TOBASE_EXACT</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Format a number as lossless RiX source, or fail</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>TRAIT_REGISTER</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Register an immutable semantic trait from a RiX map spec</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>TUPLE</code></td>
 <td>lazy, pure</td>
 <td>Create a tuple</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>TYPE_EXPORT</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Export a semantically typed value through its registered type exporter</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>TYPE_IMPORT</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Import a value from a tagged type export map</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>TYPE_INSTALL</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Install a registered semantic type into system multifunctions</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>TYPE_KNOWN</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Return 1 when a semantic type or alias is already registered, otherwise null</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>TYPE_REGISTER</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Register an immutable semantic type from a RiX map spec</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>UNDECIDED</code></td>
 <td>eager, pure</td>
 <td>Return the singleton undecided decision value</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>UNDECIDED_DIAGNOSTIC</code></td>
 <td>eager, pure</td>
 <td>Construct an undecided decision carrying a reason and optional evidence</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>UNION</code></td>
 <td>eager, pure</td>
 <td>Join/Union of two collections (set union or interval hull)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>UNIT</code></td>
 <td>eager, pure</td>
 <td>Resolve scientific unit sugar through the active Units RiX collection</td>
 </tr>
+<tr class="even">
+<td><code>VALIDATED_BOX_CHECK</code></td>
+<td>eager, pure</td>
+<td>Independently replay retained linear, interval Newton, and box coverage claims</td>
+</tr>
 <tr class="odd">
+<td><code>VALIDATED_CLAIM_EQUAL</code></td>
+<td>eager, pure</td>
+<td>Compare typed retained claims under the shared replay data limits</td>
+</tr>
+<tr class="even">
 <td><code>VALUES</code></td>
 <td>eager, pure</td>
 <td>Get the values of a map as a set (obj|.)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>VALUE_OUTFIT</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Apply semantic/value outfitting metadata to a value</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>VIDEO</code></td>
 <td>eager, pure</td>
 <td>Create a portable video asset</td>

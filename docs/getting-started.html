@@ -405,11 +405,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </header>
 
 
-<p>RiX uses Bun. The package is an active alpha and is not yet presented as a stable registry release: the public npm name <code>rix</code> belongs to an unrelated project. Standalone development installs the compatible <code>@ratmath/core</code> 0.4 release.</p>
+<p>RiX uses Bun. The package is an active alpha and is not yet presented as a stable registry release: the public npm name <code>rix</code> belongs to an unrelated project. Use the matching RiX and Core checkouts in the RatMath workspace.</p>
 <section id="requirements" class="level2">
 <h2 class="anchored" data-anchor-id="requirements">Requirements</h2>
 <ul>
-<li><a href="https://bun.sh/">Bun</a> 1.2 or newer</li>
+<li><a href="https://bun.sh/">Bun</a> 1.4 or newer</li>
 <li>Git</li>
 <li>Quarto 1.6 or newer only if you want to build this documentation site</li>
 </ul>
@@ -418,9 +418,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h2 class="anchored" data-anchor-id="clone-and-test">Clone and test</h2>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> clone https://github.com/jostylr/ratmath.git</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> ratmath</span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> install</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> <span class="at">--cwd</span> rix test</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The standalone repository supports <code>bun install</code> and <code>bun test</code>; the RatMath umbrella workspace instead links its local Core checkout.</p>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> run prep</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> <span class="at">--cwd</span> rix run test:short</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The workspace preparation command initializes pinned repositories and installs their dependencies. The manifest declares Core ^0.5.0, but the registry package is missing the newer <code>NumeralSystem</code> export at this revision. Standalone registry installation therefore needs a coordinated release; workspace development uses the matching local Core implementation. Use <code>bun --cwd rix run test:suite</code> for the complete verification (longer than the short development checks).</p>
 <p>The RiX test suite exercises tokenizer, parser, lowering, evaluator, runtime, CLI, examples, exact values, types, methods, Shaped storage, mathematical tensors, generators, and diagnostics.</p>
 </section>
 <section id="open-the-repl" class="level2">

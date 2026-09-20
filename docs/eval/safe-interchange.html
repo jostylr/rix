@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>document-persistence – RiX</title>
+<title>safe-interchange – RiX</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -329,14 +329,13 @@ ul.task-list li input[type="checkbox"] {
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#saving-portable-output" id="toc-saving-portable-output" class="nav-link active" data-scroll-target="#saving-portable-output">Saving portable output</a>
+  <li><a href="#exact-relation-documents-and-frozen-real-snapshots" id="toc-exact-relation-documents-and-frozen-real-snapshots" class="nav-link active" data-scroll-target="#exact-relation-documents-and-frozen-real-snapshots">Exact relation documents and frozen real snapshots</a>
   <ul class="collapse">
-  <li><a href="#live-widgets-become-explicit-snapshots" id="toc-live-widgets-become-explicit-snapshots" class="nav-link" data-scroll-target="#live-widgets-become-explicit-snapshots">Live widgets become explicit snapshots</a></li>
-  <li><a href="#import-policy-and-limits" id="toc-import-policy-and-limits" class="nav-link" data-scroll-target="#import-policy-and-limits">Import policy and limits</a></li>
-  <li><a href="#version-one-wire-contract" id="toc-version-one-wire-contract" class="nav-link" data-scroll-target="#version-one-wire-contract">Version-one wire contract</a></li>
+  <li><a href="#standalone-real-snapshots" id="toc-standalone-real-snapshots" class="nav-link" data-scroll-target="#standalone-real-snapshots">Standalone real snapshots</a></li>
+  <li><a href="#explicit-recipe-refinement" id="toc-explicit-recipe-refinement" class="nav-link" data-scroll-target="#explicit-recipe-refinement">Explicit recipe refinement</a></li>
   </ul></li>
   </ul>
-<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/document-persistence.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/safe-interchange.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
 <!-- main -->
 <main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"></header>
@@ -345,48 +344,66 @@ ul.task-list li input[type="checkbox"] {
 
 
 
-<section id="saving-portable-output" class="level1">
-<h1>Saving portable output</h1>
-<p>The opt-in <code>document</code> plugin saves an evaluated output tree without keeping an execution scope, reactive handle, callback, or filesystem grant. Loading never fetches an asset, runs a recipe, imports a plugin, or evaluates RiX source.</p>
-<pre class="rix" data-exec="true"><code>.Plugin.Load("document");
-report := .Fragment([
-    .Paragraph([.Strong("Exact results"), 1/3]),
-    .Table(["oriented interval"], [[5:4]])
-]);
-saved := .document.EncodeJSON(report);
-imported := .document.DecodeJSON(saved);
-.document.EncodeJSON(imported[:value]) == saved ##@ == 1;
-imported[:diagnostics].Len() ##@ == 0;</code></pre>
-<p><code>DecodeJSON</code> returns a map with <code>value</code>, <code>diagnostics</code>, and <code>schema</code>. Display its warnings alongside the imported value. <code>EncodeJSON</code> returns a String and does not write a file. The host JavaScript functions <code>encodeOutputJSON</code>, <code>decodeOutputJSON</code>, and <code>snapshotOutputDocument</code> are exported from RiX and its runtime entry point, with the same behavior in CLI, Web, and Notebook hosts.</p>
-<section id="live-widgets-become-explicit-snapshots" class="level2">
-<h2 class="anchored" data-anchor-id="live-widgets-become-explicit-snapshots">Live widgets become explicit snapshots</h2>
-<p>Call <code>.document.Snapshot(value)</code> before persisting a live tree. It captures current control values and selected Sheet planes, removes reactive/action handles, disables controls, and turns draggable points/actions into static circles/groups. It never invokes an action. The original tree stays live.</p>
-<pre class="rix" data-exec="true"><code>.Plugin.Load("document");
-$$amount := 1/2;
-panel := .ControlPanel([.Controls.Slider($$amount, 0:1, 1/10, "Amount")]);
-portable := .document.Snapshot(panel);
-.document.DecodeJSON(.document.EncodeJSON(portable))[:value];</code></pre>
-<p>A direct attempt to encode live controls, bindings, functions, promises, host objects, or accessors fails. Imported Sheet snapshots retain safe <code>Index</code>/<code>At</code> lookup over saved cells; an unsaved plane is unavailable, not lazily evaluated. Frame-aware mathematical tensor graphs require the separate Linalg identity import adapter; bare Shaped and rank-two Matrix values are supported now.</p>
+<section id="exact-relation-documents-and-frozen-real-snapshots" class="level1">
+<h1>Exact relation documents and frozen real snapshots</h1>
+<p>Relation files keep the column IDs, labels, types, nullability and ordered rows. They distinguish missing cells from empty strings, retain large integers and rational values exactly, and retain descending interval orientation.</p>
+<pre class="rix" data-exec="true"><code>.Plugin.Load("data");
+r := .data.Relation([{= id="value",type=:Rational },"note"], [[1/3,"one third"],[_,"missing"]]);
+json := .data.EncodeJSON(r);
+copy := .data.DecodeJSON(json);
+.data.EncodeJSON(copy) ##@ == json;
+.data.EncodeJSON(.data.ParseCSV(.data.RenderCSV(r))) ##@ == json;
+.data.EncodeJSON(.data.ParseJSONLDocument(.data.RenderJSONLDocument(r))) ##@ == json;
+.data.TableView(copy);</code></pre>
+<p><code>EncodeJSON</code> writes one <code>rix.data.relation-document@1</code> object. The document JSONL pair includes a schema header followed by one row array per line; existing <code>ParseJSONL(schema,text)</code> stays a bounded row source. The CSV pair writes RFC-style quoted fields: a <code>rix.data.csv@1</code> metadata record, column IDs, then exact JSON-encoded cells. Use the ordinary <code>.csv</code> exporter for conventional human-readable CSV. Do not remove the metadata row from an interchange file. All three document readers reject malformed or incomplete rows. Maximums are 2,000,000 characters, 10,000 rows, 256 columns, 100,000 nested nodes, depth 64, and 4,096 digits per exact component. Maps cannot use reserved <code>$</code> tag keys. Real cells use <code>$real</code> with the envelope below and load as fresh frozen subjects. Use one mathematical graph document when multiple values need shared identity.</p>
+<section id="standalone-real-snapshots" class="level2">
+<h2 class="anchored" data-anchor-id="standalone-real-snapshots">Standalone real snapshots</h2>
+<pre class="rix" data-exec="true"><code>.Plugin.Load("numerics");
+source := .ExpressionReal(.numerics.Sqrt(2));
+text := .RealExportJSON(source);
+frozen := .RealImportJSON(text);
+.RealImportInfo(frozen)[:verification] ##@ == :unavailable;
+.RealImportInfo(frozen)[:interval];</code></pre>
+<p><code>RealExportJSON</code> accepts a mathematical real or its Expression constant wrapper. It emits deterministic key ordering and canonical exact tags. Suggested suffix: <code>.rixreal.json</code>. Ordinary live adapters export an opaque snapshot with no recipe; export does not guess a provider from closures. <code>RealImportJSON</code> never executes source, invokes checkers, loads plugins, resolves names or requests external data. Every import has a fresh opaque runtime identity. A containing <code>.MathEncodeJSON</code> graph preserves repeated references within that document. Output JSON retains the same envelope, allowing tables and document metadata to carry it.</p>
+<p>Saved certification is a declaration. <code>RealImportInfo</code> reports the retained status separately from its local verification, which always starts <code>:unavailable</code>. Even a previously replayed envelope must be checked again after loading. Unknown subject/recipe families stay useful frozen snapshots. Unsupported, unavailable or version-mismatched recipes retain the enclosure. Malformed supported structures, descending real enclosures, noncanonical scalars and inconsistent achieved widths are rejected. Limits are 2,000,000 characters, 8,192 nodes, depth 64, 4,096 digits per exact component and 128 evidence entries. No envelope field can register an executable provider.</p>
 </section>
-<section id="import-policy-and-limits" class="level2">
-<h2 class="anchored" data-anchor-id="import-policy-and-limits">Import policy and limits</h2>
-<p>The <code>unknownTags</code> option is one of:</p>
-<ul>
-<li><code>"warn-and-skip"</code> (default): replace an unsupported record with visible text and a source-path warning. Required malformed known records still fail.</li>
-<li><code>"strict-error"</code>: reject an unsupported tag.</li>
-<li><code>"preserve-opaque"</code>: show the same fallback while retaining bounded inert data for re-export. This never installs behavior for the unknown record.</li>
-</ul>
-<p>Exact integers/rationals, formal unreduced Fractions, interval endpoint order, certified approximation enclosures/source sharing, undecided values, collection sharing and mathematical graph identities survive. Scoped mathematical imports create fresh runtime identities while preserving sharing within the document. Unscoped rational Calculus graphs retain their name-based structure as inert records, so saved derivative selectors and checked numerical evidence can be replayed without inventing a new symbol binding. Live extension methods are omitted from these known graph records.</p>
-<p>Defaults are 4,000,000 UTF-8 bytes, 20,000 graph nodes, 100,000 traversal steps, 128 nesting levels and 4,096 integer characters. Options <code>maxBytes</code>, <code>maxNodes</code>, <code>maxEdges</code>, <code>maxDepth</code>, and <code>maxDigits</code> can lower them or raise them by at most a factor of sixteen. The strict mathematical subgraph keeps its own independent limits. Cycles, dangling/duplicate identities, unsafe keys, nonfinite numbers, missing required fields and oversized records fail with an error code and path.</p>
-</section>
-<section id="version-one-wire-contract" class="level2">
-<h2 class="anchored" data-anchor-id="version-one-wire-contract">Version-one wire contract</h2>
-<p><code>rix.output.document@1</code> contains <code>root</code>, a document-local <code>nodes</code> table, and an optional strict <code>rix.math.document@1</code> graph. References are <code>{"$ref":"n0"}</code>; IDs are traversal-order identifiers, not global identities or signed hashes.</p>
-<p>Each node has exactly <code>id</code>, <code>tag</code>, and <code>data</code>. Tags <code>integer</code>, <code>rational</code>, <code>fraction</code>, <code>interval</code>, <code>certified</code>, <code>shaped</code>, <code>undecided</code>, <code>hole</code>, <code>array</code>, <code>map</code>, <code>record</code>, and <code>math</code> have explicit scalar/collection forms. <code>output:KIND</code> carries ordered name/value pairs for a validated core output record. Numbers embedded as native JSON numbers are host presentation data, never exact RiX integers or rationals. Mathematical expressions share one strict graph across the tree.</p>
-<p>Intrinsic methods are rebuilt from installed constructors and never saved. Metadata, labels, captions, references, asset declarations, styles and evidence remain ordinary inert data. Unknown-tag import does not change strict Core mathematical decoding. Existing <code>rix.control-panel</code> version-one JSON migrates on import and emits an informational diagnostic. No general legacy reader or implicit source execution is provided.</p>
-<p>To move images/audio/video together with a saved document, use the <a href="../eval/output-assets.html">portable asset bundle APIs</a>. Plain document JSON retains asset references and never resolves their bytes.</p>
-<p>The <code>interval-set</code> scalar tag retains normalized rational interval-set components with exact nullable endpoints and explicit closure flags. <code>null</code> means negative infinity on the lower side and positive infinity on the upper side; infinite endpoints must be open. Empty sets and closed singleton components round-trip. Malformed, reversed, overlapping or unsorted wire components are rejected rather than silently normalized. The ordinary digit, edge, node and depth budgets apply.</p>
-<p>The <code>fraction-interval</code> tag stores two exact Fraction references in their stored low/high order, without reducing endpoint representations. Formal Fraction values may retain nonzero numerators over zero as signed infinity, using the existing explicit infinite-Fraction constructor policy. <code>0/0</code>, reversed interval endpoints, non-Fraction endpoints and infinite Rational values are rejected.</p>
+<section id="explicit-recipe-refinement" class="level2">
+<h2 class="anchored" data-anchor-id="explicit-recipe-refinement">Explicit recipe refinement</h2>
+<p>The initial installed registry has one adapter:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Field</th>
+<th>Required value</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>provider</code></td>
+<td><code>numerics</code></td>
+</tr>
+<tr class="even">
+<td><code>providerVersion</code></td>
+<td><code>2</code></td>
+</tr>
+<tr class="odd">
+<td><code>algorithm</code></td>
+<td><code>semantic-enclosure</code></td>
+</tr>
+<tr class="even">
+<td><code>algorithmVersion</code></td>
+<td><code>1</code></td>
+</tr>
+<tr class="odd">
+<td><code>checker</code></td>
+<td><code>rix.real.numerics-replay@1</code></td>
+</tr>
+</tbody>
+</table>
+<p>Its recipe <code>kind</code> is <code>expression</code>. The recipe <code>graph</code> must exactly match the expression subject’s graph (or the named-constant subject converted to a <code>namedConstant</code> graph node). Explicit requirements must match all five fields. The adapter calls only already-loaded, permitted <code>.numerics</code> and <code>.oracle</code> capabilities. A missing capability remains a frozen result.</p>
+<p>Supported graph nodes are exact <code>constant</code>, <code>namedConstant</code> pi/e, <code>negate</code>, <code>add</code>, <code>subtract</code>, <code>multiply</code>, <code>divide</code>, bounded Integer <code>power</code>, and unary <code>call</code>. Calls use existing stable IDs <code>rix.function.sqrt@1</code>, <code>exp@1</code>, <code>log@1</code>, <code>sin@1</code>, <code>cos@1</code>, <code>tan@1</code> (each with the <code>rix.function.</code> prefix). Their required branches are respectively <code>nonnegative</code>, <code>real</code>, <code>positive</code>, <code>real</code>, <code>real</code>, <code>poleFree</code>. Providers must still establish each domain; a branch label is no proof. Graphs have at most 128 nodes, depth 32, and powers between -64 and 64. Unknown semantic IDs or branch choices stay opaque.</p>
+<p>Use async evaluation for <code>.RealRefineImported(real,{= width=1/1000,maxCalls=256, maxIterations=256 })</code>. Import and inspection remain synchronous. Budgets are positive, at most 4,096 calls/iterations, and split between provider refinement and a fresh deterministic replay. Construction has the separate graph/power bounds. Successful checking requires equal exact endpoints and a result nested in the saved enclosure; contradiction never replaces it. An insufficient work/domain result stays frozen with diagnostics. Successful snapshots carry a bounded embedded replay-evidence record and local <code>:providerChecked</code> verification. This is replay of the installed certified algorithm, not a second mathematical algorithm or a general proof checker.</p>
+<p>Host code may explicitly construct a <code>RealRecipeRegistry</code> and register trusted versioned <code>refine</code>/<code>check</code> functions. Deserialized input cannot access that API. Opaque functions, external providers, general root/ODE recipe revival and cryptographic canonicalization remain later scope. The full design is in <a href="https://github.com/jostylr/rix/blob/main/plugins/numerics/refinable-real-json.md">refinable-real JSON</a>.</p>
 
 
 </section>
@@ -823,7 +840,7 @@ portable := .document.Snapshot(panel);
 </div>   
     <div class="nav-footer-center">
       &nbsp;
-    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/document-persistence.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/safe-interchange.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
 <p>Documentation built with <a href="https://quarto.org/">Quarto</a></p>
 </div>

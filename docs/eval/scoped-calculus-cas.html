@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>document-persistence – RiX</title>
+<title>scoped-calculus-cas – RiX</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -329,14 +329,19 @@ ul.task-list li input[type="checkbox"] {
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#saving-portable-output" id="toc-saving-portable-output" class="nav-link active" data-scroll-target="#saving-portable-output">Saving portable output</a>
+  <li><a href="#scoped-calculus-and-course-cas" id="toc-scoped-calculus-and-course-cas" class="nav-link active" data-scroll-target="#scoped-calculus-and-course-cas">Scoped calculus and course CAS</a>
   <ul class="collapse">
-  <li><a href="#live-widgets-become-explicit-snapshots" id="toc-live-widgets-become-explicit-snapshots" class="nav-link" data-scroll-target="#live-widgets-become-explicit-snapshots">Live widgets become explicit snapshots</a></li>
-  <li><a href="#import-policy-and-limits" id="toc-import-policy-and-limits" class="nav-link" data-scroll-target="#import-policy-and-limits">Import policy and limits</a></li>
-  <li><a href="#version-one-wire-contract" id="toc-version-one-wire-contract" class="nav-link" data-scroll-target="#version-one-wire-contract">Version-one wire contract</a></li>
+  <li><a href="#scoped-univariate-polynomials" id="toc-scoped-univariate-polynomials" class="nav-link" data-scroll-target="#scoped-univariate-polynomials">Scoped univariate polynomials</a></li>
+  <li><a href="#executable-specifications-with-scoped-inputs" id="toc-executable-specifications-with-scoped-inputs" class="nav-link" data-scroll-target="#executable-specifications-with-scoped-inputs">Executable specifications with scoped inputs</a></li>
+  <li><a href="#certified-arithmetic-graph-ranges" id="toc-certified-arithmetic-graph-ranges" class="nav-link" data-scroll-target="#certified-arithmetic-graph-ranges">Certified arithmetic graph ranges</a></li>
+  <li><a href="#checked-derivatives-lipschitz-and-taylor-ranges" id="toc-checked-derivatives-lipschitz-and-taylor-ranges" class="nav-link" data-scroll-target="#checked-derivatives-lipschitz-and-taylor-ranges">Checked derivatives, Lipschitz and Taylor ranges</a></li>
+  <li><a href="#scoped-polynomial-and-rational-recognition" id="toc-scoped-polynomial-and-rational-recognition" class="nav-link" data-scroll-target="#scoped-polynomial-and-rational-recognition">Scoped polynomial and rational recognition</a></li>
+  <li><a href="#inspecting-a-small-derivative-proof" id="toc-inspecting-a-small-derivative-proof" class="nav-link" data-scroll-target="#inspecting-a-small-derivative-proof">Inspecting a small derivative proof</a></li>
+  <li><a href="#scoped-composition-and-its-proof-rule" id="toc-scoped-composition-and-its-proof-rule" class="nav-link" data-scroll-target="#scoped-composition-and-its-proof-rule">Scoped composition and its proof rule</a></li>
+  <li><a href="#certified-trigonometric-graph-consumers" id="toc-certified-trigonometric-graph-consumers" class="nav-link" data-scroll-target="#certified-trigonometric-graph-consumers">Certified trigonometric graph consumers</a></li>
   </ul></li>
   </ul>
-<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/document-persistence.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/scoped-calculus-cas.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
 <!-- main -->
 <main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"></header>
@@ -345,48 +350,191 @@ ul.task-list li input[type="checkbox"] {
 
 
 
-<section id="saving-portable-output" class="level1">
-<h1>Saving portable output</h1>
-<p>The opt-in <code>document</code> plugin saves an evaluated output tree without keeping an execution scope, reactive handle, callback, or filesystem grant. Loading never fetches an asset, runs a recipe, imports a plugin, or evaluates RiX source.</p>
-<pre class="rix" data-exec="true"><code>.Plugin.Load("document");
-report := .Fragment([
-    .Paragraph([.Strong("Exact results"), 1/3]),
-    .Table(["oriented interval"], [[5:4]])
-]);
-saved := .document.EncodeJSON(report);
-imported := .document.DecodeJSON(saved);
-.document.EncodeJSON(imported[:value]) == saved ##@ == 1;
-imported[:diagnostics].Len() ##@ == 0;</code></pre>
-<p><code>DecodeJSON</code> returns a map with <code>value</code>, <code>diagnostics</code>, and <code>schema</code>. Display its warnings alongside the imported value. <code>EncodeJSON</code> returns a String and does not write a file. The host JavaScript functions <code>encodeOutputJSON</code>, <code>decodeOutputJSON</code>, and <code>snapshotOutputDocument</code> are exported from RiX and its runtime entry point, with the same behavior in CLI, Web, and Notebook hosts.</p>
-<section id="live-widgets-become-explicit-snapshots" class="level2">
-<h2 class="anchored" data-anchor-id="live-widgets-become-explicit-snapshots">Live widgets become explicit snapshots</h2>
-<p>Call <code>.document.Snapshot(value)</code> before persisting a live tree. It captures current control values and selected Sheet planes, removes reactive/action handles, disables controls, and turns draggable points/actions into static circles/groups. It never invokes an action. The original tree stays live.</p>
-<pre class="rix" data-exec="true"><code>.Plugin.Load("document");
-$$amount := 1/2;
-panel := .ControlPanel([.Controls.Slider($$amount, 0:1, 1/10, "Amount")]);
-portable := .document.Snapshot(panel);
-.document.DecodeJSON(.document.EncodeJSON(portable))[:value];</code></pre>
-<p>A direct attempt to encode live controls, bindings, functions, promises, host objects, or accessors fails. Imported Sheet snapshots retain safe <code>Index</code>/<code>At</code> lookup over saved cells; an unsaved plane is unavailable, not lazily evaluated. Frame-aware mathematical tensor graphs require the separate Linalg identity import adapter; bare Shaped and rank-two Matrix values are supported now.</p>
+<section id="scoped-calculus-and-course-cas" class="level1">
+<h1>Scoped calculus and course CAS</h1>
+<p>Calculus differentiation (including higher/partial derivatives, gradients, Jacobians and Hessians), semantic construction, CAS integration, and checked graph simplification now preserve core symbol identities. Pass an actual symbolic variable, not its name. Same-spelled symbols from different scopes remain independent.</p>
+<pre class="rix" data-exec="true"><code>.Plugin.Load("cas");
+a := ::x; b := {; ::x };
+expr := a^2+b;
+.calculus.Differentiate(expr,a).Eval([(a,3)])[:value] ##@ == 6;
+.calculus.Differentiate(expr,b).Eval()[:value] ##@ == 1;
+primitive := .cas.Integrate(a*b,a);
+primitive[:antiderivative].Eval([(a,2),(b,3)])[:value] ##@ == 6;
+.cas.CheckIntegral(primitive)[:accepted] ##@ == 1;</code></pre>
+<p>Derivative and integral records retain the selected symbol itself. Definitions are expanded for these algorithms; a defined symbol cannot be chosen as an independent variable. Passing <code>:x</code> for a graph containing scoped symbols errors instead of choosing by spelling. Named constructor expressions remain usable with explicit name selectors.</p>
+<pre class="rix" data-exec="true"><code>.Plugin.Load("cas");
+simple := .cas.Simplify(::x+0);
+.SameSymbol(simple[:expression],::x) ##@ == 1;
+.cas.CheckSimplification(simple)[:accepted] ##@ == 1;
+.calculus.Sqrt()(::x).Eval([(::x,4)])[:value] ##@ == 2;</code></pre>
+<p>Core/scoped <code>.calculus.EvaluateResult</code> uses identity binding pairs or mathematical contexts and returns the core <code>rix.math.evaluation@1</code> report, including provider evidence and per-call budgets. It does not dispatch arbitrary linked implementations; the separate named-graph linked evaluator remains available for that purpose. <code>Evaluate</code> only unwraps a complete value. Use <code>EvaluateResult</code> for enclosures or conditional results. Name-keyed maps cannot bind scoped variables.</p>
+<pre class="rix" data-exec="true"><code>.Plugin.Load("calculus");
+d := .calculus.DifferentiateResult(.calculus.Log()(::x),::x);
+.calculus.EvaluateResult(d,[(::x,2)])[:value] ##@ == 1/2;
+.calculus.EvaluateResult(d,[(::x,-2)])[:status] ##@ == :invalidAssumptions;</code></pre>
+<p>Transformation obligations are never discarded. Real nonzero, positive, nonnegative, and open-unit-interval conditions translate to core checks. Other domain or branch obligations remain explicit and conditional. Extracting <code>[:expression]</code> deliberately leaves those transformation conditions behind; prefer evaluating the entire result.</p>
+<section id="scoped-univariate-polynomials" class="level2">
+<h2 class="anchored" data-anchor-id="scoped-univariate-polynomials">Scoped univariate polynomials</h2>
+<p><code>poly(expr,variable)</code> accepts a core univariate expression and an explicit symbol. CAS <code>NormalizePolynomial</code>, <code>Expand</code>, <code>Collect</code>, and <code>Factor</code> use this identity-aware coefficient compiler for scoped inputs. Coefficients are rational; a second distinct symbol is rejected, even if it has the same name. The callable polynomial retains the symbol in <code>Variable()</code> and in its records. Its derivatives, arithmetic, factors, and subsequent CAS integration retain that identity too.</p>
+<pre class="rix" data-exec="true"><code>.Plugin.Load("cas");
+p := .cas.Collect((::x+1)^3,::x);
+.SameSymbol(p[:polynomial].Variable(),::x) ##@ == 1;
+p[:polynomial].Evaluate(2) ##@ == 27;
+.cas.Expand((::x+1)^3,::x)[:expression].Eval([(::x,0)])[:value] ##@ == 1;
+.cas.Integrate(p[:polynomial])[:antiderivative].Eval([(::x,1)])[:value] ##@ == 15/4;</code></pre>
+<p><code>.MathPolynomialCoefficients(expr,variable,options)</code> returns ascending coefficients using the core configurable traversal, digit, degree, term, sum, product-pair, and exponent budgets. This is coefficient lowering, not name-based specification conversion; it does not create a hidden programming variable. To use explicit budgets with CAS, compile coefficients first and construct a polynomial record:</p>
+<pre class="rix" data-exec="true"><code>.Plugin.Load("cas");
+coefficients := .MathPolynomialCoefficients((::x+1)^32,::x,{= maxProductPairs=4096 });
+p := .poly({= coefficients=coefficients,order=:ascending,variable=::x });
+.SameSymbol(p.Variable(),::x) ##@ == 1;
+p.Degree() ##@ == 32;</code></pre>
+<p>Only total polynomial operations are compiled: rational constants, the selected variable, addition/subtraction/multiplication, nonnegative integer powers, and division by a nonzero constant polynomial. A zero power with a potentially zero base is rejected instead of erasing an undefined point. Semantic applications, nonconstant denominators, and nonrational coefficients are not accepted. Reconstruction skips zero coefficients and emits constant terms without <code>x^0</code>, so the returned polynomial works at zero.</p>
 </section>
-<section id="import-policy-and-limits" class="level2">
-<h2 class="anchored" data-anchor-id="import-policy-and-limits">Import policy and limits</h2>
-<p>The <code>unknownTags</code> option is one of:</p>
-<ul>
-<li><code>"warn-and-skip"</code> (default): replace an unsupported record with visible text and a source-path warning. Required malformed known records still fail.</li>
-<li><code>"strict-error"</code>: reject an unsupported tag.</li>
-<li><code>"preserve-opaque"</code>: show the same fallback while retaining bounded inert data for re-export. This never installs behavior for the unknown record.</li>
-</ul>
-<p>Exact integers/rationals, formal unreduced Fractions, interval endpoint order, certified approximation enclosures/source sharing, undecided values, collection sharing and mathematical graph identities survive. Scoped mathematical imports create fresh runtime identities while preserving sharing within the document. Unscoped rational Calculus graphs retain their name-based structure as inert records, so saved derivative selectors and checked numerical evidence can be replayed without inventing a new symbol binding. Live extension methods are omitted from these known graph records.</p>
-<p>Defaults are 4,000,000 UTF-8 bytes, 20,000 graph nodes, 100,000 traversal steps, 128 nesting levels and 4,096 integer characters. Options <code>maxBytes</code>, <code>maxNodes</code>, <code>maxEdges</code>, <code>maxDepth</code>, and <code>maxDigits</code> can lower them or raise them by at most a factor of sixteen. The strict mathematical subgraph keeps its own independent limits. Cycles, dangling/duplicate identities, unsafe keys, nonfinite numbers, missing required fields and oversized records fail with an error code and path.</p>
+<section id="executable-specifications-with-scoped-inputs" class="level2">
+<h2 class="anchored" data-anchor-id="executable-specifications-with-scoped-inputs">Executable specifications with scoped inputs</h2>
+<p><code>.SpecFromExpression(expr,[::x,::y],options)</code> (also <code>.calculus.ToSpec</code>) compiles rational-arithmetic expression graphs into specification IR. The explicit array determines positional input order; symbols are matched by identity, never spelling. Definitions expand at conversion. Every free symbol must be supplied once. Unused independent input symbols are allowed, including for a constant expression.</p>
+<pre class="rix" data-exec="true"><code>a := ::x; b := {; ::x };
+spec := .SpecFromExpression(a^2+b,[b,a]);
+F := .Poly(spec);
+F(2,3) ##@ == 11;
+expr := .ExpressionFromSpec(F);
+expr.Eval([(a,3),(b,2)])[:value] ##@ == 11;
+.InspectSpec(spec)[:symbolBindings].Len() ##@ == 2;</code></pre>
+<p>Private input slots carry a separate identity table, exposed by <code>InspectSpec</code> as <code>symbolBindings</code> pairs of <code>(slot,symbol)</code>. Displayed slot names are implementation details, not reusable variable names or portable source. Save the core expression with its ordered symbols using mathematical JSON/JSONL, not printed spec text. The spec captures no programming variables: outer-scope symbolic values must also be supplied explicitly. Arithmetic, partial application, composition, and supported specification transformations retain the table. Explicit derivative/integral selectors on these specs must be symbols, not colon-strings. An unconverted consumer that loses the table errors instead of exporting name-based substitutes.</p>
+<pre class="rix" data-exec="true"><code>P := .SpecFromExpression(::x^2,[::x]);
+Q := .SpecFromExpression(::y+1,[::y]);
+expr := .ExpressionFromSpec(P(Q));
+expr.Eval([(::y,3)])[:value] ##@ == 16;
+.ExpressionFromSpec(.Deriv(P,::x)).Eval([(::x,3)])[:value] ##@ == 6;</code></pre>
+<p>Conversion accepts exact rational constants and arithmetic operators, preserving the original operation tree before any explicitly requested transformation. Per-call <code>maxVisits</code> and <code>maxDepth</code> options bound traversal, including definition expansion. This budget does not bound subsequent execution of the compiled callable. Mathematical contexts, bound symbols, extended constants, mixed named/scoped variables, and semantic applications are rejected in this increment. In particular, a context must not be stripped automatically: that would silently discard its assumptions. Use core <code>Eval</code> when conditions or provider evidence must accompany the answer.</p>
 </section>
-<section id="version-one-wire-contract" class="level2">
-<h2 class="anchored" data-anchor-id="version-one-wire-contract">Version-one wire contract</h2>
-<p><code>rix.output.document@1</code> contains <code>root</code>, a document-local <code>nodes</code> table, and an optional strict <code>rix.math.document@1</code> graph. References are <code>{"$ref":"n0"}</code>; IDs are traversal-order identifiers, not global identities or signed hashes.</p>
-<p>Each node has exactly <code>id</code>, <code>tag</code>, and <code>data</code>. Tags <code>integer</code>, <code>rational</code>, <code>fraction</code>, <code>interval</code>, <code>certified</code>, <code>shaped</code>, <code>undecided</code>, <code>hole</code>, <code>array</code>, <code>map</code>, <code>record</code>, and <code>math</code> have explicit scalar/collection forms. <code>output:KIND</code> carries ordered name/value pairs for a validated core output record. Numbers embedded as native JSON numbers are host presentation data, never exact RiX integers or rationals. Mathematical expressions share one strict graph across the tree.</p>
-<p>Intrinsic methods are rebuilt from installed constructors and never saved. Metadata, labels, captions, references, asset declarations, styles and evidence remain ordinary inert data. Unknown-tag import does not change strict Core mathematical decoding. Existing <code>rix.control-panel</code> version-one JSON migrates on import and emits an informational diagnostic. No general legacy reader or implicit source execution is provided.</p>
-<p>To move images/audio/video together with a saved document, use the <a href="../eval/output-assets.html">portable asset bundle APIs</a>. Plain document JSON retains asset references and never resolves their bytes.</p>
-<p>The <code>interval-set</code> scalar tag retains normalized rational interval-set components with exact nullable endpoints and explicit closure flags. <code>null</code> means negative infinity on the lower side and positive infinity on the upper side; infinite endpoints must be open. Empty sets and closed singleton components round-trip. Malformed, reversed, overlapping or unsorted wire components are rejected rather than silently normalized. The ordinary digit, edge, node and depth budgets apply.</p>
-<p>The <code>fraction-interval</code> tag stores two exact Fraction references in their stored low/high order, without reducing endpoint representations. Formal Fraction values may retain nonzero numerators over zero as signed infinity, using the existing explicit infinite-Fraction constructor policy. <code>0/0</code>, reversed interval endpoints, non-Fraction endpoints and infinite Rational values are rejected.</p>
+<section id="certified-arithmetic-graph-ranges" class="level2">
+<h2 class="anchored" data-anchor-id="certified-arithmetic-graph-ranges">Certified arithmetic graph ranges</h2>
+<p><code>.numerics.GraphRange</code> accepts scoped arithmetic and real Sin/Cos expressions with <code>(symbol,range)</code> binding pairs. It retains symbol identities in dependency tracking, expands immutable definitions, and records the original identity bindings for independent checker replay. Name-keyed maps are rejected for scoped graphs. Bound symbols must be instantiated; mathematical contexts and extended constant providers are not accepted by this engine.</p>
+<pre class="rix" data-exec="true"><code>.Plugin.Load("numerics");
+a := ::x; b := {; ::x };
+same := .numerics.GraphRange(a-a,[(a,1:2)]);
+different := .numerics.GraphRange(a-b,[(a,1:2),(b,1:2)]);
+same[:interval] ##@ == 0:0;
+different[:interval] ##@ == (-1):1;
+.numerics.CheckGraphRange(different)[:certified] ##@ == 1;</code></pre>
+<p>Unlike naive interval subtraction, the repeated-input rule knows that <code>a-a</code> is zero. Different same-named symbols are independent coordinates. Certification does not mean an expression is defined everywhere: for <code>x/x</code>, the source hole at zero is retained.</p>
+<pre class="rix" data-exec="true"><code>.Plugin.Load("numerics");
+ans := .numerics.GraphRange(::x/::x,[(::x,(-1):1)],
+    {= maxDepth=200,maxWork=20000,maxSubintervals=2 });
+ans[:interval] ##@ == 1:1;
+ans[:domainStatus] ##@ == :partiallyDefined;
+.numerics.CheckGraphRange(ans)[:certified] ##@ == 1;
+ans[:budgets][:maxDepth] ##@ == 200;</code></pre>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 30%">
+<col style="width: 40%">
+<col style="width: 30%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Option</th>
+<th style="text-align: right;">Default</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>maxDepth</code></td>
+<td style="text-align: right;">128</td>
+<td>Nesting, including immutable definition expansion</td>
+</tr>
+<tr class="even">
+<td><code>maxWork</code> (<code>maxNodes</code> alias)</td>
+<td style="text-align: right;">10000</td>
+<td>Preflight traversal visits and evaluated nodes per partition</td>
+</tr>
+<tr class="odd">
+<td><code>maxSubintervals</code></td>
+<td style="text-align: right;">1</td>
+<td>Requested one-variable subdivision count; existing components are retained</td>
+</tr>
+</tbody>
+</table>
+<p>The effective limits are exposed in <code>[:budgets]</code>; evidence retains options for replay. Depth and traversal validation runs before recursive key construction or simplification. Exceeding preflight limits throws rather than producing a certificate. Evaluation work exhaustion can return an uncertified <code>:unknown</code> report. Subdivision and work settings accept positive safe integers without the former 10000/1000000 upper caps. Increasing them can substantially increase runtime/memory; <code>maxWork</code> is not a total wall-clock or all-partitions budget. Arithmetic growth is not yet bounded by <code>maxDigits</code> here.</p>
+<p><code>maxDepth</code> is configurable, including above 128. The shared mathematical budget parser still enforces a separate 512-level host stack-safety ceiling. That is not an algorithmic degree limit; supporting deeper expressions safely requires iterative replacements for the remaining recursive routines, rather than merely removing the stack guard.</p>
+</section>
+<section id="checked-derivatives-lipschitz-and-taylor-ranges" class="level2">
+<h2 class="anchored" data-anchor-id="checked-derivatives-lipschitz-and-taylor-ranges">Checked derivatives, Lipschitz and Taylor ranges</h2>
+<p><code>CheckDerivativeGraph</code> independently recomputes scoped derivative stages and their obligations. <code>DerivativeSign</code>, <code>LipschitzRange</code>, and <code>TaylorRange</code> now use the same identities in their bindings and replayable evidence. Definitions expand before the independent differentiation; another same-named symbol is never substituted for the selected differentiation variable.</p>
+<pre class="rix" data-exec="true"><code>.Plugin.Load("calculus"); .Plugin.Load("numerics");
+d := .calculus.DifferentiateResult(::x^2,::x);
+dd := .calculus.DifferentiateNResult(::x^2,::x,2);
+.numerics.DerivativeSign(d,[(::x,1:2)])[:direction] ##@ == :nondecreasing;
+ans := .numerics.LipschitzRange(d,[(::x,(-1):1)],{= maxSubintervals=2 });
+ans[:checker][:accepted] ##@ == 1;
+taylor := .numerics.TaylorRange(dd,[(::x,(-1):1)]);
+taylor[:certified] ##@ == 1;
+taylor[:curvature] ##@ == :convex;</code></pre>
+<p>The midpoint Lipschitz enclosure bounds variation using the first derivative. Subdivision often tightens it. Taylor uses the first derivative at the midpoint and a second-derivative remainder bound. These strategies currently require one matching, closed, bounded input range (possibly subdivided). Carried domain obligations must be discharged: an interval crossing a pole is not certified.</p>
+<p>A uniform derivative sign establishes monotonicity only on a connected variable domain. For example, the derivative of <code>1/x</code> is negative on both <code>[-2,-1]</code> and <code>[1,2]</code>, but the function is not globally nonincreasing across their union. The sign report can still certify the derivative enclosure while leaving <code>monotonicityCertified</code> false and <code>direction</code> unknown.</p>
+<p><code>CheckDerivativeGraph(d,options)</code> and the range strategies accept <code>maxDepth</code>, <code>maxWork</code>, and <code>maxDerivativeOrder</code> (default 16, configurable positive safe integer). Depth and node budgets apply to the source, claimed derivative, and each recomputed derivative stage. The shared 512-level stack ceiling still applies. These are per-stage/per-partition limits, not a global deadline. The checker order budget is separate from any course-level derivative-construction limits.</p>
+</section>
+<section id="scoped-polynomial-and-rational-recognition" class="level2">
+<h2 class="anchored" data-anchor-id="scoped-polynomial-and-rational-recognition">Scoped polynomial and rational recognition</h2>
+<p><code>RecognizeGraph(expr,::x,options)</code> retains the selected symbol and uses it as the only independent polynomial coordinate. Unlike polynomial-only collection, it can recognize a rational expression while preserving all source denominator restrictions. Recognition is structural, not a proof that the function is defined everywhere, and it never cancels away source holes.</p>
+<pre class="rix" data-exec="true"><code>.Plugin.Load("numerics");
+ans := .numerics.RecognizeGraph(::x/::x,::x);
+ans[:kind] ##@ == :rationalFunction;
+ans[:sourceDomainRestrictions].Len() ##@ == 1;
+.SameSymbol(ans[:variable],::x) ##@ == 1;
+limited := .numerics.RecognizeGraph((::x+1)^8,::x,{= maxProductPairs=2 });
+limited[:recognized] ##@ == _;
+raised := .numerics.RecognizeGraph((::x+1)^8,::x,{= maxProductPairs=100 });
+raised[:recognized] ##@ == 1;</code></pre>
+<p>Recognition accepts core <code>MathBudgets</code> options: <code>maxVisits</code>, <code>maxDepth</code>, <code>maxDigits</code>, <code>maxTerms</code>, <code>maxDegree</code>, <code>maxProductPairs</code>, <code>maxSumTerms</code>, and <code>maxExponent</code> govern the relevant work. Effective core settings appear in <code>budgets</code> on success. Malformed options or preflight traversal exhaustion throw; unsupported algebra and arithmetic-budget exhaustion return <code>recognized=_</code> with a reason. Coefficients remain rational, and foreign symbols and semantic applications remain unsupported.</p>
+</section>
+<section id="inspecting-a-small-derivative-proof" class="level2">
+<h2 class="anchored" data-anchor-id="inspecting-a-small-derivative-proof">Inspecting a small derivative proof</h2>
+<p>A proof adapter translates an algorithm’s result into the checker’s fixed vocabulary. The earlier adapters identified coordinates by strings such as <code>"x"</code>. Derivative, derivative-sign, complete polynomial critical-point, and monotonicity-partition proof rules now retain scoped symbols. They reject replacing a symbol with its name or with a different same-named symbol. Existing named graphs continue to use name strings.</p>
+<p><code>DerivativeProof</code> builds a one-node <code>derivative.graph</code> transcript and checks it independently. This is a bounded, browser-safe proof example, not an external prover or a general-purpose proof language. No trusted-leaf resolver is exposed to RiX code.</p>
+<pre class="rix" data-exec="true"><code>.Plugin.Load("calculus"); .Plugin.Load("numerics");
+d := .calculus.DifferentiateResult(::x^2,::x);
+proof := .numerics.DerivativeProof(d);
+proof[:accepted] ##@ == 1;
+proof[:evidenceLevel] ##@ == :checkedEvidence;
+proof[:trustedDependencies].Len() ##@ == 0;
+.SameSymbol(proof[:conclusion][:variable],::x) ##@ == 1;
+proof[:evidence][:nodes][1][:rule] ##@ == "derivative.graph";</code></pre>
+<p>The conclusion is a derivative identity <strong>with its retained obligations</strong>. It does not by itself prove that the source is defined throughout a particular interval. For that, continue with derivative-sign or certified range evaluation. This adapter currently accepts first derivatives only and forwards <code>maxDepth</code>, <code>maxWork</code>, and <code>maxDerivativeOrder</code> options to independent checking. It does not import arbitrary user-supplied proof transcripts or execute saved proof code.</p>
+<p>The native <code>checkRangeEvidence(document,options)</code> API also supports scoped symbols in these rules. Its <code>limits</code> object contains configurable nonnegative safe integers <code>maxNodes</code> (default 10000), <code>maxComponents</code> (10000), and <code>maxPolynomialDegree</code> (256). Optional <code>derivativeOptions</code> and <code>recognitionOptions</code> forward the corresponding algorithm budgets; they are host-supplied, not trusted limits asserted by a document. Proof-DAG traversal is iterative; a 2000-node chain is tested. This removes a proof chain’s stack-depth restriction, <strong>not</strong> the separate expression traversal ceiling. Native trusted leaves still require explicit host authorization and remain tracked.</p>
+</section>
+<section id="scoped-composition-and-its-proof-rule" class="level2">
+<h2 class="anchored" data-anchor-id="scoped-composition-and-its-proof-rule">Scoped composition and its proof rule</h2>
+<p>Substitution replaces the selected identity, not every symbol with the same printed name. The native <code>monotone.compose</code> proof rule now checks this scoped substitution, matches the outer coordinate to its monotonicity premise, and carries the inner coordinate into its conclusion. It also verifies that the inner image is covered by the outer premise’s domain, without unresolved exclusions.</p>
+<pre class="rix" data-exec="true"><code>.Plugin.Load("calculus"); .Plugin.Load("numerics");
+a := ::x; b := {; ::x };
+inner := a+1;
+outer := b^2;
+composed := outer.Substitute([(b,inner)],{= maxDepth=16 });
+composed.Eval([(a,2)])[:value] ##@ == 9;
+d := .calculus.DifferentiateResult(composed,a);
+.numerics.DerivativeSign(d,[(a,1:2)])[:direction] ##@ == :nondecreasing;</code></pre>
+<p>This executable example checks the derivative of the composed graph directly. Host applications can instead assemble the native <code>monotone.compose</code> transcript from monotonicity and image premises; RiX does not yet expose a general transcript authoring API. Trusted premises still require explicit host authorization and remain reported as trusted dependencies. Composition does not upgrade them to pure evidence.</p>
+<p>The composition proof rule deliberately requires univariate inner and outer graphs. For example, <code>100*x-y</code> decreases in <code>y</code> with <code>x</code> held fixed, but substituting <code>y=x</code> produces the increasing function <code>99*x</code>. Such hidden parameter dependence is rejected. This restriction belongs to the proof rule, not general core <code>Substitute</code>. Immutable definitions must be explicitly expanded before this native structural composition path; mathematical binders and contextual assumptions are not erased.</p>
+<p>Native <code>substituteCalculusGraphVariable(outer,symbol,inner,options)</code> and <code>checkRangeEvidence(document,{compositionOptions:options})</code> accept <code>maxDepth</code> and <code>maxWork</code> for the outer graph, replacement, and resulting graph. Limits are per traversal, with the existing expression stack-safety ceiling. They are supplied by the caller, not accepted as self-authorized limits from a proof document.</p>
+<p>Current boundary: differentiation, symbolic integration, and graph simplification require rational constants. Extended constants can be constructed and numerically evaluated, but derivative/rewrite laws for those providers are not assumed. Contextual and semantic specification conversion and broader provider-aware certified kernels remain pending. General parameterized composition proofs also remain outside the current univariate proof rule. A trusted semantic derivative identity alone does not make its function numerically evaluable. Sin/Cos now have explicit closed range kernels; other semantic applications remain guarded in GraphRange.</p>
+</section>
+<section id="certified-trigonometric-graph-consumers" class="level2">
+<h2 class="anchored" data-anchor-id="certified-trigonometric-graph-consumers">Certified trigonometric graph consumers</h2>
+<p><code>GraphRange</code> and <code>CheckGraphRange</code> now evaluate/replay real Sin/Cos over rational interval-set arguments. Each bounded component uses certified endpoint and extrema bounds; unbounded components use the global enclosure <code>[-1,1]</code>. Empty components contribute nothing. Open endpoints may be closed in the output enclosure. The source graph’s excluded inputs and coverage are retained; trigonometric enclosures are never marked as exact images.</p>
+<pre class="rix" data-exec="true"><code>.Plugin.Load("calculus"); .Plugin.Load("numerics");
+expr := .calculus.Sin()(::x);
+ans := .numerics.GraphRange(expr,[(::x,1:2)],
+    {= semanticBudgets={= transcendentalBits=32,maxSumTerms=128 } });
+ans[:certified] ##@ == 1;
+ans[:exactImage] ##@ == _;
+.numerics.CheckGraphRange(ans)[:certified] ##@ == 1;
+d := .calculus.DifferentiateResult(expr,::x);
+.numerics.DerivativeSign(d,[(::x,0:1)])[:direction] ##@ == :nondecreasing;
+.numerics.LipschitzRange(d,[(::x,0:1)])[:certified] ##@ == 1;</code></pre>
+<p>Use nested <code>semanticBudgets</code> for the core kernel’s per-call options; they appear under the same key in the report’s <code>budgets</code> and are retained for replay. <code>maxWork</code> also counts evaluated interval components. Exhaustion produces an uncertified unresolved graph-range report, not a guessed certificate. The checker recomputes from the graph, bindings and options; a modified range claim is rejected. Derivative-sign and Lipschitz consumers inherit this numerical support; it does not implement a new ODE or optimization algorithm. Constants on this graph path remain rational: core <code>Eval</code> is still the route for canonical pi and other extended constant providers. Broader semantic kernels and provider constants in GraphRange remain future work.</p>
 
 
 </section>
@@ -823,7 +971,7 @@ portable := .document.Snapshot(panel);
 </div>   
     <div class="nav-footer-center">
       &nbsp;
-    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/document-persistence.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/scoped-calculus-cas.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
 <p>Documentation built with <a href="https://quarto.org/">Quarto</a></p>
 </div>

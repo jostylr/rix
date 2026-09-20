@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>document-persistence – RiX</title>
+<title>task-workers – RiX</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -329,14 +329,13 @@ ul.task-list li input[type="checkbox"] {
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#saving-portable-output" id="toc-saving-portable-output" class="nav-link active" data-scroll-target="#saving-portable-output">Saving portable output</a>
+  <li><a href="#notebook-async-runs-and-pure-task-workers" id="toc-notebook-async-runs-and-pure-task-workers" class="nav-link active" data-scroll-target="#notebook-async-runs-and-pure-task-workers">Notebook async runs and pure task workers</a>
   <ul class="collapse">
-  <li><a href="#live-widgets-become-explicit-snapshots" id="toc-live-widgets-become-explicit-snapshots" class="nav-link" data-scroll-target="#live-widgets-become-explicit-snapshots">Live widgets become explicit snapshots</a></li>
-  <li><a href="#import-policy-and-limits" id="toc-import-policy-and-limits" class="nav-link" data-scroll-target="#import-policy-and-limits">Import policy and limits</a></li>
-  <li><a href="#version-one-wire-contract" id="toc-version-one-wire-contract" class="nav-link" data-scroll-target="#version-one-wire-contract">Version-one wire contract</a></li>
+  <li><a href="#separate-worker-protocol" id="toc-separate-worker-protocol" class="nav-link" data-scroll-target="#separate-worker-protocol">Separate worker protocol</a></li>
+  <li><a href="#owner-side-reactive-publication" id="toc-owner-side-reactive-publication" class="nav-link" data-scroll-target="#owner-side-reactive-publication">Owner-side reactive publication</a></li>
   </ul></li>
   </ul>
-<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/document-persistence.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/task-workers.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
 <!-- main -->
 <main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"></header>
@@ -345,48 +344,24 @@ ul.task-list li input[type="checkbox"] {
 
 
 
-<section id="saving-portable-output" class="level1">
-<h1>Saving portable output</h1>
-<p>The opt-in <code>document</code> plugin saves an evaluated output tree without keeping an execution scope, reactive handle, callback, or filesystem grant. Loading never fetches an asset, runs a recipe, imports a plugin, or evaluates RiX source.</p>
-<pre class="rix" data-exec="true"><code>.Plugin.Load("document");
-report := .Fragment([
-    .Paragraph([.Strong("Exact results"), 1/3]),
-    .Table(["oriented interval"], [[5:4]])
-]);
-saved := .document.EncodeJSON(report);
-imported := .document.DecodeJSON(saved);
-.document.EncodeJSON(imported[:value]) == saved ##@ == 1;
-imported[:diagnostics].Len() ##@ == 0;</code></pre>
-<p><code>DecodeJSON</code> returns a map with <code>value</code>, <code>diagnostics</code>, and <code>schema</code>. Display its warnings alongside the imported value. <code>EncodeJSON</code> returns a String and does not write a file. The host JavaScript functions <code>encodeOutputJSON</code>, <code>decodeOutputJSON</code>, and <code>snapshotOutputDocument</code> are exported from RiX and its runtime entry point, with the same behavior in CLI, Web, and Notebook hosts.</p>
-<section id="live-widgets-become-explicit-snapshots" class="level2">
-<h2 class="anchored" data-anchor-id="live-widgets-become-explicit-snapshots">Live widgets become explicit snapshots</h2>
-<p>Call <code>.document.Snapshot(value)</code> before persisting a live tree. It captures current control values and selected Sheet planes, removes reactive/action handles, disables controls, and turns draggable points/actions into static circles/groups. It never invokes an action. The original tree stays live.</p>
-<pre class="rix" data-exec="true"><code>.Plugin.Load("document");
-$$amount := 1/2;
-panel := .ControlPanel([.Controls.Slider($$amount, 0:1, 1/10, "Amount")]);
-portable := .document.Snapshot(panel);
-.document.DecodeJSON(.document.EncodeJSON(portable))[:value];</code></pre>
-<p>A direct attempt to encode live controls, bindings, functions, promises, host objects, or accessors fails. Imported Sheet snapshots retain safe <code>Index</code>/<code>At</code> lookup over saved cells; an unsaved plane is unavailable, not lazily evaluated. Frame-aware mathematical tensor graphs require the separate Linalg identity import adapter; bare Shaped and rank-two Matrix values are supported now.</p>
+<section id="notebook-async-runs-and-pure-task-workers" class="level1">
+<h1>Notebook async runs and pure task workers</h1>
+<p>The shared Notebook engine exposes <code>await engine.executeDocumentAsync(source, options)</code>. Cells and inline expressions run in document order. <code>flow</code>, <code>refresh</code>, <code>singleton</code>, static/live blocks, explicit publication selection and observed reactive outputs keep their existing meaning. A publication value is concrete before it is rendered. The synchronous <code>executeDocument</code> embedding API remains available.</p>
+<p>Starting another ordinary async run cancels and disposes the previous run. <code>isolated: true</code> gives an export its own lifetime without replacing the editor result. Call <code>await disposeNotebookRun(run)</code> when that export finishes. Engine <code>reset()</code> cancels and disposes all owned runs; <code>dispose()</code> also closes a worker pool that the engine owns. Cleanup results report failures, including a cleanup grace timeout. An uncooperative host JavaScript promise cannot be forcibly stopped on the main thread; it must honor its supplied abort signal. Its late result cannot become a current Notebook result.</p>
+<p>Each async document defaults to a cumulative 2,000,000-step / 30-second budget, including every cell, refresh context and inline expression. Hosts can supply <code>maxSteps</code>, <code>maxTimeMs</code>, <code>signal</code> and <code>cleanupGraceMs</code> (default 250 ms). Evaluation budgets are removed after execution, so retained reactive views do not expire when the initial run deadline passes. Interactive native and browser workbenches await this path and reject stale generations before rendering.</p>
+<section id="separate-worker-protocol" class="level2">
+<h2 class="anchored" data-anchor-id="separate-worker-protocol">Separate worker protocol</h2>
+<p><code>rix.task-worker/1</code> is independent of <code>rix.execution/1</code>, the existing editor execution worker protocol. A host creates a <code>TaskWorkerPool</code> with a local <code>workerFactory</code>. Notebook builds package a module worker alongside their static assets. Other hosts can bundle <code>runtime/task-worker-entry.js</code> for their runtime; Bun can load that module directly. No worker is needed for synchronous execution.</p>
+<p>The initial worker subset includes exact arithmetic, comparisons, inert collections, indexing and seeded interval sampling. A small explicit list of core numeric system calls is supported. The scheduler sends eligible collection leaves to the pool while retaining its admission and ordering rules. Functions, plugin closures, custom scalar capabilities, imports, files/network access, reactive handles and unsupported IR stay on the owner executor. A <code>pure</code> host annotation alone never makes a callback transferable. Replaced registry implementations and added method variants invalidate builtin provenance.</p>
+<p>Requests contain versioned IR, captures, exact seeded random state, range policy, explicit numeric capability grants, task identity and remaining budgets. Captures use the inert output JSON codec; Shaped and Matrix values carry logical view cells, shape and scalar domain. Exact integers, rationals and reversed intervals retain their values. Custom extension methods and mathematical identities that need owner services are rejected. Accessors and callable capture data are not run. Worker capability sets are reconstructed from the grant list; host authority and ambient file/network handles are never transferred.</p>
+<p>Default pool limits are two workers, 64 queued tasks, 250,000 steps per task, 5 seconds per task and 50 ms cancellation grace. Configuration ceilings are 64 workers, 4,096 queued tasks, 10,000,000 steps, 60 seconds and 5 seconds grace. The wire format allows at most 1 MB per message, 64 nesting levels and bounded node/edge/digit counts. Structured errors preserve the owner task path and worker source position. Successful and failed worker steps charge the owner budget.</p>
+<p>Cancellation removes queued work or sends a cancellation message to an active worker. A worker that misses its grace deadline is terminated and replaced. Task IDs and worker identity reject stale replies. A result is decoded and checked against the owner’s cancellation/deadline before random state or output is committed. <code>snapshot()</code> reports active, queued, completed and terminated workers. Always <code>await pool.dispose()</code> when its owning session closes.</p>
 </section>
-<section id="import-policy-and-limits" class="level2">
-<h2 class="anchored" data-anchor-id="import-policy-and-limits">Import policy and limits</h2>
-<p>The <code>unknownTags</code> option is one of:</p>
-<ul>
-<li><code>"warn-and-skip"</code> (default): replace an unsupported record with visible text and a source-path warning. Required malformed known records still fail.</li>
-<li><code>"strict-error"</code>: reject an unsupported tag.</li>
-<li><code>"preserve-opaque"</code>: show the same fallback while retaining bounded inert data for re-export. This never installs behavior for the unknown record.</li>
-</ul>
-<p>Exact integers/rationals, formal unreduced Fractions, interval endpoint order, certified approximation enclosures/source sharing, undecided values, collection sharing and mathematical graph identities survive. Scoped mathematical imports create fresh runtime identities while preserving sharing within the document. Unscoped rational Calculus graphs retain their name-based structure as inert records, so saved derivative selectors and checked numerical evidence can be replayed without inventing a new symbol binding. Live extension methods are omitted from these known graph records.</p>
-<p>Defaults are 4,000,000 UTF-8 bytes, 20,000 graph nodes, 100,000 traversal steps, 128 nesting levels and 4,096 integer characters. Options <code>maxBytes</code>, <code>maxNodes</code>, <code>maxEdges</code>, <code>maxDepth</code>, and <code>maxDigits</code> can lower them or raise them by at most a factor of sixteen. The strict mathematical subgraph keeps its own independent limits. Cycles, dangling/duplicate identities, unsafe keys, nonfinite numbers, missing required fields and oversized records fail with an error code and path.</p>
-</section>
-<section id="version-one-wire-contract" class="level2">
-<h2 class="anchored" data-anchor-id="version-one-wire-contract">Version-one wire contract</h2>
-<p><code>rix.output.document@1</code> contains <code>root</code>, a document-local <code>nodes</code> table, and an optional strict <code>rix.math.document@1</code> graph. References are <code>{"$ref":"n0"}</code>; IDs are traversal-order identifiers, not global identities or signed hashes.</p>
-<p>Each node has exactly <code>id</code>, <code>tag</code>, and <code>data</code>. Tags <code>integer</code>, <code>rational</code>, <code>fraction</code>, <code>interval</code>, <code>certified</code>, <code>shaped</code>, <code>undecided</code>, <code>hole</code>, <code>array</code>, <code>map</code>, <code>record</code>, and <code>math</code> have explicit scalar/collection forms. <code>output:KIND</code> carries ordered name/value pairs for a validated core output record. Numbers embedded as native JSON numbers are host presentation data, never exact RiX integers or rationals. Mathematical expressions share one strict graph across the tree.</p>
-<p>Intrinsic methods are rebuilt from installed constructors and never saved. Metadata, labels, captions, references, asset declarations, styles and evidence remain ordinary inert data. Unknown-tag import does not change strict Core mathematical decoding. Existing <code>rix.control-panel</code> version-one JSON migrates on import and emits an informational diagnostic. No general legacy reader or implicit source execution is provided.</p>
-<p>To move images/audio/video together with a saved document, use the <a href="../eval/output-assets.html">portable asset bundle APIs</a>. Plain document JSON retains asset references and never resolves their bytes.</p>
-<p>The <code>interval-set</code> scalar tag retains normalized rational interval-set components with exact nullable endpoints and explicit closure flags. <code>null</code> means negative infinity on the lower side and positive infinity on the upper side; infinite endpoints must be open. Empty sets and closed singleton components round-trip. Malformed, reversed, overlapping or unsorted wire components are rejected rather than silently normalized. The ordinary digit, edge, node and depth budgets apply.</p>
-<p>The <code>fraction-interval</code> tag stores two exact Fraction references in their stored low/high order, without reducing endpoint representations. Formal Fraction values may retain nonzero numerators over zero as signed infinity, using the existing explicit infinite-Fraction constructor policy. <code>0/0</code>, reversed interval endpoints, non-Fraction endpoints and infinite Rational values are rejected.</p>
+<section id="owner-side-reactive-publication" class="level2">
+<h2 class="anchored" data-anchor-id="owner-side-reactive-publication">Owner-side reactive publication</h2>
+<p>Workers return values; reactive graph references never leave their owner. A host <code>runTask(task, { context, signal, commit(value) { ... } })</code> callback can publish to explicitly chosen owner targets after all stale/budget checks. The callback is synchronous. <code>graph.replaceValues([{ name, value }, ...], metadata)</code> validates the complete literal batch and publishes source and computed updates in a single graph epoch. Duplicate or unknown targets reject the batch before any value changes. Computed targets retain their node identity and become literal definitions. No worker response can choose a different graph or target.</p>
+<p>Coverage includes real-worker/event-loop exact and random equivalence, permuted Shaped storage, capability/capture rejection, deterministic bounded bursts, worker replacement after cancellation, stale publication suppression, atomic reactive batches and Notebook rerun/resource cleanup.</p>
+<p>Pure worker definitions are reused within a worker, while grants, captures, RNG state and budgets are fresh per request. Completion follows cleanup so immediate reuse is safe after either a result or an error. See the <a href="../design/eval/runtime-performance.html">measured cold/warm costs</a>; small tasks still often cost less on the owner executor.</p>
 
 
 </section>
@@ -823,7 +798,7 @@ portable := .document.Snapshot(panel);
 </div>   
     <div class="nav-footer-center">
       &nbsp;
-    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/document-persistence.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/task-workers.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
 <p>Documentation built with <a href="https://quarto.org/">Quarto</a></p>
 </div>

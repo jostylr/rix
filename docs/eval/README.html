@@ -410,15 +410,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="known-gaps" class="level2">
 <h2 class="anchored" data-anchor-id="known-gaps">Known Gaps</h2>
-<p>The following evaluator capabilities are intentionally still stubs or partial:</p>
+<p>These boundaries distinguish supported bounded operations from open-ended work:</p>
 <ul>
 <li>Exact symbolic derivative/integral support is intentionally bounded; general transcendental and multi-equation calculus remains future work.</li>
 <li>Array generators, lazy sequences, interval stepping/division/partitions, mediants, random sampling, and infinite arithmetic sequences are implemented.</li>
-<li><code>{# ... }</code> retains symbolic definitions and constraints for plugins without solving them. The async runtime supports finite collections, matrices, tensors, fused <code>|&gt;&gt;</code>/<code>|&gt;?</code>/<code>|&gt;||</code>/<code>|&gt;&amp;&amp;</code>, and finite structural barriers. Lazy bounded pull, worker execution, snapshot/COW task isolation, and full cooperative capability cancellation remain follow-up work.</li>
+<li><code>{# ... }</code> retains symbolic definitions and constraints for plugins without solving them. The async runtime supports finite collections, matrices, tensors, fused <code>|&gt;&gt;</code>/<code>|&gt;?</code>/<code>|&gt;||</code>/<code>|&gt;&amp;&amp;</code>, and finite structural barriers. Bounded lazy pull, ordinary-value task snapshots, cooperative cancellation and restricted pure task workers are implemented. See <a href="../eval/concurrency-safety.html">concurrency safety</a> and <a href="../eval/task-workers.html">Notebook/task workers</a> for capability and host limits.</li>
 <li>General algebraic field composition and user-declared cross-generator relations remain future work; built-in exact generators reduce their known single-generator relations.</li>
 </ul>
-<p>Run the evaluator tests from this directory with:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> test</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Run the evaluator tests from the <code>rix/</code> repository root with:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> test tests/eval</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 
 
 </section>

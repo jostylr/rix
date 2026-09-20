@@ -34,6 +34,10 @@
           "href": "introduction.html"
         },
         {
+          "text": "End-to-end projects",
+          "href": "tutorial/capstones.html"
+        },
+        {
           "text": "Interactive tutorials (RiX Web)",
           "href": "https://rix.ratmath.com/tutorial/",
           "external": true
@@ -43,8 +47,24 @@
           "href": "eval/sheet-guide.html"
         },
         {
+          "text": "Workbooks and cross-sheet dependencies",
+          "href": "eval/workbooks.html"
+        },
+        {
+          "text": "Tensor spills and rectangular edits",
+          "href": "eval/rixcel-tensors.html"
+        },
+        {
+          "text": "Plots, drawings, and regional exports",
+          "href": "eval/rixcel-regions.html"
+        },
+        {
           "text": "Diagnostic guards and early returns",
           "href": "eval/function-returns.html"
+        },
+        {
+          "text": "Course calculus and checked integration",
+          "href": "eval/course-calculus.html"
         }
       ]
     },
@@ -73,6 +93,10 @@
             {
               "text": "RationalInterval",
               "href": "eval/objects/rational-interval.html"
+            },
+            {
+              "text": "Certified approximations",
+              "href": "eval/objects/certified-approximation.html"
             },
             {
               "text": "Array",
@@ -155,6 +179,108 @@
       ]
     },
     {
+      "section": "Output and publication",
+      "contents": [
+        {
+          "text": "Document persistence",
+          "href": "eval/document-persistence.html"
+        },
+        {
+          "text": "Safe exact-value interchange",
+          "href": "eval/safe-interchange.html"
+        },
+        {
+          "text": "Assets and portable bundles",
+          "href": "eval/output-assets.html"
+        },
+        {
+          "text": "Numeric presentation",
+          "href": "eval/numeric-presentation.html"
+        },
+        {
+          "text": "Publication layout",
+          "href": "eval/publication-plan.html"
+        },
+        {
+          "text": "Exact coordinates and display approximations",
+          "href": "eval/graphic-coordinate-disclosure.html"
+        },
+        {
+          "text": "Validated scene projections",
+          "href": "eval/validated-scene-views.html"
+        },
+        {
+          "text": "Accessible exact exploration",
+          "href": "eval/exact-exploration.html"
+        },
+        {
+          "text": "Live publication",
+          "href": "eval/live-publication.html"
+        },
+        {
+          "text": "Publication workflows",
+          "href": "eval/publication-workflows.html"
+        },
+        {
+          "text": "Interactive output hosts",
+          "href": "eval/output-widget-hosting.html"
+        }
+      ]
+    },
+    {
+      "section": "Mathematics and execution",
+      "contents": [
+        {
+          "text": "Exact number notation",
+          "href": "eval/number-notation.html"
+        },
+        {
+          "text": "Mathematical constants",
+          "href": "eval/mathematical-constants.html"
+        },
+        {
+          "text": "Certified real numbers",
+          "href": "eval/mathematical-reals.html"
+        },
+        {
+          "text": "Mathematical serialization",
+          "href": "eval/mathematical-serialization.html"
+        },
+        {
+          "text": "Mathematical localization",
+          "href": "eval/mathematical-localization.html"
+        },
+        {
+          "text": "Mathematical contexts",
+          "href": "eval/mathematical-contexts.html"
+        },
+        {
+          "text": "Scoped symbols",
+          "href": "eval/scoped-symbols.html"
+        },
+        {
+          "text": "Scoped calculus and CAS",
+          "href": "eval/scoped-calculus-cas.html"
+        },
+        {
+          "text": "Observed evaluation",
+          "href": "eval/observed-evaluation.html"
+        },
+        {
+          "text": "Concurrency safety",
+          "href": "eval/concurrency-safety.html"
+        },
+        {
+          "text": "CPU task workers",
+          "href": "eval/task-workers.html"
+        },
+        {
+          "text": "Lint diagnostics",
+          "href": "eval/linting.html"
+        }
+      ]
+    },
+    {
       "section": "Developer guide",
       "contents": [
         {
@@ -182,16 +308,16 @@
           "href": "parser/parsing.html"
         },
         {
+          "text": "Source bounds and editor recovery",
+          "href": "parser/robustness.html"
+        },
+        {
           "text": "Custom operators",
           "href": "parser/custom-operators.html"
         },
         {
           "text": "AST reference",
           "href": "parser/AST-brief.html"
-        },
-        {
-          "text": "IR design snapshot",
-          "href": "design/eval/ir-format.html"
         },
         {
           "text": "Array generators",
@@ -211,12 +337,24 @@
       "section": "Runtime design",
       "contents": [
         {
+          "text": "Mathematical graph JSON format",
+          "href": "design/mathematical-json.html"
+        },
+        {
           "text": "Cells and assignment",
           "href": "design/eval/cells-assignments.html"
         },
         {
           "text": "Async, concurrency, and background tasks",
           "href": "design/eval/async-concurrency.html"
+        },
+        {
+          "text": "Runtime performance measurements",
+          "href": "design/eval/runtime-performance.html"
+        },
+        {
+          "text": "Stream operators, clocks, and adapters",
+          "href": "design/eval/async-stream-operators.html"
         },
         {
           "text": "Units and exact generators",
@@ -239,16 +377,8 @@
           "href": "design/eval/output-model.html"
         },
         {
-          "text": "Document blocks, inline content, and assets",
-          "href": "design/eval/document-output-todo.html"
-        },
-        {
           "text": "Interactive output extension contracts",
           "href": "design/interactive-output-plugins.html"
-        },
-        {
-          "text": "Editor, language-server, and AI tooling",
-          "href": "design/editor-tooling.html"
         },
         {
           "text": "RiXCel architecture",
@@ -257,14 +387,6 @@
         {
           "text": "RiXCel document format",
           "href": "design/eval/rixcel-format.html"
-        },
-        {
-          "text": "RiXCel implementation checklist",
-          "href": "design/eval/rixcel-todo.html"
-        },
-        {
-          "text": "Plugin roadmap and rendering contracts",
-          "href": "design/plugins.html"
         }
       ]
     },
@@ -276,16 +398,8 @@
           "href": "rix-rationales.html"
         },
         {
-          "text": "Early language specification",
-          "href": "design/parser/spec.html"
-        },
-        {
-          "text": "Open design areas",
-          "href": "design/parser/questions.html"
-        },
-        {
-          "text": "April 2026 review (historical)",
-          "href": "report-2026-04-02.html"
+          "text": "Historical specifications and delivery records",
+          "href": "history.html"
         }
       ]
     }

@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>document-persistence – RiX</title>
+<title>async-stream-operators – RiX</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -23,31 +23,66 @@ ul.task-list li input[type="checkbox"] {
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
 }
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
 </style>
 
 
-<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
-<script src="../site_libs/quarto-nav/headroom.min.js"></script>
-<script src="../site_libs/clipboard/clipboard.min.js"></script>
-<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
-<script src="../site_libs/quarto-search/fuse.min.js"></script>
-<script src="../site_libs/quarto-search/quarto-search.js"></script>
-<meta name="quarto:offset" content="../">
-<link href="../rix-logo.png" rel="icon" type="image/png">
-<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
-<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
-<script src="../site_libs/quarto-html/popper.min.js"></script>
-<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
-<script src="../site_libs/quarto-html/anchor.min.js"></script>
-<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-de927ec96a2411cf822331f71755f83e.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
-<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
-<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-dfa129ac6e33aa8a1407114b8c26932f.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
-<link href="../site_libs/bootstrap/bootstrap-dark-de8d9ea7065925b465f143946b8defe2.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
-<link href="../site_libs/bootstrap/bootstrap-dfa129ac6e33aa8a1407114b8c26932f.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<link href="../../rix-logo.png" rel="icon" type="image/png">
+<script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-dark-de927ec96a2411cf822331f71755f83e.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap-dfa129ac6e33aa8a1407114b8c26932f.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-dark-de8d9ea7065925b465f143946b8defe2.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../../site_libs/bootstrap/bootstrap-dfa129ac6e33aa8a1407114b8c26932f.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -248,11 +283,11 @@ ul.task-list li input[type="checkbox"] {
     <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
       <div class="navbar-container container-fluid">
       <div class="navbar-brand-container mx-auto">
-    <a href="../index.html" class="navbar-brand navbar-brand-logo">
-    <img src="../rix-logo.png" alt="" class="navbar-logo light-content">
-    <img src="../rix-logo.png" alt="" class="navbar-logo dark-content">
+    <a href="../../index.html" class="navbar-brand navbar-brand-logo">
+    <img src="../../rix-logo.png" alt="" class="navbar-logo light-content">
+    <img src="../../rix-logo.png" alt="" class="navbar-logo dark-content">
     </a>
-    <a class="navbar-brand" href="../index.html">
+    <a class="navbar-brand" href="../../index.html">
     <span class="navbar-title">RiX</span>
     </a>
   </div>
@@ -263,23 +298,23 @@ ul.task-list li input[type="checkbox"] {
           <div class="collapse navbar-collapse" id="navbarCollapse">
             <ul class="navbar-nav navbar-nav-scroll me-auto">
   <li class="nav-item">
-    <a class="nav-link" href="../getting-started.html"> 
+    <a class="nav-link" href="../../getting-started.html"> 
 <span class="menu-text">Start</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="../language-at-a-glance.html"> 
+    <a class="nav-link" href="../../language-at-a-glance.html"> 
 <span class="menu-text">Learn</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="../undergraduate-probability-statistics-data-analysis.html"> 
+    <a class="nav-link" href="../../undergraduate-probability-statistics-data-analysis.html"> 
 <span class="menu-text">Probability &amp; statistics</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="../eval/syntax-guide.html"> 
+    <a class="nav-link" href="../../eval/syntax-guide.html"> 
 <span class="menu-text">Reference</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="../developer-guide.html"> 
+    <a class="nav-link" href="../../developer-guide.html"> 
 <span class="menu-text">Internals</span></a>
   </li>  
 </ul>
@@ -315,7 +350,7 @@ ul.task-list li input[type="checkbox"] {
     <ul class="list-unstyled mt-1">
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../index.html" class="sidebar-item-text sidebar-link">
+  <a href="../../index.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Loading documentation…</span></a>
   </div>
 </li>
@@ -329,14 +364,15 @@ ul.task-list li input[type="checkbox"] {
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#saving-portable-output" id="toc-saving-portable-output" class="nav-link active" data-scroll-target="#saving-portable-output">Saving portable output</a>
+  <li><a href="#ordered-stream-stages-clocks-and-host-adapters" id="toc-ordered-stream-stages-clocks-and-host-adapters" class="nav-link active" data-scroll-target="#ordered-stream-stages-clocks-and-host-adapters">Ordered stream stages, clocks and host adapters</a>
   <ul class="collapse">
-  <li><a href="#live-widgets-become-explicit-snapshots" id="toc-live-widgets-become-explicit-snapshots" class="nav-link" data-scroll-target="#live-widgets-become-explicit-snapshots">Live widgets become explicit snapshots</a></li>
-  <li><a href="#import-policy-and-limits" id="toc-import-policy-and-limits" class="nav-link" data-scroll-target="#import-policy-and-limits">Import policy and limits</a></li>
-  <li><a href="#version-one-wire-contract" id="toc-version-one-wire-contract" class="nav-link" data-scroll-target="#version-one-wire-contract">Version-one wire contract</a></li>
+  <li><a href="#ordered-execution-and-bounded-state" id="toc-ordered-execution-and-bounded-state" class="nav-link" data-scroll-target="#ordered-execution-and-bounded-state">Ordered execution and bounded state</a></li>
+  <li><a href="#operator-contract" id="toc-operator-contract" class="nav-link" data-scroll-target="#operator-contract">Operator contract</a></li>
+  <li><a href="#adapter-authority-and-data" id="toc-adapter-authority-and-data" class="nav-link" data-scroll-target="#adapter-authority-and-data">Adapter authority and data</a></li>
+  <li><a href="#trace-and-benchmark-acceptance" id="toc-trace-and-benchmark-acceptance" class="nav-link" data-scroll-target="#trace-and-benchmark-acceptance">Trace and benchmark acceptance</a></li>
   </ul></li>
   </ul>
-<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/document-persistence.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/design/eval/async-stream-operators.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
 <!-- main -->
 <main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"></header>
@@ -345,48 +381,85 @@ ul.task-list li input[type="checkbox"] {
 
 
 
-<section id="saving-portable-output" class="level1">
-<h1>Saving portable output</h1>
-<p>The opt-in <code>document</code> plugin saves an evaluated output tree without keeping an execution scope, reactive handle, callback, or filesystem grant. Loading never fetches an asset, runs a recipe, imports a plugin, or evaluates RiX source.</p>
-<pre class="rix" data-exec="true"><code>.Plugin.Load("document");
-report := .Fragment([
-    .Paragraph([.Strong("Exact results"), 1/3]),
-    .Table(["oriented interval"], [[5:4]])
-]);
-saved := .document.EncodeJSON(report);
-imported := .document.DecodeJSON(saved);
-.document.EncodeJSON(imported[:value]) == saved ##@ == 1;
-imported[:diagnostics].Len() ##@ == 0;</code></pre>
-<p><code>DecodeJSON</code> returns a map with <code>value</code>, <code>diagnostics</code>, and <code>schema</code>. Display its warnings alongside the imported value. <code>EncodeJSON</code> returns a String and does not write a file. The host JavaScript functions <code>encodeOutputJSON</code>, <code>decodeOutputJSON</code>, and <code>snapshotOutputDocument</code> are exported from RiX and its runtime entry point, with the same behavior in CLI, Web, and Notebook hosts.</p>
-<section id="live-widgets-become-explicit-snapshots" class="level2">
-<h2 class="anchored" data-anchor-id="live-widgets-become-explicit-snapshots">Live widgets become explicit snapshots</h2>
-<p>Call <code>.document.Snapshot(value)</code> before persisting a live tree. It captures current control values and selected Sheet planes, removes reactive/action handles, disables controls, and turns draggable points/actions into static circles/groups. It never invokes an action. The original tree stays live.</p>
-<pre class="rix" data-exec="true"><code>.Plugin.Load("document");
-$$amount := 1/2;
-panel := .ControlPanel([.Controls.Slider($$amount, 0:1, 1/10, "Amount")]);
-portable := .document.Snapshot(panel);
-.document.DecodeJSON(.document.EncodeJSON(portable))[:value];</code></pre>
-<p>A direct attempt to encode live controls, bindings, functions, promises, host objects, or accessors fails. Imported Sheet snapshots retain safe <code>Index</code>/<code>At</code> lookup over saved cells; an unsaved plane is unavailable, not lazily evaluated. Frame-aware mathematical tensor graphs require the separate Linalg identity import adapter; bare Shaped and rank-two Matrix values are supported now.</p>
+<section id="ordered-stream-stages-clocks-and-host-adapters" class="level1">
+<h1>Ordered stream stages, clocks and host adapters</h1>
+<p>Implemented by <code>runtime/async-stream{,-pipeline,-clock,-adapters}.js</code>. This record settles R3 operator behavior. The matching executable contracts are <code>tests/runtime/async-stream-pipeline.test.js</code>, <code>async-stream-adapters.test.js</code>, <code>async-stream-local-fixtures.test.js</code> and <code>tests/eval/async-stream-segments.test.js</code>.</p>
+<section id="ordered-execution-and-bounded-state" class="level2">
+<h2 class="anchored" data-anchor-id="ordered-execution-and-bounded-state">Ordered execution and bounded state</h2>
+<p>Construction remains lazy. A terminal claims all source handles, including each Merge input. Reusing one root twice in a Merge graph is rejected before any source starts. Every claimed root closes exactly once after natural exhaustion, an early bound, undecided filter/chunk boundary, error, cancellation or timeout. Pending pulls, background Latest pumps, timer waits and callback jobs receive cancellation; close waits for their cooperative cleanup. The first consumption error stays primary and bounded cleanup failures are attached. A host JavaScript operation must cooperate with its abort signal; this layer cannot forcibly stop arbitrary JavaScript that ignores cancellation.</p>
+<p>Consecutive Map/Filter/expected-error stages form an elementwise region. Ordered cursors connect these regions to Take/Drop/Chunk/ChunkBy/Window and temporal barriers. Each region independently regains concurrency after a barrier. The containing scheduler is shared by all regions and terminal callbacks, so its limit and every ancestor limit still apply. Waiting for an upstream cursor releases admission; recursive scheduling cannot consume all permits while waiting for its own producers. Unknown host effects retain the existing single owner lane; only explicitly safe callbacks overlap.</p>
+<p>A region publishes its completed values in source order even when callbacks finish in another order. Reduce runs in that published order. Callback locators inside a region retain the source pull index carried into that region; a chunk carries its final member’s source index. Merge input indices are local to each source. Final terminal locators in segmented pipelines number the merged/transformed output. ForEach callbacks inside a structured scope may overlap, while outside a scope they run sequentially. An effect’s completion order is distinct from output publication.</p>
+<p>Per-region unpublished capacity is the minimum of <code>2L</code>, the host queue limit, and <code>floor(outstanding / stageCount)</code>, at least one. Outside a structured scope it is one. <code>stageCount</code> counts source roots and stage descriptors, and is bounded by <code>outstanding</code> (default 4096). Merge nesting is additionally limited to 64. The total retained entry count in stateful chunk/window buffers is bounded by <code>outputItems</code> (default 10000). Latest holds one value; Merge has one pending pull or ready record per input. Hot source queues and blocked producers retain their existing capacity/queue limits. Output and trace event limits still apply. Every upstream pull charges the owner evaluation budget. A source cursor yields to host timers every 64 pulls, so a continuously suppressed cold source cannot starve cancellation or quiet-period timers. These are item counts, not a byte bound on arbitrary nested mathematical values. HTTP/file/WebSocket adapters additionally enforce byte limits.</p>
 </section>
-<section id="import-policy-and-limits" class="level2">
-<h2 class="anchored" data-anchor-id="import-policy-and-limits">Import policy and limits</h2>
-<p>The <code>unknownTags</code> option is one of:</p>
-<ul>
-<li><code>"warn-and-skip"</code> (default): replace an unsupported record with visible text and a source-path warning. Required malformed known records still fail.</li>
-<li><code>"strict-error"</code>: reject an unsupported tag.</li>
-<li><code>"preserve-opaque"</code>: show the same fallback while retaining bounded inert data for re-export. This never installs behavior for the unknown record.</li>
-</ul>
-<p>Exact integers/rationals, formal unreduced Fractions, interval endpoint order, certified approximation enclosures/source sharing, undecided values, collection sharing and mathematical graph identities survive. Scoped mathematical imports create fresh runtime identities while preserving sharing within the document. Unscoped rational Calculus graphs retain their name-based structure as inert records, so saved derivative selectors and checked numerical evidence can be replayed without inventing a new symbol binding. Live extension methods are omitted from these known graph records.</p>
-<p>Defaults are 4,000,000 UTF-8 bytes, 20,000 graph nodes, 100,000 traversal steps, 128 nesting levels and 4,096 integer characters. Options <code>maxBytes</code>, <code>maxNodes</code>, <code>maxEdges</code>, <code>maxDepth</code>, and <code>maxDigits</code> can lower them or raise them by at most a factor of sixteen. The strict mathematical subgraph keeps its own independent limits. Cycles, dangling/duplicate identities, unsafe keys, nonfinite numbers, missing required fields and oversized records fail with an error code and path.</p>
+<section id="operator-contract" class="level2">
+<h2 class="anchored" data-anchor-id="operator-contract">Operator contract</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Operator</th>
+<th>Ordering and completion</th>
+<th>Retained state / loss</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>ChunkBy(P)</code></td>
+<td>Evaluate P in source order; a true result ends the chunk <strong>after</strong> the current item. Flush a final partial chunk on completion or upstream Take. Undecided returns <code>?</code> and closes.</td>
+<td>One bounded chunk; a false predicate cannot grow it beyond the output budget.</td>
+</tr>
+<tr class="even">
+<td><code>Merge(other)</code></td>
+<td>Start one pull per source. Emit settled results in observed readiness order; same-turn already-ready pulls break ties by input order. Preserve each source’s own order. Complete after both sources complete; errors close both.</td>
+<td>One pending/ready record per input; no replay or duplicate-root consumption.</td>
+</tr>
+<tr class="odd">
+<td><code>Timeout(ms)</code></td>
+<td>Start a timer for each outstanding downstream demand on its upstream cursor. If the timer wins, raise <code>ASYNC_STREAM_TIMEOUT</code> and close. Downstream idle time does not count.</td>
+<td>One timer and one pending pull.</td>
+</tr>
+<tr class="even">
+<td><code>Debounce(ms)</code></td>
+<td>Hold the latest observed input until a quiet interval. A new input resets that interval. Flush the held value immediately on normal completion; discard it on failure/cancellation.</td>
+<td>One held value, one lookahead pull and one timer. Replaced held values count as dropped.</td>
+</tr>
+<tr class="odd">
+<td><code>Throttle(ms)</code></td>
+<td>Leading-only: emit the first observed value, then the first observed value at least ms after the last emitted value. No trailing flush.</td>
+<td>Values inside the interval are explicitly dropped.</td>
+</tr>
+<tr class="even">
+<td><code>Latest()</code></td>
+<td>Start a supervised upstream pump at first demand. While downstream is busy, replace the pending slot. After normal completion deliver the final slot then complete. On failure discard it and fail.</td>
+<td>One pending value, drop-oldest; count replacements. Yield to host timers after every 64 synchronous upstream values.</td>
+</tr>
+</tbody>
+</table>
+<p>Durations are positive safe-integer milliseconds, at most 2147483647. The clock is monotonic processing time: values are timed when an operator observes them, not by a timestamp field inside their payload. Cold backpressure therefore changes observed timing; use a hot source when production must continue while its consumer is busy. At an exact deadline, whichever promise reaction settles first wins. There is no additional event-time or distributed ordering claim.</p>
+<p>Hosts can inject <code>__async_stream_clock__</code> with <code>now()</code>, <code>setTimeout(fn, ms)</code> and <code>clearTimeout(handle)</code>; the default uses <code>performance.now()</code> and host timers. Fake-clock tests control every deadline without wall-time sleeps. Throttle rejects a nonfinite/backward clock reading. All completion and cancellation paths remove timers and listeners.</p>
 </section>
-<section id="version-one-wire-contract" class="level2">
-<h2 class="anchored" data-anchor-id="version-one-wire-contract">Version-one wire contract</h2>
-<p><code>rix.output.document@1</code> contains <code>root</code>, a document-local <code>nodes</code> table, and an optional strict <code>rix.math.document@1</code> graph. References are <code>{"$ref":"n0"}</code>; IDs are traversal-order identifiers, not global identities or signed hashes.</p>
-<p>Each node has exactly <code>id</code>, <code>tag</code>, and <code>data</code>. Tags <code>integer</code>, <code>rational</code>, <code>fraction</code>, <code>interval</code>, <code>certified</code>, <code>shaped</code>, <code>undecided</code>, <code>hole</code>, <code>array</code>, <code>map</code>, <code>record</code>, and <code>math</code> have explicit scalar/collection forms. <code>output:KIND</code> carries ordered name/value pairs for a validated core output record. Numbers embedded as native JSON numbers are host presentation data, never exact RiX integers or rationals. Mathematical expressions share one strict graph across the tree.</p>
-<p>Intrinsic methods are rebuilt from installed constructors and never saved. Metadata, labels, captions, references, asset declarations, styles and evidence remain ordinary inert data. Unknown-tag import does not change strict Core mathematical decoding. Existing <code>rix.control-panel</code> version-one JSON migrates on import and emits an informational diagnostic. No general legacy reader or implicit source execution is provided.</p>
-<p>To move images/audio/video together with a saved document, use the <a href="../eval/output-assets.html">portable asset bundle APIs</a>. Plain document JSON retains asset references and never resolves their bytes.</p>
-<p>The <code>interval-set</code> scalar tag retains normalized rational interval-set components with exact nullable endpoints and explicit closure flags. <code>null</code> means negative infinity on the lower side and positive infinity on the upper side; infinite endpoints must be open. Empty sets and closed singleton components round-trip. Malformed, reversed, overlapping or unsorted wire components are rejected rather than silently normalized. The ordinary digit, edge, node and depth budgets apply.</p>
-<p>The <code>fraction-interval</code> tag stores two exact Fraction references in their stored low/high order, without reducing endpoint representations. Formal Fraction values may retain nonzero numerators over zero as signed infinity, using the existing explicit infinite-Fraction constructor policy. <code>0/0</code>, reversed interval endpoints, non-Fraction endpoints and infinite Rational values are rejected.</p>
+<section id="adapter-authority-and-data" class="level2">
+<h2 class="anchored" data-anchor-id="adapter-authority-and-data">Adapter authority and data</h2>
+<p><code>.TimerStream(ms, count?)</code> is cold and demand-paced: every demand waits ms and returns the next exact Integer tick, starting at 1. It does not run a fixed-rate background interval. Supplying count makes it finite, including count zero.</p>
+<p><code>.ReactiveStream(source)</code> subscribes to the explicitly passed source only when pulled. A reactive node yields its current exact value at each published change; a graph yields an inert map containing event kind, epoch and changed node names. <code>.UIStream(hostKey, eventName)</code> looks up an EventTarget in the embedding host’s explicit <code>streams.uiTargets</code> map. Its default payload is the event type string. JavaScript hosts can provide a trusted synchronous projection. Neither adapter reads an ambient document. They unsubscribe on close and default to bounded error-on-overflow queues. Event callbacks cannot select blocking overflow.</p>
+<p><code>.HttpStream(url)</code>, <code>.FileStream(path)</code> and <code>.WebSocketStream(url)</code> require <strong>both</strong> an explicit host NET/FILES grant and the current imported script’s corresponding permission, when a script frame exists. Grant revocation is rechecked at first use. An explicit host <code>authorize({kind, reference, context})</code> must also return true. Source code cannot install a transport service or raise a grant. No transport service is installed in the default Node or browser adapter. The editor standard policy withholds all three transport capabilities.</p>
+<p>Install <code>createStreamHostServices(...)</code> as the <code>streams</code> option of an existing host adapter. Supply fetch/openFile/createWebSocket functions as needed. The optional Node factory <code>createNodeStreamHostServices</code> additionally restricts URL origins and real file roots, resolving symlinks before checking allowed roots. Hosts remain responsible for preventing hostile concurrent filesystem changes; these roots are a read policy, not an operating-system sandbox.</p>
+<p>HTTP disables redirects and sends no browser credentials. HTTP/file streams incrementally decode fatal UTF-8, preserving a character split across chunks; WebSocket yields one UTF-8 string per text/byte message. Blob messages are not accepted; the socket requests <code>binaryType="arraybuffer"</code>. HTTP failure responses cancel their bodies. Cancellation also cancels a body/file that arrives after its owner has stopped. Readers, file iterators and socket listeners close even when decoding, byte limits or consumer callbacks fail.</p>
+<p>Default byte limits are 64 KiB per chunk/message and 16 MiB per stream, with host-configurable ceilings of 1 MiB and 64 MiB respectively. Exceeding either raises <code>ASYNC_STREAM_BYTE_LIMIT</code>. A generic HTTP/WebSocket source is not declared finite; use a bounded terminal or Take for Count. File sources are finite. The portable subscription helper requires synchronous subscription setup and a synchronously returned cleanup function; cleanup itself may return a promise.</p>
+<p>Database cursors/connectors remain a later decision (D8). No database interface, new permission category or ambient network authority is introduced here.</p>
+</section>
+<section id="trace-and-benchmark-acceptance" class="level2">
+<h2 class="anchored" data-anchor-id="trace-and-benchmark-acceptance">Trace and benchmark acceptance</h2>
+<p><code>.Status()</code> adds pending pulls and close count; segmented pipelines expose segments, current/max queued and running callbacks, buffered entries, published outputs, drops, executor and closing reason. <code>.Trace</code> records stream-open, per-region item start/end, source-ordered stream-publish (with outputIndex), and stream-close events. Records carry structural task paths and scheduler snapshots; when a task worker pool exists they also carry its bounded snapshot. Eligible CPU leaves emit worker-dispatch/result/failure events with the same task paths. The existing trace event limit discloses dropped events.</p>
+<p>Run from <code>rix/</code>:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> test tests/runtime/async-stream.test.js tests/runtime/async-stream-pipeline.test.js tests/runtime/async-stream-adapters.test.js tests/eval/async-stream.test.js tests/eval/async-stream-segments.test.js</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> test tests/runtime/async-stream-local-fixtures.test.js</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> benchmarks/async-streams.js <span class="at">--items</span><span class="op">=</span>32 <span class="at">--exponent</span><span class="op">=</span>512 <span class="at">--rounds</span><span class="op">=</span>2</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The second command uses only a loopback listener and temporary files under the repository’s tmp directory. Restricted environments must allow that local listener; a denied listener is a failing check, not a silently skipped fixture. The benchmark fixes input order, records exact checksums and evaluator steps, and compares I/O overlap, first publication latency, scheduler overhead and exact CPU tasks on the event loop versus 1/2/4 workers. Every row asserts checksum parity; no result depends on a timing threshold. Wall times include startup and are informational. Small tasks can be much faster on the event loop because worker initialization and serialization dominate. Use rounds to inspect warmed behavior and larger exponents to measure a different workload.</p>
 
 
 </section>
@@ -823,7 +896,7 @@ portable := .document.Snapshot(panel);
 </div>   
     <div class="nav-footer-center">
       &nbsp;
-    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/document-persistence.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/design/eval/async-stream-operators.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
 <p>Documentation built with <a href="https://quarto.org/">Quarto</a></p>
 </div>
@@ -833,5 +906,5 @@ portable := .document.Snapshot(panel);
 
 
 
-<script src="../site_libs/quarto-html/zenscroll-min.js"></script>
+<script src="../../site_libs/quarto-html/zenscroll-min.js"></script>
 </body></html>

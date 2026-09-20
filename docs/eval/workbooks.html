@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>document-persistence – RiX</title>
+<title>workbooks – RiX</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -22,6 +22,41 @@ ul.task-list li input[type="checkbox"] {
   width: 0.8em;
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
 }
 </style>
 
@@ -329,14 +364,15 @@ ul.task-list li input[type="checkbox"] {
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#saving-portable-output" id="toc-saving-portable-output" class="nav-link active" data-scroll-target="#saving-portable-output">Saving portable output</a>
+  <li><a href="#rixcel-workbooks-owned-exports-and-atomic-updates" id="toc-rixcel-workbooks-owned-exports-and-atomic-updates" class="nav-link active" data-scroll-target="#rixcel-workbooks-owned-exports-and-atomic-updates">RiXCel workbooks: owned exports and atomic updates</a>
   <ul class="collapse">
-  <li><a href="#live-widgets-become-explicit-snapshots" id="toc-live-widgets-become-explicit-snapshots" class="nav-link" data-scroll-target="#live-widgets-become-explicit-snapshots">Live widgets become explicit snapshots</a></li>
-  <li><a href="#import-policy-and-limits" id="toc-import-policy-and-limits" class="nav-link" data-scroll-target="#import-policy-and-limits">Import policy and limits</a></li>
-  <li><a href="#version-one-wire-contract" id="toc-version-one-wire-contract" class="nav-link" data-scroll-target="#version-one-wire-contract">Version-one wire contract</a></li>
+  <li><a href="#host-protocol" id="toc-host-protocol" class="nav-link" data-scroll-target="#host-protocol">Host protocol</a></li>
+  <li><a href="#external-values-and-disposal" id="toc-external-values-and-disposal" class="nav-link" data-scroll-target="#external-values-and-disposal">External values and disposal</a></li>
+  <li><a href="#notebook-embedding-and-host-reuse" id="toc-notebook-embedding-and-host-reuse" class="nav-link" data-scroll-target="#notebook-embedding-and-host-reuse">Notebook embedding and host reuse</a></li>
+  <li><a href="#tensor-snapshots-regions-and-formatting" id="toc-tensor-snapshots-regions-and-formatting" class="nav-link" data-scroll-target="#tensor-snapshots-regions-and-formatting">Tensor snapshots, regions and formatting</a></li>
   </ul></li>
   </ul>
-<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/document-persistence.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/workbooks.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
 <!-- main -->
 <main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"></header>
@@ -345,48 +381,64 @@ ul.task-list li input[type="checkbox"] {
 
 
 
-<section id="saving-portable-output" class="level1">
-<h1>Saving portable output</h1>
-<p>The opt-in <code>document</code> plugin saves an evaluated output tree without keeping an execution scope, reactive handle, callback, or filesystem grant. Loading never fetches an asset, runs a recipe, imports a plugin, or evaluates RiX source.</p>
-<pre class="rix" data-exec="true"><code>.Plugin.Load("document");
-report := .Fragment([
-    .Paragraph([.Strong("Exact results"), 1/3]),
-    .Table(["oriented interval"], [[5:4]])
-]);
-saved := .document.EncodeJSON(report);
-imported := .document.DecodeJSON(saved);
-.document.EncodeJSON(imported[:value]) == saved ##@ == 1;
-imported[:diagnostics].Len() ##@ == 0;</code></pre>
-<p><code>DecodeJSON</code> returns a map with <code>value</code>, <code>diagnostics</code>, and <code>schema</code>. Display its warnings alongside the imported value. <code>EncodeJSON</code> returns a String and does not write a file. The host JavaScript functions <code>encodeOutputJSON</code>, <code>decodeOutputJSON</code>, and <code>snapshotOutputDocument</code> are exported from RiX and its runtime entry point, with the same behavior in CLI, Web, and Notebook hosts.</p>
-<section id="live-widgets-become-explicit-snapshots" class="level2">
-<h2 class="anchored" data-anchor-id="live-widgets-become-explicit-snapshots">Live widgets become explicit snapshots</h2>
-<p>Call <code>.document.Snapshot(value)</code> before persisting a live tree. It captures current control values and selected Sheet planes, removes reactive/action handles, disables controls, and turns draggable points/actions into static circles/groups. It never invokes an action. The original tree stays live.</p>
-<pre class="rix" data-exec="true"><code>.Plugin.Load("document");
-$$amount := 1/2;
-panel := .ControlPanel([.Controls.Slider($$amount, 0:1, 1/10, "Amount")]);
-portable := .document.Snapshot(panel);
-.document.DecodeJSON(.document.EncodeJSON(portable))[:value];</code></pre>
-<p>A direct attempt to encode live controls, bindings, functions, promises, host objects, or accessors fails. Imported Sheet snapshots retain safe <code>Index</code>/<code>At</code> lookup over saved cells; an unsaved plane is unavailable, not lazily evaluated. Frame-aware mathematical tensor graphs require the separate Linalg identity import adapter; bare Shaped and rank-two Matrix values are supported now.</p>
-</section>
-<section id="import-policy-and-limits" class="level2">
-<h2 class="anchored" data-anchor-id="import-policy-and-limits">Import policy and limits</h2>
-<p>The <code>unknownTags</code> option is one of:</p>
+<section id="rixcel-workbooks-owned-exports-and-atomic-updates" class="level1">
+<h1>RiXCel workbooks: owned exports and atomic updates</h1>
+<p>A <code>.rixbook</code> file contains several version-3 RiXCel documents plus explicit <code>names</code>, <code>exports</code>, and <code>imports</code> for each document. Open it in RiXCel and choose a document from the toolbar. Editing an input document updates every dependent output together. Each document keeps its own history; undo also recomputes other documents. Save/reopen and local recovery preserve the complete workbook.</p>
+<p>Try <a href="https://github.com/jostylr/rix/blob/main/examples/rixcel/cross-sheet.rixbook">cross-sheet.rixbook</a>: <code>sales</code> exports a subtotal and <code>report</code> applies its own tax rate. The report formula is:</p>
+<pre class="rix"><code>imports.Get(:subtotal) * (1 + names.Get(:tax))</code></pre>
+<p>The namespaces are local values, with no leading dot:</p>
 <ul>
-<li><code>"warn-and-skip"</code> (default): replace an unsupported record with visible text and a source-path warning. Required malformed known records still fail.</li>
-<li><code>"strict-error"</code>: reject an unsupported tag.</li>
-<li><code>"preserve-opaque"</code>: show the same fallback while retaining bounded inert data for re-export. This never installs behavior for the unknown record.</li>
+<li><code>book.Get(:sales, :subtotal)</code> reads an explicitly exported value.</li>
+<li><code>names.Get(:tax)</code> reads an owned named definition.</li>
+<li><code>imports.Get(:subtotal)</code> reads the declared import alias.</li>
+<li><code>grid[...]</code>, <code>near[...]</code>, <code>row</code>, <code>col</code>, and <code>index</code> retain their ordinary cell meanings.</li>
 </ul>
-<p>Exact integers/rationals, formal unreduced Fractions, interval endpoint order, certified approximation enclosures/source sharing, undecided values, collection sharing and mathematical graph identities survive. Scoped mathematical imports create fresh runtime identities while preserving sharing within the document. Unscoped rational Calculus graphs retain their name-based structure as inert records, so saved derivative selectors and checked numerical evidence can be replayed without inventing a new symbol binding. Live extension methods are omitted from these known graph records.</p>
-<p>Defaults are 4,000,000 UTF-8 bytes, 20,000 graph nodes, 100,000 traversal steps, 128 nesting levels and 4,096 integer characters. Options <code>maxBytes</code>, <code>maxNodes</code>, <code>maxEdges</code>, <code>maxDepth</code>, and <code>maxDigits</code> can lower them or raise them by at most a factor of sixteen. The strict mathematical subgraph keeps its own independent limits. Cycles, dangling/duplicate identities, unsafe keys, nonfinite numbers, missing required fields and oversized records fail with an error code and path.</p>
+<p>Document IDs are case-sensitive strings. Names, exports and import aliases are case-insensitive. There is no access to another document’s unexported cells or the calling evaluator’s variables. Names/exports contain exactly one of <code>{index:[1,1]}</code>, <code>{name:"ownedName"}</code>, or <code>{source:"1/10"}</code>. Source expressions use the same namespaces; they have no cell-relative origin. An import contains <code>{document:"sales",export:"subtotal"}</code> or <code>{external:"rates"}</code>. Constructing a namespace record does not create ambient globals or install plugin code.</p>
+<section id="host-protocol" class="level2">
+<h2 class="anchored" data-anchor-id="host-protocol">Host protocol</h2>
+<p>Public <code>@ratmath/rix</code> and <code>@ratmath/rix/rixcel-workbook</code> exports include:</p>
+<ul>
+<li><code>createRixCelWorkbookDocument(records, externalSnapshots)</code> and <code>parseRixCelWorkbook(dataOrText)</code>: inert validation/canonicalization.</li>
+<li><code>stringifyRixCelWorkbook(record)</code>: portable JSON, format <code>rixcel-workbook</code>, version 1.</li>
+<li><code>createRixCelWorkbook(record, {compileFormula, runFormula, withEpoch, ...})</code>: execution with an explicitly supplied isolated evaluator.</li>
+</ul>
+<p>The Cel host adapter <code>apps/cel/src/workbook-runtime.js</code> supplies the evaluator, cooperative instruction/time budgets and a fresh private context per candidate. It withholds dynamic code/plugin installation, host/IO/async capabilities, random generators and global configuration changes. Volatile values enter only as explicit external snapshots. Merely parsing a workbook does not evaluate it; opening it in the editor explicitly executes its RiX formulas in the worker.</p>
+<p>A running workbook exposes:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>book<span class="op">.</span><span class="fu">get</span>(<span class="st">"report"</span><span class="op">,</span> <span class="st">"total"</span>)<span class="op">;</span>                <span class="co">// copied exact value</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>book<span class="op">.</span><span class="fu">edit</span>(<span class="st">"sales"</span><span class="op">,</span> {<span class="dt">type</span><span class="op">:</span><span class="st">"slot:set"</span><span class="op">,</span> <span class="dt">index</span><span class="op">:</span>[<span class="dv">1</span><span class="op">,</span><span class="dv">1</span>]<span class="op">,</span> <span class="dt">source</span><span class="op">:</span><span class="st">"10"</span>})<span class="op">;</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>book<span class="op">.</span><span class="fu">transaction</span>([</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>  {<span class="dt">id</span><span class="op">:</span><span class="st">"sales"</span><span class="op">,</span> <span class="dt">document</span><span class="op">:</span>updatedSalesDocument}<span class="op">,</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>  {<span class="dt">id</span><span class="op">:</span><span class="st">"report"</span><span class="op">,</span> <span class="dt">names</span><span class="op">:</span>{<span class="dt">tax</span><span class="op">:</span>{<span class="dt">source</span><span class="op">:</span><span class="st">"1/4"</span>}}}</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>])<span class="op">;</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>book<span class="op">.</span><span class="fu">sheet</span>(<span class="st">"report"</span>)<span class="op">;</span>                      <span class="co">// live read-only FormulaSheet adapter</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>book<span class="op">.</span><span class="fu">materialize</span>(<span class="st">"report"</span><span class="op">,</span> [[<span class="dv">1</span><span class="op">,</span><span class="dv">1</span>]<span class="op">,</span> [<span class="dv">2</span><span class="op">,</span><span class="dv">1</span>]])<span class="op">;</span> <span class="co">// bounded visible cells, one epoch</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>book<span class="op">.</span><span class="fu">dependencies</span>(<span class="st">"report"</span><span class="op">,</span> <span class="st">"total"</span>)<span class="op">;</span>      <span class="co">// direct dependency paths</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>book<span class="op">.</span><span class="fu">export</span>()<span class="op">;</span>                             <span class="co">// copied portable record, no caches</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> unsubscribe <span class="op">=</span> book<span class="op">.</span><span class="fu">subscribe</span>(<span class="bu">event</span> <span class="kw">=&gt;</span> <span class="fu">updateView</span>(<span class="bu">event</span>))<span class="op">;</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="fu">unsubscribe</span>()<span class="op">;</span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>book<span class="op">.</span><span class="fu">dispose</span>()<span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Transactions compile and evaluate a private candidate coordinator graph, then replace every document at one commit point. Each computed node runs at most once per epoch; dependencies include cross-document exports/imports and owned names. Cycle errors retain the full path, such as <code>sales.exports.subtotal -&gt; sales.grid[1,1] -&gt; report.exports.total -&gt; ... -&gt; sales.exports.subtotal</code>. Compilation, runtime, cycle and budget failures retain the old values, metadata and epoch. Subscriber exceptions do not undo a committed update. Reentrant mutation during notification is rejected. Returned values and records are copies.</p>
+<p>This bounded implementation rebuilds the materialized graph per transaction; it does not claim affected-node-only recomputation or huge-workbook throughput. Implicit cells stay lazy. Batch visible reads with <code>materialize</code> to avoid repeated epochs. Pure runtime callbacks must be synchronous; the Cel adapter enforces the instruction budget. Arbitrary host callbacks cannot be forcibly preempted in-process. The browser worker remains the wall-clock termination boundary.</p>
+<p>Slot-target names/exports follow C1’s stable cell identities through structural insertion and undo. Removing an exported newly inserted cell by undo requires changing its definition in the same transaction. A source definition outside the cell grid that mentions <code>grid</code>/<code>near</code> must be explicitly updated in that transaction; its relative intent is never guessed. Arbitrary document replacement through <code>replace(record)</code> uses the explicitly supplied new definitions.</p>
 </section>
-<section id="version-one-wire-contract" class="level2">
-<h2 class="anchored" data-anchor-id="version-one-wire-contract">Version-one wire contract</h2>
-<p><code>rix.output.document@1</code> contains <code>root</code>, a document-local <code>nodes</code> table, and an optional strict <code>rix.math.document@1</code> graph. References are <code>{"$ref":"n0"}</code>; IDs are traversal-order identifiers, not global identities or signed hashes.</p>
-<p>Each node has exactly <code>id</code>, <code>tag</code>, and <code>data</code>. Tags <code>integer</code>, <code>rational</code>, <code>fraction</code>, <code>interval</code>, <code>certified</code>, <code>shaped</code>, <code>undecided</code>, <code>hole</code>, <code>array</code>, <code>map</code>, <code>record</code>, and <code>math</code> have explicit scalar/collection forms. <code>output:KIND</code> carries ordered name/value pairs for a validated core output record. Numbers embedded as native JSON numbers are host presentation data, never exact RiX integers or rationals. Mathematical expressions share one strict graph across the tree.</p>
-<p>Intrinsic methods are rebuilt from installed constructors and never saved. Metadata, labels, captions, references, asset declarations, styles and evidence remain ordinary inert data. Unknown-tag import does not change strict Core mathematical decoding. Existing <code>rix.control-panel</code> version-one JSON migrates on import and emits an informational diagnostic. No general legacy reader or implicit source execution is provided.</p>
-<p>To move images/audio/video together with a saved document, use the <a href="../eval/output-assets.html">portable asset bundle APIs</a>. Plain document JSON retains asset references and never resolves their bytes.</p>
-<p>The <code>interval-set</code> scalar tag retains normalized rational interval-set components with exact nullable endpoints and explicit closure flags. <code>null</code> means negative infinity on the lower side and positive infinity on the upper side; infinite endpoints must be open. Empty sets and closed singleton components round-trip. Malformed, reversed, overlapping or unsorted wire components are rejected rather than silently normalized. The ordinary digit, edge, node and depth budgets apply.</p>
-<p>The <code>fraction-interval</code> tag stores two exact Fraction references in their stored low/high order, without reducing endpoint representations. Formal Fraction values may retain nonzero numerators over zero as signed infinity, using the existing explicit infinite-Fraction constructor policy. <code>0/0</code>, reversed interval endpoints, non-Fraction endpoints and infinite Rational values are rejected.</p>
+<section id="external-values-and-disposal" class="level2">
+<h2 class="anchored" data-anchor-id="external-values-and-disposal">External values and disposal</h2>
+<p>External snapshots contain mathematical JSON text plus JSON metadata with nonempty <code>source</code> and <code>version</code> strings. Exact numbers retain their values; the codec’s evidence distinctions remain intact. No provider or executable recipe is stored. A host can supply <code>providers: {rates: async ({signal, metadata}) =&gt; ({value, metadata:{source:"fixture",version:"v2"}})}</code>.</p>
+<p><code>await book.refresh("rates")</code> performs one explicit fetch and one atomic update. Failure, invalid metadata, timeout or cancellation retains the previous snapshot. A response arriving after another epoch is rejected as stale; retry explicitly. The host may use an abort signal, but ignored signals cannot force a third-party operation to stop. Late results never publish. Imports never trigger refresh.</p>
+<p>Scheduling is off by default. <code>book.schedule("rates", intervalMs)</code> requires <code>hostPolicy: {allowScheduledRefresh:true}</code> and an interval of at least 1000ms (or the host’s higher minimum), and at most 2,147,483,647ms. It skips overlapping refreshes and returns a cancel function. <code>dispose()</code> cancels timers, aborts pending refreshes, removes listeners and invalidates live views. Standalone browser files have no refresh providers; embedding hosts install them explicitly. The Cel worker protocol also supports <code>select-document</code>, <code>refresh-external</code> and <code>dispose</code> requests.</p>
+<p>Default hard ceilings (hosts may lower them): 32 documents, 32 external sources, 4096 materialized nodes, 50,000 reads, 8192 evaluations, 65,536 characters per formula, 8 million workbook-text characters, 200,000 evaluator steps and 2000ms per candidate. Refresh allows four concurrent sources and a 5000ms timeout. The mathematical JSON codec additionally bounds each snapshot. These are cooperative work/data bounds, not claims of process memory isolation.</p>
+<p>See <a href="https://github.com/jostylr/rix/blob/main/schemas/rixcel-workbook-v1.schema.json">the workbook schema</a> and <a href="../design/eval/rixcel-format.html">the document format</a>.</p>
+</section>
+<section id="notebook-embedding-and-host-reuse" class="level2">
+<h2 class="anchored" data-anchor-id="notebook-embedding-and-host-reuse">Notebook embedding and host reuse</h2>
+<p><code>createRixCelWorkbookHost(record, options)</code> is the shared isolated evaluator, exported from <code>@ratmath/rix</code> and <code>@ratmath/rix/rixcel-host</code>. Cel and Notebook use the same fresh-context epochs and withheld file/network/plugin capabilities. Reading a workbook never grants its formulas access to the notebook’s bindings.</p>
+<p>Notebook exposes <code>.cel(jsonText, documentId?)</code> and the explicitly authorized project reader <code>.celOpen(relativePath, documentId?)</code>. A session provides <code>Sheet</code> for editable output, <code>Get</code> for a declared export’s current exact value, and <code>View</code> for a live output subscribed to that export. <code>Set(index, source)</code> commits an ordinary RiX formula edit atomically. <code>Record()</code> returns portable workbook JSON; edits are session-local until the caller explicitly saves it. <code>Dispose</code> and Notebook rerun/close release the private workbook and observers.</p>
+<p>Embedding accepts at most 16 sessions per run. Each Sheet defaults to 20 rows and 8 columns, capped by its dimensions; explicit windows are limited to 1024 cells across at most 32 hidden-axis planes. Large sheets stay sparse. Source files are bounded to 8 MB and resolved by existing native project/folder grants or browser project ZIP storage. Workbook dependency cycles fail atomically; notebook/script imports are not available to workbook formulas.</p>
+<p>Self-contained <code>.cel</code> JSON works in published live HTML. External <code>.celOpen</code> requires a host reader; published pages retain the initial static result and diagnose the missing reader. Use the Notebook <code>examples/cel-embedding</code> project for named exports and the storage-backed path. No Excel-formula translation is implied by these RiX APIs.</p>
+</section>
+<section id="tensor-snapshots-regions-and-formatting" class="level2">
+<h2 class="anchored" data-anchor-id="tensor-snapshots-regions-and-formatting">Tensor snapshots, regions and formatting</h2>
+<p>The C4 host adapters use the shared <a href="../eval/rixcel-tensors.html">tensor-plane helpers</a> for bounded, explicit snapshots and linked read-only views. <a href="../eval/rixcel-regions.html">Named rank-N regions and block formatting</a> are replayable document events; neither changes numeric addresses or exact stored values. Cel exposes these controls in its editor, and Notebook exposes them on its embedded workbook handle.</p>
 
 
 </section>
@@ -823,7 +875,7 @@ portable := .document.Snapshot(panel);
 </div>   
     <div class="nav-footer-center">
       &nbsp;
-    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/document-persistence.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/workbooks.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
 <p>Documentation built with <a href="https://quarto.org/">Quarto</a></p>
 </div>

@@ -494,7 +494,7 @@ scene := .scene3d.Scene([mesh], {= camera=camera });</code></pre>
 </tr>
 </tbody>
 </table>
-<p>The schema intentionally contains realized geometry. <code>ParametricCurve</code> therefore evaluates its function at construction and records the domain, sample count, and exact policy as metadata. <code>ParametricSurface</code> likewise evaluates its two-argument function at construction. It doubles a conforming grid until its exact midpoint-deviation test meets <code>tolerance</code> or a bound stops refinement, then records <code>rix.scene3d.surface-sampling@1</code> metadata with the chosen depth, work, <code>resolved</code>, and <code>limitedBy</code>. The midpoint test is a deterministic sampling policy, not a certificate over unsampled points. Implicit surfaces remain a future bounded producer rather than adding an unevaluated function to interchange files.</p>
+<p>The schema intentionally contains realized geometry. <code>ParametricCurve</code> therefore evaluates its function at construction and records the domain, sample count, and exact policy as metadata. <code>ParametricSurface</code> likewise evaluates its two-argument function at construction. It doubles a conforming grid until its exact midpoint-deviation test meets <code>tolerance</code> or a bound stops refinement, then records <code>rix.scene3d.surface-sampling@1</code> metadata with the chosen depth, work, <code>resolved</code>, and <code>limitedBy</code>. The midpoint test is a deterministic sampling policy, not a certificate over unsampled points. Bounded <code>ImplicitSurface</code> and <code>Volume</code> adapters consume validated region covers; they retain unknown cells rather than claiming reconstructed surface topology. See <a href="../eval/validated-scene-views.html">validated scene views</a>.</p>
 </section>
 <section id="orbit-descriptions-annotations-and-picking" class="level2">
 <h2 class="anchored" data-anchor-id="orbit-descriptions-annotations-and-picking">Orbit descriptions, annotations, and picking</h2>
@@ -553,7 +553,7 @@ xyz := .nd.CoordinateProjection(4, [1,2,3]);
 projected := .nd.Project(tesseract, .nd.Compose(xyz, rotation));
 scene := .nd.ToScene3D(projected);</code></pre>
 <p><code>Projection(matrix, offset?, options?)</code> constructs an exact affine map. <code>CoordinateProjection(sourceDimension, axes)</code> uses 1-based axes. <code>CayleyRotation(dimension, axis1, axis2, t)</code> uses the rational parameterization <code>cos=(1-t²)/(1+t²)</code> and <code>sin=2t/(1+t²)</code>; the core Cayley <code>Infinity</code> value denotes the half-turn. <code>Compose(after, before)</code> means “apply before, then after.” <code>ToScene3D</code> requires dimension 3 and reports an error if the caller has not explicitly projected first.</p>
-<p>Projection, slice, fiber, and marginalization remain different notions. This slice implements affine projection; sections/slices and fibers remain future operations and will not be aliases for <code>Project</code>.</p>
+<p>Projection, slice, fiber, and marginalization remain different notions. This plugin implements <code>AffineSlice</code>, exact edge-defined <code>Section</code>, finite/implicit <code>Fiber</code>, and bounded implicit region adapters separately from <code>Project</code>. Sections retain proved edge intersections without inventing missing face topology; implicit fibers need an explicit bounded solver before they become geometry.</p>
 </section>
 <section id="gltf-export" class="level2">
 <h2 class="anchored" data-anchor-id="gltf-export">glTF export</h2>
@@ -568,6 +568,7 @@ result := .gltf.Render(scene);
 <p>From <code>rix/</code>:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js <span class="at">--out</span><span class="op">=</span>tmp/tesseract-out examples/geometry/tesseract.rix</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>This creates <code>tesseract.svg</code> from a deterministic wireframe snapshot and <code>tesseract.gltf</code> from the same retained 3D scene. The corresponding RiX Web tutorials run the browser-safe parts directly.</p>
+<p>Bounded implicit-region, ODE trajectory/event, ND affine section, linked 4D complex-sample, and exact unit-quaternion adapters are documented in <a href="../eval/validated-scene-views.html">validated scene views</a>. Cell-cover meshes retain unknown and omitted regions; they do not assert reconstructed topology.</p>
 
 
 </section>

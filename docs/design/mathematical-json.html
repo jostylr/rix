@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>document-persistence – RiX</title>
+<title>mathematical-json – RiX</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -22,6 +22,41 @@ ul.task-list li input[type="checkbox"] {
   width: 0.8em;
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
 }
 </style>
 
@@ -329,14 +364,17 @@ ul.task-list li input[type="checkbox"] {
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#saving-portable-output" id="toc-saving-portable-output" class="nav-link active" data-scroll-target="#saving-portable-output">Saving portable output</a>
+  <li><a href="#mathematical-graph-json-version-1" id="toc-mathematical-graph-json-version-1" class="nav-link active" data-scroll-target="#mathematical-graph-json-version-1">Mathematical graph JSON, version 1</a>
   <ul class="collapse">
-  <li><a href="#live-widgets-become-explicit-snapshots" id="toc-live-widgets-become-explicit-snapshots" class="nav-link" data-scroll-target="#live-widgets-become-explicit-snapshots">Live widgets become explicit snapshots</a></li>
-  <li><a href="#import-policy-and-limits" id="toc-import-policy-and-limits" class="nav-link" data-scroll-target="#import-policy-and-limits">Import policy and limits</a></li>
-  <li><a href="#version-one-wire-contract" id="toc-version-one-wire-contract" class="nav-link" data-scroll-target="#version-one-wire-contract">Version-one wire contract</a></li>
+  <li><a href="#api-and-encoding" id="toc-api-and-encoding" class="nav-link" data-scroll-target="#api-and-encoding">API and encoding</a></li>
+  <li><a href="#tagged-values" id="toc-tagged-values" class="nav-link" data-scroll-target="#tagged-values">Tagged values</a></li>
+  <li><a href="#node-records" id="toc-node-records" class="nav-link" data-scroll-target="#node-records">Node records</a></li>
+  <li><a href="#mathematical-contexts" id="toc-mathematical-contexts" class="nav-link" data-scroll-target="#mathematical-contexts">Mathematical contexts</a></li>
+  <li><a href="#frozen-real-envelope" id="toc-frozen-real-envelope" class="nav-link" data-scroll-target="#frozen-real-envelope">Frozen real envelope</a></li>
+  <li><a href="#resource-limits-and-jsonl" id="toc-resource-limits-and-jsonl" class="nav-link" data-scroll-target="#resource-limits-and-jsonl">Resource limits and JSONL</a></li>
   </ul></li>
   </ul>
-<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/document-persistence.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/design/mathematical-json.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
 <!-- main -->
 <main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"></header>
@@ -345,48 +383,160 @@ ul.task-list li input[type="checkbox"] {
 
 
 
-<section id="saving-portable-output" class="level1">
-<h1>Saving portable output</h1>
-<p>The opt-in <code>document</code> plugin saves an evaluated output tree without keeping an execution scope, reactive handle, callback, or filesystem grant. Loading never fetches an asset, runs a recipe, imports a plugin, or evaluates RiX source.</p>
-<pre class="rix" data-exec="true"><code>.Plugin.Load("document");
-report := .Fragment([
-    .Paragraph([.Strong("Exact results"), 1/3]),
-    .Table(["oriented interval"], [[5:4]])
-]);
-saved := .document.EncodeJSON(report);
-imported := .document.DecodeJSON(saved);
-.document.EncodeJSON(imported[:value]) == saved ##@ == 1;
-imported[:diagnostics].Len() ##@ == 0;</code></pre>
-<p><code>DecodeJSON</code> returns a map with <code>value</code>, <code>diagnostics</code>, and <code>schema</code>. Display its warnings alongside the imported value. <code>EncodeJSON</code> returns a String and does not write a file. The host JavaScript functions <code>encodeOutputJSON</code>, <code>decodeOutputJSON</code>, and <code>snapshotOutputDocument</code> are exported from RiX and its runtime entry point, with the same behavior in CLI, Web, and Notebook hosts.</p>
-<section id="live-widgets-become-explicit-snapshots" class="level2">
-<h2 class="anchored" data-anchor-id="live-widgets-become-explicit-snapshots">Live widgets become explicit snapshots</h2>
-<p>Call <code>.document.Snapshot(value)</code> before persisting a live tree. It captures current control values and selected Sheet planes, removes reactive/action handles, disables controls, and turns draggable points/actions into static circles/groups. It never invokes an action. The original tree stays live.</p>
-<pre class="rix" data-exec="true"><code>.Plugin.Load("document");
-$$amount := 1/2;
-panel := .ControlPanel([.Controls.Slider($$amount, 0:1, 1/10, "Amount")]);
-portable := .document.Snapshot(panel);
-.document.DecodeJSON(.document.EncodeJSON(portable))[:value];</code></pre>
-<p>A direct attempt to encode live controls, bindings, functions, promises, host objects, or accessors fails. Imported Sheet snapshots retain safe <code>Index</code>/<code>At</code> lookup over saved cells; an unsaved plane is unavailable, not lazily evaluated. Frame-aware mathematical tensor graphs require the separate Linalg identity import adapter; bare Shaped and rank-two Matrix values are supported now.</p>
+<section id="mathematical-graph-json-version-1" class="level1">
+<h1>Mathematical graph JSON, version 1</h1>
+<p>Status: implemented for current core expression values. This is not a runtime scope dump or a serialization of arbitrary RiX objects.</p>
+<section id="api-and-encoding" class="level2">
+<h2 class="anchored" data-anchor-id="api-and-encoding">API and encoding</h2>
+<p><code>MathEncodeJSON(value)</code> returns a JSON string; <code>MathDecodeJSON(text)</code> returns the decoded value with fresh document-local identities. <code>MathEncodeJSONL</code> accepts a finite sequence/tuple and writes one independent document per line. <code>MathDecodeJSONL</code> returns a sequence; a failure reports its physical line. These bounded convenience APIs materialize their text/results, not a streaming transport. Hosts can process individual documents incrementally. Existing <code>.data</code> JSONL row-source APIs remain available for tabular streaming.</p>
+<p>Suggested suffix: <code>.rixmath.json</code>, or <code>.rixmath.jsonl</code>. UTF-8 is the file encoding; the API accepts/returns RiX strings. Writers emit compact JSON with stable traversal/property order for an unchanged input value. This is not a canonical algebraic normal form or a cross-process hash.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode json code-with-copy"><code class="sourceCode json"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"schema"</span><span class="fu">:</span> <span class="st">"rix.math.document@1"</span><span class="fu">,</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"root"</span><span class="fu">:</span> <span class="fu">{</span><span class="dt">"$ref"</span><span class="fu">:</span><span class="st">"n0"</span><span class="fu">},</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"nodes"</span><span class="fu">:</span> <span class="ot">[</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">{</span><span class="dt">"id"</span><span class="fu">:</span><span class="st">"n0"</span><span class="fu">,</span><span class="dt">"kind"</span><span class="fu">:</span><span class="st">"tuple"</span><span class="fu">,</span><span class="dt">"values"</span><span class="fu">:</span><span class="ot">[</span><span class="fu">{</span><span class="dt">"$ref"</span><span class="fu">:</span><span class="st">"n1"</span><span class="fu">}</span><span class="ot">,</span><span class="fu">{</span><span class="dt">"$ref"</span><span class="fu">:</span><span class="st">"n2"</span><span class="fu">}</span><span class="ot">,</span><span class="fu">{</span><span class="dt">"$ref"</span><span class="fu">:</span><span class="st">"n1"</span><span class="fu">}</span><span class="ot">]</span><span class="fu">}</span><span class="ot">,</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    <span class="fu">{</span><span class="dt">"id"</span><span class="fu">:</span><span class="st">"n1"</span><span class="fu">,</span><span class="dt">"kind"</span><span class="fu">:</span><span class="st">"symbol"</span><span class="fu">,</span><span class="dt">"name"</span><span class="fu">:</span><span class="st">"x"</span><span class="fu">,</span><span class="dt">"bound"</span><span class="fu">:</span><span class="kw">false</span><span class="fu">,</span><span class="dt">"definition"</span><span class="fu">:</span><span class="kw">null</span><span class="fu">}</span><span class="ot">,</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    <span class="fu">{</span><span class="dt">"id"</span><span class="fu">:</span><span class="st">"n2"</span><span class="fu">,</span><span class="dt">"kind"</span><span class="fu">:</span><span class="st">"symbol"</span><span class="fu">,</span><span class="dt">"name"</span><span class="fu">:</span><span class="st">"y"</span><span class="fu">,</span><span class="dt">"bound"</span><span class="fu">:</span><span class="kw">false</span><span class="fu">,</span><span class="dt">"definition"</span><span class="fu">:{</span><span class="dt">"$ref"</span><span class="fu">:</span><span class="st">"n3"</span><span class="fu">}}</span><span class="ot">,</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    <span class="fu">{</span><span class="dt">"id"</span><span class="fu">:</span><span class="st">"n3"</span><span class="fu">,</span><span class="dt">"kind"</span><span class="fu">:</span><span class="st">"operator"</span><span class="fu">,</span><span class="dt">"operation"</span><span class="fu">:</span><span class="st">"subtract"</span><span class="fu">,</span><span class="dt">"operands"</span><span class="fu">:</span><span class="ot">[</span><span class="fu">{</span><span class="dt">"$ref"</span><span class="fu">:</span><span class="st">"n1"</span><span class="fu">}</span><span class="ot">,</span><span class="fu">{</span><span class="dt">"$integer"</span><span class="fu">:</span><span class="st">"0"</span><span class="fu">}</span><span class="ot">]</span><span class="fu">}</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>  <span class="ot">]</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>This records <code>(x,y,x)</code> with <code>y=x-0</code>. The two references to x share identity; the y definition refers to that same x. Loading twice creates two independent identity sets. Loading never introduces <code>::x</code> into a programming scope. Names are display labels, not identity keys. Constructor-based name-only symbols are interned by name while saving and become fresh identity-bearing symbols when loaded; old name-based algorithm consumers must not be assumed compatible.</p>
 </section>
-<section id="import-policy-and-limits" class="level2">
-<h2 class="anchored" data-anchor-id="import-policy-and-limits">Import policy and limits</h2>
-<p>The <code>unknownTags</code> option is one of:</p>
-<ul>
-<li><code>"warn-and-skip"</code> (default): replace an unsupported record with visible text and a source-path warning. Required malformed known records still fail.</li>
-<li><code>"strict-error"</code>: reject an unsupported tag.</li>
-<li><code>"preserve-opaque"</code>: show the same fallback while retaining bounded inert data for re-export. This never installs behavior for the unknown record.</li>
-</ul>
-<p>Exact integers/rationals, formal unreduced Fractions, interval endpoint order, certified approximation enclosures/source sharing, undecided values, collection sharing and mathematical graph identities survive. Scoped mathematical imports create fresh runtime identities while preserving sharing within the document. Unscoped rational Calculus graphs retain their name-based structure as inert records, so saved derivative selectors and checked numerical evidence can be replayed without inventing a new symbol binding. Live extension methods are omitted from these known graph records.</p>
-<p>Defaults are 4,000,000 UTF-8 bytes, 20,000 graph nodes, 100,000 traversal steps, 128 nesting levels and 4,096 integer characters. Options <code>maxBytes</code>, <code>maxNodes</code>, <code>maxEdges</code>, <code>maxDepth</code>, and <code>maxDigits</code> can lower them or raise them by at most a factor of sixteen. The strict mathematical subgraph keeps its own independent limits. Cycles, dangling/duplicate identities, unsafe keys, nonfinite numbers, missing required fields and oversized records fail with an error code and path.</p>
+<section id="tagged-values" class="level2">
+<h2 class="anchored" data-anchor-id="tagged-values">Tagged values</h2>
+<p><code>root</code> and all value-bearing node fields use these exact forms:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Form</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>null</code></td>
+<td>RiX <code>_</code></td>
+</tr>
+<tr class="even">
+<td><code>{"$undecided":true}</code></td>
+<td>RiX <code>?</code></td>
+</tr>
+<tr class="odd">
+<td><code>{"$string":"text"}</code></td>
+<td>RiX string</td>
+</tr>
+<tr class="even">
+<td><code>{"$integer":"-123"}</code></td>
+<td>Exact Integer</td>
+</tr>
+<tr class="odd">
+<td><code>{"$rational":["-7","12"]}</code></td>
+<td>Reduced Rational with positive denominator</td>
+</tr>
+<tr class="even">
+<td><code>{"$ref":"n3"}</code></td>
+<td>Document-local node reference</td>
+</tr>
+</tbody>
+</table>
+<p>Integers use canonical decimal spelling: no plus sign, leading zeros, or negative zero. Rational components obey the same spelling and must already be reduced. Mathematical scalars never pass through JSON floating-point numbers. Exponents in exact-generator monomials are bounded JSON integers.</p>
 </section>
-<section id="version-one-wire-contract" class="level2">
-<h2 class="anchored" data-anchor-id="version-one-wire-contract">Version-one wire contract</h2>
-<p><code>rix.output.document@1</code> contains <code>root</code>, a document-local <code>nodes</code> table, and an optional strict <code>rix.math.document@1</code> graph. References are <code>{"$ref":"n0"}</code>; IDs are traversal-order identifiers, not global identities or signed hashes.</p>
-<p>Each node has exactly <code>id</code>, <code>tag</code>, and <code>data</code>. Tags <code>integer</code>, <code>rational</code>, <code>fraction</code>, <code>interval</code>, <code>certified</code>, <code>shaped</code>, <code>undecided</code>, <code>hole</code>, <code>array</code>, <code>map</code>, <code>record</code>, and <code>math</code> have explicit scalar/collection forms. <code>output:KIND</code> carries ordered name/value pairs for a validated core output record. Numbers embedded as native JSON numbers are host presentation data, never exact RiX integers or rationals. Mathematical expressions share one strict graph across the tree.</p>
-<p>Intrinsic methods are rebuilt from installed constructors and never saved. Metadata, labels, captions, references, asset declarations, styles and evidence remain ordinary inert data. Unknown-tag import does not change strict Core mathematical decoding. Existing <code>rix.control-panel</code> version-one JSON migrates on import and emits an informational diagnostic. No general legacy reader or implicit source execution is provided.</p>
-<p>To move images/audio/video together with a saved document, use the <a href="../eval/output-assets.html">portable asset bundle APIs</a>. Plain document JSON retains asset references and never resolves their bytes.</p>
-<p>The <code>interval-set</code> scalar tag retains normalized rational interval-set components with exact nullable endpoints and explicit closure flags. <code>null</code> means negative infinity on the lower side and positive infinity on the upper side; infinite endpoints must be open. Empty sets and closed singleton components round-trip. Malformed, reversed, overlapping or unsorted wire components are rejected rather than silently normalized. The ordinary digit, edge, node and depth budgets apply.</p>
-<p>The <code>fraction-interval</code> tag stores two exact Fraction references in their stored low/high order, without reducing endpoint representations. Formal Fraction values may retain nonzero numerators over zero as signed infinity, using the existing explicit infinite-Fraction constructor policy. <code>0/0</code>, reversed interval endpoints, non-Fraction endpoints and infinite Rational values are rejected.</p>
+<section id="node-records" class="level2">
+<h2 class="anchored" data-anchor-id="node-records">Node records</h2>
+<p>Every node has exactly <code>id</code>, <code>kind</code>, and the fields listed below. IDs match <code>n</code> followed by decimal digits and must be unique. Forward references are allowed. Every referenced node must exist; cycles—including definition cycles—are rejected. Unreachable records are also validated.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Kind</th>
+<th>Additional required fields</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>symbol</code></td>
+<td><code>name</code> nonempty string, <code>bound</code> boolean, <code>definition</code> tagged value or null</td>
+</tr>
+<tr class="even">
+<td><code>constant</code></td>
+<td><code>value</code> tagged supported scalar</td>
+</tr>
+<tr class="odd">
+<td><code>operator</code></td>
+<td><code>operation</code> string, <code>operands</code> array of tagged expressions/scalars</td>
+</tr>
+<tr class="even">
+<td><code>apply</code></td>
+<td><code>semanticId</code> string, <code>name</code> string, <code>arguments</code> array of tagged expressions/scalars</td>
+</tr>
+<tr class="odd">
+<td><code>interval</code></td>
+<td><code>start</code>, <code>end</code>: tagged finite exact scalars, preserving original order</td>
+</tr>
+<tr class="even">
+<td><code>generator</code></td>
+<td><code>name</code>, <code>category</code> strings; <code>real</code>, <code>positiveRoot</code> booleans; <code>polynomial</code>: null or ascending tagged rational coefficients</td>
+</tr>
+<tr class="odd">
+<td><code>namedConstant</code></td>
+<td><code>semanticId</code>: currently only <code>rix.constant.pi@1</code>, resolved to the built-in exact pi constant</td>
+</tr>
+<tr class="even">
+<td><code>exact</code></td>
+<td><code>terms</code>: array of <code>{coefficient,powers}</code>, where <code>powers</code> is an array of <code>[generator-reference,exponent]</code> pairs</td>
+</tr>
+<tr class="odd">
+<td><code>tuple</code>, <code>sequence</code></td>
+<td><code>values</code>: array of tagged values</td>
+</tr>
+<tr class="even">
+<td><code>map</code></td>
+<td><code>entries</code>: array of <code>[string-key,tagged-value]</code> pairs; no duplicate keys</td>
+</tr>
+<tr class="odd">
+<td><code>real</code></td>
+<td><code>envelope</code>: frozen singleton-real envelope below</td>
+</tr>
+</tbody>
+</table>
+<p>Operators are <code>add</code>, <code>subtract</code>, <code>multiply</code>, <code>divide</code>, <code>power</code> (arity 2), and <code>negate</code> (arity 1). Function applications are inert expression data: decoding does not resolve an application semantic ID or call it. The closed <code>namedConstant</code> allowlist restores mathematical pi without executing any code or loading a plugin; unknown IDs and extra fields are errors. Its complete node form is <code>{"id":"n0","kind":"namedConstant","semanticId":"rix.constant.pi@1"}</code>. Generic exact generators acquire fresh identities; their defining polynomials are normalized by the existing exact scalar constructor, not evaluated as source code. Exact terms cannot repeat the same generator within a monomial or duplicate a monomial. Bound symbols cannot have definitions. Definitions must themselves be supported expression values. Unsupported node kinds, extra fields, and callables are errors. Generator <code>real</code>/<code>positiveRoot</code> flags remain algebra declarations; importing them is not independent root-isolation or positivity verification.</p>
+<p>Sequence order, tuple shape, exact scalar components, definitions, and shared symbol/generator/real identities survive. Objects’ <code>_ext</code> metadata, method tables, execution scopes, callbacks, cells, and aliasing of programming cells do not. Maps are restored as immutable data records; no imported field becomes a JavaScript prototype property.</p>
+</section>
+<section id="mathematical-contexts" class="level2">
+<h2 class="anchored" data-anchor-id="mathematical-contexts">Mathematical contexts</h2>
+<p>Current context values are encoded as ordinary map nodes, retaining result, binders, assumptions, and normalized domain records. Import changes <code>consistency</code> to <code>:unresolved</code> and adds <code>validation=:unverifiedImport</code>. This preserves the mathematical statements without trusting serialized consistency claims. Import is not a theorem checker, binder-normalization pass, or automatic assumption application. Consumers must validate context semantics before using them for proofs or numerical guarantees.</p>
+</section>
+<section id="frozen-real-envelope" class="level2">
+<h2 class="anchored" data-anchor-id="frozen-real-envelope">Frozen real envelope</h2>
+<p>The <code>real</code> node uses the bounded inert-envelope loader of the existing <code>rix.refinable-real@1</code> design:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode json code-with-copy"><code class="sourceCode json"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"schema"</span><span class="fu">:</span><span class="st">"rix.refinable-real@1"</span><span class="fu">,</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"subject"</span><span class="fu">:{</span><span class="dt">"kind"</span><span class="fu">:</span><span class="st">"opaqueSingleton"</span><span class="fu">,</span><span class="dt">"stableName"</span><span class="fu">:</span><span class="st">"n4"</span><span class="fu">},</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"snapshot"</span><span class="fu">:{</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"interval"</span><span class="fu">:{</span><span class="dt">"$interval"</span><span class="fu">:</span><span class="ot">[</span><span class="fu">{</span><span class="dt">"$rational"</span><span class="fu">:</span><span class="ot">[</span><span class="st">"7"</span><span class="ot">,</span><span class="st">"5"</span><span class="ot">]</span><span class="fu">}</span><span class="ot">,</span><span class="fu">{</span><span class="dt">"$rational"</span><span class="fu">:</span><span class="ot">[</span><span class="st">"3"</span><span class="ot">,</span><span class="st">"2"</span><span class="ot">]</span><span class="fu">}</span><span class="ot">]</span><span class="fu">},</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"status"</span><span class="fu">:</span><span class="st">"certified"</span><span class="fu">,</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"evidenceLevel"</span><span class="fu">:</span><span class="st">"proof"</span><span class="fu">,</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"verification"</span><span class="fu">:</span><span class="st">"unavailable"</span><span class="fu">,</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"evidence"</span><span class="fu">:</span><span class="ot">[]</span><span class="fu">,</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"achievedWidth"</span><span class="fu">:{</span><span class="dt">"$rational"</span><span class="fu">:</span><span class="ot">[</span><span class="st">"1"</span><span class="ot">,</span><span class="st">"10"</span><span class="ot">]</span><span class="fu">},</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"work"</span><span class="fu">:{</span><span class="dt">"calls"</span><span class="fu">:</span><span class="st">"0"</span><span class="fu">,</span><span class="dt">"iterations"</span><span class="fu">:</span><span class="st">"0"</span><span class="fu">}</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">},</span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"recipe"</span><span class="fu">:</span><span class="kw">null</span></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>stableName</code> is document-local, not a global name or network locator. The saved evidence level and certification status are provenance claims, not imported authority. Current readers accept status <code>certified</code>, <code>assumed</code>, <code>approximate</code>, or <code>unresolved</code>, but always expose the loaded real as a frozen snapshot with evidence <code>:declared</code>, <code>validation=:unverifiedImport</code>, and <code>refinable=_</code>. <code>savedEvidenceLevel</code> retains the claim. The enclosure width is checked exactly. Opaque adapters initially write zero work, empty evidence and a null recipe. Standalone imported envelopes may retain nonzero historical work, embedded evidence and recipes. Loading never replays them; explicit version-matched refinement is described in <a href="../eval/safe-interchange.html">safe interchange</a>.</p>
+<p>The loaded snapshot remains a singleton subject with an enclosure, not an interval-valued set. Repeated references share its fresh opaque identity. <code>ExpressionRefine</code> reports that no recipe is installed. Export never saves anonymous RiX/JavaScript closures, captured environments, plugin code, or host resources. Non-null recipes are rejected until an explicit allowlisted restoration API is implemented. Loading does not load plugins, run algorithms, read files, access a network, or register symbolic definitions in user scopes.</p>
+</section>
+<section id="resource-limits-and-jsonl" class="level2">
+<h2 class="anchored" data-anchor-id="resource-limits-and-jsonl">Resource limits and JSONL</h2>
+<p>Each document is limited to 2,000,000 UTF-16 code units of API text, 10,000 nodes/items per array, depth 128, and 1,024 characters per decimal integer. Exact-generator polynomials have at most 64 coefficients; monomial exponents are positive safe integers at most 10,000. A 100,000-element expanded-graph budget rejects compact DAGs that would explode in downstream tree traversal. Readers use the platform JSON parser, followed by strict tag/record checking.</p>
+<p>JSONL is limited to 1,000 records and the same total text limit. LF and CRLF are accepted; one final newline is optional. Blank interior records are errors. Each line gets its own identity table: two saved <code>::x</code> values on two lines are different loaded symbols. To preserve shared identity across values, save them in one tuple/map document. A decode failure returns no partial result and leaves the programming scope unchanged.</p>
 
 
 </section>
@@ -823,7 +973,7 @@ portable := .document.Snapshot(panel);
 </div>   
     <div class="nav-footer-center">
       &nbsp;
-    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/document-persistence.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/design/mathematical-json.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
 <p>Documentation built with <a href="https://quarto.org/">Quarto</a></p>
 </div>

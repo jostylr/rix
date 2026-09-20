@@ -546,7 +546,7 @@ total==5 ?: 1 ?_ .Error("Expected only 2 and 3 to contribute");
 </section>
 <section id="asyncstream" class="level3">
 <h3 class="anchored" data-anchor-id="asyncstream">AsyncStream</h3>
-<p>Lazy derivation: <code>Map</code>, <code>Filter</code>, <code>Take</code>, <code>Drop</code>, <code>Chunk</code>, <code>Window</code></p>
+<p>Lazy derivation: <code>Map</code>, <code>Filter</code>, <code>Take</code>, <code>Drop</code>, <code>Chunk</code>, <code>ChunkBy</code>, <code>Window</code>, <code>Merge</code>, <code>Timeout</code>, <code>Debounce</code>, <code>Throttle</code>, <code>Latest</code></p>
 <p>Promise-aware terminals: <code>ForEach</code>, <code>Reduce</code>, <code>Collect</code>, <code>First</code>, <code>Find</code>, <code>Count</code></p>
 <p>Lifecycle: <code>Close</code>, <code>Done</code>, <code>Status</code>, <code>CheckTraits</code></p>
 <p>An AsyncStream is a linear handle, not a cached LazySequence. A terminal claims the stream. <code>Status()</code> returns a map containing lifecycle details; it does not pull.</p>

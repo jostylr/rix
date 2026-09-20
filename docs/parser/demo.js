@@ -1,4 +1,74 @@
+// src/parser/source-limits.js
+var RIX_SOURCE_LIMITS = Object.freeze({
+  sourceLength: 8 * 1024 * 1024,
+  tokens: 262144,
+  tokenLength: 1024 * 1024,
+  numeralLength: 65536,
+  nodes: 262144,
+  parseDepth: 128,
+  astDepth: 256,
+  recoveryErrors: 32
+});
+function sourceLimits(options = {}) {
+  const input = options.limits || {};
+  const result = { ...RIX_SOURCE_LIMITS };
+  for (const key of Object.keys(input)) {
+    if (!Object.hasOwn(RIX_SOURCE_LIMITS, key))
+      throw new TypeError(`Unknown source limit '${key}'`);
+    if (!Number.isSafeInteger(input[key]) || input[key] < 1 || input[key] > RIX_SOURCE_LIMITS[key]) {
+      throw new RangeError(`Source limit '${key}' must be 1..${RIX_SOURCE_LIMITS[key]}`);
+    }
+    result[key] = input[key];
+  }
+  return result;
+}
+
+class RixSourceLimitError extends Error {
+  constructor(limit, maximum, offset = 0, endOffset = offset) {
+    super(`Source limit '${limit}' exceeded (maximum ${maximum}) at position ${offset}`);
+    this.name = "RixSourceLimitError";
+    this.code = "RXP1001";
+    this.reason = `Source limit '${limit}' exceeded (maximum ${maximum})`;
+    this.limit = limit;
+    this.maximum = maximum;
+    this.offset = offset;
+    this.endOffset = Math.max(offset, endOffset);
+  }
+}
+function checkSourceLimit(limit, value, limits, offset = 0, endOffset = offset) {
+  if (value > limits[limit])
+    throw new RixSourceLimitError(limit, limits[limit], offset, endOffset);
+}
+function checkAstLimits(ast, limits) {
+  const work = [[ast, 0]];
+  const seen = new WeakSet;
+  let count = 0;
+  while (work.length) {
+    const [value, parentDepth] = work.pop();
+    if (!value || typeof value !== "object" || seen.has(value))
+      continue;
+    seen.add(value);
+    const node = !Array.isArray(value) && typeof value.type === "string";
+    const depth = parentDepth + (node ? 1 : 0);
+    if (node) {
+      checkSourceLimit("nodes", ++count, limits, value.pos?.[1] || 0, value.pos?.[2]);
+      checkSourceLimit("astDepth", depth, limits, value.pos?.[1] || 0, value.pos?.[2]);
+    }
+    for (const [key, child] of Object.entries(value)) {
+      if (key === "systemInfo" || key === "pos")
+        continue;
+      if (child && typeof child === "object")
+        work.push([child, depth]);
+    }
+  }
+  return ast;
+}
+
 // src/parser/tokenizer.js
+function codePointAt(source, offset) {
+  const point = source.codePointAt(offset);
+  return point === undefined ? "" : String.fromCodePoint(point);
+}
 var identifierStart = /[\p{L}_]/u;
 var identifierPart = /[\p{L}\p{N}_]/u;
 var symbols = [
@@ -162,8 +232,23 @@ function posToLineCol(input, pos) {
   }
   return { line, col };
 }
-function tokenize(input) {
+function tokenize(input, options = {}) {
+  return tokenizeSource(input, options, false).tokens;
+}
+function tokenizeSource(input, options, recover) {
+  if (typeof input !== "string")
+    throw new TypeError("Source must be a string");
+  const limits = sourceLimits(options);
   const tokens = [];
+  const diagnostics = [];
+  let truncated = false;
+  try {
+    checkSourceLimit("sourceLength", input.length, limits);
+  } catch (error) {
+    if (!recover)
+      throw error;
+    return { tokens: [{ type: "End", original: "", value: null, pos: [0, 0, 0] }], diagnostics: [error], truncated: true };
+  }
   let position = 0;
   while (position < input.length) {
     const startPos = position;
@@ -179,58 +264,83 @@ function tokenize(input) {
       });
       break;
     }
-    let token = null;
-    token = tryMatchPostfixCheck(input, position);
-    if (!token) {
-      token = tryMatchComment(input, position);
-    }
-    if (!token) {
-      token = tryMatchActiveBaseNumber(input, position);
-    }
-    if (!token) {
-      token = tryMatchNumber(input, position);
-    }
-    if (!token) {
-      token = tryMatchExplicitCF(input, position);
-    }
-    if (!token) {
-      token = tryMatchString(input, position);
-    }
-    if (!token) {
-      token = tryMatchSystemFunctionRef(input, position);
-    }
-    if (!token) {
-      token = tryMatchOuterIdentifier(input, position);
-    }
-    if (!token) {
-      token = tryMatchIdentifier(input, position);
-    }
-    if (!token) {
-      token = tryMatchCustomOperator(input, position);
-    }
-    if (!token) {
-      token = tryMatchRegexLiteral(input, position);
-    }
-    if (!token) {
-      token = tryMatchBrace(input, position);
-    }
-    if (!token) {
-      token = tryMatchSemicolonSequence(input, position);
-    }
-    if (!token) {
-      token = tryMatchSymbol(input, position);
-    }
-    if (token) {
-      const whitespace = input.slice(startPos, position);
-      token.original = whitespace + token.original;
-      token.pos[0] = startPos;
-      if (token.type !== "String") {
-        token.pos[1] = position;
+    try {
+      checkSourceLimit("tokens", tokens.length + 1, limits, position);
+      let token = null;
+      token = tryMatchPostfixCheck(input, position);
+      if (!token) {
+        token = tryMatchComment(input, position);
       }
-      tokens.push(token);
-      position += token.original.length - whitespace.length;
-    } else {
-      position++;
+      if (!token) {
+        token = tryMatchActiveBaseNumber(input, position);
+      }
+      if (!token) {
+        token = tryMatchNumber(input, position);
+      }
+      if (!token) {
+        token = tryMatchExplicitCF(input, position);
+      }
+      if (!token) {
+        token = tryMatchString(input, position);
+      }
+      if (!token) {
+        token = tryMatchSystemFunctionRef(input, position);
+      }
+      if (!token) {
+        token = tryMatchOuterIdentifier(input, position);
+      }
+      if (!token) {
+        token = tryMatchIdentifier(input, position);
+      }
+      if (!token) {
+        token = tryMatchCustomOperator(input, position);
+      }
+      if (!token) {
+        token = tryMatchRegexLiteral(input, position);
+      }
+      if (!token) {
+        token = tryMatchBrace(input, position);
+      }
+      if (!token) {
+        token = tryMatchSemicolonSequence(input, position);
+      }
+      if (!token) {
+        token = tryMatchSymbol(input, position);
+      }
+      if (token) {
+        checkSourceLimit("tokenLength", token.original.length, limits, position, token.pos[2]);
+        if (token.type === "Number" || token.type === "ActiveBaseNumber") {
+          checkSourceLimit("numeralLength", token.original.length, limits, position, token.pos[2]);
+        }
+        const whitespace = input.slice(startPos, position);
+        token.original = whitespace + token.original;
+        token.pos[0] = startPos;
+        if (token.type !== "String") {
+          token.pos[1] = position;
+        }
+        tokens.push(token);
+        position += token.original.length - whitespace.length;
+      } else {
+        const error = new SyntaxError(`Unrecognized source character at position ${position}`);
+        error.code = "RXP1002";
+        throw error;
+      }
+    } catch (error) {
+      error.code ||= "RXP1002";
+      error.offset ??= position;
+      error.endOffset ??= position + String.fromCodePoint(input.codePointAt(position) || 0).length;
+      if (!recover)
+        throw error;
+      diagnostics.push(error);
+      if (error instanceof RixSourceLimitError || diagnostics.length >= limits.recoveryErrors) {
+        truncated = true;
+        break;
+      }
+      const newline = input.indexOf(`
+`, position);
+      const end = newline < 0 ? input.length : newline + 1;
+      tokens.push({ type: "Invalid", original: input.slice(startPos, end), value: null, pos: [startPos, position, end] });
+      position = end;
     }
   }
   if (tokens.length === 0 || tokens[tokens.length - 1].type !== "End") {
@@ -241,7 +351,7 @@ function tokenize(input) {
       pos: [input.length, input.length, input.length]
     });
   }
-  return tokens;
+  return { tokens, diagnostics, truncated };
 }
 function tryMatchCustomOperator(input, position) {
   if (!input.startsWith(":<", position))
@@ -730,10 +840,10 @@ function tryMatchActiveBaseNumber(input, position) {
 }
 function tryMatchSystemFunctionRef(input, position) {
   const remaining = input.slice(position);
-  if (remaining.startsWith("@_") && remaining.length > 2 && identifierStart.test(remaining[2])) {
-    let length = 3;
-    while (length < remaining.length && identifierPart.test(remaining[length])) {
-      length++;
+  if (remaining.startsWith("@_") && remaining.length > 2 && identifierStart.test(codePointAt(remaining, 2))) {
+    let length = 2 + codePointAt(remaining, 2).length;
+    while (length < remaining.length && identifierPart.test(codePointAt(remaining, length))) {
+      length += codePointAt(remaining, length).length;
     }
     const original = remaining.slice(0, length);
     const name = remaining.slice(2, length);
@@ -763,21 +873,21 @@ function tryMatchIdentifier(input, position) {
       };
     }
   }
-  if (!identifierStart.test(remaining[0])) {
+  if (!identifierStart.test(codePointAt(remaining, 0))) {
     return null;
   }
-  let length = 1;
-  while (length < remaining.length && identifierPart.test(remaining[length])) {
-    length++;
+  let length = codePointAt(remaining, 0).length;
+  while (length < remaining.length && identifierPart.test(codePointAt(remaining, length))) {
+    length += codePointAt(remaining, length).length;
   }
   const original = remaining.slice(0, length);
   if (original === "_") {
     return null;
   }
   let firstLetter = null;
-  for (let i = 0;i < original.length; i++) {
-    if (/[\p{L}]/u.test(original[i])) {
-      firstLetter = original[i];
+  for (const char of original) {
+    if (/[\p{L}]/u.test(char)) {
+      firstLetter = char;
       break;
     }
   }
@@ -794,9 +904,9 @@ function tryMatchIdentifier(input, position) {
 }
 function normalizeIdentifierValue(original) {
   let firstLetter = null;
-  for (let i = 0;i < original.length; i++) {
-    if (/[\p{L}]/u.test(original[i])) {
-      firstLetter = original[i];
+  for (const char of original) {
+    if (/[\p{L}]/u.test(char)) {
+      firstLetter = char;
       break;
     }
   }
@@ -1252,13 +1362,13 @@ function tryMatchSymbol(input, position) {
     }
   }
   if (remaining.length > 0) {
-    const char = remaining[0];
+    const char = codePointAt(remaining, 0);
     if (!/[\w\s\p{L}\p{N}]/u.test(char)) {
       return {
         type: "Symbol",
         original: char,
         value: char,
-        pos: [position, position, position + 1]
+        pos: [position, position, position + char.length]
       };
     }
   }
@@ -1268,17 +1378,17 @@ function tryMatchOuterIdentifier(input, position) {
   const remaining = input.slice(position);
   if (remaining.startsWith("@_"))
     return null;
-  if (remaining.startsWith("@") && remaining.length > 1 && identifierStart.test(remaining[1])) {
-    let length = 2;
-    while (length < remaining.length && identifierPart.test(remaining[length])) {
-      length++;
+  if (remaining.startsWith("@") && remaining.length > 1 && identifierStart.test(codePointAt(remaining, 1))) {
+    let length = 1 + codePointAt(remaining, 1).length;
+    while (length < remaining.length && identifierPart.test(codePointAt(remaining, length))) {
+      length += codePointAt(remaining, length).length;
     }
     const original = remaining.slice(0, length);
     const name = remaining.slice(1, length);
     let firstLetter = null;
-    for (let i = 0;i < name.length; i++) {
-      if (/[\p{L}]/u.test(name[i])) {
-        firstLetter = name[i];
+    for (const char of name) {
+      if (/[\p{L}]/u.test(char)) {
+        firstLetter = char;
         break;
       }
     }
@@ -2084,7 +2194,10 @@ class RixParseError extends Error {
 }
 
 class Parser {
-  constructor(tokens, systemLookup, source = "", customOperators = new Map) {
+  constructor(tokens, systemLookup, source = "", customOperators = new Map, limits = sourceLimits()) {
+    this.limits = limits;
+    this.expressionDepth = 0;
+    this.nodeCount = 0;
     this.tokens = tokens;
     this.systemLookup = systemLookup || (() => ({ type: "identifier" }));
     this.source = source;
@@ -2128,6 +2241,7 @@ class Parser {
     return { type: "End", value: null };
   }
   createNode(type, properties = {}) {
+    checkSourceLimit("nodes", ++this.nodeCount, this.limits, this.current.pos?.[1] || 0);
     const node = {
       type,
       pos: properties.pos || this.current.pos,
@@ -2266,11 +2380,15 @@ class Parser {
     return false;
   }
   parseExpression(minPrec = 0) {
-    const left = this.parsePrefix();
-    if (!left) {
-      this.error("Expected an expression");
+    checkSourceLimit("parseDepth", ++this.expressionDepth, this.limits, this.current.pos?.[1] || 0);
+    try {
+      const left = this.parsePrefix();
+      if (!left)
+        this.error("Expected an expression");
+      return this.parseExpressionRec(left, minPrec, false);
+    } finally {
+      this.expressionDepth--;
     }
-    return this.parseExpressionRec(left, minPrec, false);
   }
   parseDecisionBranchExpression() {
     let expression = this.parseExpression(PRECEDENCE.CONDITION + 1);
@@ -2307,14 +2425,16 @@ class Parser {
         this.advance();
         return this.createNode("Number", {
           value: token.value,
-          original: token.original
+          original: token.original,
+          pos: token.pos
         });
       case "ActiveBaseNumber":
         this.advance();
         return this.createNode("ActiveBaseNumber", {
           value: token.value,
           quoted: token.quoted === true,
-          original: token.original
+          original: token.original,
+          pos: token.pos
         });
       case "String":
         this.advance();
@@ -2324,7 +2444,8 @@ class Parser {
           return this.createNode("String", {
             value: token.value,
             kind: token.kind,
-            original: token.original
+            original: token.original,
+            pos: token.pos
           });
         }
       case "RegexLiteral":
@@ -2333,39 +2454,45 @@ class Parser {
           pattern: token.pattern,
           flags: token.flags,
           mode: token.mode,
-          original: token.original
+          original: token.original,
+          pos: token.pos
         });
       case "Identifier":
         this.advance();
         if (token.kind === "SystemFunction") {
           return this.createNode("SystemFunctionRef", {
             name: token.value,
-            original: token.original
+            original: token.original,
+            pos: token.pos
           });
         } else if (token.kind === "System") {
           const systemInfo = this.systemLookup(token.value);
           return this.createNode("SystemIdentifier", {
             name: token.value,
             systemInfo,
-            original: token.original
+            original: token.original,
+            pos: token.pos
           });
         } else {
           return this.createNode("UserIdentifier", {
             name: token.value,
-            original: token.original
+            original: token.original,
+            pos: token.pos
           });
         }
       case "OuterIdentifier":
         this.advance();
         return this.createNode("OuterIdentifier", {
           name: token.value,
-          original: token.original
+          original: token.original,
+          pos: token.pos
         });
       case "PlaceHolder":
         this.advance();
         return this.createNode("PlaceHolder", {
           place: token.place,
-          original: token.original
+          original: token.original,
+          pos: token.pos
         });
       case "Symbol":
         if (token.value === "<*" || token.value === "*>") {
@@ -2380,7 +2507,8 @@ class Parser {
         if (token.value === "?") {
           this.advance();
           return this.createNode("UndecidedLiteral", {
-            original: token.original
+            original: token.original,
+            pos: token.pos
           });
         } else if (token.value === "...") {
           this.advance();
@@ -2499,7 +2627,8 @@ class Parser {
           }
           return this.createNode("UserIdentifier", {
             name: "@",
-            original: token.original
+            original: token.original,
+            pos: token.pos
           });
         } else if (token.value === "!!") {
           this.advance();
@@ -2554,14 +2683,16 @@ class Parser {
             });
           }
           return this.createNode("SystemObject", {
-            original: token.original
+            original: token.original,
+            pos: token.pos
           });
         } else if (token.value === "::") {
           return this.parseSymbolicVariable(false);
         } else if (token.value === "_") {
           this.advance();
           return this.createNode("NULL", {
-            original: token.original
+            original: token.original,
+            pos: token.pos
           });
         } else if (token.value === "$$") {
           this.advance();
@@ -2574,7 +2705,8 @@ class Parser {
             });
           }
           return this.createNode("ParentSelfRef", {
-            original: token.original
+            original: token.original,
+            pos: token.pos
           });
         } else if (token.value === "$") {
           this.advance();
@@ -2594,7 +2726,8 @@ class Parser {
             });
           }
           return this.createNode("SelfRef", {
-            original: token.original
+            original: token.original,
+            pos: token.pos
           });
         } else if (token.value === ":") {
           this.advance();
@@ -4184,7 +4317,8 @@ class Parser {
       key = this.createNode(token.kind === "System" ? "SystemIdentifier" : "UserIdentifier", {
         name: token.value,
         ...token.kind === "System" ? { systemInfo: this.systemLookup(token.value) } : {},
-        original: token.original
+        original: token.original,
+        pos: token.pos
       });
     } else if (this.current.value === "(") {
       key = this.parseGrouping();
@@ -5796,7 +5930,8 @@ class Parser {
         modifiers: parsedParts.slice(1),
         body: content.slice(colonIndex + 1),
         explicitParser: true,
-        original: token.original
+        original: token.original,
+        pos: token.pos
       });
     }
     if (content.startsWith(":")) {
@@ -5804,14 +5939,16 @@ class Parser {
         language: "RiX-String",
         context: null,
         body: content.slice(1),
-        original: token.original
+        original: token.original,
+        pos: token.pos
       });
     }
     return this.createNode("EmbeddedLanguage", {
       language: "SArith",
       context: null,
       body: content,
-      original: token.original
+      original: token.original,
+      pos: token.pos
     });
   }
   parseParameterFromArg(arg, inKeywordSection) {
@@ -6048,14 +6185,22 @@ class Parser {
   }
 }
 function parse(input, systemLookup, options = {}) {
+  const limits = sourceLimits(options);
   let tokens;
   let source = "";
   if (typeof input === "string") {
     source = input;
-    tokens = tokenize(input);
+    tokens = tokenize(input, { limits });
   } else {
     tokens = input;
     source = options.source || "";
+  }
+  checkSourceLimit("sourceLength", source.length, limits);
+  checkSourceLimit("tokens", tokens.filter((token) => token.type !== "End").length, limits);
+  for (const token of tokens) {
+    checkSourceLimit("tokenLength", (token.original || "").trimStart().length, limits, token.pos?.[1] || 0);
+    if (token.type === "Number" || token.type === "ActiveBaseNumber")
+      checkSourceLimit("numeralLength", (token.original || "").trimStart().length, limits, token.pos?.[1] || 0);
   }
   const localOperators = extractOperatorDeclarations(tokens, {
     source,
@@ -6063,8 +6208,8 @@ function parse(input, systemLookup, options = {}) {
     label: options.file || "source"
   });
   const customOperators = mergeOperatorDefinitions(options.operatorDefinitions, localOperators);
-  const parser = new Parser(tokens, systemLookup, source, customOperators);
-  return parser.parse();
+  const parser = new Parser(tokens, systemLookup, source, customOperators, limits);
+  return checkAstLimits(parser.parse(), limits);
 }
 // documentation/parser/src/demo.js
 var inputExpression = document.getElementById("input-expression");

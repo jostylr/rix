@@ -6,8 +6,9 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
+<meta name="description" content="Implemented admission, effects, recurrence, cancellation, and diagnostics contracts.">
 
-<title>document-persistence – RiX</title>
+<title>Concurrency safety and host limits – RiX</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -22,6 +23,41 @@ ul.task-list li input[type="checkbox"] {
   width: 0.8em;
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
 }
 </style>
 
@@ -302,7 +338,7 @@ ul.task-list li input[type="checkbox"] {
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
         <a class="flex-grow-1 no-decor" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
-          <h1 class="quarto-secondary-nav-title"></h1>
+          <h1 class="quarto-secondary-nav-title">Concurrency safety and host limits</h1>
         </a>     
     </div>
   </nav>
@@ -329,67 +365,133 @@ ul.task-list li input[type="checkbox"] {
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#saving-portable-output" id="toc-saving-portable-output" class="nav-link active" data-scroll-target="#saving-portable-output">Saving portable output</a>
-  <ul class="collapse">
-  <li><a href="#live-widgets-become-explicit-snapshots" id="toc-live-widgets-become-explicit-snapshots" class="nav-link" data-scroll-target="#live-widgets-become-explicit-snapshots">Live widgets become explicit snapshots</a></li>
-  <li><a href="#import-policy-and-limits" id="toc-import-policy-and-limits" class="nav-link" data-scroll-target="#import-policy-and-limits">Import policy and limits</a></li>
-  <li><a href="#version-one-wire-contract" id="toc-version-one-wire-contract" class="nav-link" data-scroll-target="#version-one-wire-contract">Version-one wire contract</a></li>
-  </ul></li>
+  <li><a href="#admission-and-retained-work" id="toc-admission-and-retained-work" class="nav-link active" data-scroll-target="#admission-and-retained-work">Admission and retained work</a></li>
+  <li><a href="#capability-effects" id="toc-capability-effects" class="nav-link" data-scroll-target="#capability-effects">Capability effects</a></li>
+  <li><a href="#async-recurrence-caches" id="toc-async-recurrence-caches" class="nav-link" data-scroll-target="#async-recurrence-caches">Async recurrence caches</a></li>
+  <li><a href="#provenance-and-host-lifecycle" id="toc-provenance-and-host-lifecycle" class="nav-link" data-scroll-target="#provenance-and-host-lifecycle">Provenance and host lifecycle</a></li>
   </ul>
-<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/document-persistence.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/concurrency-safety.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
 <!-- main -->
-<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"></header>
+<main class="content" id="quarto-document-content">
 
 
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title d-none d-lg-block">Concurrency safety and host limits</h1>
+</div>
+
+<div>
+  <div class="description">
+    Implemented admission, effects, recurrence, cancellation, and diagnostics contracts.
+  </div>
+</div>
 
 
+<div class="quarto-title-meta">
 
-<section id="saving-portable-output" class="level1">
-<h1>Saving portable output</h1>
-<p>The opt-in <code>document</code> plugin saves an evaluated output tree without keeping an execution scope, reactive handle, callback, or filesystem grant. Loading never fetches an asset, runs a recipe, imports a plugin, or evaluates RiX source.</p>
-<pre class="rix" data-exec="true"><code>.Plugin.Load("document");
-report := .Fragment([
-    .Paragraph([.Strong("Exact results"), 1/3]),
-    .Table(["oriented interval"], [[5:4]])
-]);
-saved := .document.EncodeJSON(report);
-imported := .document.DecodeJSON(saved);
-.document.EncodeJSON(imported[:value]) == saved ##@ == 1;
-imported[:diagnostics].Len() ##@ == 0;</code></pre>
-<p><code>DecodeJSON</code> returns a map with <code>value</code>, <code>diagnostics</code>, and <code>schema</code>. Display its warnings alongside the imported value. <code>EncodeJSON</code> returns a String and does not write a file. The host JavaScript functions <code>encodeOutputJSON</code>, <code>decodeOutputJSON</code>, and <code>snapshotOutputDocument</code> are exported from RiX and its runtime entry point, with the same behavior in CLI, Web, and Notebook hosts.</p>
-<section id="live-widgets-become-explicit-snapshots" class="level2">
-<h2 class="anchored" data-anchor-id="live-widgets-become-explicit-snapshots">Live widgets become explicit snapshots</h2>
-<p>Call <code>.document.Snapshot(value)</code> before persisting a live tree. It captures current control values and selected Sheet planes, removes reactive/action handles, disables controls, and turns draggable points/actions into static circles/groups. It never invokes an action. The original tree stays live.</p>
-<pre class="rix" data-exec="true"><code>.Plugin.Load("document");
-$$amount := 1/2;
-panel := .ControlPanel([.Controls.Slider($$amount, 0:1, 1/10, "Amount")]);
-portable := .document.Snapshot(panel);
-.document.DecodeJSON(.document.EncodeJSON(portable))[:value];</code></pre>
-<p>A direct attempt to encode live controls, bindings, functions, promises, host objects, or accessors fails. Imported Sheet snapshots retain safe <code>Index</code>/<code>At</code> lookup over saved cells; an unsaved plane is unavailable, not lazily evaluated. Frame-aware mathematical tensor graphs require the separate Linalg identity import adapter; bare Shaped and rank-two Matrix values are supported now.</p>
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>RiX async entry points await promises and return ordinary RiX values. Explicit <code>{$ ... }</code> scopes permit independent work to overlap. Ordinary recurrence steps remain ordered, including when their callbacks await I/O. CLI, Web, Notebook, and other hosts using the same promise-aware evaluator receive these contracts; worker transport and Notebook engine lifecycle are tracked separately in R2.</p>
+<section id="admission-and-retained-work" class="level2">
+<h2 class="anchored" data-anchor-id="admission-and-retained-work">Admission and retained work</h2>
+<p>A scheduler distinguishes an active execution permit from an outstanding task. Suspending around nested fan-out releases the permit, while the task remains outstanding until its body and cleanup settle. Repeated resume requests share one reservation. Cancellation rejects queued tasks, aborts active cooperative tasks, and waits for outstanding work rather than mistaking suspension for completion.</p>
+<p>Set <code>context.setEnv("asyncLimits", {...})</code> before using the context. Omitted keys use the ceilings below; supplied positive safe integers can lower each ceiling. A scope’s requested concurrency cannot raise its parent or host limit. Invalid limits are rejected. Limits apply to retained item counts, not the deep byte size of arbitrary host-supplied values.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 30%">
+<col style="width: 40%">
+<col style="width: 30%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Host field</th>
+<th style="text-align: right;">Ceiling</th>
+<th>What is bounded</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>concurrency</code></td>
+<td style="text-align: right;">64</td>
+<td>Active event-loop task permits</td>
+</tr>
+<tr class="even">
+<td><code>queued</code></td>
+<td style="text-align: right;">4096</td>
+<td>New scheduler admissions, raw stream pulls, lazy pull requests, blocked hot producers</td>
+</tr>
+<tr class="odd">
+<td><code>outstanding</code></td>
+<td style="text-align: right;">4096</td>
+<td>Admitted/queued tasks, owner effects, retained resources and finalizers</td>
+</tr>
+<tr class="even">
+<td><code>background</code></td>
+<td style="text-align: right;">128</td>
+<td>Detached tasks, reserved before launch</td>
+</tr>
+<tr class="odd">
+<td><code>errors</code></td>
+<td style="text-align: right;">64</td>
+<td>Retained secondary/cleanup/background failures</td>
+</tr>
+<tr class="even">
+<td><code>outputItems</code></td>
+<td style="text-align: right;">10000</td>
+<td>Collected results, recurrence caches, stream chunk/window/capacity, output artifact count</td>
+</tr>
+<tr class="odd">
+<td><code>traceEvents</code></td>
+<td style="text-align: right;">2048</td>
+<td>Retained trace events</td>
+</tr>
+<tr class="even">
+<td><code>branchRecords</code></td>
+<td style="text-align: right;">4096</td>
+<td>Fair-admission accounting prefixes</td>
+</tr>
+</tbody>
+</table>
+<p>Ordered collection/stream evaluation retains at most <code>2L</code> unpublished promises, releases published promise references, and separately bounds retained result items. A resumed task uses its existing outstanding-work reservation. Hot stream <code>block</code> overflow bounds waiting producers as well as buffered values. Limit failures use <code>ASYNC_LIMIT_EXCEEDED</code> with <code>data.resource</code> and <code>data.limit</code>.</p>
+<p>Error and trace truncation is explicit: <code>asyncDroppedErrors</code>, background context <code>__async_dropped_background_errors__</code>, and trace <code>droppedEvents</code> count omitted details. The first observed failure remains primary; later failures do not replace it. Primitive/frozen host errors are normalized with their original value in <code>cause</code>. Resources and cleanup run once, with the existing cleanup grace period. Hosts must still cooperate with cancellation; a non-cooperative operation may keep its owner lane or task alive until it returns.</p>
 </section>
-<section id="import-policy-and-limits" class="level2">
-<h2 class="anchored" data-anchor-id="import-policy-and-limits">Import policy and limits</h2>
-<p>The <code>unknownTags</code> option is one of:</p>
-<ul>
-<li><code>"warn-and-skip"</code> (default): replace an unsupported record with visible text and a source-path warning. Required malformed known records still fail.</li>
-<li><code>"strict-error"</code>: reject an unsupported tag.</li>
-<li><code>"preserve-opaque"</code>: show the same fallback while retaining bounded inert data for re-export. This never installs behavior for the unknown record.</li>
-</ul>
-<p>Exact integers/rationals, formal unreduced Fractions, interval endpoint order, certified approximation enclosures/source sharing, undecided values, collection sharing and mathematical graph identities survive. Scoped mathematical imports create fresh runtime identities while preserving sharing within the document. Unscoped rational Calculus graphs retain their name-based structure as inert records, so saved derivative selectors and checked numerical evidence can be replayed without inventing a new symbol binding. Live extension methods are omitted from these known graph records.</p>
-<p>Defaults are 4,000,000 UTF-8 bytes, 20,000 graph nodes, 100,000 traversal steps, 128 nesting levels and 4,096 integer characters. Options <code>maxBytes</code>, <code>maxNodes</code>, <code>maxEdges</code>, <code>maxDepth</code>, and <code>maxDigits</code> can lower them or raise them by at most a factor of sixteen. The strict mathematical subgraph keeps its own independent limits. Cycles, dangling/duplicate identities, unsafe keys, nonfinite numbers, missing required fields and oversized records fail with an error code and path.</p>
+<section id="capability-effects" class="level2">
+<h2 class="anchored" data-anchor-id="capability-effects">Capability effects</h2>
+<p>Registry and SystemContext definitions accept:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>systemContext<span class="op">.</span><span class="fu">registerHost</span>(<span class="st">"fetchValue"</span><span class="op">,</span> {</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">effect</span><span class="op">:</span> <span class="st">"read"</span><span class="op">,</span>                 <span class="co">// pure, read, write, unknown</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">concurrency</span><span class="op">:</span> <span class="st">"safe"</span><span class="op">,</span>            <span class="co">// safe, serial</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">cancellation</span><span class="op">:</span> <span class="st">"cooperative"</span><span class="op">,</span>    <span class="co">// cooperative, none</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>  <span class="kw">async</span> <span class="fu">impl</span>(args<span class="op">,</span> context<span class="op">,</span> evaluate<span class="op">,</span> execution) {</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Use execution.signal with the host's cancellable I/O API.</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    <span class="co">// execution.taskPath identifies the calling source branch.</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>  }<span class="op">,</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>})<span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Existing truthful <code>pure: true</code> functions default to pure/safe. Other definitions are unknown/serial/non-cooperative by default. Explicit <code>serial</code> is honored even for a pure function. Replacing an implementation or installing an unclassified native variant cannot silently inherit a previous implementation’s safety claim. The owner serial lane is shared by concurrent descendants and supervised detached tasks in the same evaluation context. Explicit <code>safe</code> allows independent adapter invocations to overlap; it is a host contract, not a capability permission grant.</p>
+<p>An adapter delegating to RiX must await <code>execution.invoke(callable, args)</code> or its evaluator callback before resuming its own effectful state. Delegation releases and reacquires its owner lease so nested effects can finish. Reactive formula constructors retain their synchronous evaluator contract. Cancellation signals reach adapters, but cancellation does not undo a completed write, output, reactive publication, or request. Synchronous JavaScript cannot be forcibly interrupted by this event-loop scheduler.</p>
 </section>
-<section id="version-one-wire-contract" class="level2">
-<h2 class="anchored" data-anchor-id="version-one-wire-contract">Version-one wire contract</h2>
-<p><code>rix.output.document@1</code> contains <code>root</code>, a document-local <code>nodes</code> table, and an optional strict <code>rix.math.document@1</code> graph. References are <code>{"$ref":"n0"}</code>; IDs are traversal-order identifiers, not global identities or signed hashes.</p>
-<p>Each node has exactly <code>id</code>, <code>tag</code>, and <code>data</code>. Tags <code>integer</code>, <code>rational</code>, <code>fraction</code>, <code>interval</code>, <code>certified</code>, <code>shaped</code>, <code>undecided</code>, <code>hole</code>, <code>array</code>, <code>map</code>, <code>record</code>, and <code>math</code> have explicit scalar/collection forms. <code>output:KIND</code> carries ordered name/value pairs for a validated core output record. Numbers embedded as native JSON numbers are host presentation data, never exact RiX integers or rationals. Mathematical expressions share one strict graph across the tree.</p>
-<p>Intrinsic methods are rebuilt from installed constructors and never saved. Metadata, labels, captions, references, asset declarations, styles and evidence remain ordinary inert data. Unknown-tag import does not change strict Core mathematical decoding. Existing <code>rix.control-panel</code> version-one JSON migrates on import and emits an informational diagnostic. No general legacy reader or implicit source execution is provided.</p>
-<p>To move images/audio/video together with a saved document, use the <a href="../eval/output-assets.html">portable asset bundle APIs</a>. Plain document JSON retains asset references and never resolves their bytes.</p>
-<p>The <code>interval-set</code> scalar tag retains normalized rational interval-set components with exact nullable endpoints and explicit closure flags. <code>null</code> means negative infinity on the lower side and positive infinity on the upper side; infinite endpoints must be open. Empty sets and closed singleton components round-trip. Malformed, reversed, overlapping or unsorted wire components are rejected rather than silently normalized. The ordinary digit, edge, node and depth budgets apply.</p>
-<p>The <code>fraction-interval</code> tag stores two exact Fraction references in their stored low/high order, without reducing endpoint representations. Formal Fraction values may retain nonzero numerators over zero as signed infinity, using the existing explicit infinite-Fraction constructor policy. <code>0/0</code>, reversed interval endpoints, non-Fraction endpoints and infinite Rational values are rejected.</p>
+<section id="async-recurrence-caches" class="level2">
+<h2 class="anchored" data-anchor-id="async-recurrence-caches">Async recurrence caches</h2>
+<p>Index generators, history recurrences, transforms, filters, and predicate limits use one generation algorithm with sync and async drivers. The async driver awaits callbacks before committing the step. Positive/negative indexing, slices, lazy iterator reads, materialization, spread, and async stream terminals consume concrete values. Concurrent consumers serialize cache advancement. A cancelled or rejected pull leaves its local generation state uncommitted; a later caller can retry from the last committed cache. External callback effects are not rolled back and should be idempotent if a host retries them.</p>
+<p>Synchronous evaluation rejects an asynchronous recurrence before a promise enters its cache. A sequence created by async evaluation can expose already cached values synchronously; advancing an async recurrence requires an async entry point. Clones use committed state; restarting a sequence restarts generation. An async recurrence may read already committed values of its own sequence, not request its currently pending or future value.</p>
+<p>The host runtime exports <code>ensureLazyIndexAsync</code>, <code>pullLazyValueAsync</code>, and <code>materializeLazySequenceAsync</code> alongside the synchronous helpers. Returned JavaScript promises are host API results, never stored as RiX sequence entries.</p>
+</section>
+<section id="provenance-and-host-lifecycle" class="level2">
+<h2 class="anchored" data-anchor-id="provenance-and-host-lifecycle">Provenance and host lifecycle</h2>
+<p>Structural paths include named/unnamed scopes with source locations, source-order branches, loop body iterations, detached spawn sites, and cleanup. Failures expose <code>asyncTaskPath</code> and <code>asyncTaskSegments</code>; scheduler failures also carry observation order/time and <code>asyncScheduler</code> scalar state. Async traces include path and scheduler summaries. <code>.Out</code> sink events include <code>taskPath</code> when evaluated within an async task. Effects arrive in completion order; assembled collection results remain in source order.</p>
+<p>Detached admission is reserved before work starts. Inherited deadlines keep their own timer after the spawning scope exits. Error-handler failures join the bounded supervisor queue rather than becoming unhandled promises. Shutdown prevents new resource/background acquisitions while draining owned resources. Hosts call <code>disposeAsyncResources(context)</code> for cancellation/close, and <code>drainBackgroundTasks(context)</code> when waiting for completion is intended.</p>
+<p>Acceptance tests live in <code>tests/eval/async-safety.test.js</code>, <code>tests/runtime/async-runtime.test.js</code>, <code>tests/runtime/async-lazy-sequence.test.js</code>, and <code>tests/runtime/async-stream.test.js</code>, alongside the existing async parity, collection, cancellation, finalization, stream, and reactive-boundary suites. They use deferred promises/microtask gates for race assertions and avoid relying on wall-clock completion races.</p>
 
 
-</section>
 </section>
 
 <a onclick="window.scrollTo(0, 0); return false;" role="button" id="quarto-back-to-top"><i class="bi bi-arrow-up"></i> Back to top</a></main> <!-- /main -->
@@ -823,7 +925,7 @@ portable := .document.Snapshot(panel);
 </div>   
     <div class="nav-footer-center">
       &nbsp;
-    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/document-persistence.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/concurrency-safety.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
 <p>Documentation built with <a href="https://quarto.org/">Quarto</a></p>
 </div>

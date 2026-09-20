@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>renderer-guide – RiX</title>
+<title>mathematical-localization – RiX</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -22,41 +22,6 @@ ul.task-list li input[type="checkbox"] {
   width: 0.8em;
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
-}
-/* CSS for syntax highlighting */
-html { -webkit-text-size-adjust: 100%; }
-pre > code.sourceCode { white-space: pre; position: relative; }
-pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
-pre > code.sourceCode > span:empty { height: 1.2em; }
-.sourceCode { overflow: visible; }
-code.sourceCode > span { color: inherit; text-decoration: inherit; }
-div.sourceCode { margin: 1em 0; }
-pre.sourceCode { margin: 0; }
-@media screen {
-div.sourceCode { overflow: auto; }
-}
-@media print {
-pre > code.sourceCode { white-space: pre-wrap; }
-pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
-}
-pre.numberSource code
-  { counter-reset: source-line 0; }
-pre.numberSource code > span
-  { position: relative; left: -4em; counter-increment: source-line; }
-pre.numberSource code > span > a:first-child::before
-  { content: counter(source-line);
-    position: relative; left: -1em; text-align: right; vertical-align: baseline;
-    border: none; display: inline-block;
-    -webkit-touch-callout: none; -webkit-user-select: none;
-    -khtml-user-select: none; -moz-user-select: none;
-    -ms-user-select: none; user-select: none;
-    padding: 0 4px; width: 4em;
-  }
-pre.numberSource { margin-left: 3em;  padding-left: 4px; }
-div.sourceCode
-  {   }
-@media screen {
-pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
 }
 </style>
 
@@ -364,38 +329,21 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#renderer-plugins" id="toc-renderer-plugins" class="nav-link active" data-scroll-target="#renderer-plugins">Renderer plugins</a>
+  <li><a href="#local-substitution-and-exact-evaluation" id="toc-local-substitution-and-exact-evaluation" class="nav-link active" data-scroll-target="#local-substitution-and-exact-evaluation">Local substitution and exact evaluation</a>
   <ul class="collapse">
-  <li><a href="#loading-and-discovery" id="toc-loading-and-discovery" class="nav-link" data-scroll-target="#loading-and-discovery">Loading and discovery</a></li>
-  <li><a href="#rendering-and-export" id="toc-rendering-and-export" class="nav-link" data-scroll-target="#rendering-and-export">Rendering and export</a></li>
-  <li><a href="#renderresult-contract" id="toc-renderresult-contract" class="nav-link" data-scroll-target="#renderresult-contract">RenderResult contract</a></li>
-  <li><a href="#target-matrix" id="toc-target-matrix" class="nav-link" data-scroll-target="#target-matrix">Target matrix</a></li>
-  <li><a href="#graphics-targets" id="toc-graphics-targets" class="nav-link" data-scroll-target="#graphics-targets">Graphics targets</a>
+  <li><a href="#evaluating-under-an-assumption-context" id="toc-evaluating-under-an-assumption-context" class="nav-link" data-scroll-target="#evaluating-under-an-assumption-context">Evaluating under an assumption context</a></li>
+  <li><a href="#explicit-binder-instantiation" id="toc-explicit-binder-instantiation" class="nav-link" data-scroll-target="#explicit-binder-instantiation">Explicit binder instantiation</a></li>
+  <li><a href="#provider-aware-evaluation" id="toc-provider-aware-evaluation" class="nav-link" data-scroll-target="#provider-aware-evaluation">Provider-aware evaluation</a></li>
+  <li><a href="#per-call-work-budgets" id="toc-per-call-work-budgets" class="nav-link" data-scroll-target="#per-call-work-budgets">Per-call work budgets</a></li>
+  <li><a href="#trusted-semantic-applications" id="toc-trusted-semantic-applications" class="nav-link" data-scroll-target="#trusted-semantic-applications">Trusted semantic applications</a>
   <ul class="collapse">
-  <li><a href="#terminal-ascii" id="toc-terminal-ascii" class="nav-link" data-scroll-target="#terminal-ascii">Terminal ASCII</a></li>
-  <li><a href="#svg" id="toc-svg" class="nav-link" data-scroll-target="#svg">SVG</a></li>
-  <li><a href="#canvas" id="toc-canvas" class="nav-link" data-scroll-target="#canvas">Canvas</a></li>
-  <li><a href="#tikz" id="toc-tikz" class="nav-link" data-scroll-target="#tikz">TikZ</a></li>
-  <li><a href="#png" id="toc-png" class="nav-link" data-scroll-target="#png">PNG</a></li>
-  <li><a href="#gif" id="toc-gif" class="nav-link" data-scroll-target="#gif">GIF</a></li>
-  <li><a href="#gltf" id="toc-gltf" class="nav-link" data-scroll-target="#gltf">glTF</a></li>
-  <li><a href="#csv-and-tsv" id="toc-csv-and-tsv" class="nav-link" data-scroll-target="#csv-and-tsv">CSV and TSV</a></li>
+  <li><a href="#certified-real-logarithms" id="toc-certified-real-logarithms" class="nav-link" data-scroll-target="#certified-real-logarithms">Certified real logarithms</a></li>
+  <li><a href="#certified-real-sine-and-cosine" id="toc-certified-real-sine-and-cosine" class="nav-link" data-scroll-target="#certified-real-sine-and-cosine">Certified real sine and cosine</a></li>
+  <li><a href="#exact-pi-angles-and-turns" id="toc-exact-pi-angles-and-turns" class="nav-link" data-scroll-target="#exact-pi-angles-and-turns">Exact pi angles and turns</a></li>
   </ul></li>
-  <li><a href="#document-targets" id="toc-document-targets" class="nav-link" data-scroll-target="#document-targets">Document targets</a>
-  <ul class="collapse">
-  <li><a href="#markdown" id="toc-markdown" class="nav-link" data-scroll-target="#markdown">Markdown</a></li>
-  <li><a href="#html" id="toc-html" class="nav-link" data-scroll-target="#html">HTML</a></li>
-  <li><a href="#quarto" id="toc-quarto" class="nav-link" data-scroll-target="#quarto">Quarto</a></li>
-  <li><a href="#latex" id="toc-latex" class="nav-link" data-scroll-target="#latex">LaTeX</a></li>
-  <li><a href="#pdf" id="toc-pdf" class="nav-link" data-scroll-target="#pdf">PDF</a></li>
-  </ul></li>
-  <li><a href="#diagnostics-and-unsupported-content" id="toc-diagnostics-and-unsupported-content" class="nav-link" data-scroll-target="#diagnostics-and-unsupported-content">Diagnostics and unsupported content</a></li>
-  <li><a href="#complete-cli-example" id="toc-complete-cli-example" class="nav-link" data-scroll-target="#complete-cli-example">Complete CLI example</a></li>
-  <li><a href="#d-boundary" id="toc-d-boundary" class="nav-link" data-scroll-target="#d-boundary">3D boundary</a></li>
-  <li><a href="#repeated-canvas-frames-and-large-finite-inputs" id="toc-repeated-canvas-frames-and-large-finite-inputs" class="nav-link" data-scroll-target="#repeated-canvas-frames-and-large-finite-inputs">Repeated Canvas frames and large finite inputs</a></li>
   </ul></li>
   </ul>
-<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/renderer-guide.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/mathematical-localization.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
 <!-- main -->
 <main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"></header>
@@ -404,38 +352,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 
 
-<section id="renderer-plugins" class="level1">
-<h1>Renderer plugins</h1>
-<p>RiX renderer plugins turn retained <code>.Graphics</code> scenes and portable document values into target artifacts. They are deliberately downstream of evaluation: a renderer does not run user expressions, solve geometry, or refine a mathematical value.</p>
-<pre class="text"><code>domain value -&gt; portable Graphic/document -&gt; renderer -&gt; RenderResult -&gt; host artifact</code></pre>
-<section id="loading-and-discovery" class="level2">
-<h2 class="anchored" data-anchor-id="loading-and-discovery">Loading and discovery</h2>
-<p>Renderers are ordinary opt-in plugins. Load one target, load a configured group, or declare the plugins in a script header:</p>
-<pre class="rix"><code>.Plugin.Load("svg");
-.Plugin.Load("markdown");
-
-targets := .Renderer.List();
-svg := .Renderer.Info("image/svg+xml");</code></pre>
-<pre class="rix"><code>/**
-plugins: [terminal-ascii, svg, canvas, tikz, png, markdown, html, quarto, latex, pdf, gif, gltf, csv]
-**/</code></pre>
-<p>The CLI also accepts <code>--plugins=renderers</code>, and <code>rix setup --plugins=renderers</code> can make the group part of the local CLI configuration. <code>.Renderer.Info(target)</code> reports the canonical target, MIME type, extension, accepted input kinds, aliases, and determinism claim.</p>
-</section>
-<section id="rendering-and-export" class="level2">
-<h2 class="anchored" data-anchor-id="rendering-and-export">Rendering and export</h2>
-<p>The generic and target-specific calls are equivalent:</p>
-<pre class="rix"><code>result := .Render(graphic, "svg", {= alt="An exact construction" });
-same := .svg.Render(graphic, {= alt="An exact construction" });
-source := result.Get("content");</code></pre>
-<p><code>.Out</code> asks the CLI host to select a loaded renderer from the filename’s longest matching extension. It writes original binary bytes rather than the RiX-visible base64 representation:</p>
-<pre class="rix"><code>.Out("diagram.svg", graphic);
-.Out("diagram.canvas.json", graphic);
-.Out("report.pdf", report);</code></pre>
-<p>Run a program containing those declarations with <code>rix --out=out program.rix</code>. Paths must remain relative to the output directory. Renderer-supplied assets are subject to the same validation.</p>
-</section>
-<section id="renderresult-contract" class="level2">
-<h2 class="anchored" data-anchor-id="renderresult-contract">RenderResult contract</h2>
-<p>Every successful renderer returns an immutable RiX map:</p>
+<section id="local-substitution-and-exact-evaluation" class="level1">
+<h1>Local substitution and exact evaluation</h1>
+<p>Expression methods <code>expr.Eval(bindings)</code> and <code>expr.Substitute(bindings)</code> are receiver-first forms of <code>.MathEvaluate(expr,bindings)</code> and <code>.MathSubstitute(expr,bindings)</code>. Use capitalized method names, as for functions. They use the same capability checks and evaluator, do not mutate the expression, and <code>Eval</code> returns the same diagnostic report, not an unwrapped candidate.</p>
+<p><code>MathSubstitute(expressionOrContext, [(symbol,value), ...])</code> replaces free scoped identities, never spelling-based names. Bindings are simultaneous: replacing x with y and y with x swaps them, rather than recursively rewriting inserted values. Duplicate identities are errors. Immutable definitions in the original expression are expanded; a direct binding for a defined symbol takes precedence without changing its definition. Inserted expressions are not recursively substituted or expanded.</p>
+<pre class="rix" data-exec="true"><code>::dependent = ::x+1;
+answer := .MathEvaluate(::dependent^2,[(::x,2)]);
+answer[:value] ##@ == 9;</code></pre>
+<p>Contexts retain their binders, assumptions, domains, traversal information, and import validation. Substitution does not execute the original body again. Binder identities remain unchanged. Bound-symbol keys and replacement expressions containing bound symbols (including through definitions) are rejected: this conservative free-only API does not instantiate binders; use <code>Instantiate</code> below. Nested contexts are traversed with their own identities intact. Context consistency resets to <code>unresolved</code>.</p>
+<p><code>MathEvaluate(expressionOrContext, bindings=[])</code> returns an immutable <code>rix.math.evaluation@1</code> record:</p>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 50%">
@@ -449,306 +374,275 @@ source := result.Get("content");</code></pre>
 </thead>
 <tbody>
 <tr class="odd">
-<td><code>target</code></td>
-<td>Canonical target actually selected after negotiation.</td>
+<td><code>status</code></td>
+<td><code>complete</code>, <code>enclosed</code>, <code>conditional</code>, <code>unresolved</code>, or <code>invalidAssumptions</code></td>
 </tr>
 <tr class="even">
-<td><code>mime</code></td>
-<td>MIME type of the primary artifact.</td>
+<td><code>value</code></td>
+<td>Completed rational/exact scalar or set-enclosure result; otherwise <code>_</code></td>
 </tr>
 <tr class="odd">
-<td><code>extension</code></td>
-<td>Preferred extension without a leading dot.</td>
+<td><code>candidate</code></td>
+<td>Computed scalar or interval, possibly conditional; <code>_</code> if unavailable or assumptions fail</td>
 </tr>
 <tr class="even">
-<td><code>encoding</code></td>
-<td><code>utf8</code> for text and <code>base64</code> for RiX-visible binary content.</td>
+<td><code>resultKind</code></td>
+<td><code>rational</code>, <code>exactScalar</code>, <code>setEnclosure</code>, <code>singletonEnclosure</code>, or <code>unresolved</code></td>
 </tr>
 <tr class="odd">
-<td><code>content</code></td>
-<td>Text source or base64. The host retains original binary bytes.</td>
+<td><code>enclosure</code></td>
+<td>Interval candidate, including real approximations; otherwise <code>_</code></td>
 </tr>
 <tr class="even">
-<td><code>assets</code></td>
-<td>Relative-path subsidiary artifacts with MIME, encoding, and content.</td>
+<td><code>providers</code></td>
+<td>Provider metadata for inputs inspected during calculation and condition checks</td>
 </tr>
 <tr class="odd">
-<td><code>diagnostics</code></td>
-<td>Structured <code>level</code>, <code>code</code>, <code>message</code>, and optional scene <code>path</code>.</td>
+<td><code>semantics</code></td>
+<td>Trusted semantic IDs attempted during evaluation</td>
 </tr>
 <tr class="even">
-<td><code>deterministic</code></td>
-<td>The adapter’s repeatability claim for the same options and toolchain.</td>
+<td><code>localized</code></td>
+<td>Substituted expression or context, preserving obligations</td>
 </tr>
 <tr class="odd">
-<td><code>toolchain</code></td>
-<td>External implementation used, or <code>_</code> for a portable renderer.</td>
+<td><code>context</code></td>
+<td>The localized context, or <code>_</code> for bare expressions</td>
+</tr>
+<tr class="even">
+<td><code>assumptionContext</code></td>
+<td>Original context supplied as the second argument, or <code>_</code></td>
+</tr>
+<tr class="odd">
+<td><code>reasons</code></td>
+<td>Unsupported computation diagnostics; not a complete list of context obligations</td>
 </tr>
 </tbody>
 </table>
-<p>The generic call accepts <code>fallback</code> or <code>fallbacks</code> in its options map. A fallback is never silent: the result contains <code>renderer-fallback</code> plus any diagnostics accumulated while negotiating earlier candidates.</p>
+<p>Exact finite rational arithmetic, negation, and integer powers from -256 through 256 are supported. Division by zero and zero to nonpositive powers remain unresolved. Symbolic applications use only the explicit semantic kernels described below; unknown IDs remain inert and no ID triggers a registry or plugin lookup. Known core constant providers are supported as described below; no refinement is implicit. Open variables remain unresolved, not errors.</p>
+<p>Rational comparisons in assumptions are checked after substitution. A false comparison produces <code>invalidAssumptions</code>. With explicit replacement pairs, unknown comparisons, remaining binders, unresolved domains, and imported unverified contexts prevent a complete value. Exact points now discharge rational domains in both overloads. No assumption is installed in programming scope or silently used for algebraic rewriting.</p>
+<pre class="rix" data-exec="true"><code>positive := {&amp; ::x&gt;0 &amp; ::x+1 };
+report := .MathEvaluate(positive,[(::x,2)]);
+report[:status] ##@ == :complete;
+report[:value] ##@ == 3;
+report[:candidate] ##@ == 3;</code></pre>
+<p>Inspection uses ordinary map access, e.g.&nbsp;<code>report[:context][:assumptions]</code> and <code>report[:context][:domains]</code>. To intentionally ignore conditions, explicitly pass the context’s raw <code>[:result]</code> to evaluation; that is an unconditional arithmetic calculation, not a proof under the original assumptions.</p>
+<section id="evaluating-under-an-assumption-context" class="level2">
+<h2 class="anchored" data-anchor-id="evaluating-under-an-assumption-context">Evaluating under an assumption context</h2>
+<p><code>expr.Eval(ctx)</code> and <code>.MathEvaluate(expr,ctx)</code> accept a mathematical context as the second argument. Unlike replacement pairs, this is evaluation under facts, not an instruction to override symbolic definitions. The receiver must be an expression; combining two mathematical contexts is not yet supported.</p>
+<pre class="rix" data-exec="true"><code>expr := ::x^2+::y;
+ctx := {&amp; ::x==3; ::y==7 &amp; };
+ans := expr.Eval(ctx);
+ans[:status] ##@ == :complete;
+ans[:value] ##@ == 16;
+.ExpressionDefinition(::x) ##@ == _;
+expr.Substitute([(::y,::x)]) == ::x^2+::x ##@ == 1;</code></pre>
+<p>Headers use semicolons, not commas. An empty body is allowed: this context’s purpose is to supply assumptions. It shares programming scope, so free symbols refer to the same identities as in <code>expr</code>. Context creation runs its body once; evaluation ignores the stored body result and never reruns the body.</p>
+<p>The initial inference rule recognizes direct free-symbol equalities with finite integer/rational values (including constant-expression wrappers), in either direction. It does not solve equations, propagate symbol-to-symbol equalities, or infer interval midpoints. Bound symbols are not instantiated. Immutable definitions are respected; a conflict is not silently overridden.</p>
+<p>Every assumption is then checked after localization. Exact points are checked against normalized rational domains, including open endpoints and exclusions. Unknown obligations or remaining binders make a numerical candidate conditional; false assumptions or violated domains produce <code>invalidAssumptions</code>. Obvious contradictions may already throw when the header is constructed.</p>
+<pre class="rix" data-exec="true"><code>expr := ::x+1;
+expr.Eval({&amp; ::x&gt;0; ::x==3 &amp; })[:value] ##@ == 4;
+expr.Eval({&amp; ::x==::y; ::y==7 &amp; })[:status] ##@ == :unresolved;
+expr.Eval({&amp; ::x==3; ::y==7; ::x==::y &amp; })[:status] ##@ == :invalidAssumptions;</code></pre>
+<p><code>complete</code> means the computation completed <strong>under the supplied assumptions</strong>, not that the assumptions have been proved universally. <code>assumptionContext</code> retains the original conditions; <code>context</code> retains their localized form with the expression as its result. Imported unverified contexts remain conditional even when all arithmetic checks succeed. No external solver or proof engine runs.</p>
+<p>Traversal is bounded to 10,000 visits and depth 128 per phase; computed integers are limited to 10,000 decimal characters, with a conservative preflight bound for powers. Budget exhaustion throws. These synchronous, browser-safe APIs run no external code.</p>
 </section>
-<section id="target-matrix" class="level2">
-<h2 class="anchored" data-anchor-id="target-matrix">Target matrix</h2>
+<section id="explicit-binder-instantiation" class="level2">
+<h2 class="anchored" data-anchor-id="explicit-binder-instantiation">Explicit binder instantiation</h2>
+<p><code>ctx.Instantiate([(binder,value), ...])</code> is the receiver form of <code>.MathInstantiate(ctx,bindings)</code>. Contexts also support <code>Eval</code> and <code>Substitute</code>. Select binders from <code>ctx[:binders]</code>, not by spelling. Only binders declared by that context may be selected. The new context removes selected identities from its active binder list, substitutes all their occurrences (including outer captures inside nested contexts), and retains every assumption and domain for evaluation. Same-named inner binders keep their distinct identities. The original context is unchanged.</p>
+<pre class="rix" data-exec="true"><code>ctx := {&amp; :::t | 1:0; :::t&gt;0 &amp; :::t^2 };
+point := ctx.Instantiate([(ctx[:binders][1],1/2)]);
+point.Eval()[:value] ##@ == 1/4;
+point[:domains][1][:domain][:orientation] ##@ == :desc;
+ctx.Instantiate([(ctx[:binders][1],0)]).Eval()[:status] ##@ == :invalidAssumptions;</code></pre>
+<p>Instantiation is simultaneous and may be partial. A replacement can contain free symbols; later <code>Eval</code> bindings can localize them. Replacement expressions containing bound symbols are rejected, including through definitions, so capture cannot occur. Foreign, duplicate, free-symbol, and already-instantiated binder keys are errors. <code>instantiations</code> records original selected symbols and replacements as provenance. This operation selects parameter values; it does not compute an integral or sum, change traversal direction, or rerun a context body. Imported contexts regain these trusted built-in methods but retain their unverified evidence status.</p>
+</section>
+<section id="provider-aware-evaluation" class="level2">
+<h2 class="anchored" data-anchor-id="provider-aware-evaluation">Provider-aware evaluation</h2>
+<p>The supported provider set is closed and browser-safe; arbitrary maps cannot install an evaluator. Rational intervals use exact endpoint arithmetic. Their <code>setEnclosure</code> result is a conservative enclosure, not necessarily the exact image of the expression: <code>x-x</code> with x in 1:2 still gives -1:1. No dependency cancellation or floating-point conversion is used. An interval divisor containing zero remains unresolved.</p>
+<pre class="rix" data-exec="true"><code>ans := (::x^2+1).Eval([(::x,-1:2)]);
+ans[:status] ##@ == :complete;
+ans[:resultKind] ##@ == :setEnclosure;
+ans[:enclosure].Start() ##@ == 1;
+ans[:enclosure].End() ##@ == 5;</code></pre>
+<p>Core exact scalars support bounded addition, subtraction, multiplication, negation, positive integer powers, and division by nonzero rationals. Generator identities and their declared polynomial relations are preserved. This does not assume the generator algebra is a field: division by an exact generator/expression, and zero/negative powers without established nonzero evidence, remain unresolved. Exact-scalar/interval mixing also remains unresolved; no approximate embedding is guessed.</p>
+<pre class="rix" data-exec="true"><code>p := 1~{pi};
+ans := ((::x+1)^2/2).Eval([(::x,p)]);
+ans[:resultKind] ##@ == :exactScalar;
+.ExpressionConstant(ans[:value]) == .ExpressionConstant((p+1)^2/2) ##@ == 1;</code></pre>
+<p>Real adapters are singletons, not interval-valued quantities. Evaluation snapshots their stored enclosures once per identity, performs interval arithmetic, and reports <code>enclosed</code> with <code>value=_</code>, <code>resultKind=:singletonEnclosure</code>, and an <code>enclosure</code>. Use <code>.ExpressionRefine</code> explicitly before another evaluation if tighter bounds are needed. Evaluation never invokes the retained procedure or restores a recipe.</p>
+<pre class="rix" data-exec="true"><code>.Plugin.Load("numerics");
+r := .ExpressionReal(.numerics.Sqrt(2));
+ans := (r^2).Eval();
+ans[:status] ##@ == :enclosed;
+ans[:value] ##@ == _;
+ans[:resultKind] ##@ == :singletonEnclosure;
+saved := .MathDecodeJSON(.MathEncodeJSON(r));
+(saved+1).Eval()[:status] ##@ == :conditional;</code></pre>
+<p>Live-adapter evidence is protocol-checked, not an independent verification of a user provider’s proof. Metadata is retained in <code>providers</code>. Imported real evidence remains unverified: any use keeps the report conditional, even if arithmetic yields a point. Combining an actual interval set with a real reports <code>setEnclosure</code>; the real’s approximation/evidence restrictions still apply. Other unresolved assumptions take precedence over the successful <code>enclosed</code> status.</p>
+<p>Domain and comparison checks use conservative enclosure relations: an interval wholly inside a domain can discharge it; one wholly outside contradicts it; partial overlap remains conditional. An excluded point inside a nonpoint enclosure likewise leaves an obligation. Exact-scalar ordering is unresolved unless it reduces to rationals; supported equality does not prove arbitrary inequality.</p>
+<p>Additional budgets cap exact-scalar products at 1,024 input-term pairs, sums at 1,024 input terms, 64 generators per term, generator polynomials at 64 coefficients, and absolute term powers at 10,000. The earlier rational, exponent, and traversal budgets still apply. Further semantic kernels, quantities, noncommutative providers, and automatic precision scheduling remain future work.</p>
+</section>
+<section id="per-call-work-budgets" class="level2">
+<h2 class="anchored" data-anchor-id="per-call-work-budgets">Per-call work budgets</h2>
+<p>These mathematical work limits are now defaults, not fixed algorithm limits. Pass an options map as the last argument to <code>Eval</code>, <code>Substitute</code>, or <code>Instantiate</code> (or their system forms). Use <code>[]</code> for evaluation without replacements. Options also work when the second argument is an assumption context. No global state changes.</p>
+<pre class="rix" data-exec="true"><code>expr := (::x+1)^64;
+ans := expr.Eval([(::x,1~{pi})],{= maxProductPairs=2048 });
+ans[:status] ##@ == :complete;
+ans[:budgets][:maxProductPairs] ##@ == 2048;
+.MathBudgets()[:maxProductPairs] ##@ == 1024;</code></pre>
 <table class="caption-top table">
 <colgroup>
-<col style="width: 20%">
-<col style="width: 20%">
-<col style="width: 20%">
-<col style="width: 20%">
-<col style="width: 20%">
+<col style="width: 30%">
+<col style="width: 40%">
+<col style="width: 30%">
 </colgroup>
 <thead>
 <tr class="header">
-<th>Plugin</th>
-<th>Inputs</th>
-<th>Extension and MIME</th>
-<th>Browser</th>
-<th>CLI requirement</th>
+<th>Option</th>
+<th style="text-align: right;">Default</th>
+<th>Scope</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><code>terminal-ascii</code></td>
-<td>Table, Grid, Fragment, simple Graphic</td>
-<td><code>.txt</code>, <code>text/plain</code></td>
-<td>Full</td>
-<td>None</td>
+<td><code>maxVisits</code></td>
+<td style="text-align: right;">10000</td>
+<td>Traversal visits per phase</td>
 </tr>
 <tr class="even">
-<td><code>svg</code></td>
-<td>Graphic, graphic Figure</td>
-<td><code>.svg</code>, <code>image/svg+xml</code></td>
-<td>Full</td>
-<td>None</td>
+<td><code>maxDepth</code></td>
+<td style="text-align: right;">128</td>
+<td>Traversal nesting; host stack-safety ceiling 512</td>
 </tr>
 <tr class="odd">
-<td><code>canvas</code></td>
-<td>Graphic, graphic Figure</td>
-<td><code>.canvas.json</code>, <code>application/vnd.rix.canvas+json</code></td>
-<td>Full</td>
-<td>None</td>
+<td><code>maxDigits</code></td>
+<td style="text-align: right;">10000</td>
+<td>Integer components, including conservative power preflight</td>
 </tr>
 <tr class="even">
-<td><code>tikz</code></td>
-<td>Graphic, graphic Figure</td>
-<td><code>.tikz</code>, <code>text/x-tikz</code></td>
-<td>Source generation</td>
-<td>None</td>
+<td><code>maxTerms</code></td>
+<td style="text-align: right;">1024</td>
+<td>Stored exact-expression terms</td>
 </tr>
 <tr class="odd">
-<td><code>png</code></td>
-<td>Graphic, graphic Figure</td>
-<td><code>.png</code>, <code>image/png</code></td>
-<td>Contract only</td>
-<td><code>rsvg-convert</code> or <code>magick</code></td>
+<td><code>maxProductPairs</code></td>
+<td style="text-align: right;">1024</td>
+<td>Input term pairs per exact multiplication</td>
 </tr>
 <tr class="even">
-<td><code>markdown</code></td>
-<td>Document/output trees</td>
-<td><code>.md</code>, <code>text/markdown</code></td>
-<td>Full</td>
-<td>None</td>
+<td><code>maxSumTerms</code></td>
+<td style="text-align: right;">1024</td>
+<td>Input terms per exact addition/subtraction</td>
 </tr>
 <tr class="odd">
-<td><code>html</code></td>
-<td>Any portable output</td>
-<td><code>.html</code>, <code>text/html</code></td>
-<td>Full</td>
-<td>None</td>
+<td><code>maxGenerators</code></td>
+<td style="text-align: right;">64</td>
+<td>Generators per exact term</td>
 </tr>
 <tr class="even">
-<td><code>quarto</code></td>
-<td>Documents and slides</td>
-<td><code>.qmd</code>, <code>text/x-quarto</code></td>
-<td>Source generation</td>
-<td>None</td>
+<td><code>maxPolynomialCoefficients</code></td>
+<td style="text-align: right;">64</td>
+<td>Coefficients per generator polynomial</td>
 </tr>
 <tr class="odd">
-<td><code>latex</code></td>
-<td>Documents, figures, slides</td>
-<td><code>.tex</code>, <code>text/x-tex</code></td>
-<td>Source generation</td>
-<td>None</td>
+<td><code>maxDegree</code></td>
+<td style="text-align: right;">10000</td>
+<td>Absolute power per generator in a term</td>
 </tr>
 <tr class="even">
-<td><code>pdf</code></td>
-<td>Documents, figures, static slides</td>
-<td><code>.pdf</code>, <code>application/pdf</code></td>
-<td>Contract only</td>
-<td><code>pdflatex</code></td>
+<td><code>maxExponent</code></td>
+<td style="text-align: right;">256</td>
+<td>Absolute integer exponent evaluated</td>
 </tr>
 <tr class="odd">
-<td><code>gif</code></td>
-<td>Slides, Timeline, Snapshots</td>
-<td><code>.gif</code>, <code>image/gif</code></td>
-<td>Contract only</td>
-<td>PNG rasterizer plus ImageMagick</td>
+<td><code>rootBits</code></td>
+<td style="text-align: right;">64</td>
+<td>Dyadic fractional bits for interval square-root endpoints</td>
 </tr>
 <tr class="even">
-<td><code>gltf</code></td>
-<td>retained Scene3D</td>
-<td><code>.gltf</code>, <code>model/gltf+json</code></td>
-<td>Full</td>
-<td>None</td>
-</tr>
-<tr class="odd">
-<td><code>csv</code></td>
-<td>Table, data Relation</td>
-<td><code>.csv</code>/<code>.tsv</code>, <code>text/csv</code>/<code>text/tab-separated-values</code></td>
-<td>Full</td>
-<td>None</td>
+<td><code>transcendentalBits</code></td>
+<td style="text-align: right;">64</td>
+<td>Absolute point enclosure precision for trusted Exp/Log/Sin/Cos kernels</td>
 </tr>
 </tbody>
 </table>
-<p>“Full” means the browser can produce the target content. Source targets do not compile or open their downstream application. Contract-only targets can be loaded and inspected in a browser, but rendering reports a toolchain error because browsers do not spawn rasterizers or TeX.</p>
+<p><code>.MathBudgets(options)</code> returns the merged settings; reports expose <code>budgets</code>. Unknown keys, non-Integer values, nonpositive values, and integers above the JS safe-integer range are rejected. Raising work limits may substantially increase memory/time; these are operation-size limits, not a wall-clock deadline or unlimited mode. Substitution/instantiation use the traversal settings; arithmetic settings apply during evaluation. Domain safety and unsupported-provider checks cannot be disabled. Exponents above <code>maxExponent</code> remain unresolved; other exhausted budgets throw.</p>
+<p>The specification bridge also accepts <code>maxDepth</code> and <code>maxVisits</code> for conversion. Certified arithmetic <code>GraphRange</code> accepts <code>maxDepth</code>, but calls its traversal/work budget <code>maxWork</code> and additionally accepts <code>maxSubintervals</code>; its report exposes the effective settings. Both allow raising depth above 128, subject to the documented 512-level host stack-safety ceiling.</p>
+<p>These options do not change the separate defensive JSON/JSONL import limits or other algorithm-specific calculus/CAS settings. Real refinement still uses its explicit request options such as <code>maxWork</code>; evaluation never refines automatically.</p>
 </section>
-<section id="graphics-targets" class="level2">
-<h2 class="anchored" data-anchor-id="graphics-targets">Graphics targets</h2>
-<section id="terminal-ascii" class="level3">
-<h3 class="anchored" data-anchor-id="terminal-ascii">Terminal ASCII</h3>
-<p>Terminal ASCII provides a strict seven-bit fallback for tables, grids, fragments, and simple Graphics. It is useful in logs, terminals, diffs, and hosts that cannot display richer output; unsupported scene detail is reported rather than silently invented.</p>
-<p>Learn interactively in the <a href="https://rix.ratmath.com/tutorial/plugin-terminal-ascii.html">Terminal ASCII tutorial</a>.</p>
+<section id="trusted-semantic-applications" class="level2">
+<h2 class="anchored" data-anchor-id="trusted-semantic-applications">Trusted semantic applications</h2>
+<p>The trusted real exponential meaning <code>rix.function.exp@1</code> now supports rational points and bounded rational intervals, including stored real enclosures. It does not invoke linked procedures or implicitly refine a real provider. Frozen-real provenance remains conditional. Exact scalars that cannot be reduced to rational inputs remain unsupported by this kernel.</p>
+<pre class="rix" data-exec="true"><code>.Plugin.Load("calculus");
+expr := .calculus.Exp()(::x);
+expr.Eval([(::x,0)])[:value] ##@ == 1;
+ans := expr.Eval([(::x,1)],{= transcendentalBits=32 });
+ans[:status] ##@ == :enclosed;
+ans[:value] ##@ == _;
+ans[:budgets][:transcendentalBits] ##@ == 32;</code></pre>
+<p>For a positive reduced argument <code>0 &lt; r &lt;= 1</code>, the kernel sums <code>r^k/k!</code> using exact rationals. After term <code>n</code>, the remaining positive tail is bounded above by the next term divided by <code>1-r/(n+2)</code>. Larger arguments are reduced by halving and the enclosure is squared back; negative arguments use reciprocal bounds. Monotonicity supplies interval endpoint bounds. This is a closed trusted kernel, not a user-provided implementation selected by display name.</p>
+<p><code>transcendentalBits</code> requests endpoint widths at most <code>2^-bits</code>; for an interval input it does not remove uncertainty in the input itself. <code>maxSumTerms</code> caps series iterations per endpoint, <code>maxExponent</code> caps halving steps, and <code>maxDigits</code> caps rational components throughout. These options are per call. Series/reduction exhaustion returns an unresolved report with a reason; digit-budget exhaustion throws. <code>Exp(0)</code> is exact; other point results are enclosures rather than exact scalar answers. This kernel does not add extended-constant CAS differentiation or make the older arithmetic graph-range engine support semantic applications.</p>
+<section id="certified-real-logarithms" class="level3">
+<h3 class="anchored" data-anchor-id="certified-real-logarithms">Certified real logarithms</h3>
+<p><code>rix.function.log.real-principal@1</code> evaluates the natural logarithm on strictly positive rational points and intervals, including stored real enclosures, without calling linked code or refining providers. <code>Log(1)</code> is exactly zero; other rational points produce <code>:enclosed</code> reports with bounds in <code>enclosure</code>, not an exact <code>value</code>. Frozen-real provenance remains conditional; non-rational exact scalars remain unsupported. An interval entirely at or below zero reports <code>outsideRealLogarithmDomain</code>; an interval crossing or touching zero from above reports <code>logarithmDomainUnresolved</code>. Neither silently clips the input domain.</p>
+<pre class="rix" data-exec="true"><code>.Plugin.Load("calculus");
+expr := .calculus.Log()(::x);
+expr.Eval([(::x,1)])[:value] ##@ == 0;
+ans := expr.Eval([(::x,2)],{= transcendentalBits=32 });
+ans[:status] ##@ == :enclosed;
+ans[:value] ##@ == _;
+expr.Eval([(::x,0:2)])[:status] ##@ == :unresolved;</code></pre>
+<p>The kernel takes a reciprocal below one, then halves until <code>1 &lt;= r &lt;= 2</code>. It uses <code>log(r) = 2 sum(z^(2k+1)/(2k+1))</code>, where <code>z=(r-1)/(r+1)</code>. After N terms, the positive tail is at most <code>2 z^(2N+1)/((2N+1)(1-z^2))</code>. Range reduction adds <code>h log(2)</code>; each series gets width tolerance <code>2^-transcendentalBits/(h+1)</code> so the final endpoint width meets the requested precision. Reciprocal inputs negate and reverse the bounds. All bounds use exact rational arithmetic.</p>
+<p><code>maxExponent</code> caps halving steps per endpoint; <code>maxSumTerms</code> caps terms in each of its at most two series. Exhaustion reports <code>logarithmReductionBudgetExceeded</code> or <code>logarithmSeriesBudgetExceeded</code>. <code>maxDigits</code> bounds intermediate rational components and throws on exhaustion. All four limits are configurable per call. As with Exp, input interval uncertainty remains, and this does not extend the older arithmetic graph-range engine or CAS simplification laws.</p>
 </section>
-<section id="svg" class="level3">
-<h3 class="anchored" data-anchor-id="svg">SVG</h3>
-<p>SVG traverses paths and curve commands, groups, transforms, rectangular clips, text, rectangles, circles, and drag-point metadata. Output is standalone and deterministic. The <code>alt</code> option adds an accessible <code>&lt;title&gt;</code> and <code>aria-label</code>.</p>
-<pre class="rix"><code>.Plugin.Load("svg");
-.svg.Render(graphic, {= alt="A teal construction" });</code></pre>
-<p>Learn interactively in the <a href="https://rix.ratmath.com/tutorial/plugin-svg.html">SVG renderer tutorial</a>.</p>
+<section id="certified-real-sine-and-cosine" class="level3">
+<h3 class="anchored" data-anchor-id="certified-real-sine-and-cosine">Certified real sine and cosine</h3>
+<p><code>rix.function.sin@1</code> and <code>rix.function.cos@1</code> support rational points and bounded rational intervals, in radians. Zero gives exact <code>Sin(0)=0</code> and <code>Cos(0)=1</code>; other rational points return certified enclosures. Their semantic IDs, not their display names, select these closed kernels. They execute no linked procedures, perform no implicit refinement, and retain conditional frozen-real provenance. Canonical rational multiples of pi are also supported, as described below. Other non-rational exact scalar inputs remain unsupported.</p>
+<pre class="rix" data-exec="true"><code>.Plugin.Load("calculus");
+expr := .calculus.Sin()(::x);
+expr.Eval([(::x,0)])[:value] ##@ == 0;
+ans := expr.Eval([(::x,1)],{= transcendentalBits=32 });
+ans[:status] ##@ == :enclosed;
+ans[:value] ##@ == _;
+expr.Eval([(::x,1:2)])[:enclosure].End() ##@ == 1;
+expr.Eval([(::x,1)],{= maxSumTerms=1 })[:status] ##@ == :unresolved;</code></pre>
+<p>Point evaluation sums the exact rational Taylor series. Once successive term magnitudes decrease, the alternating-series theorem encloses the answer between the partial sum and that sum plus the next term. The kernel stops when their distance is at most <code>2^-transcendentalBits</code>, then intersects with <code>[-1,1]</code>. <code>maxSumTerms</code> caps Taylor terms per point, with reason <code>trigonometricSeriesBudgetExceeded</code> on exhaustion; <code>maxDigits</code> caps intermediate rational sizes and throws on exhaustion. All three limits are configurable. Radian arguments with magnitude greater than four use certified periodic reduction. <code>maxExponent</code> caps the integer magnitude’s bit length used to allocate additional pi precision; exhaustion reports <code>trigonometricReductionBudgetExceeded</code>. Machin pi bounds carry sufficient extra precision for multiplication by the revolution count. Subtracting an integral multiple of <code>2*pi</code> gives an enclosed small residual; Taylor bounds and derivative widening retain the requested final point precision. No floating-point quotient or assumed quadrant determines correctness.</p>
+<p>For an interval <code>[a,b]</code>, the kernel encloses both endpoints and all possible interior extrema. Certified pi bounds enclose the integer indices of critical points (<code>k*pi</code> for cosine, <code>(k+1/2)*pi</code> for sine). Even indices contribute +1, odd indices -1. Two or more consecutive indices immediately give <code>[-1,1]</code>; there is no loop over revolutions. Ambiguous boundary membership conservatively includes the extremum. <code>maxExponent</code> also caps endpoint magnitude bits for this check. Range width can exceed point precision because of input uncertainty. The report is <code>:enclosed</code> with <code>resultKind=:setEnclosure</code>; a stored real uses singleton provenance instead. This does not extend CAS simplification laws. Sin/Cos also work in the certified GraphRange engine for rational interval-set inputs; see <code>scoped-calculus-cas.md</code>.</p>
 </section>
-<section id="canvas" class="level3">
-<h3 class="anchored" data-anchor-id="canvas">Canvas</h3>
-<p>Canvas returns versioned <code>rix.canvas-plan@1</code> JSON. It is an execution plan for <code>CanvasRenderingContext2D</code>, not another scene model. JavaScript hosts can paint it with <code>paintCanvasPlan(context, plan)</code> from the Canvas plugin. There are no target options in version 1.</p>
-<p>Learn interactively in the <a href="https://rix.ratmath.com/tutorial/plugin-canvas.html">Canvas renderer tutorial</a>.</p>
-</section>
-<section id="tikz" class="level3">
-<h3 class="anchored" data-anchor-id="tikz">TikZ</h3>
-<p>TikZ emits editable TikZ/PGF. Coordinates use <code>x=1pt,y=-1pt</code> so orientation matches SVG and Canvas. Set <code>standalone=1</code> to wrap the picture in a compilable document; the default is a <code>tikzpicture</code> fragment. Endpoint-form SVG arc commands currently fail visibly because their geometric conversion is not yet defined.</p>
-<p>Versioned <code>rix.scene3d.snapshot@1</code> records and <code>Timeline.Render</code> values are accepted directly. For a Timeline, Slides, or Snapshots sequence, <code>frame=2</code> selects the second retained frame (default 1). <code>metadata.staticFrame</code> preserves exact state, origin, semantic tracks, and Scene3D projection/evidence. Exact rational coordinates remain in the editable source; large expressions request the <code>xfp</code> package while TeX supplies final display precision.</p>
-<pre class="rix"><code>.tikz.Render(graphic, {= standalone=1 });</code></pre>
-<p>Learn interactively in the <a href="https://rix.ratmath.com/tutorial/plugin-tikz.html">TikZ renderer tutorial</a>.</p>
-</section>
-<section id="png" class="level3">
-<h3 class="anchored" data-anchor-id="png">PNG</h3>
-<p>PNG first lowers a Graphic to SVG and asks the host for an approved rasterizer. <code>scale</code> multiplies the Graphic dimensions; explicit <code>width</code> and <code>height</code> override the corresponding scaled dimensions, and <code>background</code> requests a background color. Dimensions must be finite and positive after host rounding.</p>
-<pre class="rix"><code>.png.Render(graphic, {= scale=2, background="white" });</code></pre>
-<p>The CLI tries <code>rsvg-convert</code>, then ImageMagick’s <code>magick</code>, and records the chosen toolchain. A browser render fails with <code>png-rasterizer-unavailable</code>. See the <a href="https://rix.ratmath.com/tutorial/plugin-png.html">PNG host-boundary tutorial</a>.</p>
-</section>
-<section id="gif" class="level3">
-<h3 class="anchored" data-anchor-id="gif">GIF</h3>
-<p>GIF expands <code>Slides</code>, <code>Timeline</code>, or <code>Snapshots</code> deterministically, delegates each Graphic frame to PNG, and then asks the CLI host to encode the ordered PNGs. <code>duration</code> is measured in seconds, <code>delays</code> supplies one seconds value per frame, and the RenderResult records integer-centisecond delays and loop count. Exact Timeline <code>frameDurations</code> are respected. Frames must resolve to a single Graphic, graphic Figure, or versioned Scene3D snapshot.</p>
-<pre class="rix"><code>.gif.Render(timeline, {= duration=1/2, loop=0 });</code></pre>
-<p>Each successful GIF also returns retained SVG frames, exact JSON evidence, captions/timing text, and an HTML contact sheet in a deterministic asset directory. These preserve exact state and requested duration separately from the GIF’s quantized timing and display interpolation.</p>
-<p>The browser reports <code>gif-encoder-unavailable</code> for binary encoding. The portable <code>.Render(timeline,"gif-frames")</code> contact-sheet target needs no external tools, works with a single retained frame, and can be written with <code>.Out("frames.html",result)</code>. See the <a href="https://rix.ratmath.com/tutorial/plugin-gif.html">GIF tutorial</a>.</p>
-</section>
-<section id="gltf" class="level3">
-<h3 class="anchored" data-anchor-id="gltf">glTF</h3>
-<p>glTF accepts the retained <code>rix.scene3d@1</code> scene rather than a projected Graphic. It converts RiX’s right-handed Z-up coordinates to glTF’s right-handed Y-up convention and embeds a base64 geometry buffer in glTF 2.0 JSON. Mesh triangles, lines, points, basic colors, and opacity are supported. Exact positions become Float32 at this explicit export boundary. Cameras, lights, textures, animation, and GLB remain follow-up work.</p>
-<p>Learn interactively in the <a href="https://rix.ratmath.com/tutorial/plugin-gltf.html">glTF renderer tutorial</a>.</p>
-</section>
-<section id="csv-and-tsv" class="level3">
-<h3 class="anchored" data-anchor-id="csv-and-tsv">CSV and TSV</h3>
-<p>CSV exports portable Tables and <code>.data</code> Relations with exact scalar text. Choose TSV through the <code>.tsv</code> extension or target alias. Nested output and presentation layout are rejected because delimited data is a data interchange format, not a document renderer.</p>
-<p>Learn interactively in the <a href="https://rix.ratmath.com/tutorial/plugin-csv.html">CSV renderer tutorial</a>.</p>
-</section>
-</section>
-<section id="document-targets" class="level2">
-<h2 class="anchored" data-anchor-id="document-targets">Document targets</h2>
-<section id="markdown" class="level3">
-<h3 class="anchored" data-anchor-id="markdown">Markdown</h3>
-<p>Markdown preserves headings, emphasis, code, math, lists, quotes, tables, media links, and code/math blocks. Graphics become inline SVG. Interactive controls and timelines use their static representation and report loss of interaction through diagnostics. It has no target-specific options.</p>
-<p>Learn interactively in the <a href="https://rix.ratmath.com/tutorial/plugin-markdown.html">Markdown renderer tutorial</a>.</p>
-</section>
-<section id="html" class="level3">
-<h3 class="anchored" data-anchor-id="html">HTML</h3>
-<p>HTML produces a standalone semantic document with embedded Graphics SVG. The <code>title</code> option sets the document title; <code>style</code> replaces the compact default stylesheet. Static HTML preserves output semantics but does not include the RiX reactive widget runtime. The CLI reserves a final reactive HTML <code>.Out</code> for its interactive page path; other HTML artifacts use this static renderer.</p>
-<pre class="rix"><code>.html.Render(report, {= title="Exact report" });</code></pre>
-<p>Learn interactively in the <a href="https://rix.ratmath.com/tutorial/plugin-html.html">HTML renderer tutorial</a>.</p>
-</section>
-<section id="quarto" class="level3">
-<h3 class="anchored" data-anchor-id="quarto">Quarto</h3>
-<p>Quarto emits <code>.qmd</code> with YAML front matter and CommonMark-oriented content. Options may be supplied directly or beneath <code>metadata</code>; recognized metadata is <code>title</code>, <code>author</code>, <code>date</code>, and <code>format</code>. The default format is <code>html</code>. Quarto callouts and labels remain native, while Graphics become inline SVG.</p>
-<p>Learn interactively in the <a href="https://rix.ratmath.com/tutorial/plugin-quarto.html">Quarto renderer tutorial</a>.</p>
-</section>
-<section id="latex" class="level3">
-<h3 class="anchored" data-anchor-id="latex">LaTeX</h3>
-<p>LaTeX preserves document structure, math, tables, figures, labels, and code. Graphics lower to TikZ. <code>title</code> sets an optional title and <code>standalone</code> controls whether a complete document or body fragment is returned; standalone defaults to true. Producing <code>.tex</code> does not require TeX.</p>
-<p>Learn interactively in the <a href="https://rix.ratmath.com/tutorial/plugin-latex.html">LaTeX renderer tutorial</a>.</p>
-</section>
-<section id="pdf" class="level3">
-<h3 class="anchored" data-anchor-id="pdf">PDF</h3>
-<p>PDF is the LaTeX/TikZ lowering followed by a host compiler. It accepts <code>title</code> and always requests standalone LaTeX. The CLI invokes <code>pdflatex</code> with non-interactive, halt-on-error settings, returns the original PDF bytes, and records <code>pdflatex</code> as its toolchain. Browser rendering fails with <code>pdf-toolchain-unavailable</code>.</p>
-<p>See the <a href="https://rix.ratmath.com/tutorial/plugin-pdf.html">PDF host-boundary tutorial</a>.</p>
-</section>
-</section>
-<section id="diagnostics-and-unsupported-content" class="level2">
-<h2 class="anchored" data-anchor-id="diagnostics-and-unsupported-content">Diagnostics and unsupported content</h2>
-<p>Renderers do not silently discard unsupported structures. Target limitations, lost interaction, fallback selection, and absent host tools appear as diagnostics or a failed render negotiation. Important codes include:</p>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 50%">
-<col style="width: 50%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>Code</th>
-<th>Meaning</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>renderer-unavailable</code></td>
-<td>No loaded renderer matched a requested candidate.</td>
-</tr>
-<tr class="even">
-<td><code>unsupported-input</code></td>
-<td>The target does not accept the portable value kind.</td>
-</tr>
-<tr class="odd">
-<td><code>renderer-fallback</code></td>
-<td>An explicitly allowed fallback produced the result.</td>
-</tr>
-<tr class="even">
-<td><code>png-rasterizer-unavailable</code></td>
-<td>The host has no PNG rasterizer adapter.</td>
-</tr>
-<tr class="odd">
-<td><code>pdf-toolchain-unavailable</code></td>
-<td>The host has no LaTeX compiler adapter.</td>
-</tr>
-<tr class="even">
-<td><code>html-static-interaction</code></td>
-<td>Static HTML retained markup without a live widget runtime.</td>
-</tr>
-<tr class="odd">
-<td><code>gltf-float32-approximation</code></td>
-<td>Exact Scene3D coordinates were rounded to Float32.</td>
-</tr>
-<tr class="even">
-<td><code>gltf-line-width-portability</code></td>
-<td>glTF lines cannot portably retain authored width.</td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="complete-cli-example" class="level2">
-<h2 class="anchored" data-anchor-id="complete-cli-example">Complete CLI example</h2>
-<p><code>examples/renderers/all-formats.rix</code> sends one retained Graphic to all four 2D targets and one document tree to all five document targets:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js <span class="at">--out</span><span class="op">=</span>tmp/renderer-example-out examples/renderers/all-formats.rix</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The example and its binary outputs are exercised by the CLI renderer tests.</p>
-</section>
-<section id="d-boundary" class="level2">
-<h2 class="anchored" data-anchor-id="d-boundary">3D boundary</h2>
-<p>The retained <code>rix.scene3d@1</code> schema, versioned wireframe and flat-lit snapshots, and glTF JSON exporter are implemented. Scene3D owns cameras and projection. Canvas, TikZ, PNG, and GIF frame export accept the versioned snapshot directly; SVG can render its <code>value</code> Graphic. Browser Scene3D supports retained orbit, projection, picking, and annotation controls. Static snapshots preserve their projection and approximation evidence; they do not claim certified visibility. OBJ/MTL, STL, PLY, USD/USDZ, and GLB remain later format work. See the complete <a href="../eval/scene3d-guide.html">3D and n-dimensional guide</a>.</p>
-</section>
-<section id="repeated-canvas-frames-and-large-finite-inputs" class="level2">
-<h2 class="anchored" data-anchor-id="repeated-canvas-frames-and-large-finite-inputs">Repeated Canvas frames and large finite inputs</h2>
-<p>The Canvas host can reuse a bounded <code>createCanvasPathCache</code> and <code>createCanvasPainter</code> from the Canvas plugin’s <code>retained-canvas.js</code> module. <code>paint(plan)</code> reports full, dirty or unchanged replay; call <code>invalidate()</code> after an external same-size canvas reset and <code>dispose()</code> when the view closes. Dirty repaint is conservative: transforms, paths, text and viewport changes use full replay. Parsed paths are keyed by geometry, so style changes reuse paths without reusing stale paint state.</p>
-<p>An explicit <code>createCanvasWorkerHandler</code> can paint on OffscreenCanvas where the host provides it. The host owns worker startup/disposal and main-thread or SVG fallback. Accessibility text and semantic hit IDs travel beside the raster; pixels do not replace the exact source. Browser support is detected at use time.</p>
-<p>For finite large inputs, <code>.plot.BoundedLine</code>, <code>.plot.StreamLine</code> and <code>.plot.HeatMapData</code> bound retained output. Downsampled endpoints/extrema retain source IDs, and heatmap blocks retain exact means, extrema and source bounds. Discard counts and aggregation disclosures remain visible in static output; these operations do not reconstruct omitted data or start background readers. See the <a href="../tutorial/capstones.html">runnable capstones</a>, the <a href="https://rix.ratmath.com/tutorial/plugin-plot.html">Plot tutorial</a>, and the <a href="../design/eval/runtime-performance.html">measured limits</a>.</p>
+<section id="exact-pi-angles-and-turns" class="level3">
+<h3 class="anchored" data-anchor-id="exact-pi-angles-and-turns">Exact pi angles and turns</h3>
+<p>The built-in exact generator <code>1~{pi}</code> has a trusted mathematical identity. Sin/Cos recognize a rational coefficient times this generator, reduce the coefficient modulo two exactly, and fold into the first quadrant. This removes arbitrarily many full revolutions without approximating pi (subject to the ordinary integer-size budget). A scoped <code>::pi</code> or a custom generator merely named <code>pi</code> does not have this meaning. Sums such as <code>pi+1</code> and powers such as <code>pi^2</code> remain unsupported inputs to this kernel.</p>
+<p>Angles reducing to <code>0</code>, <code>pi/6</code>, <code>pi/4</code>, <code>pi/3</code>, or <code>pi/2</code> return exact rational or algebraic values: <code>0</code>, <code>1/2</code>, <code>sqrt(2)/2</code>, <code>sqrt(3)/2</code>, or <code>1</code>, with the appropriate sign and cosine phase shift. These are <code>:complete</code> reports, not rounded approximations. Other rational pi angles return <code>:enclosed</code> reports.</p>
+<pre class="rix" data-exec="true"><code>.Plugin.Load("calculus");
+expr := .calculus.Sin()(::x);
+expr.Eval([(::x,(1/6)~{pi})])[:value] ##@ == 1/2;
+expr.Eval([(::x,(1/4)~{pi})])[:value]^2 ##@ == 1/2;
+expr.Eval([(::x,(1/7)~{pi})])[:status] ##@ == :enclosed;
+angle := (1/12)~[turn];
+radians := angle/(1~[rad]);
+radians == (1/6)~{pi} ##@ == 1;
+expr.Eval([(::x,radians)])[:value] ##@ == 1/2;</code></pre>
+<p>The existing <code>turn</code> unit is exactly <code>2*pi</code> radians; <code>deg</code> is exactly <code>pi/180</code> radians. <code>.ConvertUnit(angle,.Units[:rad])</code> retains the angle dimension and displays its radian magnitude. Dividing by <code>1~[rad]</code> produces the scalar radian argument expected by core symbolic evaluation. Direct quantity-valued symbolic constants remain outside this provider implementation.</p>
+<p>For other rational pi angles the kernel uses Machin’s identity <code>pi=16 atan(1/5)-4 atan(1/239)</code>, with exact alternating-series tail bounds. Each arctangent gets width at most <code>2^-transcendentalBits/80</code>. After quadrant reduction the pi coefficient is at most <code>1/2</code>; the sine midpoint series gets half the requested width. Derivative widening therefore keeps the final width within <code>2^-transcendentalBits</code>. <code>maxSumTerms</code> bounds each of the two arctangent series and the sine series; pi-series exhaustion reports <code>trigonometricPiSeriesBudgetExceeded</code>. <code>maxDigits</code> checks intermediate rational sizes. Exact special angles require no series work. No additional fixed work ceiling or floating-point pi approximation is used. Rational radian arguments use the certified periodic reduction described above when their magnitude exceeds four.</p>
+<p>Canonical pi survives mathematical JSON/JSONL through the allowlisted <code>rix.constant.pi@1</code> named-constant node; generic named generators remain formal.</p>
+<p>The original supported meanings are <code>rix.function.abs.real@1</code> and <code>rix.function.sqrt.real-principal@1</code>, each taking exactly one argument. They match the calculus plugin’s semantic IDs, but evaluation does not load that plugin or call its implementation. Display names are labels only. <code>semantics</code> records attempted known IDs; it is not a proof certificate. Unknown IDs remain unresolved even if their name happens to be <code>Sqrt</code>.</p>
+<pre class="rix" data-exec="true"><code>Root(x) -&gt; .ExpressionApply("rix.function.sqrt.real-principal@1",:Sqrt,[x]);
+ans := Root(::x).Eval([(::x,2)]);
+ans[:status] ##@ == :complete;
+ans[:resultKind] ##@ == :exactScalar;
+.ExpressionConstant(ans[:value]^2) == .ExpressionConstant(2) ##@ == 1;
+Root(9/4).Eval()[:value] ##@ == 3/2;</code></pre>
+<p>For nonnegative rational inputs, square root returns an exact rational or the core canonical positive algebraic root. It does not approximate an irrational singleton. For rational intervals and real-adapter enclosures, it returns certified dyadic endpoint bounds, with error at each endpoint at most <code>2^(-rootBits)</code>. Input interval width remains: increasing <code>rootBits</code> does not refine a real adapter. Integer square root and rational comparisons establish the bounds without floating-point numerical evaluation. The scaled integer allocation is checked against <code>maxDigits</code> first.</p>
+<pre class="rix" data-exec="true"><code>Root(x) -&gt; .ExpressionApply("rix.function.sqrt.real-principal@1",:Sqrt,[x]);
+ans := Root(::x).Eval([(::x,2:3)],{= rootBits=32 });
+ans[:enclosure].Start()^2 &lt;= 2 ##@ == 1;
+ans[:enclosure].End()^2 &gt;= 3 ##@ == 1;
+Root(-1:2).Eval()[:status] ##@ == :unresolved;</code></pre>
+<p>An entirely negative input reports <code>outsideRealSquareRootDomain</code>; an interval crossing into negatives reports <code>squareRootDomainUnresolved</code>. The kernel does not discard invalid points or switch to a complex branch. Real <code>Abs</code> supports rational and interval arguments, including intervals straddling zero. Both kernels accept stored real enclosures and preserve their approximation/import evidence restrictions. General exact-scalar arguments, unsupported arity, and further semantic meanings remain diagnostic rather than invoking arbitrary code. Inert JSON loading is unchanged; an explicit subsequent <code>Eval</code> may use these known mathematical meanings.</p>
 
 
+</section>
 </section>
 </section>
 
@@ -1183,7 +1077,7 @@ source := result.Get("content");</code></pre>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
-    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/renderer-guide.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/mathematical-localization.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
 <p>Documentation built with <a href="https://quarto.org/">Quarto</a></p>
 </div>

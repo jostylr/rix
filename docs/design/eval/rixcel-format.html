@@ -366,7 +366,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <ul>
   <li><a href="#rixcel-document-format" id="toc-rixcel-document-format" class="nav-link active" data-scroll-target="#rixcel-document-format">RiXCel document format</a>
   <ul class="collapse">
-  <li><a href="#version-2" id="toc-version-2" class="nav-link" data-scroll-target="#version-2">Version 2</a></li>
+  <li><a href="#version-3" id="toc-version-3" class="nav-link" data-scroll-target="#version-3">Version 3</a></li>
   <li><a href="#events-and-executable-rix-commands" id="toc-events-and-executable-rix-commands" class="nav-link" data-scroll-target="#events-and-executable-rix-commands">Events and executable RiX commands</a></li>
   <li><a href="#replay-and-branching" id="toc-replay-and-branching" class="nav-link" data-scroll-target="#replay-and-branching">Replay and branching</a></li>
   <li><a href="#failed-drafts" id="toc-failed-drafts" class="nav-link" data-scroll-target="#failed-drafts">Failed drafts</a></li>
@@ -375,6 +375,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#apis" id="toc-apis" class="nav-link" data-scroll-target="#apis">APIs</a></li>
   <li><a href="#version-1-migration" id="toc-version-1-migration" class="nav-link" data-scroll-target="#version-1-migration">Version 1 migration</a></li>
   <li><a href="#delimited-interchange" id="toc-delimited-interchange" class="nav-link" data-scroll-target="#delimited-interchange">Delimited interchange</a></li>
+  <li><a href="#atomic-structural-events-version-3" id="toc-atomic-structural-events-version-3" class="nav-link" data-scroll-target="#atomic-structural-events-version-3">Atomic structural events (version 3)</a></li>
   </ul></li>
   </ul>
 <div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/design/eval/rixcel-format.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
@@ -388,44 +389,46 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <section id="rixcel-document-format" class="level1">
 <h1>RiXCel document format</h1>
-<p>RiXCel files use UTF-8 JSON and the <code>.rixcel</code> extension. The root <code>format</code> and integer <code>version</code> fields identify the schema. Version 2 is a sparse, rank-N, source-authoritative event log. Version 0 drafts and dense version 1 documents remain readable and migrate to version 2 in memory.</p>
-<section id="version-2" class="level2">
-<h2 class="anchored" data-anchor-id="version-2">Version 2</h2>
+<p>RiXCel files use UTF-8 JSON and the <code>.rixcel</code> extension. The root <code>format</code> and integer <code>version</code> fields identify the schema. Version 3 is a sparse, rank-N, source-authoritative event log. Version 0 drafts, dense version 1 and sparse version 2 documents remain readable and migrate to version 3 in memory.</p>
+<section id="version-3" class="level2">
+<h2 class="anchored" data-anchor-id="version-3">Version 3</h2>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode json code-with-copy"><code class="sourceCode json"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"format"</span><span class="fu">:</span> <span class="st">"rixcel"</span><span class="fu">,</span></span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"version"</span><span class="fu">:</span> <span class="dv">2</span><span class="fu">,</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"version"</span><span class="fu">:</span> <span class="dv">3</span><span class="fu">,</span></span>
 <span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"id"</span><span class="fu">:</span> <span class="st">"budget"</span><span class="fu">,</span></span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"shape"</span><span class="fu">:</span> <span class="ot">[</span><span class="dv">1000</span><span class="ot">,</span> <span class="dv">1000</span><span class="ot">]</span><span class="fu">,</span></span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"view"</span><span class="fu">:</span> <span class="fu">{</span></span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"title"</span><span class="fu">:</span> <span class="st">"Budget"</span><span class="fu">,</span></span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"axes"</span><span class="fu">:</span> <span class="ot">[</span><span class="st">"region"</span><span class="ot">,</span> <span class="st">"measure"</span><span class="ot">]</span></span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">},</span></span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"defaultSlot"</span><span class="fu">:</span> <span class="fu">{</span></span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"source"</span><span class="fu">:</span> <span class="st">"_"</span><span class="fu">,</span></span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"assignmentMode"</span><span class="fu">:</span> <span class="st">":="</span><span class="fu">,</span></span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"view"</span><span class="fu">:</span> <span class="fu">{</span> <span class="dt">"blank"</span><span class="fu">:</span> <span class="kw">true</span> <span class="fu">}</span></span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">},</span></span>
-<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"events"</span><span class="fu">:</span> <span class="ot">[</span></span>
-<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>    <span class="fu">{</span></span>
-<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>      <span class="dt">"id"</span><span class="fu">:</span> <span class="st">"budget:event:1"</span><span class="fu">,</span></span>
-<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>      <span class="dt">"sequence"</span><span class="fu">:</span> <span class="dv">1</span><span class="fu">,</span></span>
-<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>      <span class="dt">"type"</span><span class="fu">:</span> <span class="st">"slot:set"</span><span class="fu">,</span></span>
-<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>      <span class="dt">"index"</span><span class="fu">:</span> <span class="ot">[</span><span class="dv">1</span><span class="ot">,</span> <span class="dv">2</span><span class="ot">]</span><span class="fu">,</span></span>
-<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>      <span class="dt">"source"</span><span class="fu">:</span> <span class="st">"grid[1,1] * 2"</span><span class="fu">,</span></span>
-<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>      <span class="dt">"assignmentMode"</span><span class="fu">:</span> <span class="st">":="</span><span class="fu">,</span></span>
-<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>      <span class="dt">"view"</span><span class="fu">:</span> <span class="fu">{},</span></span>
-<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>      <span class="dt">"command"</span><span class="fu">:</span> <span class="st">"document.SetSource(1, 2, </span><span class="ch">\"</span><span class="st">grid[1,1] * 2</span><span class="ch">\"</span><span class="st">, </span><span class="ch">\"</span><span class="st">:=</span><span class="ch">\"</span><span class="st">)"</span></span>
-<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>    <span class="fu">}</span></span>
-<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>  <span class="ot">]</span><span class="fu">,</span></span>
-<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"cursor"</span><span class="fu">:</span> <span class="dv">1</span><span class="fu">,</span></span>
-<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"drafts"</span><span class="fu">:</span> <span class="ot">[]</span></span>
-<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"initialShape"</span><span class="fu">:</span> <span class="ot">[</span><span class="dv">1000</span><span class="ot">,</span> <span class="dv">1000</span><span class="ot">]</span><span class="fu">,</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"shape"</span><span class="fu">:</span> <span class="ot">[</span><span class="dv">1000</span><span class="ot">,</span> <span class="dv">1000</span><span class="ot">]</span><span class="fu">,</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"view"</span><span class="fu">:</span> <span class="fu">{</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"title"</span><span class="fu">:</span> <span class="st">"Budget"</span><span class="fu">,</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"axes"</span><span class="fu">:</span> <span class="ot">[</span><span class="st">"region"</span><span class="ot">,</span> <span class="st">"measure"</span><span class="ot">]</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">},</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"defaultSlot"</span><span class="fu">:</span> <span class="fu">{</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"source"</span><span class="fu">:</span> <span class="st">"_"</span><span class="fu">,</span></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"assignmentMode"</span><span class="fu">:</span> <span class="st">":="</span><span class="fu">,</span></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"view"</span><span class="fu">:</span> <span class="fu">{</span> <span class="dt">"blank"</span><span class="fu">:</span> <span class="kw">true</span> <span class="fu">}</span></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">},</span></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"events"</span><span class="fu">:</span> <span class="ot">[</span></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>    <span class="fu">{</span></span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>      <span class="dt">"id"</span><span class="fu">:</span> <span class="st">"budget:event:1"</span><span class="fu">,</span></span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>      <span class="dt">"sequence"</span><span class="fu">:</span> <span class="dv">1</span><span class="fu">,</span></span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>      <span class="dt">"type"</span><span class="fu">:</span> <span class="st">"slot:set"</span><span class="fu">,</span></span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>      <span class="dt">"index"</span><span class="fu">:</span> <span class="ot">[</span><span class="dv">1</span><span class="ot">,</span> <span class="dv">2</span><span class="ot">]</span><span class="fu">,</span></span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>      <span class="dt">"source"</span><span class="fu">:</span> <span class="st">"grid[1,1] * 2"</span><span class="fu">,</span></span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>      <span class="dt">"assignmentMode"</span><span class="fu">:</span> <span class="st">":="</span><span class="fu">,</span></span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>      <span class="dt">"view"</span><span class="fu">:</span> <span class="fu">{},</span></span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>      <span class="dt">"command"</span><span class="fu">:</span> <span class="st">"document.SetSource(1, 2, </span><span class="ch">\"</span><span class="st">grid[1,1] * 2</span><span class="ch">\"</span><span class="st">, </span><span class="ch">\"</span><span class="st">:=</span><span class="ch">\"</span><span class="st">)"</span></span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>    <span class="fu">}</span></span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>  <span class="ot">]</span><span class="fu">,</span></span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"cursor"</span><span class="fu">:</span> <span class="dv">1</span><span class="fu">,</span></span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"drafts"</span><span class="fu">:</span> <span class="ot">[]</span></span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>The root fields are:</p>
 <ul>
 <li><code>format</code>: exactly <code>"rixcel"</code>.</li>
-<li><code>version</code>: currently <code>2</code>.</li>
+<li><code>version</code>: currently <code>3</code>.</li>
 <li><code>id</code>: a non-empty document-owned sheet identity.</li>
-<li><code>shape</code>: one or more positive safe integers.</li>
+<li><code>initialShape</code>: base dimensions before structural events.</li>
+<li><code>shape</code>: active dimensions after the first <code>cursor</code> events; validated against history.</li>
 <li><code>view</code>: JSON-safe presentation metadata before replayed view events.</li>
 <li><code>defaultSlot</code>: source, assignment mode, and view metadata inherited by every coordinate that has no active edit event. <code>_</code> is RiX’s null value.</li>
 <li><code>events</code>: the append-only edit history, including redo events beyond the current cursor.</li>
@@ -450,13 +453,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>The structured fields are authoritative. The <code>command</code> is a canonical, validated rendering of the same edit and is executable when the target FormulaSheet is bound as <code>document</code>. Keeping both forms makes logs safely machine-replayable and human-auditable. A host operation that captures a one-time result should store a literal RiX source value. A live formula keeps its original formula source.</p>
 <p>Cosmetic coordinate labels use <code>view:axis-label</code> events with canonical commands such as:</p>
 <pre class="rix"><code>document.SetAxisLabel(2, 1, "Revenue")</code></pre>
-<p>Multi-cell paste and fill use one <code>slot:batch</code> event containing ordered slot edits rather than one history event per cell. Its canonical command is an executable RiX block of <code>SetSource</code> calls, so one undo step reverts the entire operation. Future structural operations can add further compact event types.</p>
+<p>Multi-cell paste and fill use one <code>slot:batch</code> event containing ordered slot edits rather than one history event per cell. Its canonical command is an executable RiX block of <code>SetSource</code> calls, so one undo step reverts the entire operation. Structural edits use the <code>axis:insert</code> event described below.</p>
 </section>
 <section id="replay-and-branching" class="level2">
 <h2 class="anchored" data-anchor-id="replay-and-branching">Replay and branching</h2>
 <p>Readers apply <code>events[0:cursor]</code> in order over <code>defaultSlot</code> and the initial document <code>view</code>. Events after <code>cursor</code> are redo history. Appending an edit after undo truncates that inactive redo suffix and assigns the next canonical event identity.</p>
-<p>Slot IDs remain stable and derivable as:</p>
-<pre class="text"><code>${documentId}:slot:${index.join(":")}</code></pre>
+<p>Original slot IDs derive from their base (pre-insertion) coordinate:</p>
+<pre class="text"><code>${documentId}:slot:${originalIndex.join(":")}</code></pre>
 <p>Event IDs are:</p>
 <pre class="text"><code>${documentId}:event:${sequence}</code></pre>
 </section>
@@ -509,11 +512,25 @@ restored := .RiXCelImport(saved)</code></pre>
 </section>
 <section id="version-1-migration" class="level2">
 <h2 class="anchored" data-anchor-id="version-1-migration">Version 1 migration</h2>
-<p>Version 1 stored one dense slot record for every coordinate. Import validates that dense schema exactly, then converts every non-default slot to a <code>slot:set</code> event. Draft version 0 fields (<code>kind</code>, <code>code</code>, <code>op</code>, and <code>style</code>) are first migrated to version 1 and then to version 2. Newer unsupported versions are rejected.</p>
+<p>Version 1 stored one dense slot record for every coordinate. Import validates that dense schema exactly, then converts every non-default slot to a <code>slot:set</code> event. Draft version 0 fields (<code>kind</code>, <code>code</code>, <code>op</code>, and <code>style</code>) are first migrated to version 1 and then to version 3. Newer unsupported versions are rejected.</p>
 </section>
 <section id="delimited-interchange" class="level2">
 <h2 class="anchored" data-anchor-id="delimited-interchange">Delimited interchange</h2>
-<p>CSV and TSV remain value interchange formats rather than document formats. Foreign formulas beginning with <code>=</code> remain inert metadata. Import converts the result to a version 2 event log; export emits current computed values only.</p>
+<p>CSV and TSV remain value interchange formats rather than document formats. Foreign formulas beginning with <code>=</code> remain inert metadata. Import converts the result to a version 3 event log; export emits current computed values only.</p>
+</section>
+<section id="atomic-structural-events-version-3" class="level2">
+<h2 class="anchored" data-anchor-id="atomic-structural-events-version-3">Atomic structural events (version 3)</h2>
+<p><code>{ "type":"axis:insert", "axis":1, "coordinate":2, "count":1 }</code> inserts before a one-based coordinate (or appends at axis length + 1). Axes are rank-N; count is 1–1,000,000, the resulting shape product must remain a safe integer, and history is capped at 10,000 events. <code>initialShape</code> and the base <code>view</code> never change; each prefix derives its current shape, labels, slice coordinates and formulas. Versions 0–2 have no structural events and migrate with their old shape as the base. Legacy command strings are regenerated from authoritative source during migration.</p>
+<p>Sparse replay rewrites literal <code>grid[...]</code> and <code>near[...]</code> references with the existing tokenizer. Dynamic references, aliases of <code>grid</code>/<code>near</code>, and reference- dependent implicit defaults reject insertion rather than silently changing targets. Unresolved drafts must be fixed or removed before a structural edit or structural undo/redo. Quoted strings and comments are preserved. Canonical commands use RiX string delimiters rather than JavaScript escape syntax, including multiline source.</p>
+<p>Original cell IDs follow their pre-insertion coordinates. Newly inserted cells use an insertion-event identity plus their creation coordinate. This rule also applies to untouched implicit cells, without allocating IDs for the entire grid. Runtime export preserves imported structural history and appends edits; computed caches are never serialized. Host candidates compile/evaluate privately before replacing the visible model, so a failed edit leaves the committed sheet intact.</p>
+<p><code>sheet.InsertAxis(axis, coordinate, count=1)</code> returns a new FormulaSheet, leaving the old sheet unchanged. Its canonical event command rebinds <code>document</code> explicitly. <code>replayRixCelDocument</code> returns sparse <code>{document, view, slots}</code> for host adapters; <code>materializeRixCelDocument</code> is the existing explicitly dense compatibility API.</p>
+<pre class="rix" data-exec="true"><code>sheet := .FormulaSheet([[@{ 2/3 }, @{ grid[1,1]*3 }]]);
+oldid := sheet.Slot(1,2).id;
+sheet := sheet.InsertAxis(2,2);
+sheet[1,3] ##@ == 2;
+sheet.Slot(1,3).id ##@ == oldid;
+saved := .RiXCelExport(sheet);
+.RiXCelImport(saved)[1,3] ##@ == 2;</code></pre>
 
 
 </section>

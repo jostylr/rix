@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>document-persistence – RiX</title>
+<title>live-publication – RiX</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -22,6 +22,41 @@ ul.task-list li input[type="checkbox"] {
   width: 0.8em;
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
 }
 </style>
 
@@ -329,14 +364,14 @@ ul.task-list li input[type="checkbox"] {
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#saving-portable-output" id="toc-saving-portable-output" class="nav-link active" data-scroll-target="#saving-portable-output">Saving portable output</a>
+  <li><a href="#static-and-live-publication" id="toc-static-and-live-publication" class="nav-link active" data-scroll-target="#static-and-live-publication">Static and live publication</a>
   <ul class="collapse">
-  <li><a href="#live-widgets-become-explicit-snapshots" id="toc-live-widgets-become-explicit-snapshots" class="nav-link" data-scroll-target="#live-widgets-become-explicit-snapshots">Live widgets become explicit snapshots</a></li>
-  <li><a href="#import-policy-and-limits" id="toc-import-policy-and-limits" class="nav-link" data-scroll-target="#import-policy-and-limits">Import policy and limits</a></li>
-  <li><a href="#version-one-wire-contract" id="toc-version-one-wire-contract" class="nav-link" data-scroll-target="#version-one-wire-contract">Version-one wire contract</a></li>
+  <li><a href="#packaging-api" id="toc-packaging-api" class="nav-link" data-scroll-target="#packaging-api">Packaging API</a></li>
+  <li><a href="#offline-resources-and-content-policy" id="toc-offline-resources-and-content-policy" class="nav-link" data-scroll-target="#offline-resources-and-content-policy">Offline resources and content policy</a></li>
+  <li><a href="#incremental-svg-updates" id="toc-incremental-svg-updates" class="nav-link" data-scroll-target="#incremental-svg-updates">Incremental SVG updates</a></li>
   </ul></li>
   </ul>
-<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/document-persistence.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/live-publication.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
 <!-- main -->
 <main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"></header>
@@ -345,48 +380,40 @@ ul.task-list li input[type="checkbox"] {
 
 
 
-<section id="saving-portable-output" class="level1">
-<h1>Saving portable output</h1>
-<p>The opt-in <code>document</code> plugin saves an evaluated output tree without keeping an execution scope, reactive handle, callback, or filesystem grant. Loading never fetches an asset, runs a recipe, imports a plugin, or evaluates RiX source.</p>
-<pre class="rix" data-exec="true"><code>.Plugin.Load("document");
-report := .Fragment([
-    .Paragraph([.Strong("Exact results"), 1/3]),
-    .Table(["oriented interval"], [[5:4]])
+<section id="static-and-live-publication" class="level1">
+<h1>Static and live publication</h1>
+<p>A live publication starts with the complete rendered result in its HTML. With JavaScript disabled, unavailable, or blocked, the same initial mathematical result and its text alternatives remain available. Browser startup adds the existing controls, viewport, selection, linked panels, and timeline tools. A startup error is reported beside the retained result without replacing it.</p>
+<p>The supported authoring pattern is an ordinary reactive output returned by a tracked read. For example:</p>
+<pre class="rix"><code>$$radius := 3;
+$$view := .Fragment([
+    .ControlPanel([.Controls.Slider($$radius, 1:8, 1, "Radius")]),
+    .Graphics.Graphic([120, 80], [
+        .Graphics.Circle([60, 40], $radius, {= id="circle", fill="#0c7b7f" })
+    ])
 ]);
-saved := .document.EncodeJSON(report);
-imported := .document.DecodeJSON(saved);
-.document.EncodeJSON(imported[:value]) == saved ##@ == 1;
-imported[:diagnostics].Len() ##@ == 0;</code></pre>
-<p><code>DecodeJSON</code> returns a map with <code>value</code>, <code>diagnostics</code>, and <code>schema</code>. Display its warnings alongside the imported value. <code>EncodeJSON</code> returns a String and does not write a file. The host JavaScript functions <code>encodeOutputJSON</code>, <code>decodeOutputJSON</code>, and <code>snapshotOutputDocument</code> are exported from RiX and its runtime entry point, with the same behavior in CLI, Web, and Notebook hosts.</p>
-<section id="live-widgets-become-explicit-snapshots" class="level2">
-<h2 class="anchored" data-anchor-id="live-widgets-become-explicit-snapshots">Live widgets become explicit snapshots</h2>
-<p>Call <code>.document.Snapshot(value)</code> before persisting a live tree. It captures current control values and selected Sheet planes, removes reactive/action handles, disables controls, and turns draggable points/actions into static circles/groups. It never invokes an action. The original tree stays live.</p>
-<pre class="rix" data-exec="true"><code>.Plugin.Load("document");
-$$amount := 1/2;
-panel := .ControlPanel([.Controls.Slider($$amount, 0:1, 1/10, "Amount")]);
-portable := .document.Snapshot(panel);
-.document.DecodeJSON(.document.EncodeJSON(portable))[:value];</code></pre>
-<p>A direct attempt to encode live controls, bindings, functions, promises, host objects, or accessors fails. Imported Sheet snapshots retain safe <code>Index</code>/<code>At</code> lookup over saved cells; an unsaved plane is unavailable, not lazily evaluated. Frame-aware mathematical tensor graphs require the separate Linalg identity import adapter; bare Shaped and rank-two Matrix values are supported now.</p>
+$view</code></pre>
+<p>Use explicit semantic IDs when a mark should retain its identity across updates. The generated page uses the public observed-result contract; it does not subscribe to an unrelated first reactive read or replay the entire program for each slider movement.</p>
+<section id="packaging-api" class="level2">
+<h2 class="anchored" data-anchor-id="packaging-api">Packaging API</h2>
+<p><code>@ratmath/rix/live-publication/node</code> exports:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> { content<span class="op">,</span> assets<span class="op">,</span> diagnostics<span class="op">,</span> descriptor } <span class="op">=</span> <span class="cf">await</span> <span class="fu">buildLivePublication</span>({</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    value<span class="op">,</span> source<span class="op">,</span> <span class="dt">sourcePath</span><span class="op">:</span> <span class="st">"measurement.rix"</span><span class="op">,</span> <span class="dt">title</span><span class="op">:</span> <span class="st">"Measurement"</span><span class="op">,</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    <span class="dt">plugins</span><span class="op">:</span> []<span class="op">,</span> format<span class="op">,</span> <span class="dt">assetPrefix</span><span class="op">:</span> <span class="st">"assets/measurement"</span><span class="op">,</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>})<span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Write <code>content</code> to the output HTML file and each <code>assets</code> map entry relative to that HTML file’s directory. Use a unique stable <code>assetPrefix</code> per source page. Batch builders can call <code>buildLiveRuntimeAssets()</code> once and pass its map as <code>runtimeAssets</code> for each document. These APIs return data; they do not publish files or grant the browser filesystem/process access. Runtime bundling uses Bun and the repository’s checked-in browser entry and styles.</p>
+<p>The pure <code>@ratmath/rix/live-publication</code> helpers produce inert descriptions of retained interaction identities and existing event/protocol names. They do not serialize bindings, callbacks, evaluator contexts, or subscriptions. Ordinary graphic descriptors refer to <code>rix.viewport@1</code> and <code>rix.selection@1</code>; editable marks use <code>graphic:position</code>/<code>graphic:action</code>, controls use <code>control:set</code>, and timelines retain <code>rix.timeline-view@1</code>.</p>
+<p>Output traversal is limited to 10,000 nodes and 64 levels. Timeline lowering retains at most 120 frames by default, reports truncation, and preserves the exact first frame and its original per-frame timing. Markers and semantic keyframes beyond the retained range are omitted. Source is limited to 1,000,000 UTF-8 bytes, and plugin preloads to 128 safe catalog names. Hosts can lower these limits. The deprecated LiveView wrapper continues through its existing runtime protocol; new publications should use the tracked <code>$view</code> form above.</p>
 </section>
-<section id="import-policy-and-limits" class="level2">
-<h2 class="anchored" data-anchor-id="import-policy-and-limits">Import policy and limits</h2>
-<p>The <code>unknownTags</code> option is one of:</p>
-<ul>
-<li><code>"warn-and-skip"</code> (default): replace an unsupported record with visible text and a source-path warning. Required malformed known records still fail.</li>
-<li><code>"strict-error"</code>: reject an unsupported tag.</li>
-<li><code>"preserve-opaque"</code>: show the same fallback while retaining bounded inert data for re-export. This never installs behavior for the unknown record.</li>
-</ul>
-<p>Exact integers/rationals, formal unreduced Fractions, interval endpoint order, certified approximation enclosures/source sharing, undecided values, collection sharing and mathematical graph identities survive. Scoped mathematical imports create fresh runtime identities while preserving sharing within the document. Unscoped rational Calculus graphs retain their name-based structure as inert records, so saved derivative selectors and checked numerical evidence can be replayed without inventing a new symbol binding. Live extension methods are omitted from these known graph records.</p>
-<p>Defaults are 4,000,000 UTF-8 bytes, 20,000 graph nodes, 100,000 traversal steps, 128 nesting levels and 4,096 integer characters. Options <code>maxBytes</code>, <code>maxNodes</code>, <code>maxEdges</code>, <code>maxDepth</code>, and <code>maxDigits</code> can lower them or raise them by at most a factor of sixteen. The strict mathematical subgraph keeps its own independent limits. Cycles, dangling/duplicate identities, unsafe keys, nonfinite numbers, missing required fields and oversized records fail with an error code and path.</p>
+<section id="offline-resources-and-content-policy" class="level2">
+<h2 class="anchored" data-anchor-id="offline-resources-and-content-policy">Offline resources and content policy</h2>
+<p>The HTML references local configuration, runtime, and stylesheet files. Its configuration is an external JavaScript data assignment, with no inline script, dynamic evaluation, or startup fetch. Only the source filename is retained for diagnostics; the exporting machine’s absolute source path is not included as a source URL. Both a local static server and a <code>file://</code> page work.</p>
+<p>The emitted content security policy allows scripts only from the publication’s own origin. It blocks network connections, frames, objects, forms, and base URL changes. Local/data images and local/blob media are permitted. Inline styles remain enabled for the existing retained-output style attributes; inline scripts remain blocked. External media references require an explicitly authorized host policy or local asset packaging before use. Browser plugin permissions remain those of the existing browser catalog: bundling does not make native file/process services available.</p>
 </section>
-<section id="version-one-wire-contract" class="level2">
-<h2 class="anchored" data-anchor-id="version-one-wire-contract">Version-one wire contract</h2>
-<p><code>rix.output.document@1</code> contains <code>root</code>, a document-local <code>nodes</code> table, and an optional strict <code>rix.math.document@1</code> graph. References are <code>{"$ref":"n0"}</code>; IDs are traversal-order identifiers, not global identities or signed hashes.</p>
-<p>Each node has exactly <code>id</code>, <code>tag</code>, and <code>data</code>. Tags <code>integer</code>, <code>rational</code>, <code>fraction</code>, <code>interval</code>, <code>certified</code>, <code>shaped</code>, <code>undecided</code>, <code>hole</code>, <code>array</code>, <code>map</code>, <code>record</code>, and <code>math</code> have explicit scalar/collection forms. <code>output:KIND</code> carries ordered name/value pairs for a validated core output record. Numbers embedded as native JSON numbers are host presentation data, never exact RiX integers or rationals. Mathematical expressions share one strict graph across the tree.</p>
-<p>Intrinsic methods are rebuilt from installed constructors and never saved. Metadata, labels, captions, references, asset declarations, styles and evidence remain ordinary inert data. Unknown-tag import does not change strict Core mathematical decoding. Existing <code>rix.control-panel</code> version-one JSON migrates on import and emits an informational diagnostic. No general legacy reader or implicit source execution is provided.</p>
-<p>To move images/audio/video together with a saved document, use the <a href="../eval/output-assets.html">portable asset bundle APIs</a>. Plain document JSON retains asset references and never resolves their bytes.</p>
-<p>The <code>interval-set</code> scalar tag retains normalized rational interval-set components with exact nullable endpoints and explicit closure flags. <code>null</code> means negative infinity on the lower side and positive infinity on the upper side; infinite endpoints must be open. Empty sets and closed singleton components round-trip. Malformed, reversed, overlapping or unsorted wire components are rejected rather than silently normalized. The ordinary digit, edge, node and depth budgets apply.</p>
-<p>The <code>fraction-interval</code> tag stores two exact Fraction references in their stored low/high order, without reducing endpoint representations. Formal Fraction values may retain nonzero numerators over zero as signed infinity, using the existing explicit infinite-Fraction constructor policy. <code>0/0</code>, reversed interval endpoints, non-Fraction endpoints and infinite Rational values are rejected.</p>
+<section id="incremental-svg-updates" class="level2">
+<h2 class="anchored" data-anchor-id="incremental-svg-updates">Incremental SVG updates</h2>
+<p>Generated live pages opt into the shared mount’s <code>incrementalSvg</code> option. Matching passive path, circle, rectangle, line, polygon, and text nodes are retained by semantic ID and updated in place. Duplicate IDs, shape changes, and exhausted matching budgets fall back to replacement. At most 10,000 old marks are considered in one update.</p>
+<p>Interactive SVG roots, drag targets, action handlers, and controls mount fresh listeners from the new output snapshot. This prevents callbacks from retaining obsolete bindings or firing twice. Their semantic IDs, selected mathematical objects, viewport state, open disclosure sections, and focused controls are restored through the existing shared widget protocol. Exact coordinates and rounding disclosures update with the scene.</p>
+<p>Run <code>bun test tests/eval/live-publication.test.js tests/tools/output-widgets.test.js</code> for contracts. <code>scripts/check-live-publication-browser.js</code> uses locally installed Chromium/Playwright (optional <code>RIX_PLAYWRIGHT_MODULE</code> and <code>RIX_CHROME_EXECUTABLE</code>) to verify disabled JavaScript, CSP, offline startup, retained SVG identity, repeated control/drag updates, stable selection/focus, and preservation of the static result after a startup failure. It writes artifacts only under <code>tmp/live-publication-browser/</code>.</p>
 
 
 </section>
@@ -823,7 +850,7 @@ portable := .document.Snapshot(panel);
 </div>   
     <div class="nav-footer-center">
       &nbsp;
-    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/document-persistence.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/live-publication.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
 <p>Documentation built with <a href="https://quarto.org/">Quarto</a></p>
 </div>

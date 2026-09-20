@@ -1,19 +1,22 @@
 ---
 title: "Shaped values, matrices, vectors, and mathematical tensors"
-description: "Implemented Shaped/Matrix migration and remaining finite coordinate-aware tensor work."
+description: "Implemented Shaped/Matrix migration, finite tensor algebra and finite-support polynomial coordinates."
 toc-depth: 4
 ---
 
 # Status
 
-**Implementation in progress; reconciled 2026-09-19.** Shaped/Matrix storage,
+**Finite implementation complete; reconciled 2026-09-20.** Shaped/Matrix storage,
 semantic-name folding, compact Frame headers, finite coordinate tensors,
 vector/covector pairing, linear maps, dual spaces, tensor products/contractions,
 bounded polynomial realizations, and identity-record serialization exist.
 See `plugins/linalg/README.md` and `tests/eval/linalg-optimize-solve-plugin.test.js`.
 Validated finite identity graphs now supplement the single-record writers.
 `ExportGraph`/`ImportGraph` preserve document-local sharing with fresh runtime
-identities, bounded lineage and exact Rational coordinate storage.
+identities, bounded lineage and exact Rational coordinate storage. T3 adds
+Rational spectral evidence, finite-support tensors and countable monomial Frames
+for finite polynomials, with bounded inclusion/projection. Infinite expansions,
+general countable bases and extension-field canonical forms remain later work.
 
 The original start/branch/approval gates are historical migration sequencing,
 not new permission requirements. Preserve the implemented syntax and settled
@@ -35,7 +38,7 @@ linalg/optimize/solve, Web REPL and Notebook engine suites. Generated references
 and host catalogs come from their existing scripts. Full cross-repository
 release checks remain Q1, not evidence supplied by this migration record.
 The finite tensor algebra, identity imports and sparse-coordinate items below
-belong to T1–T3; optional syntax and infinite-dimensional research stay in D2/D9.
+are delivered by T1–T3; optional syntax and infinite-dimensional research stay in D2/D9.
 
 # Decision summary
 
@@ -376,8 +379,8 @@ px := .linalg.PolynomialSpace({=
   over = :Rational
 });
 
-monomial := px.Frame(:monomial);
-pv := px.AsVector(.poly([1, 0, 0, 5]), monomial);
+monomial := px.Frame();
+pv := px.Realize(.poly.Polynomial([1, 0, 0, 5])).Vector();
 ```
 
 Here `:unbounded` means every element still has finite degree; it does not mean
@@ -419,21 +422,21 @@ for useful infinite-dimensional work.
 
 ### Infinite-dimensional checklist
 
-- [ ] Add dimension descriptors distinguishing finite `n`, countably infinite,
-  and symbolic/unknown dimension.
-- [ ] Define `SparseCoordinates` with canonical zero removal, basis keys,
+- [x] Distinguish finite `n` and `:countable` dimensions for finite-support
+  monomial Frames. Symbolic/unknown dimension descriptors remain later.
+- [x] Define `SparseCoordinates` with canonical zero removal, basis keys,
   scalar-domain validation, deterministic traversal, and work-bounded tensor
   products.
-- [ ] Permit `Vector` and `Tensor` component storage through a coordinate-
+- [x] Permit `Vector` and `Tensor` component storage through a coordinate-
   storage protocol rather than requiring `Shaped`.
-- [ ] Implement countable frames with `BasisAt`, optional key enumeration, and
-  finite-support encode/decode.
-- [ ] Use all finite polynomials as the first countably infinite-dimensional
+- [x] Implement countable monomial Frames with `BasisAt` and finite-support
+  encode/decode. Arbitrary countable bases and key enumerators remain later.
+- [x] Use all finite polynomials as the first countably infinite-dimensional
   exact realization.
-- [ ] Keep bounded `P_<=n` as a finite subspace with dense `Shaped` components.
-- [ ] Define inclusion maps and projections between `P_<=n`, `P_<=m`, and the
+- [x] Keep bounded `P_<=n` as a finite subspace with dense `Shaped` components.
+- [x] Define inclusion maps and projections between `P_<=n`, `P_<=m`, and the
   unbounded finite-polynomial space.
-- [ ] Specify support-growth budgets and diagnostics for tensor products and
+- [x] Specify support-growth budgets and diagnostics for tensor products and
   linear maps.
 - [ ] Design a separate lazy/oracular coordinate protocol before formal power
   series or infinite-support sequences are called vectors.
@@ -836,7 +839,7 @@ is retained.
   serialization machinery between Vector, Covector, and Tensor.
 - [x] Specify `rix.coordinate-storage@1` with bounded finite `denseShaped`
   adapters and logical entry order.
-- [ ] Extend the coordinate-storage protocol with `SparseCoordinates` for
+- [x] Extend the coordinate-storage protocol with `SparseCoordinates` for
   finite-support infinite-dimensional coordinates.
 - [x] Implement vector/covector pairing without inventing a metric.
 - [x] Require an explicit metric for dot products, norms, angles, and
@@ -995,3 +998,22 @@ Implementation is not complete until tests cover at least these cases:
 - [x] Retain a non-evictable origin plus a configurable recent lineage, with a
   default of 30 recent transformations per abstract tensor.
 - [x] Use the compact shaped header as the canonical formatter/export spelling.
+
+
+### T3 finite spectral and support completion
+
+The public Linalg implementation now returns exact characteristic/minimal
+Polynomials and Rational eigenspaces with bounded replayable spectral records.
+Canonical/Jordan bases and extension-field eigenspaces remain unsupported;
+budget exhaustion is distinguished from a proof that no further Rational roots
+exist. The implementation uses only the existing univariate Q[x] domain.
+
+`SparseCoordinates` implements finite support over exact Rational scalars,
+including finite and countable monomial axes, canonical zero removal, numeric
+key ordering and explicit support/work/index budgets. Tensor operations retain
+ordered slot and identity semantics. `PolynomialSpace(:unbounded)` represents
+finite polynomials only; `Bounded(n)`, `Include` and `Project` implement explicit
+finite subspace maps with replayable coefficient evidence. Identity graph v1
+remains finite/dense; sparse data has its own inert coordinate record adapter,
+which does not claim to restore ambient identities. See the Linalg README for
+limits and supported sparse operations.

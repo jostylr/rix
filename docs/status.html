@@ -333,6 +333,7 @@ ul.task-list li input[type="checkbox"] {
   <li><a href="#working-and-tested" id="toc-working-and-tested" class="nav-link active" data-scroll-target="#working-and-tested">Working and tested</a></li>
   <li><a href="#partial-or-intentionally-bounded" id="toc-partial-or-intentionally-bounded" class="nav-link" data-scroll-target="#partial-or-intentionally-bounded">Partial or intentionally bounded</a></li>
   <li><a href="#documentation-authority" id="toc-documentation-authority" class="nav-link" data-scroll-target="#documentation-authority">Documentation authority</a></li>
+  <li><a href="#learn-the-delivered-workflows" id="toc-learn-the-delivered-workflows" class="nav-link" data-scroll-target="#learn-the-delivered-workflows">Learn the delivered workflows</a></li>
   </ul>
 <div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/status.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
@@ -365,7 +366,7 @@ ul.task-list li input[type="checkbox"] {
 
 
 <p>RiX is an active alpha. Its parser, AST-to-IR lowering, and broad evaluator are working; the language remains free to change before a stable release. This page is the current status boundary. Older reports and design notes are valuable history but are not authoritative status pages.</p>
-<p>The umbrella <code>ratmath/WORK_PLAN.md</code> consolidates the current execution queue and later decisions (reconciled 2026-09-19).</p>
+<p>The umbrella <code>ratmath/WORK_PLAN.md</code> consolidates the current execution queue and later decisions (reconciled 2026-09-20).</p>
 <p>The repository test suite has broad automated coverage across parser, evaluator, runtime, CLI, tooling, documentation, and examples. Run <code>bun test</code> in <code>rix/</code> for the exact count and result at your revision.</p>
 <section id="working-and-tested" class="level2">
 <h2 class="anchored" data-anchor-id="working-and-tested">Working and tested</h2>
@@ -434,6 +435,14 @@ ul.task-list li input[type="checkbox"] {
 <td>optional <code>.scene3d</code> retained <code>rix.scene3d@1</code> values with exact meshes, polylines, point clouds, transforms, perspective/orthographic cameras, and deterministic wireframe-to-Graphics snapshots; <code>.nd</code> exact affine/Cayley projection records and polytopes; browser-safe embedded-buffer glTF 2.0 export; runnable 4D tesseract example</td>
 </tr>
 <tr class="even">
+<td>Finite numeric acceleration</td>
+<td>Copy-owned binary32/binary64 Float tensors and bounded matrix multiplication remain approximate; exact sparse finite matrix products stay Rational. Canvas has bounded path caching, conservative dirty repaint and explicit OffscreenCanvas worker support; Plot has bounded downsampling, stream tails and exact heatmap aggregates.</td>
+</tr>
+<tr class="odd">
+<td>RiXCel</td>
+<td>Structural editing with reference-aware undo, atomic cross-document workbooks, CSV/TSV/XLSX interchange and bounded virtual rank-N regions; imported formula text is inert unless explicitly activated under the host policy.</td>
+</tr>
+<tr class="even">
 <td>Embedding</td>
 <td>parser exports, evaluator/runtime exports, configurable system loader and system context</td>
 </tr>
@@ -467,8 +476,8 @@ ul.task-list li input[type="checkbox"] {
 <td><code>.fracfun</code> remains the sole host-backed computational exact-algebra plugin because it clones and rewrites private symbolic IR, closure scopes, and source-domain restrictions. Its canonical projections already use pure-RiX <code>.poly</code> and <code>.ratfun</code>; migration waits for a versioned public symbolic-expression builder.</td>
 </tr>
 <tr class="odd">
-<td>Mathematical systems and async follow-up</td>
-<td><code>{# ... }</code> retains inert symbolic systems. Solve supports affine systems, inequalities through Optimize, polynomial root dispatch, and scalar Numerics adapters; multidimensional subdivision consumers and multivariate elimination remain separate follow-ups. Async finite collections, bounded lazy pull, streams, captured-value snapshots/write rejection, cancellation, and cleanup are implemented. Host/editor execution workers and budgets exist; a scheduler-owned CPU worker pool, complete structural task paths, capability-safety metadata, and Notebook async integration remain follow-up work.</td>
+<td>Mathematical systems and async</td>
+<td>Solve includes bounded multidimensional subdivision/feasibility consumers; multivariate elimination remains outside the supported scope. Async includes bounded lazy pull/streams, task snapshots, cancellation/cleanup, capability-safety metadata, structural task paths, a restricted pure CPU worker pool and Notebook async execution. Arbitrary host JavaScript cannot be forcibly preempted in-process; workers provide the termination boundary.</td>
 </tr>
 <tr class="even">
 <td>Real approximation</td>
@@ -480,11 +489,11 @@ ul.task-list li input[type="checkbox"] {
 </tr>
 <tr class="even">
 <td>Packaging</td>
-<td>the standalone manifest is <code>@ratmath/rix</code> 0.1.0 and targets <code>@ratmath/core</code> 0.5. Its opt-in release gate covers the complete suite with coverage, native RiX tests, documentation, editor policy, package contents, and an isolated tarball install. The 0.1 line is explicitly alpha and makes no compatibility commitment.</td>
+<td>the standalone manifest is <code>@ratmath/rix</code> 0.1.0 and targets <code>@ratmath/core</code> 0.5. The published Core package lacks the newer <code>NumeralSystem</code> export at this revision; use the matched workspace until a coordinated release. Paired local tarballs pass the isolated-consumer check. Its opt-in release gate covers the complete suite with coverage, native RiX tests, documentation, editor policy, package contents, and an isolated tarball install. The 0.1 line is explicitly alpha and makes no compatibility commitment.</td>
 </tr>
 <tr class="odd">
 <td>3D rendering</td>
-<td>Retained scenes, pure-RiX realization/projection, wireframe and flat-lit snapshots, adaptive parametric surfaces, Canvas/PNG lowering, interactive WebGL orbit/selection, and glTF JSON export exist. Certified implicit surfaces, volume/slice policies, textures, GLB/import, and broader 3D interchange remain follow-up work. Static camera projection belongs to Scene3D rather than the 2D SVG/Canvas/TikZ renderers.</td>
+<td>Retained scenes, pure-RiX realization/projection, wireframe and flat-lit snapshots, adaptive parametric surfaces, Canvas/PNG lowering, interactive WebGL orbit/selection, and glTF JSON export exist. Bounded implicit cell covers, volume/slice views and ND sections retain unresolved regions and do not certify reconstructed topology. Textures, GLB/import and broader 3D interchange remain follow-up work. Static camera projection belongs to Scene3D rather than the 2D SVG/Canvas/TikZ renderers.</td>
 </tr>
 </tbody>
 </table>
@@ -500,6 +509,10 @@ ul.task-list li input[type="checkbox"] {
 <li>historical reports, early phase documents, scratch notes, and generated legacy HTML.</li>
 </ol>
 <p>The build regenerates the runtime catalog from the implementation, which makes missing or renamed system capabilities visible in every documentation change.</p>
+</section>
+<section id="learn-the-delivered-workflows" class="level2">
+<h2 class="anchored" data-anchor-id="learn-the-delivered-workflows">Learn the delivered workflows</h2>
+<p>Start with the <a href="./tutorial/capstones.html">runnable capstones</a>, then use the <a href="./eval/publication-workflows.html">publication workflow</a>, <a href="./eval/validated-scene-views.html">validated scene views</a>, <a href="./eval/exact-exploration.html">exact exploration</a>, <a href="./eval/task-workers.html">task workers</a>, and <a href="./eval/workbooks.html">workbooks</a> guides for contracts and limits. Plugin tutorials remain the executable API examples; generated method catalogs describe the current runtime surface.</p>
 
 
 </section>

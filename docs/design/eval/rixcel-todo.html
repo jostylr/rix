@@ -351,6 +351,19 @@ ul.task-list li input[type="checkbox"] {
 
 <section id="rixcel-implementation-checklist" class="level1">
 <h1>RiXCel implementation checklist</h1>
+<div class="callout callout-style-default callout-note callout-titled" title="Historical planning and delivery record">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Historical planning and delivery record
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>This page preserves earlier plans and completion notes; proposed APIs and remaining-work statements below are not the current implementation contract. Use the <a href="../../history.html">history index</a> for links to current guides.</p>
+</div>
+</div>
 <blockquote class="blockquote">
 <p>Reconciled 2026-09-19. Remaining milestones are ordered in the umbrella <code>ratmath/WORK_PLAN.md</code> (C1–C4). Existing checked milestones remain completion records; no new workbook/tensor-spill semantics are implied by them.</p>
 </blockquote>
@@ -411,7 +424,7 @@ ul.task-list li input[type="checkbox"] {
 <li><label><input type="checkbox" checked="">Add <code>grid</code>, <code>row</code>, <code>col</code>, and <code>index</code> evaluation bindings.</label></li>
 <li><label><input type="checkbox" checked="">Add the <code>near</code> evaluation binding.</label></li>
 <li><label><input type="checkbox" checked="">Add public <code>FormulaSheet.Near(origin, offsets)</code> for explicit relative reads.</label></li>
-<li><label><input type="checkbox">Add <code>book</code>, <code>names</code>, and <code>imports</code> namespaces.</label></li>
+<li><label><input type="checkbox" checked="">Add explicit <code>book</code>, <code>names</code>, and <code>imports</code> namespaces with document-owned exports.</label></li>
 <li><label><input type="checkbox" checked="">Record runtime slot-read dependencies.</label></li>
 <li><label><input type="checkbox" checked="">Incrementally recompute dirty dependents.</label></li>
 <li><label><input type="checkbox" checked="">Detect cycles and report complete address paths.</label></li>
@@ -436,8 +449,8 @@ ul.task-list li input[type="checkbox"] {
 <li><label><input type="checkbox" checked="">Edit FormulaSheet row/column coordinate labels while retaining numeric headers.</label></li>
 <li><label><input type="checkbox" checked="">Render imported blank fields as blank without hiding intentional <code>_</code> results.</label></li>
 <li><label><input type="checkbox" checked="">Let interactive hosts observe and dispose a direct final reactive output such as <code>$frag</code>.</label></li>
-<li><label><input type="checkbox">Coordinate tracked dependencies that span multiple independent ReactiveGraphs.</label></li>
-<li><label><input type="checkbox">Define volatile/external-source recomputation policy.</label></li>
+<li><label><input type="checkbox" checked="">Coordinate workbook document dependencies in one atomic graph, with full cross-document cycle paths and bounded private candidate rebuilds.</label></li>
+<li><label><input type="checkbox" checked="">Use explicit external snapshot refresh by default; host-opt-in schedules preserve source/version metadata and dispose timers/pending work.</label></li>
 <li><label><input type="checkbox" checked="">Add round-trip and migration tests for <code>.rixcel</code> documents.</label></li>
 </ul>
 </section>
@@ -451,16 +464,16 @@ ul.task-list li input[type="checkbox"] {
 <li><label><input type="checkbox" checked="">Add document-level undo and redo as event-log cursor movement.</label></li>
 <li><label><input type="checkbox" checked="">Add single-cell formula copy/paste with explicit absolute <code>grid</code> and relative <code>near</code> semantics.</label></li>
 <li><label><input type="checkbox" checked="">Add multi-cell copy/paste and fill with atomic batch history events.</label></li>
-<li><label><input type="checkbox">Add row/column insertion with parsed reference updates.</label>
+<li><label><input type="checkbox" checked="">Add row/column insertion with parsed reference updates.</label>
 <ul class="task-list">
 <li><label><input type="checkbox" checked="">Add tokenizer-aware <code>grid</code>/<code>near</code> reference rewriting and dynamic-reference detection.</label></li>
-<li><label><input type="checkbox">Add shape-changing structural history events with cursor-safe undo/redo.</label></li>
+<li><label><input type="checkbox" checked="">Add version-3 shape-changing structural history events with cursor-safe undo/redo.</label></li>
 </ul></li>
 <li><label><input type="checkbox" checked="">Add local persistence and <code>.rixcel</code> open/save.</label></li>
 <li><label><input type="checkbox" checked="">Preflight imports and edits in a restartable, timed worker with restricted capabilities.</label></li>
 <li><label><input type="checkbox" checked="">Move persistent FormulaSheet ownership and visible-plane projection fully into the worker.</label></li>
 <li><label><input type="checkbox" checked="">Show dependency, cycle, parse, and runtime diagnostics in the grid.</label></li>
-<li><label><input type="checkbox">Add browser-level tests for editing and persistence.</label></li>
+<li><label><input type="checkbox" checked="">Add real Chromium tests for editing, insertion, fill/copy, error recovery, save/reopen/restart, history and bounded sparse navigation.</label></li>
 </ul>
 </section>
 <section id="interchange-and-embedding" class="level2">

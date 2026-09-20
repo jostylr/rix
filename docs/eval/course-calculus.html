@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>document-persistence – RiX</title>
+<title>course-calculus – RiX</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -329,14 +329,15 @@ ul.task-list li input[type="checkbox"] {
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#saving-portable-output" id="toc-saving-portable-output" class="nav-link active" data-scroll-target="#saving-portable-output">Saving portable output</a>
+  <li><a href="#bounded-course-calculus-and-local-domain-evidence" id="toc-bounded-course-calculus-and-local-domain-evidence" class="nav-link active" data-scroll-target="#bounded-course-calculus-and-local-domain-evidence">Bounded course calculus and local domain evidence</a>
   <ul class="collapse">
-  <li><a href="#live-widgets-become-explicit-snapshots" id="toc-live-widgets-become-explicit-snapshots" class="nav-link" data-scroll-target="#live-widgets-become-explicit-snapshots">Live widgets become explicit snapshots</a></li>
-  <li><a href="#import-policy-and-limits" id="toc-import-policy-and-limits" class="nav-link" data-scroll-target="#import-policy-and-limits">Import policy and limits</a></li>
-  <li><a href="#version-one-wire-contract" id="toc-version-one-wire-contract" class="nav-link" data-scroll-target="#version-one-wire-contract">Version-one wire contract</a></li>
+  <li><a href="#mixed-trigonometric-powers-and-quadratic-radicals" id="toc-mixed-trigonometric-powers-and-quadratic-radicals" class="nav-link" data-scroll-target="#mixed-trigonometric-powers-and-quadratic-radicals">Mixed trigonometric powers and quadratic radicals</a></li>
+  <li><a href="#exact-certified-and-approximate-definite-integrals" id="toc-exact-certified-and-approximate-definite-integrals" class="nav-link" data-scroll-target="#exact-certified-and-approximate-definite-integrals">Exact, certified and approximate definite integrals</a></li>
+  <li><a href="#local-premises-and-domain-preserving-displays" id="toc-local-premises-and-domain-preserving-displays" class="nav-link" data-scroll-target="#local-premises-and-domain-preserving-displays">Local premises and domain-preserving displays</a></li>
+  <li><a href="#inert-equation-problems-and-declared-derivatives" id="toc-inert-equation-problems-and-declared-derivatives" class="nav-link" data-scroll-target="#inert-equation-problems-and-declared-derivatives">Inert equation problems and declared derivatives</a></li>
   </ul></li>
   </ul>
-<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/document-persistence.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/course-calculus.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
 <!-- main -->
 <main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"></header>
@@ -345,48 +346,88 @@ ul.task-list li input[type="checkbox"] {
 
 
 
-<section id="saving-portable-output" class="level1">
-<h1>Saving portable output</h1>
-<p>The opt-in <code>document</code> plugin saves an evaluated output tree without keeping an execution scope, reactive handle, callback, or filesystem grant. Loading never fetches an asset, runs a recipe, imports a plugin, or evaluates RiX source.</p>
-<pre class="rix" data-exec="true"><code>.Plugin.Load("document");
-report := .Fragment([
-    .Paragraph([.Strong("Exact results"), 1/3]),
-    .Table(["oriented interval"], [[5:4]])
-]);
-saved := .document.EncodeJSON(report);
-imported := .document.DecodeJSON(saved);
-.document.EncodeJSON(imported[:value]) == saved ##@ == 1;
-imported[:diagnostics].Len() ##@ == 0;</code></pre>
-<p><code>DecodeJSON</code> returns a map with <code>value</code>, <code>diagnostics</code>, and <code>schema</code>. Display its warnings alongside the imported value. <code>EncodeJSON</code> returns a String and does not write a file. The host JavaScript functions <code>encodeOutputJSON</code>, <code>decodeOutputJSON</code>, and <code>snapshotOutputDocument</code> are exported from RiX and its runtime entry point, with the same behavior in CLI, Web, and Notebook hosts.</p>
-<section id="live-widgets-become-explicit-snapshots" class="level2">
-<h2 class="anchored" data-anchor-id="live-widgets-become-explicit-snapshots">Live widgets become explicit snapshots</h2>
-<p>Call <code>.document.Snapshot(value)</code> before persisting a live tree. It captures current control values and selected Sheet planes, removes reactive/action handles, disables controls, and turns draggable points/actions into static circles/groups. It never invokes an action. The original tree stays live.</p>
-<pre class="rix" data-exec="true"><code>.Plugin.Load("document");
-$$amount := 1/2;
-panel := .ControlPanel([.Controls.Slider($$amount, 0:1, 1/10, "Amount")]);
-portable := .document.Snapshot(panel);
-.document.DecodeJSON(.document.EncodeJSON(portable))[:value];</code></pre>
-<p>A direct attempt to encode live controls, bindings, functions, promises, host objects, or accessors fails. Imported Sheet snapshots retain safe <code>Index</code>/<code>At</code> lookup over saved cells; an unsaved plane is unavailable, not lazily evaluated. Frame-aware mathematical tensor graphs require the separate Linalg identity import adapter; bare Shaped and rank-two Matrix values are supported now.</p>
+<section id="bounded-course-calculus-and-local-domain-evidence" class="level1">
+<h1>Bounded course calculus and local domain evidence</h1>
+<p>The course layer now combines checked integration rules, local conditional rewrites, exact definite integrals, certified range quadrature and an explicit approximate fallback. It uses the public Calculus graphs and existing Rational, Polynomial and Numerics services. No external solver or global assumption state is involved.</p>
+<section id="mixed-trigonometric-powers-and-quadratic-radicals" class="level2">
+<h2 class="anchored" data-anchor-id="mixed-trigonometric-powers-and-quadratic-radicals">Mixed trigonometric powers and quadratic radicals</h2>
+<pre class="rix" data-exec="true"><code>.Plugin.Load("cas");
+x := .calculus.Variable(:x);
+Sin := .calculus.Sin(); Cos := .calculus.Cos();
+r := .cas.Integrate(Sin(2*x+1)^2*Cos(2*x+1)^3,:x);
+r[:status] ##@ == :complete;
+.cas.CheckIntegral(r)[:accepted] ##@ == 1;
+r[:rules];</code></pre>
+<p>Products <code>Sin(u)^m Cos(u)^n</code> use the same affine argument and nonnegative Integer powers with total degree at most 8. An odd exponent gives a finite substitution sum; two even exponents use double-angle power reduction. Different plain sine/cosine arguments continue to use the earlier product-to-sum rule. Unsupported degrees or arguments return an explicit reason.</p>
+<pre class="rix" data-exec="true"><code>.Plugin.Load("cas");
+x := .calculus.Variable(:x); Sqrt := .calculus.Sqrt();
+r := .cas.Integrate(Sqrt(2*x^2+4*x+4),:x);
+r[:status] ##@ == :complete;
+.cas.CheckIntegral(r)[:accepted] ##@ == 1;
+r[:obligations];</code></pre>
+<p>The radical subset is <code>Sqrt(a*x^2+b*x+c)</code> and a variable-independent numerator divided by that square root, with exact Rational coefficients and <code>a != 0</code>. Completion of the square selects the circular <code>Asin</code> or hyperbolic/log-absolute identity. Nondegenerate primitives retain the strict positive-radicand interior obligation, including disconnected exterior domains. The degenerate square-root case uses <code>u Abs(u)/2</code>; a degenerate reciprocal stays unsupported. No complex branch is inferred. Replay now checks obligations, rules and evidence flags as well as the primitive; deleting a pole restriction invalidates a claim.</p>
 </section>
-<section id="import-policy-and-limits" class="level2">
-<h2 class="anchored" data-anchor-id="import-policy-and-limits">Import policy and limits</h2>
-<p>The <code>unknownTags</code> option is one of:</p>
-<ul>
-<li><code>"warn-and-skip"</code> (default): replace an unsupported record with visible text and a source-path warning. Required malformed known records still fail.</li>
-<li><code>"strict-error"</code>: reject an unsupported tag.</li>
-<li><code>"preserve-opaque"</code>: show the same fallback while retaining bounded inert data for re-export. This never installs behavior for the unknown record.</li>
-</ul>
-<p>Exact integers/rationals, formal unreduced Fractions, interval endpoint order, certified approximation enclosures/source sharing, undecided values, collection sharing and mathematical graph identities survive. Scoped mathematical imports create fresh runtime identities while preserving sharing within the document. Unscoped rational Calculus graphs retain their name-based structure as inert records, so saved derivative selectors and checked numerical evidence can be replayed without inventing a new symbol binding. Live extension methods are omitted from these known graph records.</p>
-<p>Defaults are 4,000,000 UTF-8 bytes, 20,000 graph nodes, 100,000 traversal steps, 128 nesting levels and 4,096 integer characters. Options <code>maxBytes</code>, <code>maxNodes</code>, <code>maxEdges</code>, <code>maxDepth</code>, and <code>maxDigits</code> can lower them or raise them by at most a factor of sixteen. The strict mathematical subgraph keeps its own independent limits. Cycles, dangling/duplicate identities, unsafe keys, nonfinite numbers, missing required fields and oversized records fail with an error code and path.</p>
+<section id="exact-certified-and-approximate-definite-integrals" class="level2">
+<h2 class="anchored" data-anchor-id="exact-certified-and-approximate-definite-integrals">Exact, certified and approximate definite integrals</h2>
+<pre class="rix" data-exec="true"><code>.Plugin.Load("cas");
+x := .calculus.Variable(:x);
+exact := .cas.Definite(x^2,:x,0,1);
+exact[:value] ##@ == 1/3;
+odd := .cas.Definite((x-2)^3,:x,1,3);
+odd[:method] ##@ == :intervalSymmetry;
+odd[:value] ##@ == 0;
+.cas.CheckDefinite(odd) ##@ == 1;</code></pre>
+<p><code>Definite(expression,variable,lower,upper,options)</code> first checks the entire source domain. It recognizes parity about the interval midpoint, preserves reversed orientation and never uses odd symmetry across an unresolved pole. Odd functions integrate to zero. Even symmetry reduces numerical work to one half and retains the factor of two.</p>
+<p>A supported primitive with discharged domain obligations gives an exact scalar or an exact <code>valueExpression</code>; in the latter case <code>value</code> is <code>_</code> and <code>interval</code> is only a certified numerical enclosure of that exact expression. Endpoint range evaluation does not convert a transcendental value to a Rational identity.</p>
+<pre class="rix" data-exec="true"><code>.Plugin.Load("cas");
+x := .calculus.Variable(:x); Exp := .calculus.Exp();
+r := .cas.Definite(Exp(-x^2),:x,0,1,{= panels=8,tolerance=1/10000 });
+r[:status] ##@ == :certified;
+r[:certified] ##@ == 1;
+.cas.CheckDefinite(r) ##@ == 1;
+r[:interval];</code></pre>
+<p>When the exact rule ladder stops, certified quadrature encloses each complete panel with <code>Numerics.GraphRange</code> and adds interval-times-width contributions. It needs no derivative assumptions. <code>goalMet</code> says whether the requested width was achieved; a certified interval can remain wider than requested, with <code>work.exhausted=1</code>. Elementary range graphs support the existing bounded real Sin, Cos, Exp, Log, Sqrt and Abs providers. Domain violations remain unresolved.</p>
+<pre class="rix" data-exec="true"><code>.Plugin.Load("cas");
+x := .calculus.Variable(:x); Exp := .calculus.Exp();
+r := .cas.Definite(Exp(-x^2),:x,0,1,{= panels=4,fallback=:approximate });
+r[:status] ##@ == :approximate;
+r[:certified] ##@ == _;
+r[:interval] ##@ == _;
+r[:candidate];</code></pre>
+<p>An explicit <code>fallback=:approximate</code> instead uses midpoint samples after the same whole-domain check. Its candidate has no integral error certificate. Missing providers, domain holes and failed evidence admission retain unresolved regions; no partial sum is returned as a whole integral. Default panel count is 16, maximum 256. Graph traversal is limited to 4096 nodes and depth 64; shared replay also limits exact components to 4096 digits and retained evidence to 16 MiB. Evidence exhaustion preserves the entire unprocessed suffix. Exact rules do not allocate numerical panels. This is finite classroom work, not general Risch integration or improper-integral regularization.</p>
 </section>
-<section id="version-one-wire-contract" class="level2">
-<h2 class="anchored" data-anchor-id="version-one-wire-contract">Version-one wire contract</h2>
-<p><code>rix.output.document@1</code> contains <code>root</code>, a document-local <code>nodes</code> table, and an optional strict <code>rix.math.document@1</code> graph. References are <code>{"$ref":"n0"}</code>; IDs are traversal-order identifiers, not global identities or signed hashes.</p>
-<p>Each node has exactly <code>id</code>, <code>tag</code>, and <code>data</code>. Tags <code>integer</code>, <code>rational</code>, <code>fraction</code>, <code>interval</code>, <code>certified</code>, <code>shaped</code>, <code>undecided</code>, <code>hole</code>, <code>array</code>, <code>map</code>, <code>record</code>, and <code>math</code> have explicit scalar/collection forms. <code>output:KIND</code> carries ordered name/value pairs for a validated core output record. Numbers embedded as native JSON numbers are host presentation data, never exact RiX integers or rationals. Mathematical expressions share one strict graph across the tree.</p>
-<p>Intrinsic methods are rebuilt from installed constructors and never saved. Metadata, labels, captions, references, asset declarations, styles and evidence remain ordinary inert data. Unknown-tag import does not change strict Core mathematical decoding. Existing <code>rix.control-panel</code> version-one JSON migrates on import and emits an informational diagnostic. No general legacy reader or implicit source execution is provided.</p>
-<p>To move images/audio/video together with a saved document, use the <a href="../eval/output-assets.html">portable asset bundle APIs</a>. Plain document JSON retains asset references and never resolves their bytes.</p>
-<p>The <code>interval-set</code> scalar tag retains normalized rational interval-set components with exact nullable endpoints and explicit closure flags. <code>null</code> means negative infinity on the lower side and positive infinity on the upper side; infinite endpoints must be open. Empty sets and closed singleton components round-trip. Malformed, reversed, overlapping or unsorted wire components are rejected rather than silently normalized. The ordinary digit, edge, node and depth budgets apply.</p>
-<p>The <code>fraction-interval</code> tag stores two exact Fraction references in their stored low/high order, without reducing endpoint representations. Formal Fraction values may retain nonzero numerators over zero as signed infinity, using the existing explicit infinite-Fraction constructor policy. <code>0/0</code>, reversed interval endpoints, non-Fraction endpoints and infinite Rational values are rejected.</p>
+<section id="local-premises-and-domain-preserving-displays" class="level2">
+<h2 class="anchored" data-anchor-id="local-premises-and-domain-preserving-displays">Local premises and domain-preserving displays</h2>
+<pre class="rix" data-exec="true"><code>.Plugin.Load("cas");
+x := .calculus.Variable(:x);
+r := .cas.Rewrite(x/x,:cancelSelf);
+r[:status] ##@ == :conditional;
+r[:excludedZeros].Len() ##@ == 1;
+.cas.CheckRewrite(r) ##@ == 1;
+domain := .cas.AbsDomain(x);
+.cas.CheckDomain(domain) ##@ == 1;
+domain[:branches];</code></pre>
+<p><code>Rewrite(source,rule,premises=[])</code> recognizes <code>:absNonnegative</code>, <code>:absNonpositive</code>, <code>:sqrtSquare</code>, <code>:nestedIntegerPower</code>, <code>:trigPythagorean</code>, <code>:cancelSelf</code> and <code>:cancelFactor</code>. Nested Integer exponents are bounded by absolute value 8. Premises are existing <code>calculus.Obligation(:domain,relation,expression)</code> records. Matching premises change status from <code>conditional</code> to <code>assumed</code>; they are not proved by matching and <code>certified</code> stays <code>_</code>. Every condition remains in the result, and cancellation retains excluded denominator zeros. Consumers must keep those conditions when displaying or evaluating the replacement. <code>AbsDomain</code> is an inert, replayable two-branch real domain graph, with a separate warning that its boundary derivative need not exist. It changes no global assumption or branch policy.</p>
+</section>
+<section id="inert-equation-problems-and-declared-derivatives" class="level2">
+<h2 class="anchored" data-anchor-id="inert-equation-problems-and-declared-derivatives">Inert equation problems and declared derivatives</h2>
+<pre class="rix" data-exec="true"><code>.Plugin.Load("calculus");
+x := .calculus.Variable(:x);
+p := .calculus.DifferentialProblem([-x],:t,[:x],{= domain=0:1 });
+b := .calculus.BoundaryProblem(p,[{= at=0,expression=x-1 }]);
+b[:execution] ##@ == :inert;
+q := .calculus.IntegralEquation("course.u",x,:t,0,1,x);
+q[:solver] ##@ == :unavailable;</code></pre>
+<p><code>DifferentialProblem(rhs,variable,unknowns,options)</code> describes a vector equation of order 1..16, with 1..16 distinct unknown names. An optional ordered finite domain bounds boundary locations. <code>BoundaryProblem</code> accepts at most 32 conditions; each expression is compared with zero using its <code>relation</code> (default <code>:eq</code>). <code>IntegralEquation(unknown,kernel,integrationVariable,lower,upper,forcing,options)</code> is a Fredholm second-kind specification: <code>u(x) = forcing(x) + scale * integral kernel(x,t)*u(t) dt</code>. <code>outputVariable</code> defaults to <code>:x</code>, <code>scale</code> to 1. The ordered endpoints are retained. These records do not execute ODE/Numerics/Solve; no general integral-equation solver is claimed.</p>
+<pre class="rix" data-exec="true"><code>.Plugin.Load("calculus");
+x := .calculus.Variable(:x);
+F := .calculus.Function("course.f");
+D := .calculus.Function("course.df");
+declaration := .calculus.DerivativeDeclaration("course.f","course.df",0:1,(-2):2);
+.calculus.UseDeclaredDerivative(F,D,declaration);
+r := .calculus.DifferentiateResult(F(x),:x);
+r[:obligations];</code></pre>
+<p>Derivative declarations retain provider IDs, order, interval domain, range bound and caller-declared evidence. Importing a record does nothing. Only an explicit <code>UseDeclaredDerivative</code> call attaches an already available mathematical function through the existing registry. It supports first derivatives; higher-order providers use successive declarations (inert declarations may state orders 1..8). The domain obligation retains the complete declaration. This is an assumption, not a checked native derivative rule or a certified bound; trusted numerical execution remains an explicit provider choice.</p>
 
 
 </section>
@@ -823,7 +864,7 @@ portable := .document.Snapshot(panel);
 </div>   
     <div class="nav-footer-center">
       &nbsp;
-    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/document-persistence.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/course-calculus.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
 <p>Documentation built with <a href="https://quarto.org/">Quarto</a></p>
 </div>

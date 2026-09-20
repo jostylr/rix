@@ -389,6 +389,36 @@ ul.task-list li input[type="checkbox"] {
 <td>Group non-overlapping arrays of up to <code>size</code>.</td>
 </tr>
 <tr class="even">
+<td><code>stream.ChunkBy(predicate)</code></td>
+<td><code>AsyncStream</code></td>
+<td>End each chunk after a true predicate; flush the final partial chunk.</td>
+</tr>
+<tr class="odd">
+<td><code>stream.Merge(other)</code></td>
+<td><code>AsyncStream</code></td>
+<td>Interleave two linear sources by observed readiness, preserving each source’s order.</td>
+</tr>
+<tr class="even">
+<td><code>stream.Timeout(ms)</code></td>
+<td><code>AsyncStream</code></td>
+<td>Fail if the next upstream demand takes too long.</td>
+</tr>
+<tr class="odd">
+<td><code>stream.Debounce(ms)</code></td>
+<td><code>AsyncStream</code></td>
+<td>Emit the latest value after a quiet interval; flush on completion.</td>
+</tr>
+<tr class="even">
+<td><code>stream.Throttle(ms)</code></td>
+<td><code>AsyncStream</code></td>
+<td>Emit leading values at least ms apart; drop intervening values.</td>
+</tr>
+<tr class="odd">
+<td><code>stream.Latest()</code></td>
+<td><code>AsyncStream</code></td>
+<td>Keep one most recent pending value while the consumer is busy.</td>
+</tr>
+<tr class="even">
 <td><code>stream.Window(size, step? = 1)</code></td>
 <td><code>AsyncStream</code></td>
 <td>Produce sliding arrays.</td>
@@ -396,7 +426,7 @@ ul.task-list li input[type="checkbox"] {
 <tr class="odd">
 <td><code>stream.ForEach(callable)</code></td>
 <td><code>null</code></td>
-<td>Consume sequentially for side effects.</td>
+<td>Consume for side effects; safe callbacks may overlap inside a structured scope.</td>
 </tr>
 <tr class="even">
 <td><code>stream.Reduce(initial, callable)</code></td>
@@ -483,7 +513,17 @@ s.CheckTraits() ##@ == 1;
 s.Close();
 s.Done() ##@ == 1;
 s.Status().Get("status") ##@ == "closed";</code></pre>
-<p>Only one terminal may claim a stream. Create another cold stream when the same source needs a second traversal. Within <code>{$:L$ ... }</code>, safe elementwise stages use structured concurrency while preserving source-order publication.</p>
+<pre id="async-stream-segments" class="rix" data-exec="true" async="true"><code>chunks := .Stream([1,2,3,4,5]).ChunkBy((x) -&gt; x % 2 == 0).Collect();
+chunks[1].Join() ##@ == "1,2";
+chunks[3].Join() ##@ == "5";
+result := {$:2$ .Stream([1,2,3,4]).Chunk(2).Map((xs) -&gt; xs[1]).Collect() };
+result.Join() ##@ == "1,3";
+merged := .Stream([1,2]).Merge(.Stream([10,20])).Collect();
+merged.Filter((x) -&gt; x &lt; 10).Join() ##@ == "1,2";
+merged.Filter((x) -&gt; x &gt;= 10).Join() ##@ == "10,20";</code></pre>
+<p><code>.TimerStream(ms, count?)</code> produces exact integer ticks on demand. A count makes it finite. <code>.ReactiveStream(source)</code> and <code>.UIStream(hostKey, eventName)</code> attach bounded subscriptions only at first demand. UI targets must be provided by the host. <code>.HttpStream(url)</code>, <code>.FileStream(path)</code> and <code>.WebSocketStream(url)</code> require explicit host services, resource authorization and the existing NET/FILES permissions; they add no default network or filesystem access.</p>
+<p>Time operators use monotonic milliseconds when they observe a value, so cold backpressure affects timing. Debounce, Throttle and Latest intentionally discard values; <code>.Status()</code> discloses drop counts and pipeline state. Chunk/window buffers, prefetch, hot queues and collected output all have host-enforced bounds. <a href="../../design/eval/async-stream-operators.html">The operator design record</a> specifies clock ties, overflow, cancellation, transport byte limits and executable checks.</p>
+<p>Only one terminal may claim a stream. Create another cold stream when the same source needs a second traversal. Within <code>{$:L$ ... }</code>, safe elementwise stages use structured concurrency while preserving source-order publication, including new regions after stateful barriers.</p>
 <p><a href="../../eval/methods-guide.html">Back to the methods overview</a></p>
 
 

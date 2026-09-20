@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>document-persistence – RiX</title>
+<title>mathematical-contexts – RiX</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -329,14 +329,15 @@ ul.task-list li input[type="checkbox"] {
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#saving-portable-output" id="toc-saving-portable-output" class="nav-link active" data-scroll-target="#saving-portable-output">Saving portable output</a>
+  <li><a href="#mathematical-contexts-and-binders" id="toc-mathematical-contexts-and-binders" class="nav-link active" data-scroll-target="#mathematical-contexts-and-binders">Mathematical contexts and binders</a>
   <ul class="collapse">
-  <li><a href="#live-widgets-become-explicit-snapshots" id="toc-live-widgets-become-explicit-snapshots" class="nav-link" data-scroll-target="#live-widgets-become-explicit-snapshots">Live widgets become explicit snapshots</a></li>
-  <li><a href="#import-policy-and-limits" id="toc-import-policy-and-limits" class="nav-link" data-scroll-target="#import-policy-and-limits">Import policy and limits</a></li>
-  <li><a href="#version-one-wire-contract" id="toc-version-one-wire-contract" class="nav-link" data-scroll-target="#version-one-wire-contract">Version-one wire contract</a></li>
+  <li><a href="#header-declarations" id="toc-header-declarations" class="nav-link" data-scroll-target="#header-declarations">Header declarations</a></li>
+  <li><a href="#exact-domains-and-conflict-checking" id="toc-exact-domains-and-conflict-checking" class="nav-link" data-scroll-target="#exact-domains-and-conflict-checking">Exact domains and conflict checking</a></li>
+  <li><a href="#returned-value" id="toc-returned-value" class="nav-link" data-scroll-target="#returned-value">Returned value</a></li>
+  <li><a href="#localizing-a-retained-context" id="toc-localizing-a-retained-context" class="nav-link" data-scroll-target="#localizing-a-retained-context">Localizing a retained context</a></li>
   </ul></li>
   </ul>
-<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/document-persistence.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/mathematical-contexts.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
 <!-- main -->
 <main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"></header>
@@ -345,48 +346,49 @@ ul.task-list li input[type="checkbox"] {
 
 
 
-<section id="saving-portable-output" class="level1">
-<h1>Saving portable output</h1>
-<p>The opt-in <code>document</code> plugin saves an evaluated output tree without keeping an execution scope, reactive handle, callback, or filesystem grant. Loading never fetches an asset, runs a recipe, imports a plugin, or evaluates RiX source.</p>
-<pre class="rix" data-exec="true"><code>.Plugin.Load("document");
-report := .Fragment([
-    .Paragraph([.Strong("Exact results"), 1/3]),
-    .Table(["oriented interval"], [[5:4]])
-]);
-saved := .document.EncodeJSON(report);
-imported := .document.DecodeJSON(saved);
-.document.EncodeJSON(imported[:value]) == saved ##@ == 1;
-imported[:diagnostics].Len() ##@ == 0;</code></pre>
-<p><code>DecodeJSON</code> returns a map with <code>value</code>, <code>diagnostics</code>, and <code>schema</code>. Display its warnings alongside the imported value. <code>EncodeJSON</code> returns a String and does not write a file. The host JavaScript functions <code>encodeOutputJSON</code>, <code>decodeOutputJSON</code>, and <code>snapshotOutputDocument</code> are exported from RiX and its runtime entry point, with the same behavior in CLI, Web, and Notebook hosts.</p>
-<section id="live-widgets-become-explicit-snapshots" class="level2">
-<h2 class="anchored" data-anchor-id="live-widgets-become-explicit-snapshots">Live widgets become explicit snapshots</h2>
-<p>Call <code>.document.Snapshot(value)</code> before persisting a live tree. It captures current control values and selected Sheet planes, removes reactive/action handles, disables controls, and turns draggable points/actions into static circles/groups. It never invokes an action. The original tree stays live.</p>
-<pre class="rix" data-exec="true"><code>.Plugin.Load("document");
-$$amount := 1/2;
-panel := .ControlPanel([.Controls.Slider($$amount, 0:1, 1/10, "Amount")]);
-portable := .document.Snapshot(panel);
-.document.DecodeJSON(.document.EncodeJSON(portable))[:value];</code></pre>
-<p>A direct attempt to encode live controls, bindings, functions, promises, host objects, or accessors fails. Imported Sheet snapshots retain safe <code>Index</code>/<code>At</code> lookup over saved cells; an unsaved plane is unavailable, not lazily evaluated. Frame-aware mathematical tensor graphs require the separate Linalg identity import adapter; bare Shaped and rank-two Matrix values are supported now.</p>
+<section id="mathematical-contexts-and-binders" class="level1">
+<h1>Mathematical contexts and binders</h1>
+<p><code>{&amp; header &amp; body }</code> evaluates the body once and returns a mathematical context record. It is not an integration or iteration operation. It shares the current programming scope: ordinary assignments and <code>::</code> names have the same visibility inside and after the context. Empty headers and empty bodies are legal.</p>
+<pre class="rix" data-exec="true"><code>count := 0;
+c := {&amp; :::t | 1:0; :::t &gt; 0 &amp;
+    count ~= count+1;
+    :::t^2 * ::parameter;
+};
+count ##@ == 1;
+c[:schema] ##@ == "rix.math.context@1";
+c[:domains][1][:domain][:orientation] ##@ == :desc;
+c[:domains][1][:domain][:lowerclosed] ##@ == _;</code></pre>
+<section id="header-declarations" class="level2">
+<h2 class="anchored" data-anchor-id="header-declarations">Header declarations</h2>
+<p>Separate header items with semicolons. A leading <code>:::name</code> declares a fresh bound identity if that name is not already declared in this header. It can stand alone, lead a comparison, or precede <code>| source</code>. Later compatible declarations narrow the same binder. <code>(:::x,:::y) | (0:1,2:3)</code> declares two binders with one domain each; the source is evaluated once. Duplicate names within one tuple are rejected.</p>
+<p>The body and later header items can reference declared binders. Forward references and bound references outside a declaring context error. A nested context inherits outer binders unless its own header declares the same name; that declaration shadows the outer identity throughout the inner context. Every context evaluation creates fresh identities. Functions constructed in the body retain references to its binders when called later. Bound symbols cannot be assigned immutable definitions or updated with assignment operators.</p>
+<p>All other header items must be comparisons (<code>==</code>, <code>!=</code>, <code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code>, <code>&gt;=</code>). They retain evaluated left/right expression data, rather than reducing the comparison prematurely to <code>?</code>. They do not define symbols or change ordinary <code>==</code> behavior, either inside or outside the body. Assumption-aware evaluation will be an explicit context operation in a subsequent stage.</p>
 </section>
-<section id="import-policy-and-limits" class="level2">
-<h2 class="anchored" data-anchor-id="import-policy-and-limits">Import policy and limits</h2>
-<p>The <code>unknownTags</code> option is one of:</p>
+<section id="exact-domains-and-conflict-checking" class="level2">
+<h2 class="anchored" data-anchor-id="exact-domains-and-conflict-checking">Exact domains and conflict checking</h2>
+<p>The current source forms are:</p>
 <ul>
-<li><code>"warn-and-skip"</code> (default): replace an unsupported record with visible text and a source-path warning. Required malformed known records still fail.</li>
-<li><code>"strict-error"</code>: reject an unsupported tag.</li>
-<li><code>"preserve-opaque"</code>: show the same fallback while retaining bounded inert data for re-export. This never installs behavior for the unknown record.</li>
+<li>A rational interval, retaining its original start/end and direction.</li>
+<li><code>(interval,:asc)</code> or <code>(interval,:desc)</code>, explicitly selecting traversal.</li>
+<li><code>{= start=0,end=1,lowerclosed=_,upperclosed=1 }</code>, specifying exact endpoints and optional inclusion flags. Inclusion refers to sorted lower/upper endpoints, even when traversal descends. Flags are <code>1</code> or <code>_</code> and default to closed. Unknown fields error.</li>
 </ul>
-<p>Exact integers/rationals, formal unreduced Fractions, interval endpoint order, certified approximation enclosures/source sharing, undecided values, collection sharing and mathematical graph identities survive. Scoped mathematical imports create fresh runtime identities while preserving sharing within the document. Unscoped rational Calculus graphs retain their name-based structure as inert records, so saved derivative selectors and checked numerical evidence can be replayed without inventing a new symbol binding. Live extension methods are omitted from these known graph records.</p>
-<p>Defaults are 4,000,000 UTF-8 bytes, 20,000 graph nodes, 100,000 traversal steps, 128 nesting levels and 4,096 integer characters. Options <code>maxBytes</code>, <code>maxNodes</code>, <code>maxEdges</code>, <code>maxDepth</code>, and <code>maxDigits</code> can lower them or raise them by at most a factor of sixteen. The strict mathematical subgraph keeps its own independent limits. Cycles, dangling/duplicate identities, unsafe keys, nonfinite numbers, missing required fields and oversized records fail with an error code and path.</p>
+<p>Compatible numeric bounds intersect, including strict endpoints. Disjoint bounds, an excluded singleton, false exact comparisons, or contradictory traversal directions error before the body executes. Sources and header expressions already evaluated are not rolled back. Original traversal start/end remain provenance; normalized <code>lower</code>/<code>upper</code> describe the narrowed domain, and are not a replacement integration path.</p>
+<p>Symbolic equalities and other constraints beyond these bounded checks remain unresolved, not proved consistent. Symbolic/dependent endpoints and arbitrary ordered sources are not yet supported and error explicitly. This stage does not perform interval membership inference on expression-valued endpoints.</p>
 </section>
-<section id="version-one-wire-contract" class="level2">
-<h2 class="anchored" data-anchor-id="version-one-wire-contract">Version-one wire contract</h2>
-<p><code>rix.output.document@1</code> contains <code>root</code>, a document-local <code>nodes</code> table, and an optional strict <code>rix.math.document@1</code> graph. References are <code>{"$ref":"n0"}</code>; IDs are traversal-order identifiers, not global identities or signed hashes.</p>
-<p>Each node has exactly <code>id</code>, <code>tag</code>, and <code>data</code>. Tags <code>integer</code>, <code>rational</code>, <code>fraction</code>, <code>interval</code>, <code>certified</code>, <code>shaped</code>, <code>undecided</code>, <code>hole</code>, <code>array</code>, <code>map</code>, <code>record</code>, and <code>math</code> have explicit scalar/collection forms. <code>output:KIND</code> carries ordered name/value pairs for a validated core output record. Numbers embedded as native JSON numbers are host presentation data, never exact RiX integers or rationals. Mathematical expressions share one strict graph across the tree.</p>
-<p>Intrinsic methods are rebuilt from installed constructors and never saved. Metadata, labels, captions, references, asset declarations, styles and evidence remain ordinary inert data. Unknown-tag import does not change strict Core mathematical decoding. Existing <code>rix.control-panel</code> version-one JSON migrates on import and emits an informational diagnostic. No general legacy reader or implicit source execution is provided.</p>
-<p>To move images/audio/video together with a saved document, use the <a href="../eval/output-assets.html">portable asset bundle APIs</a>. Plain document JSON retains asset references and never resolves their bytes.</p>
-<p>The <code>interval-set</code> scalar tag retains normalized rational interval-set components with exact nullable endpoints and explicit closure flags. <code>null</code> means negative infinity on the lower side and positive infinity on the upper side; infinite endpoints must be open. Empty sets and closed singleton components round-trip. Malformed, reversed, overlapping or unsorted wire components are rejected rather than silently normalized. The ordinary digit, edge, node and depth budgets apply.</p>
-<p>The <code>fraction-interval</code> tag stores two exact Fraction references in their stored low/high order, without reducing endpoint representations. Formal Fraction values may retain nonzero numerators over zero as signed infinity, using the existing explicit infinite-Fraction constructor policy. <code>0/0</code>, reversed interval endpoints, non-Fraction endpoints and infinite Rational values are rejected.</p>
+<section id="returned-value" class="level2">
+<h2 class="anchored" data-anchor-id="returned-value">Returned value</h2>
+<p>The immutable record exposes <code>schema</code>, <code>result</code>, <code>binders</code>, <code>assumptions</code>, <code>domains</code>, and <code>consistency</code>. Binders are in declaration order. Each domain entry contains <code>symbol</code> and its normalized <code>domain</code>; assumptions contain <code>operator</code>, <code>left</code>, and <code>right</code>. <code>consistency</code> is <code>:checkedBounds</code> when the implemented exact checks cover the constraints, or <code>:unresolved</code> otherwise. Neither is a general satisfiability proof or a guarantee about future symbol definitions. Free symbols may have domain entries without being binders.</p>
+<p><code>result</code> is the body’s last value (or <code>_</code> for an empty body). Extracting it does not apply the retained assumptions. Consequently this foundation does not produce assumption-dependent rewrites that can escape without conditions. Consumers needing assumptions should keep the entire context record.</p>
+<pre class="rix" data-exec="true"><code>conditional := {&amp; ::b == ::a-0 &amp; ::b==::a };
+conditional[:consistency] ##@ == :unresolved;
+.ExpressionDefinition(::b) ##@ == _;
+box := {&amp; (:::u,:::v) | (0:1,2:3) &amp; :::u+:::v };
+.SameSymbol(box[:binders][1],box[:binders][2]) ##@ == _;</code></pre>
+<p>Bounded free substitution and rational evaluation are available below. General context reasoning and identity-aware calculus/CAS consumers remain subsequent stages. Use <a href="../eval/mathematical-serialization.html">mathematical graph serialization</a> for portable storage rather than treating this runtime record schema as the file format.</p>
+</section>
+<section id="localizing-a-retained-context" class="level2">
+<h2 class="anchored" data-anchor-id="localizing-a-retained-context">Localizing a retained context</h2>
+<p>Use <a href="../eval/mathematical-localization.html">MathSubstitute and MathEvaluate</a> for explicit identity-based free substitution and bounded exact rational evaluation. Evaluation reports retain the context and distinguish conditional candidates from complete values.</p>
 
 
 </section>
@@ -823,7 +825,7 @@ portable := .document.Snapshot(panel);
 </div>   
     <div class="nav-footer-center">
       &nbsp;
-    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/document-persistence.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/mathematical-contexts.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
 <p>Documentation built with <a href="https://quarto.org/">Quarto</a></p>
 </div>

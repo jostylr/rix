@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>document-persistence – RiX</title>
+<title>runtime-performance – RiX</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -26,28 +26,28 @@ ul.task-list li input[type="checkbox"] {
 </style>
 
 
-<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
-<script src="../site_libs/quarto-nav/headroom.min.js"></script>
-<script src="../site_libs/clipboard/clipboard.min.js"></script>
-<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
-<script src="../site_libs/quarto-search/fuse.min.js"></script>
-<script src="../site_libs/quarto-search/quarto-search.js"></script>
-<meta name="quarto:offset" content="../">
-<link href="../rix-logo.png" rel="icon" type="image/png">
-<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
-<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
-<script src="../site_libs/quarto-html/popper.min.js"></script>
-<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
-<script src="../site_libs/quarto-html/anchor.min.js"></script>
-<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-de927ec96a2411cf822331f71755f83e.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
-<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
-<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-dfa129ac6e33aa8a1407114b8c26932f.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
-<link href="../site_libs/bootstrap/bootstrap-dark-de8d9ea7065925b465f143946b8defe2.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
-<link href="../site_libs/bootstrap/bootstrap-dfa129ac6e33aa8a1407114b8c26932f.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<link href="../../rix-logo.png" rel="icon" type="image/png">
+<script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-dark-de927ec96a2411cf822331f71755f83e.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap-dfa129ac6e33aa8a1407114b8c26932f.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-dark-de8d9ea7065925b465f143946b8defe2.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../../site_libs/bootstrap/bootstrap-dfa129ac6e33aa8a1407114b8c26932f.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -248,11 +248,11 @@ ul.task-list li input[type="checkbox"] {
     <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
       <div class="navbar-container container-fluid">
       <div class="navbar-brand-container mx-auto">
-    <a href="../index.html" class="navbar-brand navbar-brand-logo">
-    <img src="../rix-logo.png" alt="" class="navbar-logo light-content">
-    <img src="../rix-logo.png" alt="" class="navbar-logo dark-content">
+    <a href="../../index.html" class="navbar-brand navbar-brand-logo">
+    <img src="../../rix-logo.png" alt="" class="navbar-logo light-content">
+    <img src="../../rix-logo.png" alt="" class="navbar-logo dark-content">
     </a>
-    <a class="navbar-brand" href="../index.html">
+    <a class="navbar-brand" href="../../index.html">
     <span class="navbar-title">RiX</span>
     </a>
   </div>
@@ -263,23 +263,23 @@ ul.task-list li input[type="checkbox"] {
           <div class="collapse navbar-collapse" id="navbarCollapse">
             <ul class="navbar-nav navbar-nav-scroll me-auto">
   <li class="nav-item">
-    <a class="nav-link" href="../getting-started.html"> 
+    <a class="nav-link" href="../../getting-started.html"> 
 <span class="menu-text">Start</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="../language-at-a-glance.html"> 
+    <a class="nav-link" href="../../language-at-a-glance.html"> 
 <span class="menu-text">Learn</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="../undergraduate-probability-statistics-data-analysis.html"> 
+    <a class="nav-link" href="../../undergraduate-probability-statistics-data-analysis.html"> 
 <span class="menu-text">Probability &amp; statistics</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="../eval/syntax-guide.html"> 
+    <a class="nav-link" href="../../eval/syntax-guide.html"> 
 <span class="menu-text">Reference</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="../developer-guide.html"> 
+    <a class="nav-link" href="../../developer-guide.html"> 
 <span class="menu-text">Internals</span></a>
   </li>  
 </ul>
@@ -315,7 +315,7 @@ ul.task-list li input[type="checkbox"] {
     <ul class="list-unstyled mt-1">
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../index.html" class="sidebar-item-text sidebar-link">
+  <a href="../../index.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Loading documentation…</span></a>
   </div>
 </li>
@@ -329,14 +329,17 @@ ul.task-list li input[type="checkbox"] {
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#saving-portable-output" id="toc-saving-portable-output" class="nav-link active" data-scroll-target="#saving-portable-output">Saving portable output</a>
+  <li><a href="#bounded-runtime-performance-measurements" id="toc-bounded-runtime-performance-measurements" class="nav-link active" data-scroll-target="#bounded-runtime-performance-measurements">Bounded runtime performance measurements</a>
   <ul class="collapse">
-  <li><a href="#live-widgets-become-explicit-snapshots" id="toc-live-widgets-become-explicit-snapshots" class="nav-link" data-scroll-target="#live-widgets-become-explicit-snapshots">Live widgets become explicit snapshots</a></li>
-  <li><a href="#import-policy-and-limits" id="toc-import-policy-and-limits" class="nav-link" data-scroll-target="#import-policy-and-limits">Import policy and limits</a></li>
-  <li><a href="#version-one-wire-contract" id="toc-version-one-wire-contract" class="nav-link" data-scroll-target="#version-one-wire-contract">Version-one wire contract</a></li>
+  <li><a href="#concurrent-snapshots" id="toc-concurrent-snapshots" class="nav-link" data-scroll-target="#concurrent-snapshots">Concurrent snapshots</a></li>
+  <li><a href="#reused-pure-task-workers" id="toc-reused-pure-task-workers" class="nav-link" data-scroll-target="#reused-pure-task-workers">Reused pure task workers</a></li>
+  <li><a href="#reproduction" id="toc-reproduction" class="nav-link" data-scroll-target="#reproduction">Reproduction</a></li>
+  <li><a href="#float-buffers-and-finite-sparse-products" id="toc-float-buffers-and-finite-sparse-products" class="nav-link" data-scroll-target="#float-buffers-and-finite-sparse-products">Float buffers and finite sparse products</a></li>
+  <li><a href="#retained-canvas-and-bounded-plot-inputs" id="toc-retained-canvas-and-bounded-plot-inputs" class="nav-link" data-scroll-target="#retained-canvas-and-bounded-plot-inputs">Retained Canvas and bounded plot inputs</a></li>
+  <li><a href="#parse-only-documentation-checks" id="toc-parse-only-documentation-checks" class="nav-link" data-scroll-target="#parse-only-documentation-checks">Parse-only documentation checks</a></li>
   </ul></li>
   </ul>
-<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/document-persistence.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/design/eval/runtime-performance.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
 <!-- main -->
 <main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"></header>
@@ -345,48 +348,73 @@ ul.task-list li input[type="checkbox"] {
 
 
 
-<section id="saving-portable-output" class="level1">
-<h1>Saving portable output</h1>
-<p>The opt-in <code>document</code> plugin saves an evaluated output tree without keeping an execution scope, reactive handle, callback, or filesystem grant. Loading never fetches an asset, runs a recipe, imports a plugin, or evaluates RiX source.</p>
-<pre class="rix" data-exec="true"><code>.Plugin.Load("document");
-report := .Fragment([
-    .Paragraph([.Strong("Exact results"), 1/3]),
-    .Table(["oriented interval"], [[5:4]])
-]);
-saved := .document.EncodeJSON(report);
-imported := .document.DecodeJSON(saved);
-.document.EncodeJSON(imported[:value]) == saved ##@ == 1;
-imported[:diagnostics].Len() ##@ == 0;</code></pre>
-<p><code>DecodeJSON</code> returns a map with <code>value</code>, <code>diagnostics</code>, and <code>schema</code>. Display its warnings alongside the imported value. <code>EncodeJSON</code> returns a String and does not write a file. The host JavaScript functions <code>encodeOutputJSON</code>, <code>decodeOutputJSON</code>, and <code>snapshotOutputDocument</code> are exported from RiX and its runtime entry point, with the same behavior in CLI, Web, and Notebook hosts.</p>
-<section id="live-widgets-become-explicit-snapshots" class="level2">
-<h2 class="anchored" data-anchor-id="live-widgets-become-explicit-snapshots">Live widgets become explicit snapshots</h2>
-<p>Call <code>.document.Snapshot(value)</code> before persisting a live tree. It captures current control values and selected Sheet planes, removes reactive/action handles, disables controls, and turns draggable points/actions into static circles/groups. It never invokes an action. The original tree stays live.</p>
-<pre class="rix" data-exec="true"><code>.Plugin.Load("document");
-$$amount := 1/2;
-panel := .ControlPanel([.Controls.Slider($$amount, 0:1, 1/10, "Amount")]);
-portable := .document.Snapshot(panel);
-.document.DecodeJSON(.document.EncodeJSON(portable))[:value];</code></pre>
-<p>A direct attempt to encode live controls, bindings, functions, promises, host objects, or accessors fails. Imported Sheet snapshots retain safe <code>Index</code>/<code>At</code> lookup over saved cells; an unsaved plane is unavailable, not lazily evaluated. Frame-aware mathematical tensor graphs require the separate Linalg identity import adapter; bare Shaped and rank-two Matrix values are supported now.</p>
+<section id="bounded-runtime-performance-measurements" class="level1">
+<h1>Bounded runtime performance measurements</h1>
+<p>The R4 pass profiles existing behavior before changing it. The runtime remains exact; no Float/native provider replaces exact arithmetic, and no evidence or opaque mathematical identity is inferred from a performance cache.</p>
+<section id="concurrent-snapshots" class="level2">
+<h2 class="anchored" data-anchor-id="concurrent-snapshots">Concurrent snapshots</h2>
+<p>An ODE order-four construction CPU profile attributed most sampled time to <code>Context.concurrentChild</code> copying shared values and metadata for every visible binding. Each independent <code>deepCopyValue</code> call previously started a new memo. The context now uses one memo for a whole child snapshot, and one memo when snapshotting one captured scope. It retains aliases and cycles within that snapshot, preserves opaque identity tokens, and copies mutable collection data away from both the parent and sibling tasks. Memos are never cached between children or executions. Ordinary cells remain separate and captured bindings remain read-only; local collection mutations stay isolated.</p>
+<p>A retained-allocation fixture makes 32 snapshots of 50 names referencing 256 exact integers. The per-binding reference implementation took 21.86 ms and about 17.8 MB additional observed live heap; the shared graph memo took 1.16 ms and about 0.60 MB. These are Bun GC observations, not hard retained-byte quotas. The reference reproduces the previous per-binding copy cost; it does not claim that alias identity under that older copying policy was equivalent.</p>
+<p>The real ODE fixture <code>[y,-x]</code>, Taylor order 4, with derivative caching enabled fell from 11,047 ms to 2,984 ms async. The sync comparison was approximately 59 ms in both runs. Exact derivative claim keys, partial/total derivative work and evaluator step counts were unchanged. Async copies and scheduler dispatch still have costs; this change does not claim parity with the synchronous lane. Tensor/source/frame graph round trips and concurrent mutation isolation remain regression checks.</p>
 </section>
-<section id="import-policy-and-limits" class="level2">
-<h2 class="anchored" data-anchor-id="import-policy-and-limits">Import policy and limits</h2>
-<p>The <code>unknownTags</code> option is one of:</p>
-<ul>
-<li><code>"warn-and-skip"</code> (default): replace an unsupported record with visible text and a source-path warning. Required malformed known records still fail.</li>
-<li><code>"strict-error"</code>: reject an unsupported tag.</li>
-<li><code>"preserve-opaque"</code>: show the same fallback while retaining bounded inert data for re-export. This never installs behavior for the unknown record.</li>
-</ul>
-<p>Exact integers/rationals, formal unreduced Fractions, interval endpoint order, certified approximation enclosures/source sharing, undecided values, collection sharing and mathematical graph identities survive. Scoped mathematical imports create fresh runtime identities while preserving sharing within the document. Unscoped rational Calculus graphs retain their name-based structure as inert records, so saved derivative selectors and checked numerical evidence can be replayed without inventing a new symbol binding. Live extension methods are omitted from these known graph records.</p>
-<p>Defaults are 4,000,000 UTF-8 bytes, 20,000 graph nodes, 100,000 traversal steps, 128 nesting levels and 4,096 integer characters. Options <code>maxBytes</code>, <code>maxNodes</code>, <code>maxEdges</code>, <code>maxDepth</code>, and <code>maxDigits</code> can lower them or raise them by at most a factor of sixteen. The strict mathematical subgraph keeps its own independent limits. Cycles, dangling/duplicate identities, unsafe keys, nonfinite numbers, missing required fields and oversized records fail with an error code and path.</p>
+<section id="reused-pure-task-workers" class="level2">
+<h2 class="anchored" data-anchor-id="reused-pure-task-workers">Reused pure task workers</h2>
+<p>A dedicated task worker now builds trusted core callable definitions once. Every request still validates the explicit supported IR/capability subset and creates a fresh granted <code>SystemContext</code>, capture graph, ordinary context, random state and budget. No plugin registry, imported scope or ambient transport is reused or transferred. A worker reports completion only after cleanup and clearing its active slot, including failure paths; a new task can then arrive immediately without being discarded.</p>
+<p>For 16 exact tasks at exponent 128, two rounds on one pool:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Executor</th>
+<th style="text-align: right;">Before cold / warm</th>
+<th style="text-align: right;">After cold / warm</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Owner event loop</td>
+<td style="text-align: right;">3.11 / 4.44 ms</td>
+<td style="text-align: right;">3.22 / 4.29 ms</td>
+</tr>
+<tr class="even">
+<td>One task worker</td>
+<td style="text-align: right;">4,929 / 4,851 ms</td>
+<td style="text-align: right;">381 / 8.14 ms</td>
+</tr>
+<tr class="odd">
+<td>Two task workers</td>
+<td style="text-align: right;">2,586 / 2,528 ms</td>
+<td style="text-align: right;">395 / 5.44 ms</td>
+</tr>
+<tr class="even">
+<td>Four task workers</td>
+<td style="text-align: right;">1,421 / 1,310 ms</td>
+<td style="text-align: right;">412 / 4.58 ms</td>
+</tr>
+</tbody>
+</table>
+<p>Every executor returned the same exact checksum. Tiny work still favors the owner: cold module/runtime startup dominates, and IPC/encoding adds overhead. Pools amortize startup only while their owner keeps them alive; disposal remains required. Cooperative limits do not interrupt arbitrary host JavaScript inside a main-thread turn. A worker can be terminated after its cancellation grace period.</p>
 </section>
-<section id="version-one-wire-contract" class="level2">
-<h2 class="anchored" data-anchor-id="version-one-wire-contract">Version-one wire contract</h2>
-<p><code>rix.output.document@1</code> contains <code>root</code>, a document-local <code>nodes</code> table, and an optional strict <code>rix.math.document@1</code> graph. References are <code>{"$ref":"n0"}</code>; IDs are traversal-order identifiers, not global identities or signed hashes.</p>
-<p>Each node has exactly <code>id</code>, <code>tag</code>, and <code>data</code>. Tags <code>integer</code>, <code>rational</code>, <code>fraction</code>, <code>interval</code>, <code>certified</code>, <code>shaped</code>, <code>undecided</code>, <code>hole</code>, <code>array</code>, <code>map</code>, <code>record</code>, and <code>math</code> have explicit scalar/collection forms. <code>output:KIND</code> carries ordered name/value pairs for a validated core output record. Numbers embedded as native JSON numbers are host presentation data, never exact RiX integers or rationals. Mathematical expressions share one strict graph across the tree.</p>
-<p>Intrinsic methods are rebuilt from installed constructors and never saved. Metadata, labels, captions, references, asset declarations, styles and evidence remain ordinary inert data. Unknown-tag import does not change strict Core mathematical decoding. Existing <code>rix.control-panel</code> version-one JSON migrates on import and emits an informational diagnostic. No general legacy reader or implicit source execution is provided.</p>
-<p>To move images/audio/video together with a saved document, use the <a href="../eval/output-assets.html">portable asset bundle APIs</a>. Plain document JSON retains asset references and never resolves their bytes.</p>
-<p>The <code>interval-set</code> scalar tag retains normalized rational interval-set components with exact nullable endpoints and explicit closure flags. <code>null</code> means negative infinity on the lower side and positive infinity on the upper side; infinite endpoints must be open. Empty sets and closed singleton components round-trip. Malformed, reversed, overlapping or unsorted wire components are rejected rather than silently normalized. The ordinary digit, edge, node and depth budgets apply.</p>
-<p>The <code>fraction-interval</code> tag stores two exact Fraction references in their stored low/high order, without reducing endpoint representations. Formal Fraction values may retain nonzero numerators over zero as signed infinity, using the existing explicit infinite-Fraction constructor policy. <code>0/0</code>, reversed interval endpoints, non-Fraction endpoints and infinite Rational values are rejected.</p>
+<section id="reproduction" class="level2">
+<h2 class="anchored" data-anchor-id="reproduction">Reproduction</h2>
+<p>From the RiX checkout, run <code>bun benchmarks/runtime-snapshots.js</code>, <code>bun benchmarks/ode-construction.js</code>, and <code>bun benchmarks/async-streams.js --items=16 --exponent=128 --rounds=2</code>. <code>benchmarks/runtime-performance-baseline.json</code> records the before/after fixture outputs, runtime and limitations. Wall time and observed heap vary with GC, machine load and warmup; exact checksums and work counts are assertions. The CPU profile can be reproduced with Bun’s <code>--cpu-prof --cpu-prof-md</code> flags. Parser/source limits and recovery are described in <a href="../../parser/robustness.html">Source bounds and editor recovery</a>.</p>
+</section>
+<section id="float-buffers-and-finite-sparse-products" class="level2">
+<h2 class="anchored" data-anchor-id="float-buffers-and-finite-sparse-products">Float buffers and finite sparse products</h2>
+<p>The Float plugin now provides explicit copy-owned tensor buffers (<code>Tensor</code>, <code>ToShaped</code>, <code>MatMul</code>) with 262,144-cell and 4,194,304-product-work ceilings. They retain approximation status and per-cell conversion/arithmetic diagnostics; conversion back to Shaped restores ordinary Float methods. They never produce Rational certificates. The JS bridge copies incoming/outgoing typed arrays, and serialized/worker consumers must reconstruct a live adapter from ordinary values. Exact finite sparse <code>MatMul</code>/<code>Apply</code> stay in the linalg Rational lane, validating axis compatibility and support/work limits without allocating the ambient grid.</p>
+<p>The existing pairwise Float reduction now traverses index ranges instead of slicing arrays. Its operation tree and binary32/binary64 results remain identical. For 65,536 inputs, the versioned run measured 5.35→3.28 ms and removes 131,070 temporary arrays / 1,048,576 copied elements per call. A 48×48 typed matrix product measured 65.38→9.47 ms against an explicit boxed Float scalar reference, with every result identical. This comparison describes the new adapter boundary; it does not claim replacement of an existing public dense matrix algorithm. Reproduce with <code>bun benchmarks/numeric-adapters.js</code>; see <code>benchmarks/numeric-adapters-baseline.json</code>.</p>
+</section>
+<section id="retained-canvas-and-bounded-plot-inputs" class="level2">
+<h2 class="anchored" data-anchor-id="retained-canvas-and-bounded-plot-inputs">Retained Canvas and bounded plot inputs</h2>
+<p>The Canvas host retains a bounded LRU of parsed paths. The counting-path CPU fixture reduced path construction from 6000 to 200 across 30 style-changing frames, 32.85→8.70 ms with identical checksum. These are source parsing/replay measurements, not GPU timings. Conservative dirty regions include complete antialiased circles/strokes and snap to device pixels; transformations, paths, text, and viewport changes use full replay. Hosts can explicitly invalidate same-size canvas resets. OffscreenCanvas execution uses an explicit worker handler while semantic IDs, hit regions, and exact/accessibility companions stay in the portable plan. Main-thread Canvas and static SVG remain available.</p>
+<p>Real Chromium checks compare dirty/full/worker pixels on a consistent readback backend, including fractional coordinates and pixel ratios 1.25 and 2, geometry and style invalidation, resized canvases, and missing-Path2D fallback. Readback contexts request <code>willReadFrequently</code> so browser GPU-to-CPU migration does not confound byte comparisons. Reproduce with <code>scripts/check-render-performance-browser.js</code> and <code>scripts/bench-render-performance.js</code>.</p>
+<p>Plot inputs have explicit finite budgets: at most 4096 input rows/cells, 4–1024 retained line samples, 1–1024 heatmap blocks, and stream tails of 2–4096 samples. Min/max buckets retain exact endpoints/extrema and stable source IDs; heatmaps retain exact block means/extrema/source bounds. Neither claims to reconstruct discarded data. Stream drop counts and sampling disclosures survive static SVG, text/audio accessibility, and Canvas plans.</p>
+<p>For the versioned 4096-row fixture, bounded line output fell from 5.89 MB to 0.20 MB and HTML rendering from 76.68 ms to 3.00 ms. Reducing heatmap blocks from 1024 to 64 reduced output from 3.14 MB to 0.20 MB and rendering from 36.03 ms to 1.83 ms. Every case asserts deterministic output on repeated input; downsampled output intentionally has a different hash from full output. All source values are still validated. Observed heap deltas do not consistently fall with output size, so these measurements establish output/replay savings, not a blanket allocation improvement. Reproduce with <code>scripts/bench-bounded-plot.js</code>; see <code>benchmarks/bounded-plot-performance.json</code> and <code>scripts/check-bounded-plot-browser.js</code>.</p>
+<p>These limits bound declared work, retained cache source, and pixel counts. They cannot enforce hard process memory ceilings for JS objects, native paths, GC or arbitrary host callbacks. No GPU/Wasm/native provider or distributed execution is introduced by this pass.</p>
+</section>
+<section id="parse-only-documentation-checks" class="level2">
+<h2 class="anchored" data-anchor-id="parse-only-documentation-checks">Parse-only documentation checks</h2>
+<p>The full regression run exposed an additional allocation hotspot: documentation fences marked <code>parse=true</code> created an entire evaluator even when they had no hidden setup and never executed. Such fences now tokenize/parse directly. Executable fences and parse fences with hidden setup still construct or reuse their session normally. Tests verify setup side effects and session isolation.</p>
+<p>The 12-cell reference fixture reproducing the removed eager initialization measured 3749 ms versus 0.47 ms, with identical check-result hashes. This is an initialization saving, not a parser algorithm speedup; it removes the reason for the broad tutorial parse check to exceed its timeout. Reproduce using <code>bun benchmarks/documentation-parsing.js</code>; the versioned <code>benchmarks/documentation-parsing-baseline.json</code> records the exact result.</p>
 
 
 </section>
@@ -823,7 +851,7 @@ portable := .document.Snapshot(panel);
 </div>   
     <div class="nav-footer-center">
       &nbsp;
-    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/document-persistence.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/design/eval/runtime-performance.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
 <p>Documentation built with <a href="https://quarto.org/">Quarto</a></p>
 </div>
@@ -833,5 +861,5 @@ portable := .document.Snapshot(panel);
 
 
 
-<script src="../site_libs/quarto-html/zenscroll-min.js"></script>
+<script src="../../site_libs/quarto-html/zenscroll-min.js"></script>
 </body></html>
