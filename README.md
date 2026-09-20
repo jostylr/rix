@@ -1,131 +1,252 @@
 # RiX
 
-RiX is the Rational Interval Expression Language: a mathematical language with exact rational and interval arithmetic, a Pratt parser, an AST-to-IR lowering pass, and an evaluator with a configurable capability-based system context.
+RiX (Rational Interval Expression Language) is a mathematical programming language
+for exact fractions, interval arithmetic, symbolic calculations, and reproducible
+mathematical documents. Use it as a terminal calculator, run `.rix` programs, or
+embed its parser and evaluator in a JavaScript application. Optional bundled
+plugins add plotting, geometry, data analysis, approximate numerics, and output
+formats including SVG, HTML, LaTeX, and PDF.
+
+**Try it:** [RiX Web](https://rix.ratmath.com/) ·
+[Interactive tutorials](https://rix.ratmath.com/tutorial/) ·
+[Documentation](https://docs.rix.ratmath.com/) ·
+[Getting started](https://docs.rix.ratmath.com/getting-started.html)
 
 The 0.1 line is an alpha and makes no source- or API-compatibility commitment.
-RiX core is the portable language and runtime contract. The bundled plugins are
-useful first-party extensions, but they are optional: an implementation can
-support RiX without porting or enabling them.
 
-## Repository layout
+## Install
 
-- `src/parser/`: tokenization, parsing, and system identifier configuration.
-- `src/eval/`: IR, lowering, evaluator dispatch, formatting, and built-in functions.
-- `src/runtime/`: contexts, values, types, tensors, diagnostics, and runtime configuration.
-- `src/tools/`: CodeMirror/Lezer support, the portable language service, LSP,
-  and editor execution protocol.
-- `editors/vscode/`: desktop VS Code extension package and Node bundle build.
-- `bin/`: the `rix` REPL/runner, machine-facing editor commands, language
-  server, worker, and `rix-to-ir` utility.
-- `tests/`: parser, evaluator, and command-line tests.
-- `documentation/`: authored Quarto documentation, language guides, references, and design records.
-- `development-instructions.md`: developer workflow and runnable documentation conventions.
-- `docs/`: generated GitHub Pages site; do not edit it by hand.
-- `examples/`: runnable RiX and JavaScript examples.
-- `explorations/`: explanatory mathematical investigations with browser-safe
-  interactive RiX companions.
+Install [Bun](https://bun.sh/) 1.4 or newer and keep `bun` on your PATH.
+The command-line tools run on Bun, including when installed with npm.
+The package name is **`@ratmath/rix`**; unscoped `rix` is unrelated.
 
-## Local development
-
-RiX uses Bun 1.4 and the matching Core checkout. The RatMath umbrella workspace
-links local packages for coordinated development:
+For a terminal command available globally:
 
 ```sh
-git clone https://github.com/jostylr/ratmath.git
-cd ratmath
-bun install
-bun --cwd rix test
+npm install --global @ratmath/rix
+rix
 ```
 
-The manifest requires `@ratmath/core` ^0.6.0 for the `NumeralSystem` API.
-Standalone installation requires Core 0.6.0 to be published first; before that,
-use the matching workspace checkout. The package
-name is `@ratmath/rix`; unscoped `rix` belongs to an unrelated package.
+Alternatively, use `bun add --global @ratmath/rix`. Make sure your package
+manager's global executable directory is on your PATH.
 
-RiX uses Bun 1.4 and provides explicit test depths:
+For a project or an embedded application:
 
 ```sh
-bun run test:short
-bun run test:ci
-bun run test:ten
-bun run test:suite
-bun run test:plugin plot
+npm install @ratmath/rix
 ```
 
-The short profile covers parser, evaluator, runtime, CLI, and editor contracts.
-The CI profile adds representative plugin, host, reactive, output, and package
-contracts while staying below three minutes on the reference local run. The
-ten-minute profile runs the broad non-documentation set, reserving two
-exhaustive stress files for the suite; the suite also adds documentation and
-plugin-tutorial verification. `bun run test` and direct `bun test` both select
-the complete suite.
+Or use `bun add @ratmath/rix`. Core (`@ratmath/core` ^0.6.0) and other required
+JavaScript dependencies are installed automatically. Bundled RiX plugins ship
+with this package; they do not require separate npm installs.
 
-Before publishing or cutting a release candidate, run:
+## Terminal calculator and scripts
+
+Run `rix` to enter the interactive REPL, then enter an expression at each prompt:
+
+```rix
+1/3 + 1/6
+x := 5/7
+x * 7
+```
+
+The results are `1/2`, `5/7`, and `5`. Use `.help` for REPL commands and `.exit`
+to leave. Assignments persist within the session.
+
+Save a program as `example.rix`:
+
+```rix
+x := 1/3;
+y := 1/6;
+x + y
+```
+
+Run it with a global install:
 
 ```sh
-bun run check:release
+rix example.rix
+rix --help
 ```
 
-That opt-in gate runs the complete Bun suite with coverage, all native
-`.test.rix` programs, authored documentation tests and examples, the generated
-editor-policy consistency check, package-content assertions, an npm package dry
-run, and an isolated-consumer smoke against the published Core dependency. It is
-also available as the manually dispatched **Release verification** GitHub
-Actions workflow; ordinary push and pull-request CI remains the faster gate.
+With a project-local install, use `bunx --no-install rix example.rix` or
+`./node_modules/.bin/rix example.rix`. The runner prints the program's final
+value. To export files declared by `.Out(path, value)`, supply an output directory:
 
-For a local paired-package rehearsal, run
-`bun scripts/package-consumer-smoke.js --workspace-core` from `rix/`. This installs
-packed copies of both local repositories in a fresh consumer; it is **not** a
-substitute for the default registry-dependency release gate and publishes nothing.
+```sh
+rix --out=output report.rix
+```
 
-## API
+## Plugin loading: what is enabled?
+
+**Full plugin loading is not the default.** A fresh terminal session and a fresh
+JavaScript evaluator provide the core language; optional plugin mounts remain
+disabled until loaded. Discovering a plugin does not execute it. A previously
+saved REPL configuration can preload plugins and run a preamble.
+
+Choose plugins for one invocation:
+
+| Command | Loads |
+| --- | --- |
+| `rix --plugin=float` | The Float plugin for approximate arithmetic. `--with-floats` is an alias. |
+| `rix --plugins=plot,svg` | Selected plugins and their required dependencies. |
+| `rix --plugins=renderers` | Plugins in the Renderers group. |
+| `rix --plugins=full` | The curated standard set: exact algebras, algebra, drawing, plotting, Scene3D, ND, geometry, graphs, combinatorics, data, documents, Float, and renderers. |
+| `rix --all-built-plugins` | Every discovered plugin shipped in the package, including its example plugins. This is broader than `full`. |
+| `rix --all-plugins` | Every discovered plugin, including project-local plugins; host plugins still need an approved installer. |
+
+Append a filename to run a program with the same selection, for example
+`rix --plugins=plot,svg example.rix`. Repeat `--plugin=ID` to select several
+plugins. Plugin IDs and group names are accepted by `--plugins`; `full` is a
+curated selector, not a promise to load every plugin.
+
+To make a selection your REPL default:
+
+```sh
+rix setup --plugins=full
+rix
+```
+
+Or save a smaller set with `rix setup --plugins=plot,svg`. Clear saved plugin
+preloads with `rix setup --plugins=`. Setup also creates a `cli-preamble.rix`
+file you can edit. The default directory is `~/.config/rix` (honoring
+`XDG_CONFIG_HOME`); `RIX_CONFIG_DIR` or `--config-dir=DIR` can override it.
+
+Use `rix --no-config` to ignore saved REPL plugins and its automatic preamble.
+Use `--no-preamble` to skip the preamble while retaining configured plugins.
+Explicit plugin flags still apply. Saved REPL settings do **not** automatically
+apply to file execution or JavaScript module calls.
+
+Programs can declare their own dependencies before the code:
+
+```rix
+/**
+plugins: [plot, svg]
+**/
+
+1/3 + 1/6
+```
+
+The CLI preloads those plugins before parsing the program. Within a running
+session or program, these operations inspect or activate catalog entries:
+
+```rix
+.Plugin.List()
+.Plugin.Info("float")
+.Plugin.Load("float")
+```
+
+`.Plugin("float")` is shorthand for `.Plugin.Load("float")`. Loading is
+idempotent and required plugin dependencies load automatically. Plugins that
+introduce syntax should be preloaded with CLI flags or a source header.
+
+The CLI discovers package plugins plus `plugins/` in the working directory and
+beside the input script. A discovered JavaScript plugin needs an approved host
+installer; discovery alone does not authorize execution. Embedded and browser
+hosts configure their own catalogs. See the
+[plugin catalog guide](https://docs.rix.ratmath.com/plugin-catalog.html).
+
+Loading an output plugin does not install external compilers. PDF and some image
+formats require host tools such as LaTeX or a rasterizer; see the
+[renderer guide](https://docs.rix.ratmath.com/eval/renderer-guide.html) for each
+target's requirements.
+
+## Use as a JavaScript module
+
+After installing locally, save this as `example.mjs` and run `bun example.mjs`:
 
 ```js
-import { parse, tokenize, lower, evaluate, parseAndEvaluate } from "@ratmath/rix";
+import { parseAndEvaluate, formatValue } from "@ratmath/rix";
+
+const result = parseAndEvaluate("1/3 + 1/6");
+console.log(formatValue(result)); // 1/2
 ```
 
-Use `@ratmath/rix/parser`, `@ratmath/rix/eval`, `@ratmath/rix/runtime`, and
-`@ratmath/rix/language-service` for
-narrower entry points. The command-line tools include `rix`,
-`rix-language-server`, `rix-worker`, and `rix-to-ir` after installation.
+Evaluation returns RiX values, including exact numeric objects; use `formatValue`
+for display instead of assuming results are JavaScript numbers. Without supplied
+contexts, each call starts a fresh evaluation session.
 
-The evaluator entry is browser-safe. Browser hosts preload script sources or
-trusted JavaScript modules through `createBrowserHostAdapter`; Node/Bun hosts
-get the filesystem adapter from the package's default export condition, or can
-import `createNodeHostAdapter` from `@ratmath/rix/runtime/node` explicitly.
+To preserve variables and loaded plugins across calls, reuse a context, registry,
+and system context:
 
-For deterministic editor/agent feedback:
+```js
+import {
+  Context,
+  createDefaultRegistry,
+  createDefaultSystemContext,
+  parseAndEvaluate,
+  formatValue,
+} from "@ratmath/rix";
+
+const session = {
+  context: new Context(),
+  registry: createDefaultRegistry(),
+  systemContext: createDefaultSystemContext(),
+};
+
+parseAndEvaluate("x := 1/3", session);
+console.log(formatValue(parseAndEvaluate("x + 1/6", session))); // 1/2
+
+// Bundled plugins are known to the default catalog but must be activated.
+parseAndEvaluate('.Plugin.Load("float")', session);
+```
+
+Use `await parseAndEvaluateAsync(source, options)` for programs requiring async
+execution; it accepts the same session objects. Module calls do not process CLI
+setup or automatically preload a file's plugin header. Load required plugins in
+the session before evaluating source that uses their syntax.
+
+The package also exports `parse`, `tokenize`, `lower`, and `evaluate` for tools
+that need individual language stages. Narrower entry points include:
+
+- `@ratmath/rix/parser`: tokenizer and parser.
+- `@ratmath/rix/eval`: evaluator and evaluation helpers.
+- `@ratmath/rix/runtime`: contexts, values, and host interfaces.
+- `@ratmath/rix/language-service` and `@ratmath/rix/codemirror`: editor integration.
+
+Browser-aware bundlers select portable entry points. Browser hosts use
+`createBrowserHostAdapter` to supply script sources and trusted modules; they
+cannot scan a local filesystem. Node/Bun imports select the filesystem adapter,
+which is also available as `createNodeHostAdapter` from
+`@ratmath/rix/runtime/node`. Bun 1.4+ is the supported runtime for the examples
+and CLI here; npm installation does not make the CLI a Node executable.
+
+## Learn more
+
+- [Interactive tutorials](https://rix.ratmath.com/tutorial/): run and edit examples in the browser.
+- [Language overview](https://docs.rix.ratmath.com/language-at-a-glance.html) and [syntax guide](https://docs.rix.ratmath.com/eval/syntax-guide.html).
+- [Runtime reference](https://docs.rix.ratmath.com/reference/system-reference.html).
+- [Capstone tutorials](https://docs.rix.ratmath.com/tutorial/capstones.html): complete workflows combining calculation, output, and host integration.
+- [Publication workflows](https://docs.rix.ratmath.com/eval/publication-workflows.html): build documents and multiple output formats with `rix publish build.json`.
+- [Editor and agent tooling](https://docs.rix.ratmath.com/editor-and-agent-tooling.html): formatting, verification, language server, and VS Code integration.
+- [Source and issues](https://github.com/jostylr/rix).
+
+The package installs `rix`, `rix-to-ir`, `rix-language-server`, and `rix-worker`.
+For example, `rix format --check example.rix` checks formatting and
+`rix verify --json example.rix` produces structured verification results.
+
+## Contributing and release checks
+
+For coordinated source development, use the umbrella workspace:
 
 ```sh
-bun bin/rix.js format --check --json example.rix
-bun bin/rix.js verify --json example.rix
+git clone --recurse-submodules https://github.com/jostylr/ratmath.git
+cd ratmath
+bun install
+bun --cwd rix run test:short
 ```
 
-See [`documentation/editor-and-agent-tooling.md`](documentation/editor-and-agent-tooling.md)
-for the VS Code development build and current security boundary.
+The repository's `test:ci`, `test:ten`, and `test:suite` commands provide deeper
+checks; `test:plugin plot` checks a selected plugin. Run `bun run check:release`
+from the RiX repository before publication. It includes coverage, native RiX
+tests, documentation, editor policy, package contents, and an isolated install
+against registry dependencies. For a local Core/RiX rehearsal, use
+`bun scripts/package-consumer-smoke.js --workspace-core`; this does not replace
+the registry gate or publish anything.
 
-## Documentation
+See the [developer guide](https://docs.rix.ratmath.com/developer-guide.html) and
+[source development instructions](https://github.com/jostylr/rix/blob/main/development-instructions.md).
+With Quarto installed, `bun run build:docs` builds the documentation and
+`bun run preview:docs` previews it. These development commands require the
+source repository; the npm package contains the runtime and examples.
 
-See [`development-instructions.md`](development-instructions.md) for the
-runnable-example syntax used by documentation tests and Quarto rendering.
-
-With Quarto installed, build the documentation site into `docs/`:
-
-```sh
-bun run build:docs
-```
-
-Use `bun run preview:docs` for a local authoring server. The source-derived runtime catalog is regenerated as part of both commands.
-
-## Repeatable publication builds
-
-`bun bin/rix.js publish build.json` evaluates named document/input variants and
-renders their retained results to the targets in a saved profile. `--watch` tracks
-source, plugin, operator and declared dependencies; failed or superseded builds
-preserve the last successful output. Complete outputs contain a deterministic
-artifact manifest, checksums, local media and explicit unsupported-target fallbacks.
-
-The [publication showcase](examples/publication-workflow/README.md) includes report,
-PDF, live HTML and Notebook profiles. See [publication workflows](documentation/eval/publication-workflows.md)
-for budgets, host capabilities and compiler availability. Live pages include a
-complete initial result and local scripts; they remain readable without JavaScript.
+MIT licensed.
