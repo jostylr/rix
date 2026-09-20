@@ -1,7 +1,13 @@
+---
+search: false
+---
+
 # RiX editor, language-server, execution, and AI tooling
 
 ::: {.callout-note title="Design target, not implemented surface"}
-This document specifies the intended RiX authoring toolchain. Checked items in
+This historical proposal specifies the intended RiX authoring toolchain.
+Use [editor and coding-agent tooling](../editor-and-agent-tooling.md) for the
+current commands, integrations, and supported boundaries. Checked items in
 the implementation checklist already exist in the RiX repository. Unchecked
 items are proposed work and must not be presented as current behavior.
 :::

@@ -73,7 +73,7 @@ test("current guides are rendered while historical records are excluded from sea
     "design/parser/spec.md", "design/parser/questions.md", "report-2026-04-02.md",
     "design/eval/ir-format.md", "design/eval/document-output-todo.md",
     "design/eval/rixcel-todo.md", "design/eval/structural-arithmetic-todo.md",
-    "design/eval/control-panel-todo.md", "design/plugins.md",
+    "design/eval/control-panel-todo.md", "design/plugins.md", "design/editor-tooling.md",
   ];
   const history = readFileSync(resolve(root, "history.qmd"), "utf8");
   for (const source of historical) {

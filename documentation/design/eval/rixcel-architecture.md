@@ -2,7 +2,7 @@
 
 ## Status
 
-The first implemented slice is the portable `.Sheet(...)` output value. It
+The portable `.Sheet(...)` output value
 adapts existing tensors, matrices, and sequences into a two-dimensional
 snapshot with exact values, rank-N plane selection, canonical RiX addresses,
 and host-neutral text/HTML rendering.
@@ -20,8 +20,7 @@ The same host-owned protocol now supports interactive Graphics.
 `.Graphics.DragPoint($$point)` retains a reactive node identity and dispatches
 validated `graphic:position` records without putting DOM state in the scene.
 
-The first formula-backed prototype is implemented separately as
-`.FormulaSheet(...)`. It owns deferred formulas, evaluates them in an isolated
+Formula-backed sheets use `.FormulaSheet(...)`. Each sheet owns deferred formulas, evaluates them in an isolated
 sheet context, records `grid[...]` dependencies, detects complete cycle paths,
 incrementally recomputes transitive dependents, and atomically commits
 successful epochs. It is a coordinate adapter over the general
@@ -30,8 +29,24 @@ computations can therefore join the same graph as formula slots.
 `.Sheet(formulaSheet)` stages current results and editable formula source for
 display. Sparse rank-N `.rixcel` documents (now version 3, with v0–2 migration) round-trip
 authoritative source and executable-style edit history. The standalone editor
-uses that log for recovery and undo/redo. See [the format](rixcel-format.md) and
-[the checklist](rixcel-todo.md).
+uses that log for recovery and undo/redo. Structural edits, dependency rewrites,
+range fills, and formatting are validated atomic document events. Explicit tensor
+planes support rank-N edits, retained formula spills, and collision checks.
+
+Workbooks add isolated named sheets, cross-sheet dependency tracking, combined
+cycle diagnostics, and workbook-level undo/redo. CSV, TSV, and the documented XLSX
+subset provide value interchange while foreign formulas stay inert. Plot and
+drawing regions retain exact source values and coordinates; rectangular and
+regional exports compose with the shared publication renderers. Hosts share these
+models without making DOM or worker state authoritative.
+
+Use [sheet editing](../../eval/sheet-guide.md),
+[workbooks and interchange](../../eval/workbooks.md),
+[tensor planes and spills](../../eval/rixcel-tensors.md), and
+[plots, drawings, and regional exports](../../eval/rixcel-regions.md) for current
+workflows and limits. [The document format](rixcel-format.md) is the persistence
+contract; [the delivery checklist](rixcel-todo.md) is a historical completion
+record.
 
 ## Vocabulary
 

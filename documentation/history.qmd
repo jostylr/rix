@@ -21,6 +21,7 @@ or the [generated runtime catalog](reference/system-reference.md).
 | [Reactive control delivery plan](design/eval/control-panel-todo.md) | [Reactive controls](eval/controls-guide.md) |
 | [RiXCel delivery checklist](design/eval/rixcel-todo.md) | [Workbooks](eval/workbooks.md), [tensor editing](eval/rixcel-tensors.md), and [regional output](eval/rixcel-regions.md) |
 | [Structural arithmetic completion record](design/eval/structural-arithmetic-todo.md) | [Structural values](eval/objects/structural-values.md) |
+| [Editor and language-server proposal](design/editor-tooling.md) | [Editor and coding-agent tooling](editor-and-agent-tooling.md) |
 | [Plugin roadmap and rendering proposals](design/plugins.md) | [Plugin catalog](plugin-catalog.md) and [renderer guide](eval/renderer-guide.md) |
 
 Current implementation contracts remain searchable even when their source lives
