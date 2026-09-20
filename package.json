@@ -100,8 +100,13 @@
     "preview:docs:static": "bun run build:demo && bun run docs:reference && bun ./documentation/scripts/run-quarto.js preview --profile static",
     "build:all": "bun run build:docs",
     "check:ci": "bun run test:ci && bun run test:rix && bun run check:editor-policy && bun run test:pack",
-    "check:release": "bun run test:coverage && bun run test:rix && bun run docs:verify && bun run check:editor-policy && bun run test:pack && bun run smoke:package",
-    "prepublishOnly": "bun run check:release"
+    "check:release": "bun run check:package-assets && bun run test:portable && bun run test:coverage && bun run test:rix && bun run docs:verify && bun run check:editor-policy && bun run test:pack && bun run smoke:package",
+    "prepublishOnly": "bun run check:release",
+    "build:plugin-sources": "bun scripts/generate-plugin-sources.js",
+    "build:package": "bun run build:plugin-sources && bun scripts/build-live-runtime.js",
+    "check:package-assets": "node scripts/generate-plugin-sources.js --check && node scripts/build-live-runtime.js --check",
+    "prepack": "bun run build:package",
+    "test:portable": "node scripts/check-portable-runtime.js && bun scripts/check-portable-runtime.js"
   },
   "dependencies": {
     "@codemirror/language": "^6.12.4",
@@ -115,7 +120,7 @@
     "marked": "^15.0.12"
   },
   "engines": {
-    "bun": ">=1.4.0"
+    "node": ">=22"
   },
   "keywords": [
     "rix",

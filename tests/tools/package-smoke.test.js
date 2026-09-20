@@ -4,15 +4,15 @@ import path from "node:path";
 const rixRoot = path.resolve(import.meta.dir, "../..");
 
 describe("standalone package", () => {
-  test("declares compatible dependencies and Bun for the package worker", async () => {
+  test("declares compatible dependencies and portable package workers", async () => {
     const manifest = await Bun.file(path.join(rixRoot, "package.json")).json();
     expect(manifest.name).toBe("@ratmath/rix");
     expect(manifest.dependencies["@ratmath/core"]).toBe("^0.6.0");
-    expect(manifest.engines).toEqual({ bun: ">=1.4.0" });
+    expect(manifest.engines).toEqual({ node: ">=22" });
 
     const worker = await Bun.file(path.join(rixRoot, "bin/rix-worker.js")).text();
     const languageServer = await Bun.file(path.join(rixRoot, "bin/rix-language-server.js")).text();
-    expect(worker.startsWith("#!/usr/bin/env bun\n")).toBe(true);
+    expect(worker.startsWith("#!/usr/bin/env node\n")).toBe(true);
     expect(languageServer.startsWith("#!/usr/bin/env node\n")).toBe(true);
 
     const core = await import("@ratmath/core");
@@ -63,6 +63,9 @@ describe("standalone package", () => {
       "examples/plugins/checked-graph-simplification.rix",
       "examples/plugins/circular-function-facts.rix",
       "plugins/bundled.js",
+      "plugins/generated/rix-sources.js",
+      "bin/generated/live-runtime/rix-page.js",
+      "bin/generated/live-runtime/rix-page.css",
       "schemas/calculus-graph-simplification.schema.json",
       "schemas/function-facts.schema.json",
       "schemas/rix.schema.json",

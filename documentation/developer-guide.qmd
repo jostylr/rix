@@ -98,3 +98,27 @@ Run that gate after Core 0.6.0 is published; an unpublished dependency version
 cannot pass the registry check. In the umbrella workspace, `bun scripts/package-consumer-smoke.js
 --workspace-core` checks both local tarballs in an isolated consumer. Keep that
 rehearsal distinct from the registry release gate; neither command publishes.
+
+
+## Portable Node and Bun runtime assets
+
+The CLI and public module entry points run on Node.js 22+ and Bun 1.4+.
+Installed commands use `#!/usr/bin/env node`; `bun bin/rix.js` and
+`bunx --bun --no-install rix` explicitly select Bun. Development tests and
+release builds continue to use Bun. Browser-aware bundlers choose the portable
+`browser` export condition; filesystem access stays in the Node/Bun adapter.
+
+`plugins/bundled.js` refers to generated JavaScript strings rather than importing
+`.rix` files with a runtime-specific text loader. Edit the original `.rix` files,
+then run `bun run build:package`. This embeds their exact text in
+`plugins/generated/rix-sources.js` and builds `bin/generated/live-runtime/`.
+The package includes these outputs so end users need neither a text loader nor
+Bun's bundler. RiX source is still parsed and evaluated by RiX, not translated
+into JavaScript algorithms. Source paths and plugin metadata remain intact.
+
+`bun run check:package-assets` checks source and output hashes to catch stale
+assets. `bun run test:portable` runs real Node and Bun processes against the
+module API, async cancellation, CLI/REPL selections, editor tools, and static/live
+publication. The isolated package smoke repeats these checks against an installed
+tarball. CI covers Node 22, 24, and 26 on Linux alongside Bun. Local checks do not
+establish Windows or macOS release certification beyond the actual tested host.

@@ -3,13 +3,13 @@ title: "Getting started"
 description: "Install RiX in the RatMath workspace, run the REPL, execute scripts, and embed the evaluator."
 ---
 
-RiX uses Bun. The package is an active alpha and is not yet presented as a
+RiX runs on Node.js 22+ or Bun 1.4+. Bun is preferred for source development. The package is an active alpha and is not yet presented as a
 stable registry release: the public npm name `rix` belongs to an unrelated
 project. Use the matching RiX and Core checkouts in the RatMath workspace.
 
 ## Requirements
 
-- [Bun](https://bun.sh/) 1.4 or newer
+- [Bun](https://bun.sh/) 1.4 or newer for source development; installed packages also run on Node.js 22+
 - Git
 - Quarto 1.6 or newer only if you want to build this documentation site
 
@@ -19,16 +19,27 @@ project. Use the matching RiX and Core checkouts in the RatMath workspace.
 git clone https://github.com/jostylr/ratmath.git
 cd ratmath
 bun run prep
-bun --cwd rix run test:short
+cd rix
+bun run build:package
+bun run test:short
 ```
 
 The workspace preparation command initializes pinned repositories and installs
 their dependencies. The manifest requires Core ^0.6.0 for `NumeralSystem`.
 Standalone registry installation requires that Core version to be published
-first; workspace development uses the matching local Core implementation. Use `bun --cwd rix run test:suite` for
+first; workspace development uses the matching local Core implementation. From `rix/`, use `bun run test:suite` for
 the complete verification (longer than the short development checks).
 
 The RiX test suite exercises tokenizer, parser, lowering, evaluator, runtime, CLI, examples, exact values, types, methods, Shaped storage, mathematical tensors, generators, and diagnostics.
+
+## Install the package
+
+`npm install --global @ratmath/rix` installs the `rix` command for Node.js 22+.
+For Bun, use `bunx --bun --package @ratmath/rix rix`. In an application, install
+with `npm install @ratmath/rix` or `bun add @ratmath/rix`, import
+`parseAndEvaluate` from `@ratmath/rix`, and run your module with Node or Bun.
+The [README](https://github.com/jostylr/rix#use-as-a-javascript-module) includes
+complete standalone and persistent-session examples.
 
 ## Open the REPL
 
@@ -114,8 +125,8 @@ digits := 50;
 
 Use `--no-config` to ignore saved settings (restoring the `full` default), `--no-preamble` to retain configured
 plugins without running the preamble, or `--preamble=FILE` for an explicit
-project preamble. `--plugin`, `--plugins`, and `--operator-file` remain
-one-session additions. Persistent setup affects the REPL, not script execution.
+project preamble. `--plugins` replaces the preload selection for one session;
+`--plugin` and `--operator-file` add to the selected setup. Persistent setup affects the REPL, not script execution.
 
 ## Run a file
 

@@ -18,13 +18,13 @@ export function livePublicationBrowserShims() {
     } };
 }
 export async function buildLiveRuntimeAssets() {
-    if (!globalThis.Bun?.build) throw new Error("Live publication runtime bundling requires Bun");
-    const build = await Bun.build({ entrypoints: [path.join(root, "bin/web-page.js")], target: "browser", format: "iife", naming: "rix-page.js",
-        sourcemap: "none", loader: { ".rix": "text" }, plugins: [livePublicationBrowserShims()] });
-    if (!build.success) throw new Error(build.logs.map(String).join("\n"));
-    const js = await build.outputs[0].text();
-    const css = `${await readFile(path.join(root, "styles/output-widgets.css"), "utf8")}\n${await readFile(path.join(root, "bin/web-page.css"), "utf8")}`;
-    return new Map([["rix-page.js", js], ["rix-page.css", css]]);
+    const directory = path.join(root, "bin/generated/live-runtime");
+    try {
+        return new Map(await Promise.all(["rix-page.js", "rix-page.css"].map(async (name) =>
+            [name, await readFile(path.join(directory, name), "utf8")])));
+    } catch (error) {
+        throw new Error("Missing prebuilt live publication assets; source checkouts must run bun run build:package", { cause: error });
+    }
 }
 export async function buildLivePublication({ value, source, sourcePath, plugins = [], title = "RiX publication", format = String, assetPrefix = "assets", runtimeAssets = null, limits = {}, assetPaths = {} }) {
     if (typeof assetPrefix !== "string" || !/^[A-Za-z0-9_-]+(?:\/[A-Za-z0-9_-]+)*$/.test(assetPrefix)) throw new Error("Live publication asset prefix must be a safe relative directory");

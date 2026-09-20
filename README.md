@@ -16,8 +16,9 @@ The 0.1 line is an alpha and makes no source- or API-compatibility commitment.
 
 ## Install
 
-Install [Bun](https://bun.sh/) 1.4 or newer and keep `bun` on your PATH.
-The command-line tools run on Bun, including when installed with npm.
+Use [Node.js](https://nodejs.org/) 22 or newer, or [Bun](https://bun.sh/)
+1.4 or newer. The same CLI and module API work with either runtime.
+Installed `rix` commands use Node; Bun remains our preferred development runtime.
 The package name is **`@ratmath/rix`**; unscoped `rix` is unrelated.
 
 For a terminal command available globally:
@@ -27,8 +28,16 @@ npm install --global @ratmath/rix
 rix
 ```
 
-Alternatively, use `bun add --global @ratmath/rix`. Make sure your package
-manager's global executable directory is on your PATH.
+For Bun execution (including Bun-only installations), use:
+
+```sh
+bunx --bun --package @ratmath/rix rix
+```
+
+You can also install with `bun add --global @ratmath/rix`; the installed command
+still has a Node shebang, so use the explicit Bun invocation above if Node is
+absent. Make sure your package manager's global executable directory is on
+your PATH.
 
 For a project or an embedded application:
 
@@ -68,7 +77,7 @@ rix example.rix
 rix --help
 ```
 
-With a project-local install, use `bunx --no-install rix example.rix` or
+With a project-local install, use `bunx --bun --no-install rix example.rix` or
 `./node_modules/.bin/rix example.rix`. The runner prints the program's final
 value. To export files declared by `.Out(path, value)`, supply an output directory:
 
@@ -156,7 +165,8 @@ target's requirements.
 
 ## Use as a JavaScript module
 
-After installing locally, save this as `example.mjs` and run `bun example.mjs`:
+After installing locally, save this as `example.mjs` and run either
+`bun example.mjs` or `node example.mjs`:
 
 ```js
 import { parseAndEvaluate, formatValue } from "@ratmath/rix";
@@ -211,8 +221,11 @@ Browser-aware bundlers select portable entry points. Browser hosts use
 `createBrowserHostAdapter` to supply script sources and trusted modules; they
 cannot scan a local filesystem. Node/Bun imports select the filesystem adapter,
 which is also available as `createNodeHostAdapter` from
-`@ratmath/rix/runtime/node`. Bun 1.4+ is the supported runtime for the examples
-and CLI here; npm installation does not make the CLI a Node executable.
+`@ratmath/rix/runtime/node`. Runtime detection distinguishes Bun via
+`process.versions.bun`, Node via `process.versions.node`, and browser entry points
+via the package's `browser` export condition. Most runtime code is shared and
+needs no special branch. Live HTML exports use packaged browser assets, so
+Node users do not need Bun or a bundler to create them.
 
 ## Learn more
 
@@ -236,11 +249,17 @@ For coordinated source development, use the umbrella workspace:
 git clone --recurse-submodules https://github.com/jostylr/ratmath.git
 cd ratmath
 bun install
-bun --cwd rix run test:short
+cd rix
+bun run build:package
+bun run test:short
 ```
 
 The repository's `test:ci`, `test:ten`, and `test:suite` commands provide deeper
-checks; `test:plugin plot` checks a selected plugin. Run `bun run check:release`
+checks; `test:plugin plot` checks a selected plugin. `bun run test:portable`
+exercises both Node and Bun. After changing runtime or plugin sources, run
+`bun run build:package` to refresh portable plugin text and live browser assets;
+`bun run check:package-assets` detects stale generated files. The `.rix` files
+remain the authoritative source. Release packing rebuilds these assets. Run `bun run check:release`
 from the RiX repository before publication. It includes coverage, native RiX
 tests, documentation, editor policy, package contents, and an isolated install
 against registry dependencies. For a local Core/RiX rehearsal, use

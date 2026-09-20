@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 /** One isolated document/input evaluation. The parent bounds runtime and replaces output. */
 import { readFileSync, writeFileSync, statSync } from "node:fs";
 import path from "node:path";
@@ -11,7 +12,7 @@ import { PUBLICATION_TARGETS } from "../src/runtime/publication-workflow.js";
 import { registerBuiltPluginInstallers } from "./builtin-installers.js";
 import { install as installPdfPlugin } from "../plugins/render-pdf/pdf.plugin.rix.js";
 import { compileLatex } from "./node-renderer-tools.js";
-const sourceRoot=path.resolve(import.meta.dir,"..");
+const sourceRoot=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"..");
 const request=JSON.parse(readFileSync(process.argv[2],"utf8"));
 const {root,job,profile,resultPath}=request;
 const dependencies=new Set([path.resolve(root,job.document.source),...job.document.dependencies.map(name=>path.resolve(root,name))]);

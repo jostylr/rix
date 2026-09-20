@@ -136,7 +136,10 @@ if (rix.formatValue(result) !== "3") {
 }
 `;
     await Bun.write(path.join(consumerDirectory, "probe.mjs"), probe);
-    run(["bun", "probe.mjs"], consumerDirectory);
+    for (const runtime of ["node", "bun"]) {
+        run([runtime, "probe.mjs"], consumerDirectory);
+        run([runtime, path.join(rixRoot, "scripts/check-portable-runtime.js"), path.join(consumerDirectory, "node_modules/@ratmath/rix")], consumerDirectory);
+    }
 
     for (const command of ["rix", "rix-to-ir"]) {
         run([path.join(consumerDirectory, "node_modules", ".bin", command), "--help"], consumerDirectory);

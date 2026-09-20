@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 /**
  * rix-to-ir: CLI tool to convert RiX source to system function call text.
  *

@@ -1,5 +1,6 @@
+import { pluginSources } from "../plugins/generated/rix-sources.js";
 import { install as installDocument } from "../plugins/document/document.plugin.rix.js";
-/** Browser runtime used by `rix --out`. This file is bundled by the CLI. */
+/** Browser runtime used by `rix --out`. This file is bundled during package preparation. */
 
 import {
     Context,
@@ -16,7 +17,7 @@ import {
 } from "../src/index.js";
 import { install as installFloat } from "../plugins/float/browser-installer.js";
 import { install as installArrayJs } from "../examples/plugins/example-array-js/array-js.plugin.rix.js";
-import arrayRixSource from "../examples/plugins/example-array-rix/array-rix.plugin.rix";
+const arrayRixSource = pluginSources["../examples/plugins/example-array-rix/array-rix.plugin.rix"];
 import { install as installSvg } from "../plugins/render-svg/svg.plugin.rix.js";
 import { install as installCanvas } from "../plugins/render-canvas/canvas.plugin.rix.js";
 import { install as installTikz } from "../plugins/render-tikz/tikz.plugin.rix.js";
@@ -26,8 +27,8 @@ import { install as installQuarto } from "../plugins/render-quarto/quarto.plugin
 import { install as installLatex } from "../plugins/render-latex/latex.plugin.rix.js";
 import { install as installPng } from "../plugins/render-png/png.plugin.rix.js";
 import { install as installPdf } from "../plugins/render-pdf/pdf.plugin.rix.js";
-import scene3dSource from "../plugins/scene3d/scene3d.plugin.rix" with { type: "text" };
-import ndSource from "../plugins/nd/nd.plugin.rix" with { type: "text" };
+const scene3dSource = pluginSources['scene3d/scene3d.plugin.rix'];
+const ndSource = pluginSources['nd/nd.plugin.rix'];
 import { install as installGltf } from "../plugins/render-gltf/gltf.plugin.rix.js";
 
 import { prepareLivePublication, relocateLivePublicationAssets, LIVE_PUBLICATION_SCHEMA } from "../src/runtime/live-publication.js";

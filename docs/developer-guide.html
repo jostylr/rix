@@ -372,6 +372,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#adding-a-user-facing-capability" id="toc-adding-a-user-facing-capability" class="nav-link" data-scroll-target="#adding-a-user-facing-capability">Adding a user-facing capability</a></li>
   <li><a href="#adding-a-semantic-type-or-trait" id="toc-adding-a-semantic-type-or-trait" class="nav-link" data-scroll-target="#adding-a-semantic-type-or-trait">Adding a semantic type or trait</a></li>
   <li><a href="#tests-and-documentation" id="toc-tests-and-documentation" class="nav-link" data-scroll-target="#tests-and-documentation">Tests and documentation</a></li>
+  <li><a href="#portable-node-and-bun-runtime-assets" id="toc-portable-node-and-bun-runtime-assets" class="nav-link" data-scroll-target="#portable-node-and-bun-runtime-assets">Portable Node and Bun runtime assets</a></li>
   </ul>
 <div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/developer-guide.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
@@ -521,6 +522,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Every <code>rix/</code> change should keep the Bun tests green. Documentation builds generate the runtime catalog first, so changes to registered names appear in the reference without a manual inventory pass.</p>
 <p>The <code>documentation/</code> directory is authored source. The <code>docs/</code> directory is generated GitHub Pages output. Historical design material may remain useful, but current behavior belongs in the canonical guides and status page.</p>
 <p>For packaging, <code>bun run test:pack</code> checks the tarball contents and <code>bun run smoke:package</code> installs RiX against its declared registry dependencies. Run that gate after Core 0.6.0 is published; an unpublished dependency version cannot pass the registry check. In the umbrella workspace, <code>bun scripts/package-consumer-smoke.js --workspace-core</code> checks both local tarballs in an isolated consumer. Keep that rehearsal distinct from the registry release gate; neither command publishes.</p>
+</section>
+<section id="portable-node-and-bun-runtime-assets" class="level2">
+<h2 class="anchored" data-anchor-id="portable-node-and-bun-runtime-assets">Portable Node and Bun runtime assets</h2>
+<p>The CLI and public module entry points run on Node.js 22+ and Bun 1.4+. Installed commands use <code>#!/usr/bin/env node</code>; <code>bun bin/rix.js</code> and <code>bunx --bun --no-install rix</code> explicitly select Bun. Development tests and release builds continue to use Bun. Browser-aware bundlers choose the portable <code>browser</code> export condition; filesystem access stays in the Node/Bun adapter.</p>
+<p><code>plugins/bundled.js</code> refers to generated JavaScript strings rather than importing <code>.rix</code> files with a runtime-specific text loader. Edit the original <code>.rix</code> files, then run <code>bun run build:package</code>. This embeds their exact text in <code>plugins/generated/rix-sources.js</code> and builds <code>bin/generated/live-runtime/</code>. The package includes these outputs so end users need neither a text loader nor Bun’s bundler. RiX source is still parsed and evaluated by RiX, not translated into JavaScript algorithms. Source paths and plugin metadata remain intact.</p>
+<p><code>bun run check:package-assets</code> checks source and output hashes to catch stale assets. <code>bun run test:portable</code> runs real Node and Bun processes against the module API, async cancellation, CLI/REPL selections, editor tools, and static/live publication. The isolated package smoke repeats these checks against an installed tarball. CI covers Node 22, 24, and 26 on Linux alongside Bun. Local checks do not establish Windows or macOS release certification beyond the actual tested host.</p>
 
 
 </section>

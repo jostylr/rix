@@ -1,3 +1,5 @@
+import { findExecutable } from "./find-executable.js";
+import { fileURLToPath } from "node:url";
 /** Bounded document/input/target builds, dependency-aware watch, and staged replacement. */
 import { readFileSync, writeFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, renameSync, lstatSync, statSync } from "node:fs";
 import { spawn } from "node:child_process";
@@ -13,7 +15,7 @@ function runWorker(request,{signal,timeoutMs,maxBytes,scratch}) {
     return new Promise((resolve,reject)=>{
         signal?.throwIfAborted();const requestPath=path.join(scratch,"request.json"),resultPath=path.join(scratch,"result.json");
         writeFileSync(requestPath,JSON.stringify({...request,resultPath}));
-        const child=spawn(process.execPath,[path.join(import.meta.dir,"publication-worker.js"),requestPath],{cwd:request.root,detached:process.platform!=="win32",stdio:["ignore","ignore","pipe"]});
+        const child=spawn(process.execPath,[path.join(path.dirname(fileURLToPath(import.meta.url)),"publication-worker.js"),requestPath],{cwd:request.root,detached:process.platform!=="win32",stdio:["ignore","ignore","pipe"]});
         let finished=false,stderr="";
         const kill=()=>{try{process.platform!=="win32"?process.kill(-child.pid,"SIGKILL"):child.kill("SIGKILL");}catch{}};
         const finish=(error,value)=>{if(finished)return;finished=true;clearTimeout(timer);signal?.removeEventListener("abort",abort);error?reject(error):resolve(value);};
@@ -86,7 +88,7 @@ export function commitPublication(result,{signal=null,beforeReplace=null}={}) {
         return result.manifest;
     }finally{if(!replaced&&movedPrevious&&existsSync(backup)&&!existsSync(out))renameSync(backup,out);rmSync(scratch,{recursive:true,force:true});}
 }
-export function publicationCapabilities(){return{schema:"rix.publication-capabilities@1",sourceTargets:["html","markdown","quarto","latex","svg","tikz","canvas","gltf","text","bundle"],binaryTargets:{png:Boolean(Bun.which("rsvg-convert")||Bun.which("magick")),pdf:Boolean(Bun.which("pdflatex")),gif:Boolean(Bun.which("magick"))},network:"No remote runtime dependencies are added",conformance:"PDF/A, tagged PDF and embedded fonts are unverified"};}
+export function publicationCapabilities(){return{schema:"rix.publication-capabilities@1",sourceTargets:["html","markdown","quarto","latex","svg","tikz","canvas","gltf","text","bundle"],binaryTargets:{png:Boolean(findExecutable("rsvg-convert")||findExecutable("magick")),pdf:Boolean(findExecutable("pdflatex")),gif:Boolean(findExecutable("magick"))},network:"No remote runtime dependencies are added",conformance:"PDF/A, tagged PDF and embedded fonts are unverified"};}
 export async function watchPublication(options){
     const cache=new Map();let dependencies=[path.resolve(options.configPath)],stamp=fingerprint(dependencies),closed=false;
     const raw=readConfig(options.configPath),profile=createPublicationBuild(raw,options.profileName).profile;

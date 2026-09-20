@@ -48,7 +48,9 @@ try {
     page.on("console", (message) => { if (/Content Security Policy|violates.*directive/i.test(message.text())) blocked.push(message.text()); });
     page.on("request", (request) => requests.push(request.url()));
     await page.goto(`${base}/working.html`);
-    await page.waitForFunction(() => document.querySelector("#rix-app").dataset.rixLiveReady === "true");
+    await page.waitForFunction(() => document.querySelector("#rix-app").dataset.rixLiveReady === "true").catch(async (error) => {
+        throw new Error(`Live startup failed: ${await page.locator("#rix-publication-status").textContent()}; page errors: ${errors.join("; ")}`, { cause: error });
+    });
     const mark = page.locator('[data-rix-semantic-id="retained-circle"]');
     assert.equal(await mark.getAttribute("r"), "3");
     await mark.evaluate((element) => { window.retainedCircle = element; });

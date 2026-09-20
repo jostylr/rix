@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 /**
  * RiX Runner & REPL
  * 
@@ -623,9 +623,10 @@ function parseRunnerArgs(rawArgs) {
 }
 
 function selectedPluginIds(pluginCatalog, { plugins, allPlugins, allBuiltPlugins }) {
-    if (allPlugins) return pluginCatalog.list().map(({ id }) => id);
-    if (allBuiltPlugins) return pluginCatalog.list().filter(isBuiltPlugin).map(({ id }) => id);
-    return resolvePluginSelectors(pluginCatalog, plugins, { standardIds: STANDARD_PLUGIN_IDS });
+    const selected = resolvePluginSelectors(pluginCatalog, plugins, { standardIds: STANDARD_PLUGIN_IDS });
+    const base = allPlugins ? pluginCatalog.list()
+        : allBuiltPlugins ? pluginCatalog.list().filter(isBuiltPlugin) : [];
+    return [...new Set([...base.map(({ id }) => id), ...selected])];
 }
 
 function readOperatorFiles(filenames, baseDir) {

@@ -161,7 +161,10 @@ Mediant(a, b) -> a + b;
         writeRixCliConfig(directory, { plugins: [] });
         expect(loaded([])).toEqual([false, false]);
         expect(loaded(["--no-config"])).toEqual([true, true]);
-    });
+        writeFileSync(path.join(directory, "cli-preamble.rix"), '/**\nplugins: [float]\n**/\n.Plugin.Load("plot");');
+        expect(loaded(["--plugins=none"])).toEqual([true, true]);
+        expect(loaded(["--no-config", "--plugins=none"])).toEqual([false, false]);
+    }, 30000);
 
     test("none leaves explicit source loads available and scripts ignore REPL defaults", () => {
         const directory = temporaryDirectory();

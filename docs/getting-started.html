@@ -367,8 +367,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <ul>
   <li><a href="#requirements" id="toc-requirements" class="nav-link active" data-scroll-target="#requirements">Requirements</a></li>
   <li><a href="#clone-and-test" id="toc-clone-and-test" class="nav-link" data-scroll-target="#clone-and-test">Clone and test</a></li>
+  <li><a href="#install-the-package" id="toc-install-the-package" class="nav-link" data-scroll-target="#install-the-package">Install the package</a></li>
   <li><a href="#open-the-repl" id="toc-open-the-repl" class="nav-link" data-scroll-target="#open-the-repl">Open the REPL</a></li>
-  <li><a href="#persistent-repl-setup" id="toc-persistent-repl-setup" class="nav-link" data-scroll-target="#persistent-repl-setup">Persistent REPL setup</a></li>
+  <li><a href="#plugin-defaults-and-persistent-repl-setup" id="toc-plugin-defaults-and-persistent-repl-setup" class="nav-link" data-scroll-target="#plugin-defaults-and-persistent-repl-setup">Plugin defaults and persistent REPL setup</a></li>
   <li><a href="#run-a-file" id="toc-run-a-file" class="nav-link" data-scroll-target="#run-a-file">Run a file</a></li>
   <li><a href="#inspect-the-intermediate-representation" id="toc-inspect-the-intermediate-representation" class="nav-link" data-scroll-target="#inspect-the-intermediate-representation">Inspect the intermediate representation</a></li>
   <li><a href="#embed-rix-in-javascript" id="toc-embed-rix-in-javascript" class="nav-link" data-scroll-target="#embed-rix-in-javascript">Embed RiX in JavaScript</a></li>
@@ -405,11 +406,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </header>
 
 
-<p>RiX uses Bun. The package is an active alpha and is not yet presented as a stable registry release: the public npm name <code>rix</code> belongs to an unrelated project. Use the matching RiX and Core checkouts in the RatMath workspace.</p>
+<p>RiX runs on Node.js 22+ or Bun 1.4+. Bun is preferred for source development. The package is an active alpha and is not yet presented as a stable registry release: the public npm name <code>rix</code> belongs to an unrelated project. Use the matching RiX and Core checkouts in the RatMath workspace.</p>
 <section id="requirements" class="level2">
 <h2 class="anchored" data-anchor-id="requirements">Requirements</h2>
 <ul>
-<li><a href="https://bun.sh/">Bun</a> 1.4 or newer</li>
+<li><a href="https://bun.sh/">Bun</a> 1.4 or newer for source development; installed packages also run on Node.js 22+</li>
 <li>Git</li>
 <li>Quarto 1.6 or newer only if you want to build this documentation site</li>
 </ul>
@@ -419,9 +420,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> clone https://github.com/jostylr/ratmath.git</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> ratmath</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> run prep</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> <span class="at">--cwd</span> rix run test:short</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The workspace preparation command initializes pinned repositories and installs their dependencies. The manifest requires Core ^0.6.0 for <code>NumeralSystem</code>. Standalone registry installation requires that Core version to be published first; workspace development uses the matching local Core implementation. Use <code>bun --cwd rix run test:suite</code> for the complete verification (longer than the short development checks).</p>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> rix</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> run build:package</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> run test:short</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The workspace preparation command initializes pinned repositories and installs their dependencies. The manifest requires Core ^0.6.0 for <code>NumeralSystem</code>. Standalone registry installation requires that Core version to be published first; workspace development uses the matching local Core implementation. From <code>rix/</code>, use <code>bun run test:suite</code> for the complete verification (longer than the short development checks).</p>
 <p>The RiX test suite exercises tokenizer, parser, lowering, evaluator, runtime, CLI, examples, exact values, types, methods, Shaped storage, mathematical tensors, generators, and diagnostics.</p>
+</section>
+<section id="install-the-package" class="level2">
+<h2 class="anchored" data-anchor-id="install-the-package">Install the package</h2>
+<p><code>npm install --global @ratmath/rix</code> installs the <code>rix</code> command for Node.js 22+. For Bun, use <code>bunx --bun --package @ratmath/rix rix</code>. In an application, install with <code>npm install @ratmath/rix</code> or <code>bun add @ratmath/rix</code>, import <code>parseAndEvaluate</code> from <code>@ratmath/rix</code>, and run your module with Node or Bun. The <a href="https://github.com/jostylr/rix#use-as-a-javascript-module">README</a> includes complete standalone and persistent-session examples.</p>
 </section>
 <section id="open-the-repl" class="level2">
 <h2 class="anchored" data-anchor-id="open-the-repl">Open the REPL</h2>
@@ -451,8 +458,9 @@ half = x -&gt; x / 2
 </div>
 <p>Useful REPL commands include <code>.help</code>, <code>.vars</code>, <code>.fns</code>, <code>.ast[expr]</code>, <code>.tokens[expr]</code>, <code>.load[pkg]</code>, <code>.reset</code>, and <code>.exit</code>. End a line with <code>\</code> for multiline input.</p>
 </section>
-<section id="persistent-repl-setup" class="level2">
-<h2 class="anchored" data-anchor-id="persistent-repl-setup">Persistent REPL setup</h2>
+<section id="plugin-defaults-and-persistent-repl-setup" class="level2">
+<h2 class="anchored" data-anchor-id="plugin-defaults-and-persistent-repl-setup">Plugin defaults and persistent REPL setup</h2>
+<p>A fresh interactive REPL loads the curated <code>full</code> plugin set. File execution and embedded evaluator calls remain bare unless plugins are requested. <code>--plugins=plot,svg</code> replaces the built-in or saved selection, while repeatable <code>--plugin=ID</code> flags add to it. <code>--plugins=none</code> suppresses implicit and saved preloads; it does not forbid explicit loads or dependencies requested by a script or preamble. Use <code>--no-config --plugins=none</code> for a clean bare REPL. Saved empty plugin lists remain bare; an absent setting defaults to <code>full</code>.</p>
 <p>RiX keeps CLI configuration under <code>$XDG_CONFIG_HOME/rix</code>, falling back to <code>~/.config/rix</code>. Set <code>RIX_CONFIG_DIR</code> to use another location. Create or update the configuration with:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ex">rix</span> setup <span class="at">--plugins</span><span class="op">=</span>full</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="ex">rix</span> setup <span class="at">--plugins</span><span class="op">=</span>float,renderers</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -464,7 +472,7 @@ operator-files: [personal.operators.rix]
 **/
 
 digits := 50;</code></pre>
-<p>Use <code>--no-config</code> for a clean session, <code>--no-preamble</code> to retain configured plugins without running the preamble, or <code>--preamble=FILE</code> for an explicit project preamble. <code>--plugin</code>, <code>--plugins</code>, and <code>--operator-file</code> remain one-session additions. Persistent setup affects the REPL, not script execution.</p>
+<p>Use <code>--no-config</code> to ignore saved settings (restoring the <code>full</code> default), <code>--no-preamble</code> to retain configured plugins without running the preamble, or <code>--preamble=FILE</code> for an explicit project preamble. <code>--plugins</code> replaces the preload selection for one session; <code>--plugin</code> and <code>--operator-file</code> add to the selected setup. Persistent setup affects the REPL, not script execution.</p>
 </section>
 <section id="run-a-file" class="level2">
 <h2 class="anchored" data-anchor-id="run-a-file">Run a file</h2>
