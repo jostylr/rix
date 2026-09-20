@@ -1,0 +1,9 @@
+# Usage from this directory: cloc --read-lang-def=rix.cloc .
+# Best-effort counts: tag names and block-comment star counts are not matched.
+# Comment delimiters inside strings can also affect the counts.
+RiX
+    filter remove_between_regex ##(?![@:!_])[^\s#]*## ##[^\s#]*##
+    filter remove_between_regex /\*+ \*+/
+    filter remove_matches ^\s*##(?![@:!_])
+    extension rix
+    3rd_gen_scale 1.00
