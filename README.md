@@ -78,16 +78,17 @@ rix --out=output report.rix
 
 ## Plugin loading: what is enabled?
 
-**Full plugin loading is not the default.** A fresh terminal session and a fresh
-JavaScript evaluator provide the core language; optional plugin mounts remain
-disabled until loaded. Discovering a plugin does not execute it. A previously
-saved REPL configuration can preload plugins and run a preamble.
+**The interactive REPL defaults to `full`. Scripts and JavaScript module calls
+start with the core language only.** Saved REPL plugin selections replace the
+built-in default. Discovering a plugin does not execute it.
 
-Choose plugins for one invocation:
+Choose plugins for one invocation. `--plugins` replaces the default or saved
+selection; repeatable `--plugin` flags add to the selected set:
 
 | Command | Loads |
 | --- | --- |
-| `rix --plugin=float` | The Float plugin for approximate arithmetic. `--with-floats` is an alias. |
+| `rix --plugins=none` | No implicit or saved plugin preloads. |
+| `rix --plugins=none --plugin=float` | Only Float and its dependencies. `--with-floats` is an additive alias for `--plugin=float`. |
 | `rix --plugins=plot,svg` | Selected plugins and their required dependencies. |
 | `rix --plugins=renderers` | Plugins in the Renderers group. |
 | `rix --plugins=full` | The curated standard set: exact algebras, algebra, drawing, plotting, Scene3D, ND, geometry, graphs, combinatorics, data, documents, Float, and renderers. |
@@ -106,14 +107,17 @@ rix setup --plugins=full
 rix
 ```
 
-Or save a smaller set with `rix setup --plugins=plot,svg`. Clear saved plugin
-preloads with `rix setup --plugins=`. Setup also creates a `cli-preamble.rix`
+Or save a smaller set with `rix setup --plugins=plot,svg`. Save a bare REPL default with `rix setup --plugins=none` (or `--plugins=`). Setup also creates a `cli-preamble.rix`
 file you can edit. The default directory is `~/.config/rix` (honoring
 `XDG_CONFIG_HOME`); `RIX_CONFIG_DIR` or `--config-dir=DIR` can override it.
 
-Use `rix --no-config` to ignore saved REPL plugins and its automatic preamble.
+Use `rix --no-config` to ignore saved settings and its automatic preamble; the
+built-in `full` default then applies. For a clean bare session, use
+`rix --no-config --plugins=none`.
 Use `--no-preamble` to skip the preamble while retaining configured plugins.
-Explicit plugin flags still apply. Saved REPL settings do **not** automatically
+`none` controls preloads, not permissions: an executed preamble, script header,
+or `.Plugin.Load(...)` can still request plugins. Explicit plugin flags still
+apply. Saved REPL settings do **not** automatically
 apply to file execution or JavaScript module calls.
 
 Programs can declare their own dependencies before the code:

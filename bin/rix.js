@@ -102,8 +102,8 @@ function usage() {
 
 Options:
   --out=DIR              Write artifacts declared with .Out(path, value) into DIR
-  --plugin=ID             Preload an approved plugin (repeatable)
-  --plugins=a,b           Preload a comma-separated plugin list
+  --plugin=ID             Add a plugin to the selected set (repeatable)
+  --plugins=a,b           Replace preloads; full is the REPL default, none is bare
   --all-plugins           Preload every discovered plugin with an approved installer
   --all-built-plugins     Preload every plugin shipped in this RiX repository
   --with-floats           Compatibility alias for --plugin=float
@@ -539,6 +539,7 @@ function parseRunnerArgs(rawArgs) {
     let allPlugins = false;
     let allBuiltPlugins = false;
     let pluginsSpecified = false;
+    let replacementPlugins = null;
     let preamble = null;
     let noPreamble = false;
     let noConfig = false;
@@ -562,7 +563,7 @@ function parseRunnerArgs(rawArgs) {
             plugins.push(arg.slice("--plugin=".length));
             pluginsSpecified = true;
         } else if (arg.startsWith("--plugins=")) {
-            plugins.push(...arg.slice("--plugins=".length).split(",").map((id) => id.trim()).filter(Boolean));
+            replacementPlugins = arg.slice("--plugins=".length).split(",").map((id) => id.trim()).filter(Boolean);
             pluginsSpecified = true;
         } else if (arg === "--operator-file") {
             const filename = rawArgs[++index];
@@ -596,10 +597,19 @@ function parseRunnerArgs(rawArgs) {
             if (!outDir) throw new Error("--out requires a directory");
         } else positional.push(arg);
     }
+    if (replacementPlugins?.some((id) => id.toLowerCase() === "none") && replacementPlugins.length > 1) {
+        throw new Error("Use --plugins=none alone, then --plugin=ID to add plugins");
+    }
+    if (plugins.some((id) => id.toLowerCase() === "none")) throw new Error("Use --plugins=none, not --plugin=none");
+    if ((allPlugins && allBuiltPlugins) || ((allPlugins || allBuiltPlugins) && replacementPlugins !== null)) {
+        throw new Error("Choose only one of --plugins, --all-plugins, or --all-built-plugins");
+    }
     if (preamble && noPreamble) throw new Error("--preamble and --no-preamble cannot be used together");
     return {
         positional,
-        plugins: [...new Set(plugins)],
+        plugins: [...new Set([...(replacementPlugins || []), ...plugins])],
+        pluginAdditions: [...new Set(plugins)],
+        replacementPlugins,
         pluginsSpecified,
         allPlugins,
         allBuiltPlugins,
@@ -1165,6 +1175,8 @@ async function main() {
         positional: args,
         plugins,
         pluginsSpecified,
+        pluginAdditions,
+        replacementPlugins,
         allPlugins,
         allBuiltPlugins,
         outDir,
@@ -1304,7 +1316,7 @@ async function main() {
         // REPL
         if (outDir) throw new Error("--out requires a RiX program file with .Out declarations");
         const cliConfig = noConfig
-            ? { plugins: [] }
+            ? { plugins: ["full"] }
             : readRixCliConfig(configDir);
         const automaticPreamble = path.join(configDir, "cli-preamble.rix");
         const preamblePath = noPreamble
@@ -1319,8 +1331,8 @@ async function main() {
             ? readSourceHeader(preambleSource, preamblePath)
             : { plugins: [], operatorFiles: [] };
         const requestedPlugins = [
-            ...cliConfig.plugins,
-            ...plugins,
+            ...(replacementPlugins ?? cliConfig.plugins),
+            ...pluginAdditions,
             ...preambleHeader.plugins.map(String),
         ];
         const pluginIds = selectedPluginIds(pluginCatalog, {

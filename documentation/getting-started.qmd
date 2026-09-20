@@ -70,7 +70,16 @@ half = x -> x / 2
 
 Useful REPL commands include `.help`, `.vars`, `.fns`, `.ast[expr]`, `.tokens[expr]`, `.load[pkg]`, `.reset`, and `.exit`. End a line with `\` for multiline input.
 
-## Persistent REPL setup
+## Plugin defaults and persistent REPL setup
+
+A fresh interactive REPL loads the curated `full` plugin set. File execution
+and embedded evaluator calls remain bare unless plugins are requested.
+`--plugins=plot,svg` replaces the built-in or saved selection, while repeatable
+`--plugin=ID` flags add to it. `--plugins=none` suppresses implicit and saved
+preloads; it does not forbid explicit loads or dependencies requested by a
+script or preamble. Use `--no-config --plugins=none` for a clean bare REPL.
+Saved empty plugin lists remain bare; an absent setting defaults to `full`.
+
 
 RiX keeps CLI configuration under `$XDG_CONFIG_HOME/rix`, falling back to
 `~/.config/rix`. Set `RIX_CONFIG_DIR` to use another location. Create or update
@@ -103,7 +112,7 @@ operator-files: [personal.operators.rix]
 digits := 50;
 ```
 
-Use `--no-config` for a clean session, `--no-preamble` to retain configured
+Use `--no-config` to ignore saved settings (restoring the `full` default), `--no-preamble` to retain configured
 plugins without running the preamble, or `--preamble=FILE` for an explicit
 project preamble. `--plugin`, `--plugins`, and `--operator-file` remain
 one-session additions. Persistent setup affects the REPL, not script execution.

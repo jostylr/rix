@@ -53,7 +53,7 @@ function validateConfig(value, filename) {
     }
     return {
         version: RIX_CLI_CONFIG_VERSION,
-        plugins: [...new Set((value.plugins || []).map(String).map((item) => item.trim()).filter(Boolean))],
+        plugins: [...new Set((value.plugins ?? ["full"]).map(String).map((item) => item.trim()).filter(Boolean))],
         numbers: {
             input: value.numbers?.input?.trim() || "z[10]",
             display: value.numbers?.display?.trim() || "..",
@@ -111,7 +111,7 @@ export function resolvePluginSelectors(pluginCatalog, selectors, options = {}) {
 
     for (const rawSelector of selectors || []) {
         const selector = normalizedSelector(rawSelector);
-        if (!selector) continue;
+        if (!selector || selector === "none") continue;
         if (selector === "full") {
             for (const metadata of entries) {
                 if (standardIds.has(metadata.id)) resolved.push(metadata.id);

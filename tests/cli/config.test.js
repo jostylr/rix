@@ -137,6 +137,48 @@ Mediant(a, b) -> a + b;
         expect(result.stdout).toContain("42");
     });
 
+    test("fresh REPL defaults to full; explicit sets replace defaults and saved selections", () => {
+        const directory = temporaryDirectory();
+        const inspect = '.Plugin.Info("float")\n.Plugin.Info("plot")\n.exit\n';
+        function loaded(flags) {
+            const result = spawnSync("bun", [path.join(rixRoot, "bin/rix.js"), `--config-dir=${directory}`, ...flags], {
+                encoding: "utf8", input: inspect,
+            });
+            expect(result.status).toBe(0);
+            expect(result.stderr).toBe("");
+            return [...result.stdout.matchAll(/loaded=([^}]+) }/g)].map((match) => match[1].trim() !== "_");
+        }
+        expect(readRixCliConfig(directory).plugins).toEqual(["full"]);
+        expect(loaded([])).toEqual([true, true]);
+        expect(loaded(["--plugins=none"])).toEqual([false, false]);
+        expect(loaded(["--plugins=float"])).toEqual([true, false]);
+        expect(loaded(["--plugins=none", "--plugin=float"])).toEqual([true, false]);
+        expect(loaded(["--plugin=float", "--plugins=none"])).toEqual([true, false]);
+        writeRixCliConfig(directory, { plugins: ["plot"] });
+        expect(loaded(["--plugin=float"])).toEqual([true, true]);
+        expect(loaded(["--plugins=float"])).toEqual([true, false]);
+        expect(loaded(["--plugins=none"])).toEqual([false, false]);
+        writeRixCliConfig(directory, { plugins: [] });
+        expect(loaded([])).toEqual([false, false]);
+        expect(loaded(["--no-config"])).toEqual([true, true]);
+    });
+
+    test("none leaves explicit source loads available and scripts ignore REPL defaults", () => {
+        const directory = temporaryDirectory();
+        writeRixCliConfig(directory, { plugins: ["full"] });
+        const source = path.join(directory, "inspect.rix");
+        const run = (text, flags = []) => {
+            writeFileSync(source, text);
+            const result = spawnSync("bun", [path.join(rixRoot, "bin/rix.js"), `--config-dir=${directory}`, ...flags, source], { encoding: "utf8" });
+            expect(result.status).toBe(0);
+            expect(result.stderr).toBe("");
+            return result.stdout;
+        };
+        expect(run('.Plugin.Info("float")')).toContain("loaded=_");
+        expect(run('/**\nplugins: [float]\n**/\n.Plugin.Info("float")', ["--plugins=none"])).toContain("loaded=[object Object]");
+        expect(run('.Plugin.Load("float"); .Plugin.Info("float")', ["--plugins=none"])).toContain("loaded=[object Object]");
+    });
+
     test("the CLI file runner awaits async scopes", () => {
         const directory = temporaryDirectory();
         const sourcePath = path.join(directory, "async.rix");
