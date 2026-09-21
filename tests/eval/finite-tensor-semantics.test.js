@@ -1,7 +1,8 @@
 import { expect,test } from "bun:test";
 import { Context,createDefaultRegistry,createDefaultSystemContext,parseAndEvaluate,formatValue } from "../../src/index.js";
 import { forEachShapedCell } from "../../src/runtime/shaped.js";
-const tensorTest=(name,body)=>test(name,body,20000);
+// Exact coordinate and symmetry checks need coverage-instrumented release headroom.
+const tensorTest=(name,body)=>test(name,body,60000);
 const setup='.Plugin.Load("linalg"); v:=.linalg.VectorSpace({= name="V",dimension=2,lineageLimit=2 });e:=.linalg.Frame(v,"e",:defining);f:=.linalg.Frame(v,{= name="f",relativeTo=e,basis=[1,1;0,1] });';
 const run=source=>parseAndEvaluate(setup+source);
 const flat=value=>{const result=[];
