@@ -13,7 +13,7 @@ formats including SVG, HTML, LaTeX, and PDF.
 [Getting started](https://docs.rix.ratmath.com/getting-started.html)
 
 Release **0.1.0** is an alpha and makes no source- or API-compatibility commitment.
-See the [release notes](https://github.com/jostylr/rix/blob/v0.1.0/CHANGELOG.md).
+See the [release notes](https://github.com/jostylr/rix/blob/main/CHANGELOG.md).
 
 ## Install
 
@@ -260,12 +260,33 @@ checks; `test:plugin plot` checks a selected plugin. `bun run test:portable`
 exercises both Node and Bun. After changing runtime or plugin sources, run
 `bun run build:package` to refresh portable plugin text and live browser assets;
 `bun run check:package-assets` detects stale generated files. The `.rix` files
-remain the authoritative source. Release packing rebuilds these assets. Run `bun run check:release`
-from the RiX repository before publication. It includes coverage, native RiX
-tests, documentation, editor policy, package contents, and an isolated install
-against registry dependencies. For a local Core/RiX rehearsal, use
+remain the authoritative source. Packing checks asset freshness without
+rebuilding or changing the verified package.
+
+Run the complete release verification separately, after finishing code and docs:
+
+```sh
+bun run check:release
+bun run check:publish
+npm publish
+```
+
+`check:release` builds package assets, runs the full coverage suite, native RiX
+tests, documentation, editor policy, package checks, and a registry consumer
+install. Only a successful run with unchanged inputs records
+`tmp/release-verification.json`. This receipt fingerprints repository files,
+actual npm package contents, installed runtime/development dependencies,
+lockfiles, and Node/Bun/npm versions.
+
+`check:publish` is a quick freshness check. `npm publish` runs that check
+through `prepublishOnly`, **not the full suite**. Edits or dependency/runtime
+changes invalidate the receipt; committing or tagging identical content does
+not. Failed verification leaves no receipt. The receipt is local and ignored
+by Git; a different checkout/install must verify its own state.
+
+For a local Core/RiX rehearsal, use
 `bun scripts/package-consumer-smoke.js --workspace-core`; this does not replace
-the registry gate or publish anything.
+the registry gate or record a successful full release verification.
 
 See the [developer guide](https://docs.rix.ratmath.com/developer-guide.html) and
 [source development instructions](https://github.com/jostylr/rix/blob/main/development-instructions.md).

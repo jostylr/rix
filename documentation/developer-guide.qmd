@@ -122,3 +122,27 @@ module API, async cancellation, CLI/REPL selections, editor tools, and static/li
 publication. The isolated package smoke repeats these checks against an installed
 tarball. CI covers Node 22, 24, and 26 on Linux alongside Bun. Local checks do not
 establish Windows or macOS release certification beyond the actual tested host.
+
+
+## Verify once, then publish the same state
+
+Run `bun run check:release` independently of publishing. It prepares package
+assets, runs every release check, and writes a local ignored receipt at
+`tmp/release-verification.json` only after success. A failed or interrupted run
+removes the previous receipt. If inputs change during the run, no receipt is
+written.
+
+Run `bun run check:publish` to inspect readiness quickly. `npm publish` uses this
+same guard through `prepublishOnly`; it does not repeat the expensive suite.
+`prepack` checks generated-asset freshness and does not rebuild files after
+verification. Finish documentation generation before the full check.
+
+The fingerprint covers tracked and untracked nonignored repository files, the
+actual npm file list (including otherwise ignored packaged assets), installed
+direct/transitive runtime and development dependencies, relevant lockfiles,
+platform/architecture, and Node/Bun/npm versions. A source, test, documentation,
+package-version, dependency, or runtime change requires a fresh successful run.
+A commit or tag without content changes remains valid. This is a local workflow
+receipt; CI verification does not silently approve a different local install.
+The internal `check:release:checks` command runs checks without recording a
+receipt; use `check:release` for release preparation.

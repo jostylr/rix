@@ -47,3 +47,8 @@ The 0.1 line makes no source- or API-compatibility commitment.
 - The release gate runs the complete coverage suite, native RiX tests,
   documentation checks, editor policy validation, and package verification.
   Aggregate tutorial tests use the same two-minute budget locally and in CI.
+
+- Full release verification is independent of `npm publish`. Publishing checks a
+  local receipt for unchanged source, package contents, dependencies, and runtime
+  versions; packing only checks generated assets without rebuilding them.
+- Exact tensor coordinate/symmetry tests allow a one-minute coverage budget.

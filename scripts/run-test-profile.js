@@ -120,6 +120,7 @@ export const ciAdditionalTests = new Set([
     "tests/tools/graphic-accessibility.test.js",
     "tests/tools/output-widgets.test.js",
     "tests/tools/package-smoke.test.js",
+    "tests/tools/release-verification.test.js",
     "tests/tools/scene3d-view.test.js",
     "tests/tools/timeline-view.test.js",
 ]);

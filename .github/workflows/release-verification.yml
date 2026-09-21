@@ -28,3 +28,10 @@ jobs:
 
       - name: Run comprehensive release verification
         run: bun run check:release
+
+      - name: Retain verification receipt for this CI environment
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-verification-receipt
+          path: tmp/release-verification.json
+          if-no-files-found: error
