@@ -1,4 +1,4 @@
-# RiX
+# RiX 0.1.0
 
 RiX (Rational Interval Expression Language) is a mathematical programming language
 for exact fractions, interval arithmetic, symbolic calculations, and reproducible
@@ -12,7 +12,8 @@ formats including SVG, HTML, LaTeX, and PDF.
 [Documentation](https://docs.rix.ratmath.com/) ·
 [Getting started](https://docs.rix.ratmath.com/getting-started.html)
 
-The 0.1 line is an alpha and makes no source- or API-compatibility commitment.
+Release **0.1.0** is an alpha and makes no source- or API-compatibility commitment.
+See the [release notes](https://github.com/jostylr/rix/blob/v0.1.0/CHANGELOG.md).
 
 ## Install
 

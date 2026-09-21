@@ -6,6 +6,7 @@
   "type": "module",
   "files": [
     "LICENSE",
+    "CHANGELOG.md",
     "README.md",
     "benchmarks/",
     "bin/",
