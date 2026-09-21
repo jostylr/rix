@@ -7,6 +7,9 @@ import { extractFences, runDocuments } from "../../documentation/scripts/check-e
 const rixRoot = path.resolve(import.meta.dir, "../..");
 const pluginsRoot = path.join(rixRoot, "plugins");
 const selectedPlugin = process.env.RIX_PLUGIN_TEST || null;
+// These aggregate checks also execute explicitly runnable cells. Allow the same
+// bounded budget locally and in CI, including coverage-instrumented releases.
+const TUTORIAL_COLLECTION_TIMEOUT_MS = 120_000;
 
 function selected(entry) {
     return entry.isDirectory() && (!selectedPlugin || entry.name === selectedPlugin);
@@ -57,7 +60,7 @@ describe("implemented plugin tutorials", () => {
         expect(tutorials).toHaveLength(manifestDirectories.length);
         expect(results).toHaveLength(expectedCells);
         expect(results.filter(({ status }) => status !== "pass")).toEqual([]);
-    }, 120_000);
+    }, TUTORIAL_COLLECTION_TIMEOUT_MS);
 
     test("supplemental implemented tutorials keep every RiX cell parseable", () => {
         const tutorials = supplementalPluginTutorials();
@@ -75,5 +78,5 @@ describe("implemented plugin tutorials", () => {
         if (!selectedPlugin) expect(tutorials.length).toBeGreaterThanOrEqual(1);
         expect(results).toHaveLength(expectedCells);
         expect(results.filter(({ status }) => status !== "pass")).toEqual([]);
-    }, process.env.CI ? 120_000 : 30_000);
+    }, TUTORIAL_COLLECTION_TIMEOUT_MS);
 });
