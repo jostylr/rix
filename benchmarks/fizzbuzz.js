@@ -1,5 +1,6 @@
 /** Compare the FizzBuzz forms in rix-web/tutorials/problem-fizzbuzz.md. */
 import assert from "node:assert/strict";
+import { Integer } from "@ratmath/core";
 import {
     Context,
     createDefaultRegistry,
@@ -25,6 +26,15 @@ const readableJavaScript = (n) => {
     return n;
 };
 const compactJavaScript = (n) => n % 15 ? n % 3 ? n % 5 ? n : "Buzz" : "Fizz" : "FizzBuzz";
+const coreThree = new Integer(3);
+const coreFive = new Integer(5);
+const coreFifteen = new Integer(15);
+const coreJavaScript = (n) => {
+    if (n.modulo(coreFifteen).isZero()) return "FizzBuzz";
+    if (n.modulo(coreThree).isZero()) return "Fizz";
+    if (n.modulo(coreFive).isZero()) return "Buzz";
+    return n;
+};
 const expected = Array.from({ length: count }, (_, i) => readableJavaScript(i + 1));
 const expectedDisplay = `[${expected.join(", ")}]`;
 assert.equal(expected[14], "FizzBuzz");
@@ -98,10 +108,25 @@ function createJavaScriptBenchmark(name, fn) {
     };
 }
 
+function createCoreJavaScriptBenchmark() {
+    return {
+        name: "Integer if/return",
+        language: "JavaScript + RatMath core",
+        repetitions: quick ? 3 : 30,
+        run: () => Array.from({ length: count }, (_, i) => coreJavaScript(new Integer(i + 1))),
+        verify: (values) => {
+            assert.ok(values[0] instanceof Integer);
+            assert.deepEqual(values.map((value) => value instanceof Integer ? Number(value.value) : value), expected);
+        },
+        samples: [],
+    };
+}
+
 const benchmarks = [
     ...rixForms.map(createRixBenchmark),
     createJavaScriptBenchmark("if/return", readableJavaScript),
     createJavaScriptBenchmark("nested ternary", compactJavaScript),
+    createCoreJavaScriptBenchmark(),
 ];
 
 for (const benchmark of benchmarks) {
@@ -130,7 +155,7 @@ function median(values) {
 
 console.log(`FizzBuzz batches: ${count} values, ${rounds} timed rounds, ${warmups} warmups`);
 console.log("Setup and RiX parsing/lowering are excluded; the anonymous group is constructed by its timed expression.");
-console.log("JavaScript uses Number; RiX uses exact integers and its evaluator. Compare within each language first.");
+console.log("Native JavaScript uses Number; RatMath core and RiX use exact integers. RiX also includes evaluator and map-pipe overhead.");
 console.log("| language | form | median ms/batch | min–max ms/batch |");
 console.log("|---|---|---:|---:|");
 for (const benchmark of benchmarks) {
