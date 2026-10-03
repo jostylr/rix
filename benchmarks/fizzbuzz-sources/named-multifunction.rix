@@ -1,0 +1,6 @@
+FizzBuzz(n) ?- [n % 15 == 0] /Both/ => "FizzBuzz";
+FizzBuzz(n) ?- [n % 3 == 0] /Three/ => "Fizz";
+FizzBuzz(n) ?- [n % 5 == 0] /Five/ => "Buzz";
+FizzBuzz(n) /Number/ => n;
+
+Run(count) -> [1 |+ 1 |; count] |>> FizzBuzz;
