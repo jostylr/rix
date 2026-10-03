@@ -1,4 +1,4 @@
-/** Compare interpreted RiX, compiled RiX, and an efficient native JS FizzBuzz. */
+/** Compare interpreted RiX, compiled RiX, and plain/core JavaScript FizzBuzz. */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -15,6 +15,9 @@ const count = quick ? 100 : 1000;
 const rounds = quick ? 3 : 9;
 const warmups = quick ? 1 : 3;
 const names = ["ternary", "named-multifunction", "anonymous-multifunction", "case-block"];
+const coreThree = new Integer(3);
+const coreFive = new Integer(5);
+const coreFifteen = new Integer(15);
 
 function expectedValues(length) {
     return Array.from({ length }, (_, index) => {
@@ -37,6 +40,31 @@ function nativeFizzBuzz(length) {
 
 const expected = expectedValues(count);
 const expectedDisplay = `[${expected.join(", ")}]`;
+
+function coreFizzBuzz(length) {
+    const values = new Array(length);
+    for (let n = 1; n <= length; n += 1) {
+        const value = new Integer(n);
+        if (value.modulo(coreFifteen).isZero()) values[n - 1] = "FizzBuzz";
+        else if (value.modulo(coreThree).isZero()) values[n - 1] = "Fizz";
+        else if (value.modulo(coreFive).isZero()) values[n - 1] = "Buzz";
+        else values[n - 1] = value;
+    }
+    return values;
+}
+
+function verifyCore(values, length) {
+    const wanted = length === count ? expected : expectedValues(length);
+    assert.equal(values.length, wanted.length);
+    for (let index = 0; index < length; index += 1) {
+        if (typeof wanted[index] === "number") {
+            assert.ok(values[index] instanceof Integer);
+            assert.equal(values[index].value, BigInt(wanted[index]));
+        } else {
+            assert.equal(values[index], wanted[index]);
+        }
+    }
+}
 
 async function prepareProgram(name, { trustedCompiled }) {
     const file = resolve(import.meta.dir, "fizzbuzz-sources", `${name}.rix`);
@@ -66,19 +94,27 @@ for (const name of names) {
 }
 programs.push({ name: "native loop", mode: "native JavaScript", repetitions: quick ? 50 : 300,
     run: () => nativeFizzBuzz(count), samples: [] });
+programs.push({ name: "core loop", mode: "RatMath core JavaScript", repetitions: quick ? 5 : 30,
+    run: () => coreFizzBuzz(count), samples: [] });
 
 function verify(program, result) {
     if (program.mode === "native JavaScript") assert.deepEqual(result, expected);
+    else if (program.mode === "RatMath core JavaScript") verifyCore(result, count);
     else assert.equal(formatValue(result), expectedDisplay, `${program.name} ${program.mode}`);
 }
 
 for (const program of programs) {
     verify(program, program.run());
     for (const sample of [0, 1, 15, 30]) {
-        if (program.mode !== "trusted .rix.js") continue;
-        const file = resolve(import.meta.dir, "fizzbuzz-sources", `${program.name}.rix.js`);
-        const compiled = await import(pathToFileURL(file).href);
-        assert.equal(formatValue(compiled.run(new Integer(sample))), `[${expectedValues(sample).join(", ")}]`);
+        if (program.mode === "trusted .rix.js") {
+            const file = resolve(import.meta.dir, "fizzbuzz-sources", `${program.name}.rix.js`);
+            const compiled = await import(pathToFileURL(file).href);
+            assert.equal(formatValue(compiled.run(new Integer(sample))), `[${expectedValues(sample).join(", ")}]`);
+        } else if (program.mode === "RatMath core JavaScript") {
+            verifyCore(coreFizzBuzz(sample), sample);
+        } else if (program.mode === "native JavaScript") {
+            assert.deepEqual(nativeFizzBuzz(sample), expectedValues(sample));
+        }
     }
     for (let warmup = 0; warmup < warmups; warmup += 1) program.run();
 }
@@ -104,13 +140,14 @@ function median(values) {
 
 console.log(`FizzBuzz AOT experiment: ${count} values, ${rounds} rounds, ${warmups} warmups`);
 console.log("Parsing, compilation, module import, and setup are excluded from timed batches.");
-console.log("RiX paths return exact Integer/string/sequence values; native JS returns an array of Number/string values.");
+console.log("Core JavaScript uses exact Integer arithmetic with plain arrays/strings; native JavaScript uses Number.");
 console.log("Only trusted mode imports generated JS; every batch result is checked outside the timed section.");
-console.log("| form | interpreted ms | compiled ms | native JS ms | AOT speedup | compiled / native |");
-console.log("|---|---:|---:|---:|---:|---:|");
-const native = median(programs.at(-1).samples);
-for (let index = 0; index < programs.length - 1; index += 2) {
+console.log("| form | interpreted ms | compiled ms | core JS ms | native JS ms | AOT speedup | compiled / core | compiled / native |");
+console.log("|---|---:|---:|---:|---:|---:|---:|---:|");
+const core = median(programs.at(-1).samples);
+const native = median(programs.at(-2).samples);
+for (let index = 0; index < programs.length - 2; index += 2) {
     const interpreted = median(programs[index].samples);
     const compiled = median(programs[index + 1].samples);
-    console.log(`| ${programs[index].name} | ${interpreted.toFixed(5)} | ${compiled.toFixed(5)} | ${native.toFixed(5)} | ${(interpreted / compiled).toFixed(1)}× | ${(compiled / native).toFixed(1)}× |`);
+    console.log(`| ${programs[index].name} | ${interpreted.toFixed(5)} | ${compiled.toFixed(5)} | ${core.toFixed(5)} | ${native.toFixed(5)} | ${(interpreted / compiled).toFixed(1)}× | ${(compiled / core).toFixed(1)}× | ${(compiled / native).toFixed(1)}× |`);
 }
