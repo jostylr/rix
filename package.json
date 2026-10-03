@@ -50,6 +50,8 @@
       "default": "./src/eval/index-node.js"
     },
     "./runtime": "./src/runtime/index.js",
+    "./compiler-runtime": "./src/compile/runtime.js",
+    "./compiler": "./src/compile/program-to-javascript.js",
     "./runtime/node": "./src/runtime/host-adapter-node.js",
     "./live-publication": "./src/runtime/live-publication.js",
     "./live-publication/node": "./src/runtime/live-publication-node.js",
@@ -62,6 +64,7 @@
   "bin": {
     "rix": "./bin/rix.js",
     "rix-to-ir": "./bin/rix-to-ir.js",
+    "rix-to-js": "./bin/rix-to-js.js",
     "rix-language-server": "./bin/rix-language-server.js",
     "rix-worker": "./bin/rix-worker.js"
   },

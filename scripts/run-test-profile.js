@@ -83,6 +83,7 @@ export const shortTests = new Set([
     "tests/tools/graphic-view.test.js",
     "tests/tools/language-service.test.js",
     "tests/tools/lsp.test.js",
+    "tests/tools/program-to-javascript.test.js",
     "tests/tools/rix-to-ir.test.js",
     "tests/tools/sheet-view.test.js",
     "tests/tools/test-profiles.test.js",

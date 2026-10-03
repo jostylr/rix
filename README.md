@@ -238,9 +238,11 @@ Node users do not need Bun or a bundler to create them.
 - [Editor and agent tooling](https://docs.rix.ratmath.com/editor-and-agent-tooling.html): formatting, verification, language server, and VS Code integration.
 - [Source and issues](https://github.com/jostylr/rix).
 
-The package installs `rix`, `rix-to-ir`, `rix-language-server`, and `rix-worker`.
+The package installs `rix`, `rix-to-ir`, `rix-to-js`, `rix-language-server`, and `rix-worker`.
 For example, `rix format --check example.rix` checks formatting and
 `rix verify --json example.rix` produces structured verification results.
+The initial [RiX-to-JavaScript compiler](documentation/eval/rix-to-js.md) builds
+trusted `.rix.js` siblings for scripts; dynamic operations still use the RiX runtime.
 
 ## Contributing and release checks
 
