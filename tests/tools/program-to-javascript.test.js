@@ -13,9 +13,9 @@ const directory = mkdtempSync(resolve(import.meta.dir, "../../tmp/rix-to-js-"));
 let nextFile = 0;
 afterAll(() => rmSync(directory, { recursive: true, force: true }));
 
-async function compileModule(source) {
+async function compileModule(source, options = {}) {
     const file = resolve(directory, `case-${nextFile++}.rix.js`);
-    writeFileSync(file, compileProgramToJavaScript(source, { sourceName: "test.rix" }));
+    writeFileSync(file, compileProgramToJavaScript(source, { sourceName: "test.rix", ...options }));
     return import(pathToFileURL(file).href);
 }
 
@@ -25,6 +25,7 @@ describe("general RiX-to-JavaScript compiler", () => {
         const compiled = await compileModule(source);
         const context = new Context();
         expect(formatValue(compiled.run({ context }))).toBe(formatValue(parseAndEvaluate(source)));
+        expect(compiled.fastPathAvailable).toBe(false);
         expect(compiled.compiledOperationCount).toBeGreaterThan(0);
         expect(formatValue(parseAndEvaluate("Double(4);", { context }))).toBe("8");
         expect(formatValue(await compiled.runAsync())).toBe(formatValue(parseAndEvaluate(source)));
@@ -35,9 +36,44 @@ describe("general RiX-to-JavaScript compiler", () => {
             const fixture = readFileSync(resolve(import.meta.dir, "../../benchmarks/fizzbuzz-sources", `${name}.rix`), "utf8");
             const source = `${fixture}\nRun(30);`;
             const compiled = await compileModule(source);
-            expect(formatValue(compiled.run())).toBe(formatValue(parseAndEvaluate(source)));
+            expect(compiled.fastPathAvailable).toBe(true);
+            const fastResult = compiled.run();
+            expect(formatValue(fastResult)).toBe(formatValue(parseAndEvaluate(source)));
+            if (name === "ternary") expect(fastResult.values[2]).not.toBe(fastResult.values[5]);
+            expect(formatValue(compiled.run({ context: new Context() }))).toBe(formatValue(parseAndEvaluate(source)));
             expect(compiled.compiledOperationCount).toBeGreaterThan(0);
         }
+    });
+
+    test("fast scalar literals are fresh RiX values across calls", async () => {
+        const strings = await compileModule('Run(n) -> "hi"; Run(1);');
+        expect(strings.fastPathAvailable).toBe(true);
+        expect(strings.run()).not.toBe(strings.run());
+        const integers = await compileModule("Run(n) -> 1; Run(2);");
+        expect(integers.fastPathAvailable).toBe(true);
+        expect(integers.run()).not.toBe(integers.run());
+    });
+
+    test("fast-path precondition failures retry through RiX semantics", async () => {
+        const source = "Run(n) -> n % 0; Run(1);";
+        const compiled = await compileModule(source);
+        expect(compiled.fastPathAvailable).toBe(true);
+        expect(() => compiled.run()).toThrow();
+        expect(() => compiled.run()).toThrow(/mod|zero|positive/i);
+    });
+
+    test("returned functions use the regular RiX representation", async () => {
+        const source = "F(n) -> n; Run(n) -> F; Run(1);";
+        const compiled = await compileModule(source);
+        expect(compiled.fastPathAvailable).toBe(true);
+        expect(compiled.run().type).toBe("function");
+        expect(formatValue(compiled.run())).toBe(formatValue(parseAndEvaluate(source)));
+    });
+
+    test("custom parser configuration disables the direct path", async () => {
+        const compiled = await compileModule("Run(n) -> n; Run(1);", { operatorDefinitions: [] });
+        expect(compiled.fastPathAvailable).toBe(false);
+        expect(formatValue(compiled.run())).toBe("1");
     });
 
     test("uses the runtime registry, including a changed operator implementation", async () => {

@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { parse } from "../parser/parser.js";
 import { lower } from "../eval/lower.js";
 import { createDefaultRegistry } from "../eval/evaluator.js";
+import { compileFastRiXProgram } from "./to-javascript.js";
 
 function literal(value, seen = new WeakSet()) {
     if (value === undefined) return "undefined";
@@ -88,19 +89,31 @@ export function compileProgramToJavaScript(source, options = {}) {
         && !node.args?.some((arg) => arg?.fn === "SPREAD"));
     const sourceHash = createHash("sha256").update(source).digest("hex");
     const importPath = options.runtimeImport || "@ratmath/rix/compiler-runtime";
+    let fastCode = null;
+    if (!options.systemLookup && !options.operatorDefinitions) {
+        try {
+            fastCode = compileFastRiXProgram(nodes);
+        } catch (error) {
+            if (!String(error?.message).startsWith("RiX-to-JS experiment does not support ")) throw error;
+        }
+    }
     const definitions = compiled.map(emitFunction).join("\n");
     const registrations = compiled.map(({ path }, index) => `dispatch.set(${path}, compiled${index});`).join("\n");
     return `// Generated RiX module; execute only when this JavaScript artifact is trusted.\n`
         + `import { resolve } from "node:path";\n`
         + `import { fileURLToPath, pathToFileURL } from "node:url";\n`
         + `import { evaluate, formatValue, isHole, runCompiled, runCompiledAsync } from ${JSON.stringify(importPath)};\n`
+        + (fastCode ? `import { Integer } from "@ratmath/core";\n`
+            + `import { decisionState, UNDECIDED, NO_MATCH, FastPathBailout, isFastResultCompatible, rixModulo, rixEqual, rixGenerator, rixMap, rixFunction, rixMultifunction, rixInvoke } from "@ratmath/rix/compiler-fast-runtime";\n` : "")
         + `export const sourceHash = ${JSON.stringify(sourceHash)};\n`
         + `export const compiledOperationCount = ${compiled.length};\n`
+        + `export const fastPathAvailable = ${Boolean(fastCode)};\n`
         + `const source = ${JSON.stringify(source)};\n`
         + `const sourceFile = fileURLToPath(new URL(${JSON.stringify(options.sourceName || "source.rix")}, import.meta.url));\n`
         + `const irNodes = ${literal(nodes)};\n`
         + `const dispatch = new WeakMap();\n${definitions}${registrations}\n`
-        + `export function run(options = {}) { return runCompiled(source, irNodes, dispatch, { file: sourceFile, ...options }); }\n`
+        + (fastCode || "")
+        + `export function run(options = {}) { ${fastCode ? "if (options && typeof options === 'object' && Object.keys(options).length === 0) { try { const value = fastRun(); if (isFastResultCompatible(value)) return value; } catch (error) { if (!(error instanceof FastPathBailout)) throw error; } } " : ""}return runCompiled(source, irNodes, dispatch, { file: sourceFile, ...options }); }\n`
         + `export function runAsync(options = {}) { return runCompiledAsync(source, irNodes, { file: sourceFile, ...options }); }\n`
         + `if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {\n`
         + `    const result = process.argv.includes("--async") ? await runAsync() : run();\n`

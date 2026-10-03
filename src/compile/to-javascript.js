@@ -15,11 +15,12 @@ function unwrapDefer(node) {
 }
 
 class Emitter {
-    constructor() {
+    constructor({ freshLiterals = false } = {}) {
         this.integers = new Map();
         this.strings = new Map();
         this.tempIndex = 0;
         this.bindings = new Set();
+        this.freshLiterals = freshLiterals;
     }
 
     temp() { return `d${this.tempIndex++}`; }
@@ -55,9 +56,11 @@ class Emitter {
             case "LITERAL": {
                 const value = String(args[0]);
                 if (!/^-?\d+$/.test(value)) unsupported(`numeric literal ${value}`);
+                if (this.freshLiterals) return `new Integer(${value}n)`;
                 return this.constant(this.integers, value, "i");
             }
             case "STRING":
+                if (this.freshLiterals) return `({ type: "string", value: ${JSON.stringify(String(args[0]))} })`;
                 return this.constant(this.strings, String(args[0]), "s");
             case "RETRIEVE": {
                 const name = args[0];
@@ -65,6 +68,11 @@ class Emitter {
                 if (this.bindings.has(name)) return `v_${name}`;
                 unsupported(`an unresolved name ${name}`);
                 break;
+            }
+            case "CALL": {
+                const name = args[0];
+                if (!this.bindings.has(name) || args.length !== 2) unsupported(`call to ${name}`);
+                return `rixInvoke(v_${name}, ${this.expression(args[1], env)})`;
             }
             case "MOD":
                 return `rixModulo(${this.expression(args[0], env)}, ${this.expression(args[1], env)})`;
@@ -139,7 +147,7 @@ class Emitter {
         return output;
     }
 
-    module(nodes, { source, sourceName, runtimeImport }) {
+    definitions(nodes) {
         const groups = [];
         const seen = new Set();
         for (const node of nodes) {
@@ -163,24 +171,44 @@ class Emitter {
                 unsupported(`top-level IR operation ${node.fn}`);
             }
         }
-        if (!seen.has("RUN")) unsupported("a missing Run(count) entry point");
         const definitions = groups.map((group) => {
             this.bindings.add(group.name);
             return group.kind === "function"
                 ? this.function(group.nodes[0])
                 : `const v_${group.name} = rixMultifunction(${JSON.stringify(group.name)}, [\n${group.nodes.map((node) => this.variant(node, true)).join(",\n")}\n]);\n`;
         }).join("\n");
+        return { groups, seen, definitions };
+    }
+
+    constants() {
         const integers = [...this.integers].map(([value, name]) => `const ${name} = new Integer(${value}n);`).join("\n");
         const strings = [...this.strings].map(([value, name]) => `const ${name} = Object.freeze({ type: "string", value: ${JSON.stringify(value)} });`).join("\n");
+        return `${integers}\n${strings}\n`;
+    }
+
+    fastProgram(nodes) {
+        if (nodes.length < 2) unsupported("a final expression after definitions");
+        const { definitions } = this.definitions(nodes.slice(0, -1));
+        const entry = this.expression(nodes.at(-1), new Map());
+        return `${this.constants()}${definitions}\nfunction fastRun() { return ${entry}; }\n`;
+    }
+
+    module(nodes, { source, sourceName, runtimeImport }) {
+        const { groups, seen, definitions } = this.definitions(nodes);
+        if (!seen.has("RUN")) unsupported("a missing Run(count) entry point");
         const hash = createHash("sha256").update(source).digest("hex");
         return `// Generated from ${sourceName.replace(/[\r\n]/g, " ")}; trusted build artifact only.\n`
             + `import { Integer } from "@ratmath/core";\n`
             + `import { decisionState, UNDECIDED, NO_MATCH, rixModulo, rixEqual, rixGenerator, rixMap, rixFunction, rixMultifunction, rixInvoke } from ${JSON.stringify(runtimeImport)};\n`
             + `export const sourceHash = ${JSON.stringify(hash)};\n`
-            + `${integers}\n${strings}\n${definitions}\n`
+            + `${this.constants()}${definitions}\n`
             + `export const rixExports = Object.freeze({ ${groups.map((group) => `${group.name}: v_${group.name}`).join(", ")} });\n`
             + `export function run(count) { return rixInvoke(v_RUN, count instanceof Integer ? count : new Integer(count)); }\n`;
     }
+}
+
+export function compileFastRiXProgram(nodes) {
+    return new Emitter({ freshLiterals: true }).fastProgram(nodes);
 }
 
 export function compileRixToJavaScript(source, options = {}) {

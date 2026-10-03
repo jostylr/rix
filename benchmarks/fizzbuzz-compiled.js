@@ -1,6 +1,6 @@
 /** Compare interpreted RiX, compiled RiX, and plain/core JavaScript FizzBuzz. */
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { Integer } from "@ratmath/core";
@@ -9,12 +9,15 @@ import {
     evaluate, formatValue, lower, parse, parseAndEvaluate, tokenize,
 } from "../src/index.js";
 import { compileFile } from "../bin/rix-to-js-experiment.js";
+import { compileProgramToJavaScript } from "../src/compile/program-to-javascript.js";
 
 const quick = process.argv.includes("--quick");
 const count = quick ? 100 : 1000;
 const rounds = quick ? 3 : 9;
 const warmups = quick ? 1 : 3;
 const names = ["ternary", "named-multifunction", "anonymous-multifunction", "case-block"];
+const generatedDirectory = mkdtempSync(resolve(import.meta.dir, "../tmp/fizzbuzz-general-"));
+process.once("exit", () => rmSync(generatedDirectory, { recursive: true, force: true }));
 const coreThree = new Integer(3);
 const coreFive = new Integer(5);
 const coreFifteen = new Integer(15);
@@ -66,10 +69,20 @@ function verifyCore(values, length) {
     }
 }
 
-async function prepareProgram(name, { trustedCompiled }) {
+async function prepareProgram(name, mode) {
     const file = resolve(import.meta.dir, "fizzbuzz-sources", `${name}.rix`);
     const source = readFileSync(file, "utf8");
-    if (trustedCompiled) {
+    if (mode === "general") {
+        const generatedFile = resolve(generatedDirectory, `${name}.rix.js`);
+        writeFileSync(generatedFile, compileProgramToJavaScript(`${source}\nRun(${count});`, {
+            sourceName: `${name}.rix`,
+        }));
+        const compiled = await import(pathToFileURL(generatedFile).href);
+        assert.equal(compiled.fastPathAvailable, true, `${name} must use the general compiler's fast path`);
+        return { name, mode: "general .rix.js", repetitions: quick ? 5 : 30,
+            run: () => compiled.run(), samples: [] };
+    }
+    if (mode === "prototype") {
         // Only an explicitly trusted caller may import the sibling JS module.
         // --check ensures the artifact was generated from the current RiX source.
         const compiledFile = compileFile(file, { check: true });
@@ -89,8 +102,9 @@ async function prepareProgram(name, { trustedCompiled }) {
 
 const programs = [];
 for (const name of names) {
-    programs.push(await prepareProgram(name, { trustedCompiled: false }));
-    programs.push(await prepareProgram(name, { trustedCompiled: true }));
+    programs.push(await prepareProgram(name, "interpreted"));
+    programs.push(await prepareProgram(name, "general"));
+    programs.push(await prepareProgram(name, "prototype"));
 }
 programs.push({ name: "native loop", mode: "native JavaScript", repetitions: quick ? 50 : 300,
     run: () => nativeFizzBuzz(count), samples: [] });
@@ -141,13 +155,14 @@ function median(values) {
 console.log(`FizzBuzz AOT experiment: ${count} values, ${rounds} rounds, ${warmups} warmups`);
 console.log("Parsing, compilation, module import, and setup are excluded from timed batches.");
 console.log("Core JavaScript uses exact Integer arithmetic with plain arrays/strings; native JavaScript uses Number.");
-console.log("Only trusted mode imports generated JS; every batch result is checked outside the timed section.");
-console.log("| form | interpreted ms | compiled ms | core JS ms | native JS ms | AOT speedup | compiled / core | compiled / native |");
+console.log("Generated JS is imported only in trusted benchmark modes; every batch result is checked outside the timed section.");
+console.log("| form | interpreted ms | general AOT ms | prototype AOT ms | core JS ms | native JS ms | general speedup | general / core |");
 console.log("|---|---:|---:|---:|---:|---:|---:|---:|");
 const core = median(programs.at(-1).samples);
 const native = median(programs.at(-2).samples);
-for (let index = 0; index < programs.length - 2; index += 2) {
+for (let index = 0; index < programs.length - 2; index += 3) {
     const interpreted = median(programs[index].samples);
-    const compiled = median(programs[index + 1].samples);
-    console.log(`| ${programs[index].name} | ${interpreted.toFixed(5)} | ${compiled.toFixed(5)} | ${core.toFixed(5)} | ${native.toFixed(5)} | ${(interpreted / compiled).toFixed(1)}× | ${(compiled / core).toFixed(1)}× | ${(compiled / native).toFixed(1)}× |`);
+    const general = median(programs[index + 1].samples);
+    const prototype = median(programs[index + 2].samples);
+    console.log(`| ${programs[index].name} | ${interpreted.toFixed(5)} | ${general.toFixed(5)} | ${prototype.toFixed(5)} | ${core.toFixed(5)} | ${native.toFixed(5)} | ${(interpreted / general).toFixed(1)}× | ${(general / core).toFixed(1)}× |`);
 }

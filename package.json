@@ -51,6 +51,7 @@
     },
     "./runtime": "./src/runtime/index.js",
     "./compiler-runtime": "./src/compile/runtime.js",
+    "./compiler-fast-runtime": "./src/compile/js-runtime.js",
     "./compiler": "./src/compile/program-to-javascript.js",
     "./runtime/node": "./src/runtime/host-adapter-node.js",
     "./live-publication": "./src/runtime/live-publication.js",

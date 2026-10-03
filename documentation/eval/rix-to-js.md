@@ -1,4 +1,4 @@
-# RiX to JavaScript compiler (initial general path)
+# RiX to JavaScript compiler
 
 `rix-to-js` writes a sibling JavaScript module from a RiX script. For a trusted
 script:
@@ -14,18 +14,28 @@ also exports `run(options)` and `runAsync(options)` for a host to call with its
 own `context`, `registry`, and `systemContext`. Direct execution uses the sync
 path; pass `--async` to the generated file for a script requiring asynchronous
 evaluation. The module exports `sourceHash` and `compiledOperationCount` for
-inspection. `sourceHash` checks freshness, not authenticity.
+inspection. `fastPathAvailable` reports whether the compiler emitted a direct
+JavaScript entry point. `sourceHash` checks freshness, not authenticity.
 
-This is the foundation of a general compiler, not yet full static translation.
-Compilation parses and lowers the source once, serializes the resulting IR, and
-emits JavaScript functions for nodes using the standard registry calling
-convention. Those functions look up capabilities at runtime so installed type
-variants and overrides keep working. RiX functions, multifunctions, scopes,
-diagnostics, budgets, plugin calls, and script imports still use the existing
-runtime where their behavior is dynamic. Special system operations and spread
-calls remain interpreted; `runAsync` currently evaluates the pre-lowered IR
-through the async evaluator. This is a correctness-first route for broad script
-coverage, and it should not be assumed to have the FizzBuzz prototype's speedup.
+The compiler has two execution paths. For a narrow static subset, `run()` with
+no host options calls directly translated JavaScript functions. This path
+supports top-level one-parameter functions and append-only multifunctions,
+integer and string literals, integer `%` and `==`, ternaries and cases, eager
+arithmetic generators, map pipes, and calls to known functions. Returned
+integers, strings, and sequences retain their RiX value shapes. If a fast-path
+precondition fails or its result cannot be represented in this subset, `run()`
+retries through the regular RiX runtime. Supplying any `run()` options, such as
+a `context`, `registry`, `systemContext`, or execution budget, also uses that
+runtime. `runAsync()` always uses the runtime. Custom parser configuration
+disables direct translation.
+
+For everything outside that static subset, compilation parses and lowers the
+source once, serializes the resulting IR, and emits JavaScript functions for
+nodes using the standard registry calling convention. Those functions look up
+capabilities at runtime so installed type variants and overrides keep working.
+RiX scopes, diagnostics, budgets, plugin calls, script imports, special system
+operations, and spread calls still use the existing runtime where needed.
+This is still not full static translation.
 
 The generated file resolves script imports relative to its RiX sibling. It
 requires `@ratmath/rix` at runtime, including the `compiler-runtime` package
@@ -43,14 +53,21 @@ declarations. Successful emission does not establish runtime parity for every
 plugin; the differential tests cover selected functions, control flow,
 multifunctions, imports, async evaluation, and registry overrides.
 
+`bun run bench:fizzbuzz:compiled` measures four FizzBuzz forms over 1,000
+values. On a local Bun run, direct compilation through this general command
+took roughly 0.055–0.072 ms per result array versus 3.5–4.4 ms interpreted,
+about 60× faster. Compilation, import, and setup are excluded. FizzBuzz is
+especially sensitive to call and dispatch overhead; this ratio is not a
+prediction for scripts dominated by expensive math, I/O, or plugins.
+
 Only execute `.rix.js` that came from a trusted build and distribution path.
 JavaScript modules have the host's JavaScript privileges; the generator's hash
 and `--check` do not make a module safe to run. No RiX loader selects a sibling
 `.rix.js` automatically. Hosts handling untrusted source should continue to run
 `.rix` with their normal capability policy.
 
-The next compiler work is direct JavaScript lowering for function calls,
-control flow, collections, and exact arithmetic; compiled async dispatch;
-build-time plugin linking; and a loader policy that opts into trusted artifacts
-explicitly. Each step needs differential tests against the interpreter and
-end-to-end measurements, including startup and generated module loading.
+The next compiler work is expanding direct lowering safely beyond this subset,
+compiled async dispatch, build-time plugin linking, and a loader policy that
+opts into trusted artifacts explicitly. Each step needs differential tests
+against the interpreter and end-to-end measurements, including startup and
+generated module loading.

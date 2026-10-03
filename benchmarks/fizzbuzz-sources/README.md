@@ -1,8 +1,9 @@
 # Trusted RiX-to-JavaScript experiment
 
 This directory compares four FizzBuzz programs interpreted from `.rix` source
-with ahead-of-time generated sibling `.rix.js` modules and two direct JavaScript
-implementations. The generated programs still use RatMath `Integer` values and
+with the general `rix-to-js` compiler's direct path, the original narrow
+prototype compiler, and two direct JavaScript implementations. The generated
+programs still use RatMath `Integer` values and
 RiX string and sequence values. JavaScript lexical variables replace the
 interpreter's per-call scope stack, while small helpers preserve the supported
 RiX decision, modulo, generator, map, and multifunction behavior. Both direct
@@ -18,11 +19,15 @@ bun bin/rix-to-js-experiment.js benchmarks/fizzbuzz-sources/ternary.rix
 ```
 
 Pass any number of `.rix` paths to regenerate several modules. Add `--check`
-to verify that their sibling `.rix.js` files match the current source without
-writing them. Run `bun run bench:fizzbuzz:compiled` to compare all four
+writing them. Run `bun run bench:fizzbuzz:compiled` to compare all five
 execution paths. `--quick` uses 100 values and fewer rounds. The table shows
 median time per result array. Setup, code generation, and module import are
 excluded; every result from the timed batches is checked afterward.
+
+The general compiler's benchmark input adds `Run(count);` to each source and
+asserts that `fastPathAvailable` is true. An application can use this generated
+module through `run()` without options. Providing runtime options or using
+`runAsync()` instead selects the regular RiX runtime.
 
 FizzBuzz mostly performs tiny arithmetic and branch operations, so evaluator
 dispatch and dynamic call/scope overhead dominate the interpreted path. This
