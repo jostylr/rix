@@ -1,7 +1,0 @@
-FizzBuzz(n) ->
-    n % 15 == 0 ?: "FizzBuzz" ?_
-    n % 3 == 0 ?: "Fizz" ?_
-    n % 5 == 0 ?: "Buzz" ?_
-    n;
-
-Run(count) -> [1 |+ 1 |; count] |>> FizzBuzz;

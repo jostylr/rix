@@ -154,8 +154,6 @@ import { markTaskRegistry, markTaskSystem } from "../runtime/task-worker-policy.
 import { prepareTaskRequest } from "../runtime/task-worker-protocol.js";
 import { AsyncEffectLane, asyncLimits, asyncLimitFault, appendAsyncFailures, normalizeAsyncFailure } from "../runtime/async-policy.js";
 
-const COMPILED_IR_DISPATCH = Symbol("RiX compiled IR dispatch");
-
 function asyncOwner(context) {
     let owner = context.getEnv("__async_owner__", null);
     if (!owner) {
@@ -1261,19 +1259,6 @@ export function evaluate(irNode, context, registry, systemContext) {
     // Not an IR node (no fn property) — pass through (e.g. param objects)
     if (!irNode.fn) {
         return irNode;
-    }
-
-    // A trusted ahead-of-time module may replace selected IR nodes with
-    // generated JavaScript. Unmapped nodes continue through this evaluator,
-    // and their recursive evalFn calls can still reach compiled children.
-    const compiled = context?.[COMPILED_IR_DISPATCH]?.get(irNode);
-    if (compiled) {
-        evaluationCheckpoint(context);
-        try {
-            return compiled(context, registry, systemContext);
-        } catch (error) {
-            throw annotateEvaluationError(error, irNode, context);
-        }
     }
 
     evaluationCheckpoint(context);
@@ -4776,19 +4761,17 @@ export function parseAndEvaluate(code, options = {}) {
     context.setEnv(SOURCE_ENV_KEY, code);
     context.setEnv(CURRENT_FILE_ENV_KEY, options.file || "<repl>");
 
-    const irNodes = options.preLoweredIR || lower(parse(code, systemLookup, {
+    const ast = parse(code, systemLookup, {
         limits: options.sourceLimits,
         operatorDefinitions: runtime.operatorDefinitions,
         operatorOwner: options.operatorOwner || null,
         file: options.file || "<repl>",
-    }));
+    });
+    const irNodes = lower(ast);
     attachSourceInfo(irNodes, code, options.file || "<repl>");
 
-    const previousCompiledDispatch = context[COMPILED_IR_DISPATCH];
-    if (options.compiledDispatch) context[COMPILED_IR_DISPATCH] = options.compiledDispatch;
-    let budgetScope;
+    const budgetScope = enterEvaluationBudget(context, options);
     try {
-        budgetScope = enterEvaluationBudget(context, options);
         return withFinalizerActivationSync(context, () => {
             let result = null;
             for (const irNode of irNodes) {
@@ -4814,11 +4797,7 @@ export function parseAndEvaluate(code, options = {}) {
             return materializePipeSkip(result);
         });
     } finally {
-        budgetScope?.leave();
-        if (options.compiledDispatch) {
-            if (previousCompiledDispatch) context[COMPILED_IR_DISPATCH] = previousCompiledDispatch;
-            else delete context[COMPILED_IR_DISPATCH];
-        }
+        budgetScope.leave();
     }
 }
 
@@ -4872,12 +4851,13 @@ export async function parseAndEvaluateAsync(code, options = {}) {
     context.setEnv(SOURCE_ENV_KEY, code);
     context.setEnv(CURRENT_FILE_ENV_KEY, options.file || "<repl>");
 
-    const irNodes = options.preLoweredIR || lower(parse(code, systemLookup, {
+    const ast = parse(code, systemLookup, {
         limits: options.sourceLimits,
         operatorDefinitions: runtime.operatorDefinitions,
         operatorOwner: options.operatorOwner || null,
         file: options.file || "<repl>",
-    }));
+    });
+    const irNodes = lower(ast);
     attachSourceInfo(irNodes, code, options.file || "<repl>");
 
     context.setEnv("__async_output_count__", { count: 0, limit: asyncOwner(context).limits.outputItems });
