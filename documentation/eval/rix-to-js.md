@@ -71,3 +71,6 @@ compiled async dispatch, build-time plugin linking, and a loader policy that
 opts into trusted artifacts explicitly. Each step needs differential tests
 against the interpreter and end-to-end measurements, including startup and
 generated module loading.
+
+For first-party plugin coverage, artifact-size findings, and a proposed
+function-body compiler path, see [RiX plugin compilation: initial audit](plugin-javascript-compilation.md).
