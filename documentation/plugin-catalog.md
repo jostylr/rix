@@ -54,6 +54,22 @@ plugins, see [Plugin Roadmap and Rendering Contracts](design/plugins.md). The
 current targets, options, results, diagnostics, and host support are specified
 by the [Renderer Plugins reference](eval/renderer-guide.md).
 
+## Repeated discovery and session isolation
+
+Fresh catalogs reuse successfully parsed operator declarations within the same
+runtime module instance. The cache key includes the complete source, source
+path, plugin ID and mount, so changed sources and owners are parsed separately.
+Each catalog receives its own declaration array and freshly cloned frozen
+records. Parser errors are not cached; normal metadata validation and activation
+still run, including permission, dependency and mount checks.
+
+The cache retains no loaded state, live namespace, registry, installer or host
+capability. It is bounded to 128 entries and an estimated 16 MiB of retained
+UTF-16 key/value payload; engine/container overhead is additional. Oversized
+entries bypass storage. This reduces repeated parsing when a process constructs
+many sessions; the first discovery in each process still parses the sources.
+The cache is an internal implementation detail, not a public runtime API.
+
 ## Placement by host
 
 - **RiX CLI:** scans the current working directory's `plugins/`, a script

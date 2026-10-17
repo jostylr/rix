@@ -67,6 +67,7 @@ export const shortTests = new Set([
     "tests/parser/ternary.test.js",
     "tests/parser/tokenizer.test.js",
     "tests/parser/robustness.test.js",
+    "tests/runtime/plugin-operator-cache.test.js",
     "tests/runtime/context-snapshots.test.js",
     "tests/runtime/async-runtime.test.js",
     "tests/runtime/async-stream.test.js",

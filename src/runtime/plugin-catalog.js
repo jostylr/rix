@@ -9,9 +9,9 @@
  */
 
 import {
-    extractOperatorDeclarationsFromSource,
     mergeOperatorDefinitions,
 } from "../parser/custom-operators.js";
+import { cachedPluginOperatorDefinitions } from "./plugin-operator-cache.js";
 import { registerPluginNamespace } from "./plugin-imports.js";
 
 const CUSTOM_OPERATOR_ENV_KEY = "__custom_operator_definitions__";
@@ -273,10 +273,10 @@ export class PluginCatalog {
             && typeof source === "string"
             && !metadata.operatorDefinitions
         ) {
-            const operatorDefinitions = Array.from(extractOperatorDeclarationsFromSource(source, {
+            const operatorDefinitions = cachedPluginOperatorDefinitions(source, {
                 label: sourcePath,
                 owner: { pluginId: metadata.id, mount: metadata.mount || null },
-            }).values());
+            });
             enrichedMetadata = { ...metadata, operatorDefinitions };
         }
         const entry = validateMetadata(enrichedMetadata, sourcePath, validatedKind);

@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Performance
+
+- Cache immutable plugin operator declarations across fresh sessions. The bounded
+  process-local cache preserves fresh catalog state and declaration containers,
+  source/owner-specific diagnostics, and normal plugin validation and activation.
+  First-use parsing remains unchanged.
+
+
 ## 0.1.0 — 2026-09-21
 
 Initial public alpha of `@ratmath/rix`, the Rational Interval Expression Language.
