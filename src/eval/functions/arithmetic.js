@@ -129,9 +129,13 @@ function roundDiv(numerator, denominator) {
 }
 
 // Plain Integers take Core's floor operations directly instead of building
-// and reducing a Rational quotient.
+// and reducing a Rational quotient. Core releases before these methods keep
+// the general path.
+const CORE_HAS_FLOOR_OPS = typeof Integer.prototype.floorDivide === "function" &&
+    typeof Integer.prototype.floorModulo === "function" && typeof Integer.prototype.divmod === "function";
 function plainIntegers(a, b) {
-    return Object.getPrototypeOf(a) === Integer.prototype && Object.getPrototypeOf(b) === Integer.prototype &&
+    return CORE_HAS_FLOOR_OPS &&
+        Object.getPrototypeOf(a) === Integer.prototype && Object.getPrototypeOf(b) === Integer.prototype &&
         !Object.hasOwn(a, "value") && !Object.hasOwn(b, "value");
 }
 
@@ -648,6 +652,11 @@ export const arithmeticFunctions = {
                     'For roots, load a real-number plugin, e.g. .Plugin.Load("algebraic-real"); .ar.Sqrt(4)');
             }
             const expValue = exp instanceof Integer ? exp.value : Number(exp.toString());
+            // Native BigInt exponentiation for Integer powers, independent of
+            // the installed Core release's pow implementation.
+            if (base instanceof Integer && Object.getPrototypeOf(base) === Integer.prototype && typeof expValue === "bigint" && expValue >= 0n) {
+                return new Integer(base.value ** expValue);
+            }
             return base.pow(expValue);
         },
         pure: true,

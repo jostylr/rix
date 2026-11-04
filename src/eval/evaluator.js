@@ -545,7 +545,9 @@ export function createDefaultSystemContext(options = {}) {
     const timeline = createTimelineOutputCollection();
     ctx.registerValue("Timeline", timeline, { doc: "Portable exact timeline constructors" });
     ctx.registerAll(stdlibFunctions);
-    ctx.registerAll(numberTheoryFunctions);
+    for (const [name, key] of [["Gcd", "GCD"], ["Lcm", "LCM"], ["Isqrt", "ISQRT"], ["IsPrime", "ISPRIME"]]) {
+        ctx.register(name, numberTheoryFunctions[key]);
+    }
     ctx.registerAll(symbolicCapabilities);
     ctx.registerCallableValue("Poly", createPolySystemValue(), symbolicCapabilities.POLY, {
         doc: `${symbolicCapabilities.POLY.doc}; exposes .Parse for backtick polynomial forms`,

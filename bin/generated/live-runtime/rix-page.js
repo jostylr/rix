@@ -38477,7 +38477,7 @@ symbolicNamespace._proto = {=
 `
   });
 
-  // ../../../../../../../../ai-repos/ratmath/packages/core/src/base-system.js
+  // ../packages/core/src/base-system.js
   class BaseSystem {
     #base;
     #radix;
@@ -38896,7 +38896,152 @@ symbolicNamespace._proto = {=
   BaseSystem.registerPrefix("m", BaseSystem.BASE60);
   BaseSystem.registerPrefix("y", BaseSystem.BASE64);
 
-  // ../../../../../../../../ai-repos/ratmath/packages/core/src/bigint.js
+  // ../packages/core/src/rational-literal.js
+  var DIGITS = String.raw`\d(?:_?\d)*`;
+  var MAX_EXPANDED_DIGITS = 1e5;
+  function inputString(input, label = "number") {
+    if (typeof input !== "string") {
+      throw new TypeError(`${label} must be a string`);
+    }
+    const value = input.trim();
+    if (value.length === 0) {
+      throw new Error(`${label} cannot be empty`);
+    }
+    return value;
+  }
+  function cleanDigits(value, { signed = false } = {}) {
+    const pattern = signed ? new RegExp(`^[+-]?${DIGITS}$`) : new RegExp(`^${DIGITS}$`);
+    if (!pattern.test(value)) {
+      throw new Error(`Invalid decimal digits: ${value}`);
+    }
+    return value.replaceAll("_", "");
+  }
+  function validateUnderscores(value) {
+    for (let index = 0;index < value.length; index++) {
+      if (value[index] !== "_")
+        continue;
+      if (!/\d/.test(value[index - 1] ?? "") || !/\d/.test(value[index + 1] ?? "")) {
+        throw new Error("Underscore separators must be between decimal digits");
+      }
+    }
+  }
+  function expandDigitRuns(value) {
+    let expandedLength = 0;
+    const expanded = value.replace(/\{(\d+)~(\d+)\}/g, (_match, digits, countText) => {
+      const count = Number(countText);
+      if (!Number.isSafeInteger(count) || count < 0) {
+        throw new Error(`Invalid repeated-digit count: ${countText}`);
+      }
+      expandedLength += digits.length * count;
+      if (expandedLength > MAX_EXPANDED_DIGITS) {
+        throw new Error(`Expanded decimal exceeds ${MAX_EXPANDED_DIGITS} digits`);
+      }
+      return digits.repeat(count);
+    });
+    if (/[{}]/.test(expanded)) {
+      throw new Error(`Invalid repeated-digit notation: ${value}`);
+    }
+    if (expanded.length > MAX_EXPANDED_DIGITS) {
+      throw new Error(`Decimal exceeds ${MAX_EXPANDED_DIGITS} digits`);
+    }
+    return expanded;
+  }
+  function parseDecimalParts(input) {
+    let value = inputString(input, "decimal");
+    validateUnderscores(value);
+    let sign = 1n;
+    if (value.startsWith("+") || value.startsWith("-")) {
+      sign = value[0] === "-" ? -1n : 1n;
+      value = value.slice(1);
+    }
+    const hashParts = value.split("#");
+    if (hashParts.length > 2) {
+      throw new Error("A repeating decimal can contain only one '#'");
+    }
+    let prefix = expandDigitRuns(hashParts[0].replaceAll("_", ""));
+    const repeating = hashParts.length === 2 ? expandDigitRuns(hashParts[1].replaceAll("_", "")) : null;
+    if (!/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(prefix)) {
+      throw new Error(`Invalid decimal format: ${input}`);
+    }
+    const dot = prefix.indexOf(".");
+    const integerDigits = dot === -1 ? prefix : prefix.slice(0, dot) || "0";
+    const fractionalDigits = dot === -1 ? "" : prefix.slice(dot + 1);
+    const integer = BigInt(integerDigits);
+    const fractional = fractionalDigits.length === 0 ? 0n : BigInt(fractionalDigits);
+    const fractionalScale = 10n ** BigInt(fractionalDigits.length);
+    let numerator = integer * fractionalScale + fractional;
+    let denominator = fractionalScale;
+    if (repeating !== null) {
+      if (!/^\d+$/.test(repeating)) {
+        throw new Error("The repeating part must contain one or more digits");
+      }
+      if (!/^0+$/.test(repeating)) {
+        const repeatScale = 10n ** BigInt(repeating.length) - 1n;
+        numerator = numerator * repeatScale + BigInt(repeating);
+        denominator *= repeatScale;
+      }
+    }
+    return [sign * numerator, denominator];
+  }
+  function parseRationalParts(input) {
+    let value = inputString(input, "rational");
+    if (value.startsWith("~")) {
+      value = value.slice(1);
+    }
+    const continued = value.match(new RegExp(`^([+-]?${DIGITS})\\.~(${DIGITS}(?:~${DIGITS})*)$`));
+    if (continued) {
+      const first = BigInt(cleanDigits(continued[1], { signed: true }));
+      const tail = continued[2].split("~").map((term) => BigInt(cleanDigits(term)));
+      if (tail.length === 1 && tail[0] === 0n) {
+        return [first, 1n];
+      }
+      return continuedFractionParts([first, ...tail]);
+    }
+    const mixed = value.match(new RegExp(`^([+-]?)(${DIGITS})\\.\\.(${DIGITS})\\/(${DIGITS})$`));
+    if (mixed) {
+      const sign = mixed[1] === "-" ? -1n : 1n;
+      const whole = BigInt(cleanDigits(mixed[2]));
+      const numerator = BigInt(cleanDigits(mixed[3]));
+      const denominator = BigInt(cleanDigits(mixed[4]));
+      if (denominator === 0n) {
+        throw new Error("Denominator cannot be zero");
+      }
+      return [sign * (whole * denominator + numerator), denominator];
+    }
+    if (value.includes("..")) {
+      throw new Error("Invalid mixed number format. Use 'a..b/c'");
+    }
+    const fraction = value.match(new RegExp(`^([+-]?${DIGITS})\\/(${DIGITS})$`));
+    if (fraction) {
+      const denominator = BigInt(cleanDigits(fraction[2]));
+      if (denominator === 0n) {
+        throw new Error("Denominator cannot be zero");
+      }
+      return [BigInt(cleanDigits(fraction[1], { signed: true })), denominator];
+    }
+    if (value.includes("#") || value.includes(".")) {
+      return parseDecimalParts(value);
+    }
+    if (new RegExp(`^[+-]?${DIGITS}$`).test(value)) {
+      return [BigInt(cleanDigits(value, { signed: true })), 1n];
+    }
+    throw new Error(`Invalid rational number: ${input}`);
+  }
+  function continuedFractionParts(terms) {
+    for (const term of terms.slice(1)) {
+      if (term <= 0n) {
+        throw new Error(`Continued fraction terms must be positive: ${term}`);
+      }
+    }
+    let [pPrev, p, qPrev, q] = [1n, terms[0], 0n, 1n];
+    for (const a of terms.slice(1)) {
+      [pPrev, p] = [p, a * p + pPrev];
+      [qPrev, q] = [q, a * q + qPrev];
+    }
+    return [p, q];
+  }
+
+  // ../packages/core/src/bigint.js
   function toExactBigInt(value, label = "Value") {
     if (typeof value === "number") {
       if (!Number.isSafeInteger(value)) {
@@ -38913,7 +39058,52 @@ symbolicNamespace._proto = {=
     throw new TypeError(`${label} must be an integer number, string, or bigint`);
   }
 
-  // ../../../../../../../../ai-repos/ratmath/packages/core/src/rational.js
+  // ../packages/core/src/reduced-arithmetic.js
+  function gcd(a, b) {
+    if (a < 0n)
+      a = -a;
+    if (b < 0n)
+      b = -b;
+    while (b !== 0n)
+      [a, b] = [b, a % b];
+    return a;
+  }
+  function reducedSum(a, b, c, d) {
+    if (d === 1n)
+      return [a + c * b, b];
+    if (b === 1n)
+      return [a * d + c, d];
+    if (b === d) {
+      const n = a + c;
+      const g = gcd(n, b);
+      return n === 0n ? [0n, 1n] : [n / g, b / g];
+    }
+    const g = gcd(b, d);
+    if (g === 1n)
+      return [a * d + c * b, b * d];
+    const bb = b / g;
+    const n = a * (d / g) + c * bb;
+    const h = gcd(n, g);
+    return n === 0n ? [0n, 1n] : [n / h, bb * (d / h)];
+  }
+  function reducedProduct(a, b, c, d) {
+    if (a === 0n || c === 0n)
+      return [0n, 1n];
+    const g = gcd(a, d);
+    const h = gcd(c, b);
+    return [a / g * (c / h), b / h * (d / g)];
+  }
+  function reducedQuotient(a, b, c, d) {
+    if (a === 0n)
+      return [0n, 1n];
+    const g = gcd(a, c);
+    const h = gcd(b, d);
+    const n = a / g * (d / h);
+    const den = b / h * (c / g);
+    return den < 0n ? [-n, -den] : [n, den];
+  }
+
+  // ../packages/core/src/rational.js
   var POWERS_OF_5 = Object.freeze({
     16: 5n ** 16n,
     8: 5n ** 8n,
@@ -38982,6 +39172,12 @@ symbolicNamespace._proto = {=
     }
     return { maxCount, long, intermediates };
   };
+  function exactParts(other) {
+    if (typeof other?.value === "bigint" && other.denominator === undefined) {
+      return [other.value, 1n];
+    }
+    return [other.numerator, other.denominator];
+  }
 
   class Rational {
     #numerator;
@@ -39033,52 +39229,13 @@ symbolicNamespace._proto = {=
         return;
       }
       if (typeof numerator === "string") {
-        if (numerator.includes("..")) {
-          const mixed = numerator.trim().match(/^([+-]?)(\d+)\.\.(\d+)\/(\d+)$/);
-          if (!mixed) {
-            throw new Error("Invalid mixed number format. Use 'a..b/c'");
-          }
-          const sign = mixed[1] === "-" ? -1n : 1n;
-          const wholePart = BigInt(mixed[2]);
-          const fracNumerator = BigInt(mixed[3]);
-          const fracDenominator = BigInt(mixed[4]);
-          if (fracDenominator === 0n) {
-            throw new Error("Denominator cannot be zero");
-          }
-          this.#numerator = sign * (wholePart * fracDenominator + fracNumerator);
-          this.#denominator = fracDenominator;
-        } else {
-          if (numerator.includes(".")) {
-            const expandedNumerator = Rational.#parseRepeatedDigits(numerator);
-            const decimalParts = expandedNumerator.trim().split(".");
-            if (decimalParts.length === 2) {
-              const integerPart = decimalParts[0] || "0";
-              const fractionalPart = decimalParts[1];
-              if (!/^-?\d*$/.test(integerPart) || !/^\d*$/.test(fractionalPart)) {
-                throw new Error("Invalid decimal format");
-              }
-              const isNegative = integerPart.startsWith("-");
-              const wholePart = integerPart === "-" && fractionalPart.length > 0 ? 0n : BigInt(integerPart);
-              const fractionalValue = BigInt(fractionalPart);
-              const denomValue = 10n ** BigInt(fractionalPart.length);
-              this.#numerator = wholePart * denomValue + (isNegative ? -fractionalValue : fractionalValue);
-              this.#denominator = denomValue;
-            } else {
-              throw new Error("Invalid decimal format - multiple decimal points");
-            }
-          } else {
-            const parts = numerator.trim().split("/");
-            if (parts.length === 1) {
-              this.#numerator = BigInt(parts[0]);
-              this.#denominator = toExactBigInt(denominator, "Rational denominator");
-            } else if (parts.length === 2) {
-              this.#numerator = BigInt(parts[0]);
-              this.#denominator = BigInt(parts[1]);
-            } else {
-              throw new Error("Invalid rational format. Use 'a/b', 'a', or 'a..b/c'");
-            }
-          }
+        const [parsedNumerator, parsedDenominator] = parseRationalParts(numerator);
+        let divisor = 1n;
+        if (arguments.length > 1) {
+          divisor = denominator && typeof denominator === "object" && denominator.constructor.name === "Integer" ? denominator.value : toExactBigInt(denominator, "Rational denominator");
         }
+        this.#numerator = parsedNumerator;
+        this.#denominator = parsedDenominator * divisor;
       } else {
         this.#numerator = toExactBigInt(numerator, "Rational numerator");
         this.#denominator = toExactBigInt(denominator, "Rational denominator");
@@ -39088,6 +39245,26 @@ symbolicNamespace._proto = {=
       }
       this.#normalize();
       this.#isNegative = this.#numerator < 0n;
+    }
+    static #fromCanonical(numerator, denominator) {
+      const result = new Rational(0n, 1n);
+      result.#numerator = numerator;
+      result.#denominator = denominator;
+      result.#isNegative = numerator < 0n;
+      return result;
+    }
+    static #canonicalParts(other) {
+      if (other == null || typeof other !== "object")
+        return null;
+      const prototype = Object.getPrototypeOf(other);
+      if (prototype === Rational.prototype) {
+        return Object.hasOwn(other, "numerator") || Object.hasOwn(other, "denominator") ? null : [other.#numerator, other.#denominator];
+      }
+      if (prototype?.constructor?.name === "Integer" && !Object.hasOwn(other, "value")) {
+        const value = other.value;
+        return typeof value === "bigint" ? [value, 1n] : null;
+      }
+      return null;
     }
     #normalize() {
       if (this.#denominator < 0n) {
@@ -39117,6 +39294,10 @@ symbolicNamespace._proto = {=
       return this.#denominator;
     }
     add(other) {
+      const parts = Rational.#canonicalParts(other);
+      if (parts) {
+        return Rational.#fromCanonical(...reducedSum(this.#numerator, this.#denominator, parts[0], parts[1]));
+      }
       if (other?.isCertifiedApproximation === true) {
         return other._operateExactLeft("add", this);
       }
@@ -39141,6 +39322,10 @@ symbolicNamespace._proto = {=
       }
     }
     subtract(other) {
+      const parts = Rational.#canonicalParts(other);
+      if (parts) {
+        return Rational.#fromCanonical(...reducedSum(this.#numerator, this.#denominator, -parts[0], parts[1]));
+      }
       if (other?.isCertifiedApproximation === true) {
         return other._operateExactLeft("subtract", this);
       }
@@ -39164,6 +39349,10 @@ symbolicNamespace._proto = {=
       }
     }
     multiply(other) {
+      const parts = Rational.#canonicalParts(other);
+      if (parts) {
+        return Rational.#fromCanonical(...reducedProduct(this.#numerator, this.#denominator, parts[0], parts[1]));
+      }
       if (other?.isCertifiedApproximation === true) {
         return other._operateExactLeft("multiply", this);
       }
@@ -39187,6 +39376,12 @@ symbolicNamespace._proto = {=
       }
     }
     divide(other) {
+      const parts = Rational.#canonicalParts(other);
+      if (parts) {
+        if (parts[0] === 0n)
+          throw new Error("Division by zero");
+        return Rational.#fromCanonical(...reducedQuotient(this.#numerator, this.#denominator, parts[0], parts[1]));
+      }
       if (other?.isCertifiedApproximation === true) {
         return other._operateExactLeft("divide", this);
       }
@@ -39261,11 +39456,13 @@ symbolicNamespace._proto = {=
       return new Rational(this.#numerator ** n, this.#denominator ** n);
     }
     equals(other) {
-      return this.#numerator === other.numerator && this.#denominator === other.denominator;
+      const [numerator, denominator] = exactParts(other);
+      return this.#numerator === numerator && this.#denominator === denominator;
     }
     compareTo(other) {
-      const crossProduct1 = this.#numerator * other.denominator;
-      const crossProduct2 = this.#denominator * other.numerator;
+      const [numerator, denominator] = exactParts(other);
+      const crossProduct1 = this.#numerator * denominator;
+      const crossProduct2 = this.#denominator * numerator;
       if (crossProduct1 < crossProduct2)
         return -1;
       if (crossProduct1 > crossProduct2)
@@ -39484,7 +39681,20 @@ symbolicNamespace._proto = {=
       }
     }
     toNumber() {
-      return Number(this.#numerator) / Number(this.#denominator);
+      const numerator = this.#numerator;
+      const denominator = this.#denominator;
+      if (numerator === 0n)
+        return 0;
+      const SAFE = 9007199254740992n;
+      if (numerator < SAFE && numerator > -SAFE && denominator < SAFE) {
+        return Number(numerator) / Number(denominator);
+      }
+      const magnitude = numerator < 0n ? -numerator : numerator;
+      const shift = 64 - (bitLength(magnitude) - bitLength(denominator));
+      const quotient = shift >= 0 ? (magnitude << BigInt(shift)) / denominator : magnitude / (denominator << BigInt(-shift));
+      const half = Math.trunc(shift / 2);
+      const value = Number(quotient) * 2 ** -half * 2 ** -(shift - half);
+      return numerator < 0n ? -value : value;
     }
     toRepeatingDecimal(limit = Rational.MAX_PERIOD_DIGITS, onLimit = "error") {
       const result = this.toRepeatingDecimalWithPeriod({ limit, onLimit });
@@ -39745,14 +39955,6 @@ symbolicNamespace._proto = {=
         i += count;
       }
       return result;
-    }
-    static #parseRepeatedDigits(formattedDigits) {
-      if (!formattedDigits || !formattedDigits.includes("{")) {
-        return formattedDigits;
-      }
-      return formattedDigits.replace(/\{(.+?)~(\d+)\}/g, (match, digits, count) => {
-        return digits.repeat(parseInt(count));
-      });
     }
     extractPeriodSegment(initialSegment, periodLength, digitsRequested) {
       if (periodLength === 0 || periodLength === -1) {
@@ -40217,7 +40419,7 @@ symbolicNamespace._proto = {=
     }
   }
 
-  // ../../../../../../../../ai-repos/ratmath/packages/core/src/rational-interval.js
+  // ../packages/core/src/rational-interval.js
   function hasTerminatingDecimal(value) {
     let denominator = value.denominator;
     while (denominator % 2n === 0n)
@@ -40255,13 +40457,30 @@ symbolicNamespace._proto = {=
   function exactOffsetString(value) {
     return exactTerminatingDecimal(value) ?? value.toString();
   }
-  function gcd(a, b) {
+  var OUTWARD_DECIMAL_DIGITS = 20;
+  function directedDecimal(value, direction, digits = OUTWARD_DECIMAL_DIGITS) {
+    const scale = 10n ** BigInt(digits);
+    const scaled = value.numerator * scale;
+    let units = scaled / value.denominator;
+    const exact = scaled % value.denominator === 0n;
+    if (!exact && direction === "down" && scaled < 0n)
+      units -= 1n;
+    if (!exact && direction === "up" && scaled > 0n)
+      units += 1n;
+    const negative = units < 0n;
+    const magnitude = (negative ? -units : units).toString().padStart(digits + 1, "0");
+    const whole = magnitude.slice(0, -digits);
+    const fraction = magnitude.slice(-digits).replace(/0+$/, "");
+    const text = fraction ? `${whole}.${fraction}` : whole;
+    return negative && text !== "0" ? `-${text}` : text;
+  }
+  function gcd2(a, b) {
     while (b !== 0n)
       [a, b] = [b, a % b];
     return a < 0n ? -a : a;
   }
   function lcm(a, b) {
-    return a / gcd(a, b) * b;
+    return a / gcd2(a, b) * b;
   }
   function randomBigIntBelow(limit, random) {
     const draw = () => {
@@ -40608,8 +40827,9 @@ symbolicNamespace._proto = {=
       return `${startDecimal}:${endDecimal}`;
     }
     compactedDecimalInterval() {
-      const startStr = this.#start.toDecimal();
-      const endStr = this.#end.toDecimal();
+      const lowerFirst = this.#start.lessThanOrEqual(this.#end);
+      const startStr = directedDecimal(this.#start, lowerFirst ? "down" : "up");
+      const endStr = directedDecimal(this.#end, lowerFirst ? "up" : "down");
       let commonPrefix = "";
       const minLength = Math.min(startStr.length, endStr.length);
       for (let i = 0;i < minLength; i++) {
@@ -40633,23 +40853,32 @@ symbolicNamespace._proto = {=
       return `${commonPrefix}[${startSuffix}:${endSuffix}]`;
     }
     relativeMidDecimalInterval() {
-      const midpoint = this.#low.add(this.#high).divide(new Rational(2));
-      const offsetEnd = this.#end.subtract(midpoint);
-      const offsetStart = this.#start.subtract(midpoint);
-      const midpointStr = midpoint.toDecimal();
-      const decimalPlaces = midpointStr.includes(".") ? midpointStr.split(".")[1].length : 0;
-      const scaleFactor = decimalPlaces === 0 ? Rational.one : new Rational(10).pow(decimalPlaces);
-      const scaledOffsetStart = offsetStart.multiply(scaleFactor);
-      const scaledOffsetEnd = offsetEnd.multiply(scaleFactor);
-      if (offsetStart.equals(offsetEnd.negate())) {
-        const offsetStr = scaledOffsetEnd.abs().toDecimal();
-        return `${midpointStr}[+-${offsetStr}]`;
+      const exactMidpoint = this.#low.add(this.#high).divide(new Rational(2));
+      let midpointStr = exactTerminatingDecimal(exactMidpoint);
+      if (midpointStr === null || midpointStr.split(".")[1]?.length > OUTWARD_DECIMAL_DIGITS) {
+        const halfWidth = this.#high.subtract(exactMidpoint);
+        let places = 0;
+        while (places < OUTWARD_DECIMAL_DIGITS && halfWidth.multiply(new Rational(10n ** BigInt(places))).lessThan(Rational.one)) {
+          places += 1;
+        }
+        midpointStr = directedDecimal(exactMidpoint, "down", Math.min(places + 1, OUTWARD_DECIMAL_DIGITS));
       }
-      const offStartStr = scaledOffsetStart.toDecimal();
-      const offEndStr = scaledOffsetEnd.toDecimal();
-      const startSign = scaledOffsetStart.compareTo(Rational.zero) > 0 ? "+" : "";
-      const endSign = scaledOffsetEnd.compareTo(Rational.zero) > 0 ? "+" : "";
-      return `${midpointStr}[${startSign}${offStartStr}:${endSign}${offEndStr}]`;
+      const midpoint = new Rational(midpointStr);
+      const decimalPlaces = midpointStr.includes(".") ? midpointStr.split(".")[1].length : 0;
+      const scaleFactor = new Rational(10n ** BigInt(decimalPlaces));
+      const below = midpoint.subtract(this.#low).multiply(scaleFactor);
+      const above = this.#high.subtract(midpoint).multiply(scaleFactor);
+      if (below.equals(above) || below.lessThan(Rational.zero) || above.lessThan(Rational.zero)) {
+        const radius = below.abs().greaterThan(above.abs()) ? below.abs() : above.abs();
+        return `${midpointStr}[+-${directedDecimal(radius, "up")}]`;
+      }
+      const lowOffset = below.negate();
+      const lowStr = directedDecimal(lowOffset, "down");
+      const highStr = directedDecimal(above, "up");
+      const lowSign = lowOffset.compareTo(Rational.zero) > 0 ? "+" : "";
+      const highSign = above.compareTo(Rational.zero) > 0 ? "+" : "";
+      const [first, second] = this.#start.lessThanOrEqual(this.#end) ? [`${lowSign}${lowStr}`, `${highSign}${highStr}`] : [`${highSign}${highStr}`, `${lowSign}${lowStr}`];
+      return `${midpointStr}[${first}:${second}]`;
     }
     relativeDecimalInterval() {
       if (this.#low.equals(this.#high)) {
@@ -40830,7 +41059,7 @@ symbolicNamespace._proto = {=
     }
   }
 
-  // ../../../../../../../../ai-repos/ratmath/packages/core/src/rational-interval-set.js
+  // ../packages/core/src/rational-interval-set.js
   function asRational(value, name) {
     if (value === null)
       return null;
@@ -41143,7 +41372,7 @@ symbolicNamespace._proto = {=
     }
   }
 
-  // ../../../../../../../../ai-repos/ratmath/packages/core/src/range-arithmetic.js
+  // ../packages/core/src/range-arithmetic.js
   var ZERO = Rational.zero;
   var ONE = Rational.one;
   var RESULT_SCHEMA = "ratmath.range-operation-result@1";
@@ -41495,7 +41724,7 @@ symbolicNamespace._proto = {=
     });
   }
 
-  // ../../../../../../../../ai-repos/ratmath/packages/core/src/fraction.js
+  // ../packages/core/src/fraction.js
   class Fraction {
     #numerator;
     #denominator;
@@ -41916,7 +42145,7 @@ symbolicNamespace._proto = {=
     }
   }
 
-  // ../../../../../../../../ai-repos/ratmath/packages/core/src/fraction-interval.js
+  // ../packages/core/src/fraction-interval.js
   class FractionInterval {
     #low;
     #high;
@@ -42018,7 +42247,16 @@ symbolicNamespace._proto = {=
     }
   }
 
-  // ../../../../../../../../ai-repos/ratmath/packages/core/src/integer.js
+  // ../packages/core/src/integer.js
+  function integerDivisor(other, zeroMessage) {
+    if (!(other instanceof Integer)) {
+      throw new TypeError("Floor division and modulo require an Integer divisor");
+    }
+    if (other.value === 0n)
+      throw new Error(zeroMessage);
+    return other.value;
+  }
+
   class Integer {
     #value;
     static zero = new Integer(0);
@@ -42138,6 +42376,27 @@ symbolicNamespace._proto = {=
       }
       throw new TypeError("Possible relations require a Core numeric value");
     }
+    floorDivide(other) {
+      const divisor = integerDivisor(other, "Division by zero");
+      const quotient = this.#value / divisor;
+      const remainder = this.#value % divisor;
+      return new Integer(remainder !== 0n && remainder < 0n !== divisor < 0n ? quotient - 1n : quotient);
+    }
+    floorModulo(other) {
+      const divisor = integerDivisor(other, "Modulo by zero");
+      const remainder = this.#value % divisor;
+      return new Integer(remainder !== 0n && remainder < 0n !== divisor < 0n ? remainder + divisor : remainder);
+    }
+    divmod(other) {
+      const divisor = integerDivisor(other, "Division by zero");
+      let quotient = this.#value / divisor;
+      let remainder = this.#value % divisor;
+      if (remainder !== 0n && remainder < 0n !== divisor < 0n) {
+        quotient -= 1n;
+        remainder += divisor;
+      }
+      return [new Integer(quotient), new Integer(remainder)];
+    }
     modulo(other) {
       if (other.value === 0n) {
         throw new Error("Modulo by zero");
@@ -42166,26 +42425,43 @@ symbolicNamespace._proto = {=
       return new Integer(this.#value ** exp);
     }
     equals(other) {
-      return this.#value === other.value;
+      if (other instanceof Rational) {
+        return other.denominator === 1n && this.#value === other.numerator;
+      }
+      return this.#value === other?.value;
     }
     compareTo(other) {
-      if (this.#value < other.value)
+      const order = this.#order(other);
+      return Number.isNaN(order) ? 0 : order;
+    }
+    #order(other) {
+      let left = this.#value;
+      let right;
+      if (other instanceof Rational) {
+        left *= other.denominator;
+        right = other.numerator;
+      } else if (typeof other?.value === "bigint") {
+        right = other.value;
+      } else {
+        return NaN;
+      }
+      if (left < right)
         return -1;
-      if (this.#value > other.value)
+      if (left > right)
         return 1;
       return 0;
     }
     lessThan(other) {
-      return this.#value < other.value;
+      return this.#order(other) < 0;
     }
     lessThanOrEqual(other) {
-      return this.#value <= other.value;
+      return this.#order(other) <= 0;
     }
     greaterThan(other) {
-      return this.#value > other.value;
+      return this.#order(other) > 0;
     }
     greaterThanOrEqual(other) {
-      return this.#value >= other.value;
+      return this.#order(other) >= 0;
     }
     abs() {
       return this.#value < 0n ? this.negate() : new Integer(this.#value);
@@ -42316,7 +42592,7 @@ symbolicNamespace._proto = {=
     }
   }
 
-  // ../../../../../../../../ai-repos/ratmath/packages/core/src/certified-approximation.js
+  // ../packages/core/src/certified-approximation.js
   var Relation = Object.freeze({
     LESS: 1,
     EQUAL: 2,
@@ -42779,7 +43055,7 @@ symbolicNamespace._proto = {=
     });
   }
 
-  // ../../../../../../../../ai-repos/ratmath/packages/core/src/type-promotion.js
+  // ../packages/core/src/type-promotion.js
   class TypePromotion {
     constructor() {
       throw new TypeError("TypePromotion is a static utility class");
@@ -42924,7 +43200,7 @@ symbolicNamespace._proto = {=
     }
   }
 
-  // ../../../../../../../../ai-repos/ratmath/packages/core/src/numeral-system.js
+  // ../packages/core/src/numeral-system.js
   var NUMERAL_SYSTEM_SCHEMA = "ratmath.numeral-system@1";
   var NUMERAL_LIMITS = Object.freeze({ tokens: 256, tokenLength: 32, sourceLength: 65536, digits: 4096, bits: 16384 });
   var reserved = /[\s+\-*/^!()[\]:.#~_`?\\]/u;
@@ -43237,127 +43513,14 @@ symbolicNamespace._proto = {=
     }
   }
 
-  // ../../../../../../../../ai-repos/ratmath/packages/core/src/number-parser.js
-  var DIGITS = String.raw`\d(?:_?\d)*`;
-  var MAX_EXPANDED_DIGITS = 1e5;
-  function inputString(input, label = "number") {
-    if (typeof input !== "string") {
-      throw new TypeError(`${label} must be a string`);
-    }
-    const value = input.trim();
-    if (value.length === 0) {
-      throw new Error(`${label} cannot be empty`);
-    }
-    return value;
-  }
-  function cleanDigits(value, { signed = false } = {}) {
-    const pattern = signed ? new RegExp(`^[+-]?${DIGITS}$`) : new RegExp(`^${DIGITS}$`);
-    if (!pattern.test(value)) {
-      throw new Error(`Invalid decimal digits: ${value}`);
-    }
-    return value.replaceAll("_", "");
-  }
-  function validateUnderscores(value) {
-    for (let index = 0;index < value.length; index++) {
-      if (value[index] !== "_")
-        continue;
-      if (!/\d/.test(value[index - 1] ?? "") || !/\d/.test(value[index + 1] ?? "")) {
-        throw new Error("Underscore separators must be between decimal digits");
-      }
-    }
-  }
-  function expandDigitRuns(value) {
-    let expandedLength = 0;
-    const expanded = value.replace(/\{(\d+)~(\d+)\}/g, (_match, digits, countText) => {
-      const count = Number(countText);
-      if (!Number.isSafeInteger(count) || count < 0) {
-        throw new Error(`Invalid repeated-digit count: ${countText}`);
-      }
-      expandedLength += digits.length * count;
-      if (expandedLength > MAX_EXPANDED_DIGITS) {
-        throw new Error(`Expanded decimal exceeds ${MAX_EXPANDED_DIGITS} digits`);
-      }
-      return digits.repeat(count);
-    });
-    if (/[{}]/.test(expanded)) {
-      throw new Error(`Invalid repeated-digit notation: ${value}`);
-    }
-    if (expanded.length > MAX_EXPANDED_DIGITS) {
-      throw new Error(`Decimal exceeds ${MAX_EXPANDED_DIGITS} digits`);
-    }
-    return expanded;
-  }
+  // ../packages/core/src/number-parser.js
   function parseDecimalValue(input) {
-    let value = inputString(input, "decimal");
-    validateUnderscores(value);
-    let sign = 1n;
-    if (value.startsWith("+") || value.startsWith("-")) {
-      sign = value[0] === "-" ? -1n : 1n;
-      value = value.slice(1);
-    }
-    const hashParts = value.split("#");
-    if (hashParts.length > 2) {
-      throw new Error("A repeating decimal can contain only one '#'");
-    }
-    let prefix = expandDigitRuns(hashParts[0].replaceAll("_", ""));
-    const repeating = hashParts.length === 2 ? expandDigitRuns(hashParts[1].replaceAll("_", "")) : null;
-    if (!/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(prefix)) {
-      throw new Error(`Invalid decimal format: ${input}`);
-    }
-    const dot = prefix.indexOf(".");
-    const integerDigits = dot === -1 ? prefix : prefix.slice(0, dot) || "0";
-    const fractionalDigits = dot === -1 ? "" : prefix.slice(dot + 1);
-    const integer = BigInt(integerDigits);
-    const fractional = fractionalDigits.length === 0 ? 0n : BigInt(fractionalDigits);
-    const fractionalScale = 10n ** BigInt(fractionalDigits.length);
-    let result = new Rational(integer * fractionalScale + fractional, fractionalScale);
-    if (repeating !== null) {
-      if (!/^\d+$/.test(repeating)) {
-        throw new Error("The repeating part must contain one or more digits");
-      }
-      if (!/^0+$/.test(repeating)) {
-        const repeatScale = 10n ** BigInt(repeating.length) - 1n;
-        result = result.add(new Rational(BigInt(repeating), fractionalScale * repeatScale));
-      }
-    }
-    return sign < 0n ? result.negate() : result;
+    const [numerator, denominator] = parseDecimalParts(input);
+    return new Rational(numerator, denominator);
   }
   function parseRationalLiteral(input) {
-    let value = inputString(input, "rational");
-    if (value.startsWith("~")) {
-      value = value.slice(1);
-    }
-    const continued = value.match(new RegExp(`^([+-]?${DIGITS})\\.~(${DIGITS}(?:~${DIGITS})*)$`));
-    if (continued) {
-      const first = BigInt(cleanDigits(continued[1], { signed: true }));
-      const tail = continued[2].split("~").map((term) => BigInt(cleanDigits(term)));
-      if (tail.length === 1 && tail[0] === 0n) {
-        return new Rational(first);
-      }
-      return Rational.fromContinuedFraction([first, ...tail]);
-    }
-    const mixed = value.match(new RegExp(`^([+-]?)(${DIGITS})\\.\\.(${DIGITS})\\/(${DIGITS})$`));
-    if (mixed) {
-      const sign = mixed[1] === "-" ? -1n : 1n;
-      const whole = BigInt(cleanDigits(mixed[2]));
-      const numerator = BigInt(cleanDigits(mixed[3]));
-      const denominator = BigInt(cleanDigits(mixed[4]));
-      if (denominator === 0n) {
-        throw new Error("Denominator cannot be zero");
-      }
-      return new Rational(sign * (whole * denominator + numerator), denominator);
-    }
-    const fraction = value.match(new RegExp(`^([+-]?${DIGITS})\\/(${DIGITS})$`));
-    if (fraction) {
-      return new Rational(BigInt(cleanDigits(fraction[1], { signed: true })), BigInt(cleanDigits(fraction[2])));
-    }
-    if (value.includes("#") || value.includes(".")) {
-      return parseDecimalValue(value);
-    }
-    if (new RegExp(`^[+-]?${DIGITS}$`).test(value)) {
-      return new Rational(BigInt(cleanDigits(value, { signed: true })));
-    }
-    throw new Error(`Invalid rational number: ${input}`);
+    const [numerator, denominator] = parseRationalParts(input);
+    return new Rational(numerator, denominator);
   }
   function decimalShape(input) {
     const match = input.match(new RegExp(`^([+-]?)(?:(${DIGITS})(?:\\.(${DIGITS})?)?|\\.(${DIGITS}))$`));
@@ -49531,9 +49694,10 @@ symbolicNamespace._proto = {=
       throw new Error(`${label} must be a positive safe integer`);
     return index;
   }
-  function sceneEntries(value, runtime, name) {
+  function* sceneEntrySteps(value, runtime, name) {
     let ordinal = 0;
-    return sequence(value, `${name} entries`).flatMap((entry, group) => {
+    const scenes = [];
+    for (const [group, entry] of sequence(value, `${name} entries`).entries()) {
       let scene;
       let states;
       let label = null;
@@ -49551,7 +49715,7 @@ symbolicNamespace._proto = {=
           throw new Error(`${name} entry ${group + 1} must be a [scene, states] tuple`);
         [scene, states] = pair;
       }
-      return sequence(states, `${name} entry ${group + 1} states`).map((state, index) => {
+      for (const [index, state] of sequence(states, `${name} entry ${group + 1} states`).entries()) {
         const originEntries = new Map([
           ["entry", int(group + 1)],
           ["state", int(index + 1)],
@@ -49564,55 +49728,75 @@ symbolicNamespace._proto = {=
           entries: originEntries,
           _ext: new Map([["immutable", int(1)]])
         });
-        const content = invokeControlCallable(scene, [state, origin], runtime, `${name} entry ${group + 1} scene`);
+        const content = yield invokeControlCallable(scene, [state, origin], runtime, `${name} entry ${group + 1} scene`);
         if (!isBlockOutput(content)) {
           const actual = isOutputValue(content) ? content.kind : typeof content;
           throw new Error(`${name} scene ${group + 1}.${index + 1} must return block output; received ${actual}`);
         }
         ordinal += 1;
-        return Object.freeze({
+        scenes.push(Object.freeze({
           state,
           origin,
           content
-        });
-      });
-    });
+        }));
+      }
+    }
+    return scenes;
+  }
+  function withSceneEntries(value, runtime, name, finish) {
+    const steps = sceneEntrySteps(value, runtime, name);
+    if (runtime?.execution?.promiseAware) {
+      return (async () => {
+        let step = steps.next();
+        while (!step.done)
+          step = steps.next(await step.value);
+        return finish(step.value);
+      })();
+    }
+    let step = steps.next();
+    while (!step.done)
+      step = steps.next(step.value);
+    return finish(step.value);
   }
   function createSnapshots(args, runtime = null) {
     const entry = spec(args, ["entries"], "Snapshots");
     if (has(entry, "columns")) {
       throw new Error("Snapshots no longer accepts columns; pass its ordered list to a grid renderer instead");
     }
-    const snapshots = Object.freeze(sceneEntries(get(entry, "entries"), runtime, "Snapshots"));
-    if (snapshots.length === 0)
-      throw new Error("Snapshots requires at least one rendered scene");
-    return output("snapshots", {
-      snapshots,
-      title: asString(get(entry, "title")),
-      caption: asString(get(entry, "caption")),
-      style: optionalMap(get(entry, "style"), "Snapshots style")
+    return withSceneEntries(get(entry, "entries"), runtime, "Snapshots", (scenes) => {
+      const snapshots = Object.freeze(scenes);
+      if (snapshots.length === 0)
+        throw new Error("Snapshots requires at least one rendered scene");
+      return output("snapshots", {
+        snapshots,
+        title: asString(get(entry, "title")),
+        caption: asString(get(entry, "caption")),
+        style: optionalMap(get(entry, "style"), "Snapshots style")
+      });
     });
   }
   function createTimelineSequence(args, runtime = null) {
     const entry = spec(args, ["entries", "duration"], "Timeline.Sequence");
-    const frames = Object.freeze(sceneEntries(get(entry, "entries"), runtime, "Timeline.Sequence"));
-    if (frames.length === 0)
-      throw new Error("Timeline.Sequence requires at least one rendered frame");
-    const duration = get(entry, "duration");
-    const frameDurations = timelineFrameDurations(get(entry, "frameDurations"), frames.length);
-    if (frameDurations && duration !== null && duration !== undefined) {
-      throw new Error("Timeline.Sequence accepts either duration or frameDurations, not both");
-    }
-    return output("timeline", {
-      frames,
-      duration: duration === null || duration === undefined ? null : positiveExactNumber(duration, "Timeline.Sequence duration"),
-      frameDurations,
-      markers: timelineMarkers(get(entry, "markers"), frames.length),
-      tracks: timelineTracks(get(entry, "tracks"), frames.length),
-      preferencesKey: asString(get(entry, "preferencesKey")),
-      easing: asString(get(entry, "easing")) || "linear",
-      transition: timelineTransition(get(entry, "transition")),
-      title: asString(get(entry, "title"))
+    return withSceneEntries(get(entry, "entries"), runtime, "Timeline.Sequence", (scenes) => {
+      const frames = Object.freeze(scenes);
+      if (frames.length === 0)
+        throw new Error("Timeline.Sequence requires at least one rendered frame");
+      const duration = get(entry, "duration");
+      const frameDurations = timelineFrameDurations(get(entry, "frameDurations"), frames.length);
+      if (frameDurations && duration !== null && duration !== undefined) {
+        throw new Error("Timeline.Sequence accepts either duration or frameDurations, not both");
+      }
+      return output("timeline", {
+        frames,
+        duration: duration === null || duration === undefined ? null : positiveExactNumber(duration, "Timeline.Sequence duration"),
+        frameDurations,
+        markers: timelineMarkers(get(entry, "markers"), frames.length),
+        tracks: timelineTracks(get(entry, "tracks"), frames.length),
+        preferencesKey: asString(get(entry, "preferencesKey")),
+        easing: asString(get(entry, "easing")) || "linear",
+        transition: timelineTransition(get(entry, "transition")),
+        title: asString(get(entry, "title"))
+      });
     });
   }
   function timelineManifestFrameDuration(timeline, index) {
@@ -52258,10 +52442,11 @@ ${formatOutputText(slide, format)}`).join(`
       extension.set(name.toUpperCase(), {
         type: "method_builtin",
         name,
-        impl: (args, context, evaluate, invoke) => constructor(args.slice(1), {
+        impl: (args, context, evaluate, invoke, execution) => constructor(args.slice(1), {
           context,
           evaluate,
-          invoke
+          invoke,
+          execution
         })
       });
     }
@@ -52282,10 +52467,11 @@ ${formatOutputText(slide, format)}`).join(`
       extension.set(name.toUpperCase(), {
         type: "method_builtin",
         name,
-        impl: (args, context, evaluate, invoke) => constructor(args.slice(1), {
+        impl: (args, context, evaluate, invoke, execution) => constructor(args.slice(1), {
           context,
           evaluate,
-          invoke
+          invoke,
+          execution
         })
       });
     }
@@ -52310,10 +52496,11 @@ ${formatOutputText(slide, format)}`).join(`
       extension.set(name.toUpperCase(), {
         type: "method_builtin",
         name,
-        impl: (args, context, evaluate, invoke) => constructor(args.slice(1), {
+        impl: (args, context, evaluate, invoke, execution) => constructor(args.slice(1), {
           context,
           evaluate,
-          invoke
+          invoke,
+          execution
         })
       });
     }
@@ -52845,6 +53032,9 @@ ${formatOutputText(slide, format)}`).join(`
       return "ephemeral";
     return "ordinary";
   }
+  function copyRational(value) {
+    return Object.getPrototypeOf(value) === Rational.prototype && !Object.hasOwn(value, "numerator") && !Object.hasOwn(value, "denominator") ? new Rational(value) : new Rational(value.numerator, value.denominator);
+  }
   function shallowCopyValue(value) {
     if (value == null)
       return value;
@@ -52859,9 +53049,9 @@ ${formatOutputText(slide, format)}`).join(`
     if (value instanceof Integer)
       return new Integer(value.value);
     if (value instanceof Rational)
-      return new Rational(value.numerator, value.denominator);
+      return copyRational(value);
     if (value instanceof RationalInterval) {
-      return new RationalInterval(new Rational(value.start.numerator, value.start.denominator), new Rational(value.end.numerator, value.end.denominator));
+      return new RationalInterval(copyRational(value.start), copyRational(value.end));
     }
     if (value instanceof RationalIntervalSet)
       return new RationalIntervalSet(value);
@@ -52963,12 +53153,12 @@ ${formatOutputText(slide, format)}`).join(`
       return copy;
     }
     if (value instanceof Rational) {
-      const copy = new Rational(value.numerator, value.denominator);
+      const copy = copyRational(value);
       memo.set(value, copy);
       return copy;
     }
     if (value instanceof RationalInterval) {
-      const copy = new RationalInterval(new Rational(value.start.numerator, value.start.denominator), new Rational(value.end.numerator, value.end.denominator));
+      const copy = new RationalInterval(copyRational(value.start), copyRational(value.end));
       memo.set(value, copy);
       return copy;
     }
@@ -62873,7 +63063,7 @@ ${indentStr})`;
       Core: Object.freeze(["LEN", "FIRST", "LAST", "GETEL", "IRANGE", "IF", "LOOP", "MULTI", "RAND_NAME", "PRINT", "Shaped", "KEYOF", "KEYS", "VALUES", "REGISTERMETHOD", "CertifiedApproximation", "Undecided", "RefinementRequest", "RefinementEffectiveLimits", "RefinementSupports", "RefinementCheck", "RefinementUnsupported", "TypeKnown", "ImmutableValue"]),
       Methods: Object.freeze(["REGISTERMETHOD"]),
       Numerics: Object.freeze(["IntervalLinearSolve", "IntervalNewtonBox", "BoxSubdivide", "BoxResume", "ValidatedBoxCheck", "ValidatedClaimEqual", "RationalBox", "KrawczykBox", "KrawczykCheck"]),
-      Arith: Object.freeze(["ADD", "SUB", "MUL", "DIV", "INTDIV", "DIVMOD", "MOD", "POW", "FACTORIAL", "DOUBLEFACTORIAL", "RANGE_POLICY", "RANGE_EVIDENCE", "RANGE_ADD", "RANGE_SUBTRACT", "RANGE_MULTIPLY", "RANGE_DIVIDE", "RANGE_NEGATE", "RANGE_ABSOLUTE_VALUE", "RANGE_RECIPROCAL", "RANGE_INTEGER_POWER", "CALCULUS_RANGE", "CALCULUS_RANGE_CHECK", "CALCULUS_RANGE_RECOGNIZE", "CALCULUS_GRAPH_SIMPLIFY", "CALCULUS_GRAPH_SIMPLIFICATION_CHECK", "CALCULUS_DERIVATIVE_CHECK", "CALCULUS_DERIVATIVE_SIGN", "CALCULUS_LIPSCHITZ_RANGE", "CALCULUS_TAYLOR_RANGE"]),
+      Arith: Object.freeze(["ADD", "SUB", "MUL", "DIV", "INTDIV", "DIVMOD", "MOD", "POW", "GCD", "LCM", "ISQRT", "ISPRIME", "FACTORIAL", "DOUBLEFACTORIAL", "RANGE_POLICY", "RANGE_EVIDENCE", "RANGE_ADD", "RANGE_SUBTRACT", "RANGE_MULTIPLY", "RANGE_DIVIDE", "RANGE_NEGATE", "RANGE_ABSOLUTE_VALUE", "RANGE_RECIPROCAL", "RANGE_INTEGER_POWER", "CALCULUS_RANGE", "CALCULUS_RANGE_CHECK", "CALCULUS_RANGE_RECOGNIZE", "CALCULUS_GRAPH_SIMPLIFY", "CALCULUS_GRAPH_SIMPLIFICATION_CHECK", "CALCULUS_DERIVATIVE_CHECK", "CALCULUS_DERIVATIVE_SIGN", "CALCULUS_LIPSCHITZ_RANGE", "CALCULUS_TAYLOR_RANGE"]),
       Logic: Object.freeze(["EQ", "NEQ", "LT", "GT", "LTE", "GTE", "AND", "OR", "NOT", "GUARD_RETURN", "LogicSequent", "LogicCheckSequent", "LogicSequentTree", "LogicExactProposition", "LogicCheckProposition"]),
       Collections: Object.freeze(["LEN", "FIRST", "LAST", "GETEL", "IRANGE", "MAP", "FILTER", "REDUCE", "Shaped", "Stream"]),
       Async: Object.freeze(["Stream", "Retry", "TimerStream", "ReactiveStream", "UIStream"]),
@@ -67812,6 +68002,16 @@ ${indentStr})`;
     }
     tc.log.push(entry);
   }
+  function isHostStackOverflow(error) {
+    return error instanceof RangeError && /call stack/i.test(error.message);
+  }
+  function recursionDepthError(callName, context) {
+    const name = callName ? `${callName}` : "an anonymous function";
+    const depth = context?.callStack?.length ?? 0;
+    const error = new Error(`Recursion too deep in ${name}${depth ? ` (about ${depth} nested calls)` : ""}: the host call stack ran out. ` + "A self-call in tail position written as $(...) runs in constant stack, e.g. " + "Count(n, acc) -> n <= 0 ?: acc ?_ $(n - 1, acc + 1); otherwise use a loop {@ ... }.");
+    error.code = "RIX_RECURSION_DEPTH";
+    return error;
+  }
   function invokeUserCallable(fn, callArgs, context, evaluate, options = {}) {
     const callName = options.callName ?? fn.name ?? null;
     const shareBody = options.shareBody !== false;
@@ -67897,6 +68097,8 @@ ${indentStr})`;
         scopeActive = true;
       }
     } catch (error) {
+      if (isHostStackOverflow(error))
+        throw recursionDepthError(callName, context);
       if (!isFunctionReturnSignal(error) || error.target !== returnTarget)
         throw error;
       const value = returnedValue(error);
@@ -76341,7 +76543,30 @@ ${indented.join(`,
     if (typeof val === "function" || val && typeof val === "object" && (val.type === "lambda" || val.type === "function" || val.type === "sysref" || val.type === "partial" || val.type === "arityCap")) {
       throw new Error("Cannot use function/lambda in arithmetic. If you intended to call a function, its name must be Capitalised.");
     }
-    throw new Error(`Cannot use ${typeof val} in arithmetic`);
+    throw new Error(`Cannot use ${describeArithmeticOperand(val)} in arithmetic${arithmeticOperandHint(val)}`);
+  }
+  var RIX_TYPE_NAMES = { sequence: "an array", tuple: "a tuple", set: "a set", map: "a map", string: "a string", lazy_sequence: "a lazy sequence", iterator: "an iterator", output: "an output value", type: "a type" };
+  function describeArithmeticOperand(val) {
+    if (val === null || val === undefined)
+      return "_ (null)";
+    if (typeof val !== "object")
+      return `a JavaScript ${typeof val}`;
+    if (RIX_TYPE_NAMES[val.type])
+      return RIX_TYPE_NAMES[val.type];
+    if (typeof val.type === "string")
+      return `a ${val.type.replaceAll("_", " ")} value`;
+    const name = val.constructor?.name;
+    return name && name !== "Object" ? `a ${name}` : "this value";
+  }
+  function arithmeticOperandHint(val) {
+    if (val && ["sequence", "tuple", "set", "lazy_sequence"].includes(val.type)) {
+      return "; to combine each element, use a pipe such as xs |>> ((x) -> x + 1)";
+    }
+    if (val?.type === "map")
+      return "; to combine each value, use a pipe such as m |>> ((v) -> v + 1)";
+    if (val === null || val === undefined)
+      return "; a comparison or lookup may have produced _";
+    return "";
   }
   function stringify(val) {
     return formatValue(val);
@@ -76375,6 +76600,10 @@ ${indented.join(`,
     const remainder = absNum % denominator;
     const rounded = remainder * 2n >= denominator ? floor + 1n : floor;
     return numerator < 0n ? -rounded : rounded;
+  }
+  var CORE_HAS_FLOOR_OPS = typeof Integer.prototype.floorDivide === "function" && typeof Integer.prototype.floorModulo === "function" && typeof Integer.prototype.divmod === "function";
+  function plainIntegers(a, b) {
+    return CORE_HAS_FLOOR_OPS && Object.getPrototypeOf(a) === Integer.prototype && Object.getPrototypeOf(b) === Integer.prototype && !Object.hasOwn(a, "value") && !Object.hasOwn(b, "value");
   }
   function requirePositiveDivisor(value, operation) {
     const { numerator } = toQuotientParts(value);
@@ -76854,6 +77083,8 @@ ${indented.join(`,
       impl(args) {
         const a = ensureNumeric(args[0]);
         const b = ensureNumeric(args[1]);
+        if (plainIntegers(a, b))
+          return a.floorDivide(b);
         const quotient = a.divide(b);
         const { numerator, denominator } = toQuotientParts(quotient);
         return new Integer(floorDiv(numerator, denominator));
@@ -76887,6 +77118,10 @@ ${indented.join(`,
       impl(args) {
         const a = ensureNumeric(args[0]);
         const b = ensureNumeric(args[1]);
+        if (plainIntegers(a, b)) {
+          requirePositiveDivisor(b, "Modulo");
+          return a.floorModulo(b);
+        }
         return rationalModulo(a, b);
       },
       pure: true,
@@ -76897,6 +77132,8 @@ ${indented.join(`,
         const a = ensureNumeric(args[0]);
         const b = ensureNumeric(args[1]);
         requirePositiveDivisor(b, "Division with remainder");
+        if (plainIntegers(a, b))
+          return { type: "tuple", values: a.divmod(b) };
         const quotient = a.divide(b);
         const parts = toQuotientParts(quotient);
         const floor = new Integer(floorDiv(parts.numerator, parts.denominator));
@@ -76912,7 +77149,13 @@ ${indented.join(`,
       impl(args) {
         const base = ensureNumeric(args[0]);
         const exp = ensureNumeric(args[1]);
+        if (exp instanceof Rational && exp.denominator !== 1n) {
+          throw new Error(`Exponent ${exp.toString()} is not an integer: exact RiX powers take integer exponents. ` + 'For roots, load a real-number plugin, e.g. .Plugin.Load("algebraic-real"); .ar.Sqrt(4)');
+        }
         const expValue = exp instanceof Integer ? exp.value : Number(exp.toString());
+        if (base instanceof Integer && Object.getPrototypeOf(base) === Integer.prototype && typeof expValue === "bigint" && expValue >= 0n) {
+          return new Integer(base.value ** expValue);
+        }
         return base.pow(expValue);
       },
       pure: true,
@@ -81880,10 +82123,25 @@ ${indented.join(`,
     }
     return builtinProtoFor(target);
   }
+  var METHOD_SPELLING_LIMIT = 256;
+  var methodSpellings = new Map;
+  function methodSpellingCandidates(name, upperName) {
+    const build = () => Object.freeze([...new Set([name, upperName, `__${name}`, `_${name}`, `__${upperName}`, `_${upperName}`])]);
+    if (typeof name !== "string")
+      return build();
+    let candidates = methodSpellings.get(name);
+    if (!candidates) {
+      candidates = build();
+      if (methodSpellings.size >= METHOD_SPELLING_LIMIT)
+        methodSpellings.clear();
+      methodSpellings.set(name, candidates);
+    }
+    return candidates;
+  }
   function resolveMethod(target, name, context = null) {
     const ext = target?._ext;
     const upperName = String(name).toUpperCase();
-    const candidates = [...new Set([name, upperName, `__${name}`, `_${name}`, `__${upperName}`, `_${upperName}`])];
+    const candidates = methodSpellingCandidates(name, upperName);
     const special = checkTraitsMethod(name);
     if (special) {
       return special;
@@ -82382,6 +82640,21 @@ ${indented.join(`,
     });
     return { value, load };
   }
+  function editDistance(a, b, limit) {
+    if (Math.abs(a.length - b.length) > limit)
+      return limit + 1;
+    let previous = Array.from({ length: b.length + 1 }, (_, index) => index);
+    for (let i = 1;i <= a.length; i++) {
+      const current = [i];
+      for (let j = 1;j <= b.length; j++) {
+        current[j] = Math.min(previous[j] + 1, current[j - 1] + 1, previous[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      }
+      if (Math.min(...current) > limit)
+        return limit + 1;
+      previous = current;
+    }
+    return previous[b.length];
+  }
 
   class SystemContext {
     constructor(capabilities = new Map, frozen = false, options = {}) {
@@ -82647,7 +82920,7 @@ ${indented.join(`,
     call(name, args, context, evaluate) {
       const cap = this.get(name);
       if (!cap)
-        throw new Error(`Unknown system capability: ${name}. Use .${name}() or check available capabilities.`);
+        throw new Error(this.unknownCapabilityMessage(name));
       if (cap.kind !== "function")
         throw new Error(`System ${cap.kind} .${cap.displayName} is not a capability function`);
       return cap.impl(args, context, evaluate);
@@ -82655,10 +82928,31 @@ ${indented.join(`,
     callLazy(name, args, context, evaluate) {
       const cap = this.get(name);
       if (!cap)
-        throw new Error(`Unknown system capability: ${name}.`);
+        throw new Error(this.unknownCapabilityMessage(name));
       if (cap.kind !== "function")
         throw new Error(`System ${cap.kind} .${cap.displayName} is not a capability function`);
       return cap.impl(args, context, evaluate);
+    }
+    unknownCapabilityMessage(name) {
+      const wanted = String(name).toUpperCase();
+      const limit = wanted.length <= 4 ? 1 : 2;
+      const near = this.getAllNames().map((candidate) => [candidate, editDistance(wanted, candidate, limit)]).filter(([, distance]) => distance <= limit).sort((left, right) => left[1] - right[1]).slice(0, 3).map(([candidate]) => `.${this._capabilities.get(candidate)?.displayName ?? candidate}`);
+      const plugins = [];
+      for (const plugin of this._pluginCatalog?.list?.() ?? []) {
+        const mount = plugin.mount ?? plugin.id;
+        if (String(plugin.id).toUpperCase() === wanted || String(mount).toUpperCase() === wanted) {
+          plugins.push(`.Plugin.Load("${plugin.id}") provides .${mount}`);
+        } else if ((plugin.exports ?? []).some((entry) => String(entry).toUpperCase() === wanted)) {
+          const exported = plugin.exports.find((entry) => String(entry).toUpperCase() === wanted);
+          plugins.push(`.Plugin.Load("${plugin.id}") provides .${mount}.${exported}`);
+        }
+      }
+      const hints = [];
+      if (near.length)
+        hints.push(`Did you mean ${near.join(", ")}?`);
+      if (plugins.length)
+        hints.push(plugins.slice(0, 3).join("; "));
+      return `Unknown system capability: ${name}${hints.length ? `. ${hints.join(" ")}` : '. If it comes from a plugin, load it with .Plugin.Load("name") first.'}`;
     }
     getAllNames() {
       return Array.from(this._capabilities.keys()).sort();
@@ -85714,6 +86008,132 @@ ${indented.join(`,
   }
 
   // src/runtime/context.js
+  class LazySnapshotScope extends Map {
+    #pending;
+    #order;
+    #snapshot;
+    constructor(source, snapshot) {
+      super();
+      this.#pending = new Map([...source].map(([name, cell]) => [name, cell.value]));
+      this.#order = [...this.#pending.keys()];
+      this.#snapshot = snapshot;
+    }
+    #take(name) {
+      const value = this.#pending.get(name);
+      this.#pending.delete(name);
+      super.set(name, this.#snapshot(value));
+    }
+    #materialize() {
+      if (this.#pending.size === 0)
+        return;
+      const extra = [...super.entries()].filter(([name]) => !this.#order.includes(name));
+      for (const name of this.#order)
+        if (this.#pending.has(name))
+          this.#take(name);
+      const ordered = [...this.#order.filter((name) => super.has(name)).map((name) => [name, super.get(name)]), ...extra];
+      super.clear();
+      for (const [name, cell] of ordered)
+        super.set(name, cell);
+    }
+    get(name) {
+      if (this.#pending.has(name))
+        this.#take(name);
+      return super.get(name);
+    }
+    has(name) {
+      return this.#pending.has(name) || super.has(name);
+    }
+    set(name, cell) {
+      this.#pending?.delete(name);
+      return super.set(name, cell);
+    }
+    delete(name) {
+      const pending = this.#pending.delete(name);
+      return super.delete(name) || pending;
+    }
+    clear() {
+      this.#pending.clear();
+      super.clear();
+    }
+    get size() {
+      return this.#pending.size + super.size;
+    }
+    keys() {
+      this.#materialize();
+      return super.keys();
+    }
+    values() {
+      this.#materialize();
+      return super.values();
+    }
+    entries() {
+      this.#materialize();
+      return super.entries();
+    }
+    forEach(callback, thisArg) {
+      this.#materialize();
+      return super.forEach(callback, thisArg);
+    }
+    [Symbol.iterator]() {
+      return this.entries();
+    }
+  }
+
+  class ForwardingScope extends Map {
+    #source;
+    #onCell;
+    constructor(source, onCell) {
+      super();
+      this.#source = source;
+      this.#onCell = onCell;
+    }
+    #pull(name) {
+      if (super.has(name) || !this.#source.has(name))
+        return;
+      const cell = this.#source.get(name);
+      this.#onCell(cell);
+      super.set(name, cell);
+    }
+    #pullAll() {
+      for (const name of this.#source.keys())
+        this.#pull(name);
+    }
+    get(name) {
+      this.#pull(name);
+      return super.get(name);
+    }
+    has(name) {
+      return super.has(name) || this.#source.has(name);
+    }
+    delete(name) {
+      this.#pull(name);
+      return super.delete(name);
+    }
+    get size() {
+      this.#pullAll();
+      return super.size;
+    }
+    keys() {
+      this.#pullAll();
+      return super.keys();
+    }
+    values() {
+      this.#pullAll();
+      return super.values();
+    }
+    entries() {
+      this.#pullAll();
+      return super.entries();
+    }
+    forEach(callback, thisArg) {
+      this.#pullAll();
+      return super.forEach(callback, thisArg);
+    }
+    [Symbol.iterator]() {
+      return this.entries();
+    }
+  }
+
   class Context {
     constructor() {
       this.globalScope = new Map;
@@ -85731,9 +86151,13 @@ ${indented.join(`,
     }
     push(initial, options = {}) {
       const rawMap = initial instanceof Map ? initial : new Map(initial ? Object.entries(initial) : []);
-      const bindings = new Map;
+      const forward = rawMap instanceof LazySnapshotScope && options.snapshot !== true;
+      const bindings = forward ? new ForwardingScope(rawMap, (cell) => {
+        if (options.readOnly === true)
+          this.readOnlyCells.add(cell);
+      }) : new Map;
       const snapshotMemo = options.snapshot === true ? new WeakMap : null;
-      for (const [k, v] of rawMap) {
+      for (const [k, v] of forward ? [] : rawMap) {
         const sourceCell = v instanceof Cell ? v : new Cell(v);
         const cell = options.snapshot === true ? new Cell(deepCopyValue(sourceCell.value, snapshotMemo)) : sourceCell;
         bindings.set(k, cell);
@@ -86046,19 +86470,16 @@ ${indented.join(`,
     concurrentChild() {
       const child = new Context;
       const snapshotMemo = new WeakMap;
-      child.globalScope = new Map([...this.globalScope].map(([name, cell]) => {
-        const snapshot = new Cell(deepCopyValue(cell.value, snapshotMemo));
+      const snapshotCell = (value) => {
+        const snapshot = new Cell(deepCopyValue(value, snapshotMemo));
         child.readOnlyCells.add(snapshot);
-        return [name, snapshot];
-      }));
+        return snapshot;
+      };
+      child.globalScope = new LazySnapshotScope(this.globalScope, snapshotCell);
       child.globalReadOnly = true;
       child.globalScopedEnv = new Map(this.globalScopedEnv);
       child.localScopes = this.localScopes.map((scope) => ({
-        bindings: new Map([...scope.bindings].map(([name, cell]) => {
-          const snapshot = new Cell(deepCopyValue(cell.value, snapshotMemo));
-          child.readOnlyCells.add(snapshot);
-          return [name, snapshot];
-        })),
+        bindings: new LazySnapshotScope(scope.bindings, snapshotCell),
         scopedEnv: new Map(scope.scopedEnv || []),
         isolated: scope.isolated === true,
         readThrough: scope.readThrough === true,
@@ -88012,6 +88433,8 @@ ${indented.join(`,
   function parseLiteral(str) {
     if (typeof str !== "string")
       return str;
+    if (/^[0-9]+$/.test(str))
+      return new Integer(BigInt(str));
     const isCoreApproximation = str.includes("?") && !/^~?(?:0z\[\d+\]|0[a-zA-Z])/.test(str) && !/^0[A-Z]"/.test(str);
     const isCoreUncertainty = isCoreApproximation || /^[+-]?(?:\d(?:_?\d)*(?:\.(?:\d(?:_?\d)*)?)?|\.\d(?:_?\d)*)\[[^\]]+\]$/.test(str);
     if (isCoreUncertainty) {
@@ -89373,6 +89796,9 @@ ${indented.join(`,
           if (context.getAncestorCell(name)) {
             throw new Error(`Undefined variable: ${name}
 ` + `RX1001: '${name}' exists in an enclosing scope; use '@${name}' to capture it, or import it explicitly.`);
+          }
+          if (/^[eE]\d+$/.test(name)) {
+            throw new Error(`Undefined variable: ${name}. RiX has no e-notation, so 1${name} reads as 1 * ${name}; write 1_^${name.slice(1)} (or 10^${name.slice(1)}) for a power of ten`);
           }
           throw new Error(`Undefined variable: ${name}`);
         }
@@ -91311,6 +91737,126 @@ ${pad}}`;
     }
   };
   withFreshMutableResults(stdlibFunctions, ["IRANGE"]);
+
+  // src/eval/functions/number-theory.js
+  function integerArgument(value, name) {
+    if (value instanceof Integer)
+      return value.value;
+    if (value instanceof Rational && value.denominator === 1n)
+      return value.numerator;
+    throw new Error(`${name} requires Integer arguments`);
+  }
+  var abs2 = (n) => n < 0n ? -n : n;
+  function gcd3(a, b) {
+    a = abs2(a);
+    b = abs2(b);
+    while (b !== 0n)
+      [a, b] = [b, a % b];
+    return a;
+  }
+  function integerSqrt(n) {
+    if (n < 0n)
+      throw new Error("Isqrt requires a nonnegative Integer");
+    if (n < 2n)
+      return n;
+    let x = 1n << BigInt(Math.ceil(n.toString(2).length / 2));
+    for (;; ) {
+      const next = x + n / x >> 1n;
+      if (next >= x)
+        return x;
+      x = next;
+    }
+  }
+  function modPow(base, exponent, modulus) {
+    let result = 1n;
+    base %= modulus;
+    while (exponent > 0n) {
+      if (exponent & 1n)
+        result = result * base % modulus;
+      base = base * base % modulus;
+      exponent >>= 1n;
+    }
+    return result;
+  }
+  var SMALL_PRIMES = [2n, 3n, 5n, 7n, 11n, 13n, 17n, 19n, 23n, 29n, 31n, 37n, 41n];
+  var DETERMINISTIC_BOUND = 3317044064679887385961981n;
+  var EXTRA_BASES = [43n, 47n, 53n, 59n, 61n, 67n, 71n, 73n, 79n, 83n, 89n, 97n];
+  function strongProbablePrime(n, base) {
+    let d = n - 1n;
+    let s = 0;
+    while ((d & 1n) === 0n) {
+      d >>= 1n;
+      s += 1;
+    }
+    let x = modPow(base, d, n);
+    if (x === 1n || x === n - 1n)
+      return true;
+    for (let i = 1;i < s; i++) {
+      x = x * x % n;
+      if (x === n - 1n)
+        return true;
+    }
+    return false;
+  }
+  function primality(n) {
+    if (n < 2n)
+      return false;
+    for (const p of SMALL_PRIMES) {
+      if (n === p)
+        return true;
+      if (n % p === 0n)
+        return false;
+    }
+    for (const base of SMALL_PRIMES)
+      if (!strongProbablePrime(n, base))
+        return false;
+    if (n < DETERMINISTIC_BOUND)
+      return true;
+    for (const base of EXTRA_BASES)
+      if (!strongProbablePrime(n, base))
+        return false;
+    return "undecided";
+  }
+  var numberTheoryFunctions = {
+    GCD: {
+      impl(args) {
+        if (args.length === 0)
+          throw new Error("Gcd requires at least one Integer");
+        return new Integer(args.reduce((acc, value) => gcd3(acc, integerArgument(value, "Gcd")), 0n));
+      },
+      pure: true,
+      doc: "Greatest common divisor of one or more Integers (nonnegative)"
+    },
+    LCM: {
+      impl(args) {
+        if (args.length === 0)
+          throw new Error("Lcm requires at least one Integer");
+        return new Integer(args.reduce((acc, value) => {
+          const n = abs2(integerArgument(value, "Lcm"));
+          return acc === 0n || n === 0n ? 0n : acc / gcd3(acc, n) * n;
+        }, 1n));
+      },
+      pure: true,
+      doc: "Least common multiple of one or more Integers (nonnegative; 0 if any is 0)"
+    },
+    ISQRT: {
+      impl(args) {
+        return new Integer(integerSqrt(integerArgument(args[0], "Isqrt")));
+      },
+      pure: true,
+      doc: "Integer square root: the largest Integer whose square is at most n"
+    },
+    ISPRIME: {
+      impl(args) {
+        const result = primality(integerArgument(args[0], "IsPrime"));
+        if (result === "undecided")
+          return UNDECIDED;
+        return result ? new Integer(1n) : null;
+      },
+      pure: true,
+      doc: "Primality: 1 if prime, _ if not; proven below 3.3e24, beyond which a strong probable prime gives ? (undecided)"
+    }
+  };
 
   // src/eval/functions/diagnostics.js
   var EMPTY_MAP = Object.freeze({ type: "map", entries: new Map });
@@ -96393,7 +96939,7 @@ ${pad}}`;
     const tail = working.slice(difference + 1);
     return { quotient: normalize3(quotient), remainder: normalize3(tail.length ? tail : [zero3()]) };
   }
-  function gcd2(left, right) {
+  function gcd4(left, right) {
     let a = normalize3(left);
     let b = normalize3(right);
     while (!(b.length === 1 && isZero4(b[0]))) {
@@ -96417,7 +96963,7 @@ ${pad}}`;
       throw new Error("Rational-function denominator cannot be the zero polynomial");
     if (n.length === 1 && isZero4(n[0]))
       return { numerator: [zero3()], denominator: [one2()], cancelledDegree: d.length - 1 };
-    const common = gcd2(n, d);
+    const common = gcd4(n, d);
     n = exactQuotient(n, common);
     d = exactQuotient(d, common);
     const leading = d[0];
@@ -98117,7 +98663,7 @@ ${pad}}`;
     const rows = relation.rows.filter((row, index) => truthy3(runtime.invoke(args[1], [rowMap(relation, row), new Integer(BigInt(index + 1)), relation], runtime.context, runtime.evaluate)));
     return makeRelation(Object.freeze([...relation.columns]), Object.freeze([...rows]), [...relation.provenance.operations, "filter"]);
   }
-  function exactParts(value) {
+  function exactParts2(value) {
     if (value instanceof Integer)
       return [value.value, 1n];
     if (value instanceof Rational)
@@ -98131,7 +98677,7 @@ ${pad}}`;
   function measurementParts(value) {
     if (value instanceof RationalInterval)
       return [value.low, value.high];
-    const exact = exactParts(value);
+    const exact = exactParts2(value);
     if (!exact)
       return null;
     const point = new Rational(exact[0], exact[1]);
@@ -98140,8 +98686,8 @@ ${pad}}`;
   function compareValues2(left, right, column, operation = "Sort") {
     if (left === null || right === null)
       return left === right ? 0 : left === null ? 1 : -1;
-    const leftExact = exactParts(left);
-    const rightExact = exactParts(right);
+    const leftExact = exactParts2(left);
+    const rightExact = exactParts2(right);
     if (leftExact && rightExact) {
       const difference = leftExact[0] * rightExact[1] - rightExact[0] * leftExact[1];
       return difference < 0n ? -1 : difference > 0n ? 1 : 0;
@@ -98331,7 +98877,7 @@ ${pad}}`;
       const value = row[index];
       if (value === null)
         return "missing";
-      const exact = exactParts(value);
+      const exact = exactParts2(value);
       if (exact)
         return `q:${exact[0]}/${exact[1]}`;
       const measurement = measurementParts(value);
@@ -104448,6 +104994,9 @@ Evidence: ${JSON.stringify(frame.snapshot)}
     const timeline = createTimelineOutputCollection();
     ctx.registerValue("Timeline", timeline, { doc: "Portable exact timeline constructors" });
     ctx.registerAll(stdlibFunctions);
+    for (const [name, key] of [["Gcd", "GCD"], ["Lcm", "LCM"], ["Isqrt", "ISQRT"], ["IsPrime", "ISPRIME"]]) {
+      ctx.register(name, numberTheoryFunctions[key]);
+    }
     ctx.registerAll(symbolicCapabilities);
     ctx.registerCallableValue("Poly", createPolySystemValue(), symbolicCapabilities.POLY, {
       doc: `${symbolicCapabilities.POLY.doc}; exposes .Parse for backtick polynomial forms`,
@@ -105092,7 +105641,7 @@ Evidence: ${JSON.stringify(frame.snapshot)}
           return systemContext.frozen ? 1 : 0;
         }
         if (!systemContext.has(name)) {
-          throw new Error(`Unknown system capability: ${name}`);
+          throw new Error(systemContext.unknownCapabilityMessage?.(name) ?? `Unknown system capability: ${name}`);
         }
         const entry = systemContext.get(name);
         if (Object.prototype.hasOwnProperty.call(entry, "value"))
@@ -105108,7 +105657,7 @@ Evidence: ${JSON.stringify(frame.snapshot)}
           throw new Error("No system context available");
         const cap = systemContext.get(name);
         if (!cap) {
-          throw new Error(`Unknown system capability: ${name}. Use .${name}() only if the capability exists.`);
+          throw new Error(systemContext.unknownCapabilityMessage?.(name) ?? `Unknown system capability: ${name}`);
         }
         if (cap.kind !== "function") {
           throw new Error(`System ${cap.kind} .${cap.displayName} is not directly callable; index it or assign one of its entries`);

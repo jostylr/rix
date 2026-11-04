@@ -8,6 +8,7 @@
  * dependency closure.
  */
 export const STANDARD_CAPABILITY_NAMES = Object.freeze([
+    "Gcd", "Isqrt", "IsPrime", "Lcm",
     "Abs", "Add", "AffineBoxRange", "Algebra", "All", "And", "Any", "Array", "ASSET", "Assign",
     "AssignCopy", "AssignDeepCopy", "AssignDeepUpdate", "AssignUpdate", "AUDIO", "BIND",
     "Block", "BoxResume", "BoxSubdivide", "CalculusDerivativeCheck", "CalculusDerivativeProof", "CalculusDerivativeSign", "CalculusGraphRewrite",
