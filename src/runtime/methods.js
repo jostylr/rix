@@ -2039,10 +2039,26 @@ export function getBuiltinProto(target) {
     return builtinProtoFor(target);
 }
 
+// Spelling candidates depend only on the name, so they are cached (bounded,
+// frozen). Resolution itself always reads live extensions and prototypes.
+const METHOD_SPELLING_LIMIT = 256;
+const methodSpellings = new Map();
+function methodSpellingCandidates(name, upperName) {
+    const build = () => Object.freeze([...new Set([name, upperName, `__${name}`, `_${name}`, `__${upperName}`, `_${upperName}`])]);
+    if (typeof name !== "string") return build();
+    let candidates = methodSpellings.get(name);
+    if (!candidates) {
+        candidates = build();
+        if (methodSpellings.size >= METHOD_SPELLING_LIMIT) methodSpellings.clear();
+        methodSpellings.set(name, candidates);
+    }
+    return candidates;
+}
+
 export function resolveMethod(target, name, context = null) {
     const ext = target?._ext;
     const upperName = String(name).toUpperCase();
-    const candidates = [...new Set([name, upperName, `__${name}`, `_${name}`, `__${upperName}`, `_${upperName}`])];
+    const candidates = methodSpellingCandidates(name, upperName);
     const special = checkTraitsMethod(name);
     if (special) {
         return special;
