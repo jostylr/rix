@@ -467,6 +467,21 @@ function pluginNamespaceEntry(context, catalog) {
     return { value, load };
 }
 
+// Levenshtein distance, giving up early once it exceeds limit.
+function editDistance(a, b, limit) {
+    if (Math.abs(a.length - b.length) > limit) return limit + 1;
+    let previous = Array.from({ length: b.length + 1 }, (_, index) => index);
+    for (let i = 1; i <= a.length; i++) {
+        const current = [i];
+        for (let j = 1; j <= b.length; j++) {
+            current[j] = Math.min(previous[j] + 1, current[j - 1] + 1, previous[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+        }
+        if (Math.min(...current) > limit) return limit + 1;
+        previous = current;
+    }
+    return previous[b.length];
+}
+
 export class SystemContext {
     /**
      * @param {Map<string, object>} capabilities
@@ -788,7 +803,7 @@ export class SystemContext {
      */
     call(name, args, context, evaluate) {
         const cap = this.get(name);
-        if (!cap) throw new Error(`Unknown system capability: ${name}. Use .${name}() or check available capabilities.`);
+        if (!cap) throw new Error(this.unknownCapabilityMessage(name));
         if (cap.kind !== "function") throw new Error(`System ${cap.kind} .${cap.displayName} is not a capability function`);
         return cap.impl(args, context, evaluate);
     }
@@ -798,9 +813,38 @@ export class SystemContext {
      */
     callLazy(name, args, context, evaluate) {
         const cap = this.get(name);
-        if (!cap) throw new Error(`Unknown system capability: ${name}.`);
+        if (!cap) throw new Error(this.unknownCapabilityMessage(name));
         if (cap.kind !== "function") throw new Error(`System ${cap.kind} .${cap.displayName} is not a capability function`);
         return cap.impl(args, context, evaluate);
+    }
+
+    /**
+     * Error text for a missing capability, naming near spellings and any
+     * catalog plugin that provides the name (as a mount or an export).
+     */
+    unknownCapabilityMessage(name) {
+        const wanted = String(name).toUpperCase();
+        const limit = wanted.length <= 4 ? 1 : 2;
+        const near = this.getAllNames()
+            .map((candidate) => [candidate, editDistance(wanted, candidate, limit)])
+            .filter(([, distance]) => distance <= limit)
+            .sort((left, right) => left[1] - right[1])
+            .slice(0, 3)
+            .map(([candidate]) => `.${this._capabilities.get(candidate)?.displayName ?? candidate}`);
+        const plugins = [];
+        for (const plugin of this._pluginCatalog?.list?.() ?? []) {
+            const mount = plugin.mount ?? plugin.id;
+            if (String(plugin.id).toUpperCase() === wanted || String(mount).toUpperCase() === wanted) {
+                plugins.push(`.Plugin.Load("${plugin.id}") provides .${mount}`);
+            } else if ((plugin.exports ?? []).some((entry) => String(entry).toUpperCase() === wanted)) {
+                const exported = plugin.exports.find((entry) => String(entry).toUpperCase() === wanted);
+                plugins.push(`.Plugin.Load("${plugin.id}") provides .${mount}.${exported}`);
+            }
+        }
+        const hints = [];
+        if (near.length) hints.push(`Did you mean ${near.join(", ")}?`);
+        if (plugins.length) hints.push(plugins.slice(0, 3).join("; "));
+        return `Unknown system capability: ${name}${hints.length ? `. ${hints.join(" ")}` : ". If it comes from a plugin, load it with .Plugin.Load(\"name\") first."}`;
     }
 
     /**

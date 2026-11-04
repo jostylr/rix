@@ -2356,6 +2356,9 @@ export const coreFunctions = {
                         + `RX1001: '${name}' exists in an enclosing scope; use '@${name}' to capture it, or import it explicitly.`,
                     );
                 }
+                if (/^[eE]\d+$/.test(name)) {
+                    throw new Error(`Undefined variable: ${name}. RiX has no e-notation, so 1${name} reads as 1 * ${name}; write 1_^${name.slice(1)} (or 10^${name.slice(1)}) for a power of ten`);
+                }
                 throw new Error(`Undefined variable: ${name}`);
             }
             const reactiveRead = context.getEnv(REACTIVE_READ_ENV, null);

@@ -68,7 +68,28 @@ function ensureNumeric(val) {
         throw new Error("Cannot use function/lambda in arithmetic. If you intended to call a function, its name must be Capitalised.");
     }
 
-    throw new Error(`Cannot use ${typeof val} in arithmetic`);
+    throw new Error(`Cannot use ${describeArithmeticOperand(val)} in arithmetic${arithmeticOperandHint(val)}`);
+}
+
+const RIX_TYPE_NAMES = { sequence: "an array", tuple: "a tuple", set: "a set", map: "a map", string: "a string", lazy_sequence: "a lazy sequence", iterator: "an iterator", output: "an output value", type: "a type" };
+
+// Name the RiX kind of a value rather than JavaScript's "object".
+function describeArithmeticOperand(val) {
+    if (val === null || val === undefined) return "_ (null)";
+    if (typeof val !== "object") return `a JavaScript ${typeof val}`;
+    if (RIX_TYPE_NAMES[val.type]) return RIX_TYPE_NAMES[val.type];
+    if (typeof val.type === "string") return `a ${val.type.replaceAll("_", " ")} value`;
+    const name = val.constructor?.name;
+    return name && name !== "Object" ? `a ${name}` : "this value";
+}
+
+function arithmeticOperandHint(val) {
+    if (val && ["sequence", "tuple", "set", "lazy_sequence"].includes(val.type)) {
+        return "; to combine each element, use a pipe such as xs |>> ((x) -> x + 1)";
+    }
+    if (val?.type === "map") return "; to combine each value, use a pipe such as m |>> ((v) -> v + 1)";
+    if (val === null || val === undefined) return "; a comparison or lookup may have produced _";
+    return "";
 }
 
 function stringify(val) {
@@ -622,6 +643,10 @@ export const arithmeticFunctions = {
         impl(args) {
             const base = ensureNumeric(args[0]);
             const exp = ensureNumeric(args[1]);
+            if (exp instanceof Rational && exp.denominator !== 1n) {
+                throw new Error(`Exponent ${exp.toString()} is not an integer: exact RiX powers take integer exponents. ` +
+                    'For roots, load a real-number plugin, e.g. .Plugin.Load("algebraic-real"); .ar.Sqrt(4)');
+            }
             const expValue = exp instanceof Integer ? exp.value : Number(exp.toString());
             return base.pow(expValue);
         },

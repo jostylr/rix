@@ -195,6 +195,24 @@ function traceCallEvent(context, entry) {
     tc.log.push(entry);
 }
 
+function isHostStackOverflow(error) {
+    return error instanceof RangeError && /call stack/i.test(error.message);
+}
+
+// The innermost RiX frame turns JavaScript's stack overflow into a RiX error
+// that names the function; outer frames pass that error through unchanged.
+function recursionDepthError(callName, context) {
+    const name = callName ? `${callName}` : "an anonymous function";
+    const depth = context?.callStack?.length ?? 0;
+    const error = new Error(
+        `Recursion too deep in ${name}${depth ? ` (about ${depth} nested calls)` : ""}: the host call stack ran out. ` +
+        "A self-call in tail position written as $(...) runs in constant stack, e.g. " +
+        "Count(n, acc) -> n <= 0 ?: acc ?_ $(n - 1, acc + 1); otherwise use a loop {@ ... }.",
+    );
+    error.code = "RIX_RECURSION_DEPTH";
+    return error;
+}
+
 function invokeUserCallable(fn, callArgs, context, evaluate, options = {}) {
     const callName = options.callName ?? fn.name ?? null;
     const shareBody = options.shareBody !== false;
@@ -290,6 +308,7 @@ function invokeUserCallable(fn, callArgs, context, evaluate, options = {}) {
             scopeActive = true;
         }
     } catch (error) {
+        if (isHostStackOverflow(error)) throw recursionDepthError(callName, context);
         if (!isFunctionReturnSignal(error) || error.target !== returnTarget) throw error;
         const value = returnedValue(error);
         doTraceExit(value, false);

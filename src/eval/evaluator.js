@@ -63,6 +63,7 @@ import { methodFunctions } from "./functions/methods.js";
 import { propertyFunctions } from "./functions/properties.js";
 import { advancedFunctions } from "./functions/advanced.js";
 import { stdlibFunctions } from "./functions/stdlib.js";
+import { numberTheoryFunctions } from "./functions/number-theory.js";
 import {
     diagnosticFunctions,
     runAbortTestAsync,
@@ -544,6 +545,7 @@ export function createDefaultSystemContext(options = {}) {
     const timeline = createTimelineOutputCollection();
     ctx.registerValue("Timeline", timeline, { doc: "Portable exact timeline constructors" });
     ctx.registerAll(stdlibFunctions);
+    ctx.registerAll(numberTheoryFunctions);
     ctx.registerAll(symbolicCapabilities);
     ctx.registerCallableValue("Poly", createPolySystemValue(), symbolicCapabilities.POLY, {
         doc: `${symbolicCapabilities.POLY.doc}; exposes .Parse for backtick polynomial forms`,
@@ -1333,7 +1335,7 @@ export function evaluate(irNode, context, registry, systemContext) {
             }
             // Capability reference — return as sysref for callWithConcreteArgs compatibility
             if (!systemContext.has(name)) {
-                throw new Error(`Unknown system capability: ${name}`);
+                throw new Error(systemContext.unknownCapabilityMessage?.(name) ?? `Unknown system capability: ${name}`);
             }
             const entry = systemContext.get(name);
             if (Object.prototype.hasOwnProperty.call(entry, "value")) return entry.value;
@@ -1349,7 +1351,7 @@ export function evaluate(irNode, context, registry, systemContext) {
             if (!systemContext) throw new Error("No system context available");
             const cap = systemContext.get(name);
             if (!cap) {
-                throw new Error(`Unknown system capability: ${name}. Use .${name}() only if the capability exists.`);
+                throw new Error(systemContext.unknownCapabilityMessage?.(name) ?? `Unknown system capability: ${name}`);
             }
             if (cap.kind !== "function") {
                 throw new Error(`System ${cap.kind} .${cap.displayName} is not directly callable; index it or assign one of its entries`);
