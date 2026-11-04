@@ -107,6 +107,13 @@ function roundDiv(numerator, denominator) {
     return numerator < 0n ? -rounded : rounded;
 }
 
+// Plain Integers take Core's floor operations directly instead of building
+// and reducing a Rational quotient.
+function plainIntegers(a, b) {
+    return Object.getPrototypeOf(a) === Integer.prototype && Object.getPrototypeOf(b) === Integer.prototype &&
+        !Object.hasOwn(a, "value") && !Object.hasOwn(b, "value");
+}
+
 function requirePositiveDivisor(value, operation) {
     const { numerator } = toQuotientParts(value);
     if (numerator <= 0n) {
@@ -546,6 +553,7 @@ export const arithmeticFunctions = {
         impl(args) {
             const a = ensureNumeric(args[0]);
             const b = ensureNumeric(args[1]);
+            if (plainIntegers(a, b)) return a.floorDivide(b);
             const quotient = a.divide(b);
             const { numerator, denominator } = toQuotientParts(quotient);
             return new Integer(floorDiv(numerator, denominator));
@@ -582,6 +590,10 @@ export const arithmeticFunctions = {
         impl(args) {
             const a = ensureNumeric(args[0]);
             const b = ensureNumeric(args[1]);
+            if (plainIntegers(a, b)) {
+                requirePositiveDivisor(b, "Modulo");
+                return a.floorModulo(b);
+            }
             return rationalModulo(a, b);
         },
         pure: true,
@@ -593,6 +605,7 @@ export const arithmeticFunctions = {
             const a = ensureNumeric(args[0]);
             const b = ensureNumeric(args[1]);
             requirePositiveDivisor(b, "Division with remainder");
+            if (plainIntegers(a, b)) return { type: "tuple", values: a.divmod(b) };
             const quotient = a.divide(b);
             const parts = toQuotientParts(quotient);
             const floor = new Integer(floorDiv(parts.numerator, parts.denominator));
