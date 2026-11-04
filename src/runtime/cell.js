@@ -63,6 +63,16 @@ export function classifyMetaKey(name) {
 
 // ─── Shallow / deep value copy ───────────────────────────────────────
 
+// A plain Rational is already reduced with a positive denominator, so Core's
+// copy constructor can skip renormalising (a GCD per copy). Subclasses and
+// instances with overridden accessors take the general constructor.
+function copyRational(value) {
+    return Object.getPrototypeOf(value) === Rational.prototype &&
+        !Object.hasOwn(value, "numerator") && !Object.hasOwn(value, "denominator")
+        ? new Rational(value)
+        : new Rational(value.numerator, value.denominator);
+}
+
 /**
  * Shallow-copy a RiX value. Returns a NEW object so that _ext can be
  * set independently from the source (critical for ~= meta transfer).
@@ -79,11 +89,11 @@ export function shallowCopyValue(value) {
 
     // Ratmath numeric types — create fresh instances so _ext is independent
     if (value instanceof Integer) return new Integer(value.value);
-    if (value instanceof Rational) return new Rational(value.numerator, value.denominator);
+    if (value instanceof Rational) return copyRational(value);
     if (value instanceof RationalInterval) {
         return new RationalInterval(
-            new Rational(value.start.numerator, value.start.denominator),
-            new Rational(value.end.numerator, value.end.denominator),
+            copyRational(value.start),
+            copyRational(value.end),
         );
     }
     if (value instanceof RationalIntervalSet) return new RationalIntervalSet(value);
@@ -205,14 +215,14 @@ export function deepCopyValue(value, memo = new WeakMap()) {
         return copy;
     }
     if (value instanceof Rational) {
-        const copy = new Rational(value.numerator, value.denominator);
+        const copy = copyRational(value);
         memo.set(value, copy);
         return copy;
     }
     if (value instanceof RationalInterval) {
         const copy = new RationalInterval(
-            new Rational(value.start.numerator, value.start.denominator),
-            new Rational(value.end.numerator, value.end.denominator),
+            copyRational(value.start),
+            copyRational(value.end),
         );
         memo.set(value, copy);
         return copy;
