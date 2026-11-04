@@ -10,11 +10,29 @@ export function isLazySequence(value) {
     return Boolean(value && value.type === "lazy_sequence" && value._lazy);
 }
 
+// The default ceiling guards against runaway sequences. A sequence written
+// with an explicit element count (`|; n`, `|^ n`) has stated its own bound, so
+// that count may exceed the default. A host that lowered the ceiling keeps
+// the last word.
+function lazyCacheLimit(options) {
+    const ceiling = ASYNC_LIMITS.outputItems;
+    const requested = options.maxCache ?? ceiling;
+    if (requested < ceiling) return requested;
+    return Math.max(ceiling, options.explicitLength ?? 0);
+}
+
+function lazyCacheFault(limit) {
+    const fault = asyncLimitFault("lazy cache", limit);
+    fault.message = `Sequence limit of ${limit} elements exceeded; give the sequence an explicit count (|; n or |^ n) to allow more`;
+    return fault;
+}
+
 export function createLazySequence(options) {
     for (const [key, fallback] of [["maxCache", ASYNC_LIMITS.outputItems], ["maxPending", ASYNC_LIMITS.queued]]) {
         if (!Number.isSafeInteger(options[key] ?? fallback) || (options[key] ?? fallback) < 1) throw new Error(`Lazy ${key} must be a positive safe integer`);
     }
-    if ((options.cache?.length || 0) > Math.min(options.maxCache ?? ASYNC_LIMITS.outputItems, ASYNC_LIMITS.outputItems)) throw asyncLimitFault("lazy cache", options.maxCache ?? ASYNC_LIMITS.outputItems);
+    const maxCache = lazyCacheLimit(options);
+    if ((options.cache?.length || 0) > maxCache) throw lazyCacheFault(maxCache);
     const sequence = {
         type: "lazy_sequence",
         _lazy: {
@@ -26,11 +44,12 @@ export function createLazySequence(options) {
             pending: null,
             pendingCount: 0,
             maxPending: Math.min(options.maxPending ?? ASYNC_LIMITS.queued, ASYNC_LIMITS.queued),
-            maxCache: Math.min(options.maxCache ?? ASYNC_LIMITS.outputItems, ASYNC_LIMITS.outputItems),
+            maxCache,
             cache: options.cache ? options.cache.map(requireConcreteLazyValue) : [],
             done: false,
             unresolved: null,
             knownLength: options.knownLength ?? null,
+            explicitLength: options.explicitLength ?? null,
             maxIterations: options.maxIterations ?? 10000,
             label: options.label || "generator",
         },
@@ -62,7 +81,7 @@ function preparePull(lazy) {
         lazy.done = true;
         return false;
     }
-    if (lazy.cache.length >= lazy.maxCache) throw asyncLimitFault("lazy cache", lazy.maxCache);
+    if (lazy.cache.length >= lazy.maxCache) throw lazyCacheFault(lazy.maxCache);
     return true;
 }
 
@@ -168,7 +187,7 @@ export function materializeLazySequence(sequence, options = {}) {
     if (lazy.knownLength === null && options.allowUnknown !== true && !lazy.done) {
         throw new Error(`Cannot materialize unbounded or predicate-bounded ${lazy.label} without an explicit bound`);
     }
-    const limit = options.maxIterations ?? lazy.maxIterations;
+    const limit = options.maxIterations ?? Math.max(lazy.maxIterations, lazy.explicitLength ?? 0);
     let attempts = 0;
     while (!lazy.done) {
         const result = pullLazyValue(sequence, Math.max(0, limit - attempts));
@@ -202,6 +221,7 @@ export function cloneLazySequence(sequence, options = {}) {
             done: restart ? false : source.done,
             unresolved: restart ? null : source.unresolved,
             knownLength: source.knownLength,
+            explicitLength: source.explicitLength,
             maxIterations: source.maxIterations,
             label: source.label,
         },
@@ -223,6 +243,8 @@ export function mapLazySequence(source, mapper, options = {}) {
         }),
         knownLength: lazyKnownLength(source),
         maxIterations: source._lazy.maxIterations,
+        maxCache: source._lazy.maxCache,
+        explicitLength: source._lazy.explicitLength,
         label: options.label || "lazy map",
         pull(state) {
             state.index++;
@@ -249,6 +271,8 @@ export function filterLazySequence(source, predicate, options = {}) {
         }),
         knownLength: null,
         maxIterations: source._lazy.maxIterations,
+        maxCache: source._lazy.maxCache,
+        explicitLength: source._lazy.explicitLength,
         label: options.label || "lazy filter",
         pull(state, _self, budget) {
             let attempts = 0;

@@ -756,6 +756,11 @@ function formatMonomial(powers) {
         .join("*");
 }
 
+// `1/2~{pi}` would read back as `1/(2~{pi})`; a fraction keeps a space.
+function spacedBeforeGenerator(text) {
+    return /^-?\d+\/\d+$/.test(text) ? `${text} ` : text;
+}
+
 export function formatExact(value, formatScalar = (scalar) => scalar.toString()) {
     if (value?.type === "exact_generator") return `1~{${value.name}}`;
     const pieces = [];
@@ -764,7 +769,7 @@ export function formatExact(value, formatScalar = (scalar) => scalar.toString())
         const coefficient = absRational(term.coefficient);
         const monomial = formatMonomial(term.powers);
         const body = monomial
-            ? `${isOne(coefficient) ? "1" : formatScalar(coefficient)}~{${monomial}}`
+            ? `${isOne(coefficient) ? "1" : spacedBeforeGenerator(formatScalar(coefficient))}~{${monomial}}`
             : formatScalar(coefficient);
         if (pieces.length === 0) pieces.push(negative ? `-${body}` : body);
         else pieces.push(`${negative ? "-" : "+"} ${body}`);

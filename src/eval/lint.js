@@ -8,6 +8,10 @@ export const RIX_LINT_LEVELS = Object.freeze({
     pedantic: 4,
 });
 
+const isIntegerLiteral = (node) => node?.type === "Number" && /^\d[\d_]*$/.test(String(node.value));
+const PIPE_NODE_TYPES = new Set(["Pipe", "ExplicitPipe", "Map", "Filter", "Every", "Some", "Reduce", "SliceStrict", "SliceClamp", "Split", "Chunk", "Sort", "Reverse"]);
+const FUNCTION_NODE_TYPES = new Set(["FunctionLambda", "FunctionDefinition", "FunctionVariantDefinition"]);
+
 export const RIX_LINT_PROFILES = Object.freeze({
     default: ["core", "syntax"],
     plugin: ["core", "syntax", "plugin"],
@@ -44,6 +48,8 @@ export const RIX_LINT_RULES = Object.freeze({
     RX1705: { level: 3, profiles: ["teaching", "style"], title: "Block introduces capture boundary" },
     RX1706: { level: 4, profiles: ["teaching", "style"], title: "Function value reference" },
     RX1707: { level: 2, profiles: ["syntax", "teaching"], title: "Mixed numeric notation systems" },
+    RX1708: { level: 3, profiles: ["syntax", "teaching"], title: "Pipe applies to a function, not its body" },
+    RX1709: { level: 2, profiles: ["syntax", "teaching"], title: "Factor or unit written directly after a fraction" },
     RX1801: { level: 2, profiles: ["math", "teaching"], title: "Exact division versus truncation" },
     RX1802: { level: 3, profiles: ["math", "teaching"], title: "Fraction equality policy" },
     RX1803: { level: 3, profiles: ["math"], title: "Exactness discarded" },
@@ -1136,6 +1142,32 @@ export function analyzeRix(source, options = {}) {
                 }
             }
             return;
+        }
+
+        if (PIPE_NODE_TYPES.has(node.type) && FUNCTION_NODE_TYPES.has(node.left?.type)) {
+            emit(
+                "RX1708",
+                "warning",
+                node,
+                "'->' binds tighter than a pipe, so this pipe receives the function itself rather than running inside its body.",
+                "Wrap the body in parentheses or a block, as in (x) -> (x |>> F), if the pipe belongs to the body.",
+            );
+        }
+
+        if (node.type === "BinaryOperation" && node.operator === "/" && isIntegerLiteral(node.left)) {
+            const tight = node.right;
+            const denominator = tight?.type === "ImplicitMultiplication" ? tight.left
+                : tight?.type === "ScientificUnit" || tight?.type === "MathematicalUnit" ? tight.target ?? tight.expression ?? tight.value
+                : null;
+            if (isIntegerLiteral(denominator)) {
+                emit(
+                    "RX1709",
+                    "warning",
+                    node,
+                    `'${node.left.value}/${denominator.value}' is not read as a fraction here: what follows the denominator with no space joins the denominator.`,
+                    `Add a space after the fraction, as in ${node.left.value}/${denominator.value} x, or parenthesise the denominator if that is what you mean.`,
+                );
+            }
         }
 
         if (node.type === "ImplicitMultiplication") {

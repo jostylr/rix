@@ -1985,7 +1985,7 @@ LinalgSparseIndices(value,shape,limits) -> {;
     indices=value ? :Tuple ?: value.ToArray() ?_ value;
     indices ? :Array ?_> .Error("Sparse indices must be an Array or Tuple");
     indices.Len()==shape.Len() ?_> .Error("Sparse index rank mismatch");
-    indices.All((key,axis)->(key ? :Integer) && key<=limits[:maxindex] && (shape[axis]==:countable ?: key>=0 ?_ key>=1 && key<=shape[axis]))
+    indices.All((key,axis)->(key ? :Integer) && key<=limits[:maxindex] && (shape[axis]==:countable ?: key>=0 ?_ (key>=1 && key<=shape[axis])))
       ?_> .Error("Sparse index is outside its axis or index budget");indices;
 };
 LinalgSparseCompare(left,right) -> {;

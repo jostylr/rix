@@ -549,12 +549,21 @@ export class RixParseError extends Error {
   }
 }
 
+const STRING_TOKEN_VALUE = Symbol("string literal");
+
 class Parser {
   constructor(tokens, systemLookup, source = "", customOperators = new Map(), limits = sourceLimits()) {
     this.limits = limits;
     this.expressionDepth = 0;
     this.nodeCount = 0;
-    this.tokens = tokens;
+    // A string literal's text must never be mistaken for punctuation: `","`
+    // is not a separator and `")"` is not a closer. Structural checks compare
+    // `token.value`, so string tokens carry their text in `text` instead.
+    this.tokens = tokens.map((token) => (
+      token.type === "String" && token.kind !== "comment"
+        ? { ...token, text: token.value, value: STRING_TOKEN_VALUE }
+        : token
+    ));
     this.systemLookup = systemLookup || (() => ({ type: "identifier" }));
     this.source = source;
     this.customOperators = customOperators;
@@ -744,6 +753,14 @@ class Parser {
     return false;
   }
 
+  // Adjacency written with a space is ordinary multiplication: `a/b c` is
+  // `a/b*c` and `1/2 x` is `(1/2)*x`, read left to right. Adjacency with no
+  // space is one tight term: `1/2x` is `1/(2x)` and `2x/3y` is `(2x)/(3y)`.
+  adjacencyPrecedence() {
+    const spaced = this.current.pos && this.current.pos[1] > this.current.pos[0];
+    return spaced ? PRECEDENCE.MULTIPLICATION : JUXTAPOSITION_PRECEDENCE;
+  }
+
   // Parse expression with given minimum precedence
   parseExpression(minPrec = 0) {
     checkSourceLimit("parseDepth", ++this.expressionDepth, this.limits, this.current.pos?.[1] || 0);
@@ -823,7 +840,7 @@ class Parser {
           return this.parseEmbeddedLanguage(token);
         } else {
           return this.createNode("String", {
-            value: token.value,
+            value: token.text,
             kind: token.kind,
             original: token.original,
             pos: token.pos,
@@ -971,7 +988,7 @@ class Parser {
             this.advance();
             const delimiter = (template.original.match(/^"+/) || [""])[0].length;
             return this.createNode(delimiter >= 3 ? "DocumentTemplate" : "InterpolatedString", {
-              body: template.value,
+              body: template.text,
               delimiter,
               original: token.original + template.original,
             });
@@ -2047,7 +2064,7 @@ class Parser {
         this.validateKnownSystemCallable(left);
         // Non-callable expressions followed by '(' are implicit multiplication: 3(x+1), a(x+1), (x+1)(x+2)
         if (!this.isCallableNode(left)) {
-          if (JUXTAPOSITION_PRECEDENCE < minPrec) {
+          if (this.adjacencyPrecedence() < minPrec) {
             break;
           }
           left = this.parseCall(left);
@@ -2102,10 +2119,11 @@ class Parser {
 
           // Implicit multiplication: number/variable followed by adjacent operand
           // 3a, 3 a, a b, 3x^2, (x+1)(x+2), etc.
-          if (JUXTAPOSITION_PRECEDENCE < minPrec) {
+          const adjacency = this.adjacencyPrecedence();
+          if (adjacency < minPrec) {
             break;
           }
-          const right = this.parseExpression(JUXTAPOSITION_PRECEDENCE + 1);
+          const right = this.parseExpression(adjacency + 1);
           left = this.createNode("ImplicitMultiplication", {
             left: left,
             right: right,
@@ -2146,12 +2164,15 @@ class Parser {
       }
 
       // Special case for unit operators ~[ and ~{
-      if (this.current.value === "~[") {
-        left = this.parseScientificUnit(left);
-        continue;
-      }
-      if (this.current.value === "~{") {
-        left = this.parseMathematicalUnit(left);
+      // Like adjacency, a unit written after a space applies to the whole
+      // product or quotient before it: `1/2 ~[m]` is half a metre, while
+      // `1/2~[m]` is `1/(2~[m])`.
+      if (this.current.value === "~[" || this.current.value === "~{") {
+        const spaced = this.current.pos[1] > this.current.pos[0];
+        if (spaced && PRECEDENCE.MULTIPLICATION < minPrec) break;
+        left = this.current.value === "~["
+          ? this.parseScientificUnit(left)
+          : this.parseMathematicalUnit(left);
         continue;
       }
 
@@ -4102,7 +4123,7 @@ class Parser {
     this.advance();
 
     const pathNode = this.createNode("String", {
-      value: pathToken.value,
+      value: pathToken.text,
       kind: pathToken.kind,
       original: pathToken.original,
     });
@@ -5001,7 +5022,7 @@ class Parser {
   }
 
   parseEmbeddedLanguage(token) {
-    const content = token.value;
+    const content = token.text;
 
     // A leading dot selects a registered parser object:
     // `.Poly.Fun:body` resolves .Poly and passes ["Fun"] as modifiers to
@@ -5216,11 +5237,16 @@ class Parser {
     // - Lowercase letter-based user identifiers: f(x) = f * (x)
     // - Numbers: 3(x+1) = 3 * (x+1)
     // - Groupings: (a+b)(c) = (a+b) * (c)
+    // - Implicit products: k m (m+1) = (k*m) * (m+1)
     // - Binary operations: (x+1)(x+2) already covered by Grouping
     // Everything else (System identifiers, SystemFunctionRef, Call, PropertyAccess, etc.) → function call
     if (
       (target.type === "UserIdentifier" && /^[\p{L}]/u.test(target.name)) ||
       target.type === "Number" ||
+      // A product of values is never callable: k m (m+1) = (k*m) * (m+1)
+      target.type === "ImplicitMultiplication" ||
+      // Nor is an arithmetic result: a/b (c+1) = (a/b) * (c+1)
+      target.type === "BinaryOperation" || target.type === "UnaryOperation" ||
       (target.type === "Grouping" && !this.isCallableNode(target))
     ) {
       const grouping = this.parseGrouping();

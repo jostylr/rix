@@ -19,6 +19,7 @@ import { shallowCopyValue } from "../../runtime/cell.js";
 import { UNDECIDED, decisionState, isUndecided, undecidedDiagnostic } from "../../runtime/decision.js";
 import { HaloNeighborhood, enclosureOf } from "../../runtime/halo.js";
 import { maybeRefineForHalo } from "./comparison.js";
+import { withFreshMutableResults } from "../../runtime/fresh-collection.js";
 
 function isTruthy(val) {
     return decisionState(val) === "truth";
@@ -235,6 +236,7 @@ function createGeneratorValue(args, ctx, evaluate, defaultMode, execution = null
             stop: state.stop,
         }),
         knownLength: numericLimit,
+        explicitLength: numericLimit,
         maxIterations,
         label: "sequence generator",
         maxCache: ctx.getEnv?.("asyncLimits", {})?.outputItems,
@@ -325,12 +327,14 @@ function createGeneratorValue(args, ctx, evaluate, defaultMode, execution = null
     }
 
     if (!eager) return sequence;
-    if (execution) return materializeLazySequenceAsync(sequence, { allowUnknown: true, maxIterations, signal: execution.signal }).then((materialized) => {
+    // An explicit count is the author's own bound on the whole materialization.
+    const materializeIterations = Math.max(maxIterations, numericLimit ?? 0);
+    if (execution) return materializeLazySequenceAsync(sequence, { allowUnknown: true, maxIterations: materializeIterations, signal: execution.signal }).then((materialized) => {
         if (isUndecided(materialized)) return UNDECIDED;
         materialized._ext = new Map([["_mutable", new Integer(1n)]]);
         return attachBuiltinProto(materialized);
     });
-    const materialized = materializeLazySequence(sequence, { allowUnknown: true, maxIterations });
+    const materialized = materializeLazySequence(sequence, { allowUnknown: true, maxIterations: materializeIterations });
     if (isUndecided(materialized)) return UNDECIDED;
     materialized._ext = new Map([["_mutable", new Integer(1n)]]);
     return attachBuiltinProto(materialized);
@@ -854,3 +858,6 @@ export const collectionFunctions = {
         doc: "N-ary concatenation fold",
     },
 };
+
+// Arrays and maps built by these operations behave like literals.
+withFreshMutableResults(collectionFunctions, ["CONCAT", "NARY_CONCAT"]);

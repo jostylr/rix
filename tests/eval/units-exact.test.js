@@ -169,7 +169,7 @@ describe("exact generators", () => {
     test("exact expressions can be physical quantity magnitudes", () => {
         const value = evalRiX("(1/2)~{pi}~[rad]");
         expect(value.type).toBe("quantity");
-        expect(formatValue(value)).toBe("1/2~{pi}~[rad]");
+        expect(formatValue(value)).toBe("1/2 ~{pi}~[rad]");
     });
 
     test("new algebraic generators can be stored in a lexical Exact collection", () => {
@@ -251,7 +251,7 @@ describe("Cayley polar complex values", () => {
 
     test("multiplication, division, and integer powers stay in Cayley form", () => {
         expect(formatValue(evalRiX("(.Complex.Cayley(3 + 4~{i}) * .Complex.Cayley(1 + 1~{i})).Cartesian()"))).toBe("-1 + 7~{i}");
-        expect(formatValue(evalRiX("(.Complex.Cayley(3 + 4~{i}) / .Complex.Cayley(1 + 1~{i})).Cartesian()"))).toBe("3..1/2 + 1/2~{i}");
+        expect(formatValue(evalRiX("(.Complex.Cayley(3 + 4~{i}) / .Complex.Cayley(1 + 1~{i})).Cartesian()"))).toBe("3..1/2 + 1/2 ~{i}");
         expect(formatValue(evalRiX("(.Complex.Cayley(1 + 1~{i})^3).Cartesian()"))).toBe("-2 + 2~{i}");
         expect(evalRiX(".Complex.Cayley(1 + 1~{i})^2").type).toBe("cayley");
     });
@@ -272,7 +272,7 @@ describe("Cayley polar complex values", () => {
         expect(formatValue(evalRiX(".Complex.Cayley(3 + 4~{i}).Magnitude()"))).toBe("5");
         expect(formatValue(evalRiX(".Complex.Cayley(3 + 4~{i}).Direction()"))).toBe("1/2");
         expect(formatValue(evalRiX(".Complex.Cayley(3 + 4~{i}).NormSquared()"))).toBe("25");
-        expect(formatValue(evalRiX(".Complex.Cayley(3 + 4~{i}).Inverse().Cartesian()"))).toBe("3/25 - 4/25~{i}");
+        expect(formatValue(evalRiX(".Complex.Cayley(3 + 4~{i}).Inverse().Cartesian()"))).toBe("3/25 - 4/25 ~{i}");
     });
 
     test("the projective infinity direction composes without numeric infinity arithmetic", () => {

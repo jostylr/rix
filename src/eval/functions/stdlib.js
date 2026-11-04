@@ -8,6 +8,7 @@ import { shapedSize, isShaped } from "../../runtime/shaped.js";
 import { callWithConcreteArgs } from "./functions.js";
 import { formatValue } from "../format.js";
 import { deepSetMutable } from "./core.js";
+import { withFreshMutableResults } from "../../runtime/fresh-collection.js";
 import { configureRuntimeRandom, runtimeRandom, runtimeRandomInfo, seedRuntimeRandom } from "../../runtime/random.js";
 import { ensureLazyIndex, isLazySequence, lazyKnownLength, materializeLazySequence } from "../../runtime/lazy-sequence.js";
 import { builtinMethodNamesForType, isCallableValue } from "../../runtime/methods.js";
@@ -374,3 +375,6 @@ export const stdlibFunctions = {
         doc: "Recursively set (flag≠_) or remove (flag=_) ._mutable on all nested arrays/maps/tensors. Called via .DeepMutable(value, flag).",
     },
 };
+
+// Arrays and maps built by these operations behave like literals.
+withFreshMutableResults(stdlibFunctions, ["IRANGE"]);

@@ -737,6 +737,31 @@ describe("RiX Evaluator", () => {
             expect(result.value).toBe(1n);
         });
 
+        test("comparisons chain: every adjacent pair must hold", () => {
+            for (const source of ["1 < 2 < 3;", "3 > 2 > 1;", "-3 < -2 <= 0;", "2 == 2 == 2;", "1 < 2 == 2;", "1 == 1 < 2;", "1 != 2 != 1;"]) {
+                expect(evalRix(source).value).toBe(1n);
+            }
+            for (const source of ["0 < 5 < 3;", "1 < 2 < 2;", "5 > 3 > 4;", "2 == 2 == 3;", "_ < 1 < 2;"]) {
+                expect(evalRix(source)).toBeNull();
+            }
+        });
+
+        test("a chain cannot mix < and > directions", () => {
+            expect(() => evalRix("1 < 2 > 1.5;")).toThrow("cannot mix '<' and '>'");
+            expect(() => evalRix("3 >= 2 < 5;")).toThrow("cannot mix '<' and '>'");
+            expect(evalRix("1 < 2 && 2 > 1.5;")).not.toBeNull();
+        });
+
+        test("a parenthesised comparison is a value, not a chain link", () => {
+            expect(evalRix("(1 < 2) == 1;").value).toBe(1n);
+            expect(evalRix("(3 < 2) == 1;")).toBeNull();
+        });
+
+        test("each chain operand is evaluated once", () => {
+            const result = evalRix("n := 0; F() -> {; @n ~= @n + 1; 5 }; r := 0 < F() < 10; n;");
+            expect(result.value).toBe(1n);
+        });
+
         test("5 >= 6 = null", () => {
             const result = evalRix("5 >= 6;");
             expect(result).toBeNull();

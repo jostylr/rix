@@ -60,6 +60,26 @@ export function lower(ast) {
 /**
  * Lower a single AST node into an IR node.
  */
+const COMPARISON_CHAIN_OPS = new Set(["<", ">", "<=", ">=", "==", "!="]);
+
+// Flatten nested, unparenthesised comparisons into operands and the operators
+// between them. A parenthesised comparison is a Grouping node and stays a value.
+function comparisonChainLinks(node) {
+  const operands = [];
+  const operators = [];
+  const visit = (current) => {
+    if (current?.type === "BinaryOperation" && COMPARISON_CHAIN_OPS.has(current.operator)) {
+      visit(current.left);
+      operators.push(current.operator);
+      visit(current.right);
+    } else {
+      operands.push(current);
+    }
+  };
+  visit(node);
+  return { operands, operators };
+}
+
 export function lowerNode(node) {
   if (!node || !node.type) {
     return node;
@@ -544,6 +564,18 @@ const LOWERERS = {
       throw new Error(
         `'?=' is not a comparison operator — use '==' for equality comparison, or use '?=' only in parameter default position (e.g., (x ?= 2) -> ...)`
       );
+    }
+
+    // a < b <= c, a == b == c and mixtures read as one chain: every adjacent
+    // pair must hold, and each operand is evaluated once.
+    if (COMPARISON_CHAIN_OPS.has(op)) {
+      const links = comparisonChainLinks(node);
+      if (links.operators.some((operator) => operator.startsWith("<")) && links.operators.some((operator) => operator.startsWith(">"))) {
+        throw new Error("A comparison chain cannot mix '<' and '>' directions; write the two comparisons separately and join them with &&");
+      }
+      if (links.operators.length > 1) {
+        return ir("COMPARE_CHAIN", links.operators.map((operator) => BINARY_OP_MAP[operator]), ...links.operands.map(lowerNode));
+      }
     }
 
     // Standard binary ops

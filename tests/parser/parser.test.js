@@ -1953,13 +1953,13 @@ describe("RiX Parser", () => {
         }]);
       });
 
-      test('chained calls', () => {
+      test('a lowercase product followed by a group stays a product', () => {
         const result = parseCode('f(x)(y);');
         expect(stripMetadata(result)).toEqual([{
           type: 'Statement',
           expression: {
-            type: 'Call',
-            target: {
+            type: 'ImplicitMultiplication',
+            left: {
               type: 'ImplicitMultiplication',
               left: {
                 type: 'UserIdentifier',
@@ -1973,12 +1973,12 @@ describe("RiX Parser", () => {
                 }
               }
             },
-            arguments: {
-              positional: [{
+            right: {
+              type: 'Grouping',
+              expression: {
                 type: 'UserIdentifier',
                 name: 'y'
-              }],
-              keyword: {}
+              }
             }
           }
         }]);

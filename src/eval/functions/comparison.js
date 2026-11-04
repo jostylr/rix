@@ -15,6 +15,7 @@ import {
 } from "@ratmath/core";
 import { UNDECIDED, isUndecided, undecidedDiagnostic } from "../../runtime/decision.js";
 import { HaloNeighborhood } from "../../runtime/halo.js";
+import { isHole } from "../../runtime/hole.js";
 import {
     normalizeRefinementRequest,
     refinementEntry,
@@ -156,13 +157,112 @@ function compare(a, b) {
             return 0;
         }
     }
+    // A host may hand RiX a plain JavaScript integer; order it as the exact
+    // integer it is rather than by coercion.
+    const hostA = exactHostInteger(a);
+    const hostB = exactHostInteger(b);
+    if ((hostA !== a || hostB !== b) && isCoreNumeric(hostA) && isCoreNumeric(hostB)) return compare(hostA, hostB);
     const valA = a && a.type === "string" ? a.value : a;
     const valB = b && b.type === "string" ? b.value : b;
-    // Fallback for primitives
+    // Fallback for primitives. Anything else would be ordered by JavaScript
+    // coercion (an Integer stringifies, so 5 < "abc" compared text).
+    const kindA = orderedPrimitiveKind(valA);
+    if (kindA === null || kindA !== orderedPrimitiveKind(valB)) {
+        throw new Error(`Cannot order ${describeOperand(a)} and ${describeOperand(b)}`);
+    }
     if (valA < valB) return -1;
     if (valA > valB) return 1;
     return 0;
 }
+
+function exactHostInteger(value) {
+    if (typeof value === "bigint") return new Integer(value);
+    if (typeof value === "number" && Number.isSafeInteger(value)) return new Integer(BigInt(value));
+    return value;
+}
+
+function orderedPrimitiveKind(value) {
+    if (typeof value === "string") return "string";
+    if (typeof value === "number" || typeof value === "bigint") return "number";
+    return null;
+}
+
+function describeOperand(value) {
+    if (value === null || value === undefined) return "null";
+    if (typeof value !== "object") return typeof value;
+    return value.type ?? value.constructor?.name ?? "object";
+}
+
+// A null operand makes an ordering null rather than an error, and an undecided
+// operand leaves it undecided, so an earlier link of a chain propagates.
+function orderResult(left, right, accept) {
+    if (left === null || left === undefined || right === null || right === undefined) return null;
+    if (isUndecided(left)) return left;
+    if (isUndecided(right)) return right;
+    return boolResult(accept(compare(left, right)));
+}
+
+// Element comparison goes back through `==` so that numbers, units, nested
+// collections and registered type variants all compare as they do on their own.
+function elementEquality(context, evaluate) {
+    const registry = context?.getEnv?.("__registry__", null);
+    return (left, right) => {
+        if (left === right) return true;
+        if (left === null || left === undefined || right === null || right === undefined) return false;
+        if (!registry?.invokeWithVariant) return left === right;
+        const result = registry.invokeWithVariant("EQ", [left, right], context, evaluate).value;
+        if (isUndecided(result)) return result;
+        return result !== null && result !== undefined;
+    };
+}
+
+// Fold element decisions: any false decides false, otherwise any undecided
+// leaves the whole comparison undecided.
+function allEqual(count, decide) {
+    let undecided = null;
+    for (let index = 0; index < count; index++) {
+        const decision = decide(index);
+        if (isUndecided(decision)) undecided ??= decision;
+        else if (!decision) return false;
+    }
+    return undecided ?? true;
+}
+
+/**
+ * Value equality for arrays, tuples, sets and maps. Returns true, false, an
+ * undecided value, or null when the operands are not both such collections.
+ */
+function structuralEquality(a, b, equal) {
+    if (a === b) return a !== null && typeof a === "object" && STRUCTURAL_TYPES.has(a.type) ? true : null;
+    if (!a || !b || typeof a !== "object" || typeof b !== "object") return null;
+    if (!STRUCTURAL_TYPES.has(a.type) || !STRUCTURAL_TYPES.has(b.type)) return null;
+    if (a.type !== b.type) return false;
+    if (a.type === "map") {
+        if (!(a.entries instanceof Map) || !(b.entries instanceof Map)) return null;
+        if (a.entries.size !== b.entries.size) return false;
+        const keys = [...a.entries.keys()];
+        if (!keys.every((key) => b.entries.has(key))) return false;
+        return allEqual(keys.length, (index) => equal(a.entries.get(keys[index]), b.entries.get(keys[index])));
+    }
+    if (!Array.isArray(a.values) || !Array.isArray(b.values)) return null;
+    if (a.values.length !== b.values.length) return false;
+    if (a.type === "set") {
+        // Order does not matter. Each element must find its own partner.
+        const unmatched = [...b.values];
+        return allEqual(a.values.length, (index) => {
+            let undecided = null;
+            for (let candidate = 0; candidate < unmatched.length; candidate++) {
+                const decision = equal(a.values[index], unmatched[candidate]);
+                if (isUndecided(decision)) { undecided ??= decision; continue; }
+                if (decision) { unmatched.splice(candidate, 1); return true; }
+            }
+            return undecided ?? false;
+        });
+    }
+    return allEqual(a.values.length, (index) => equal(a.values[index], b.values[index]));
+}
+
+const STRUCTURAL_TYPES = new Set(["sequence", "tuple", "set", "map"]);
 
 function boolResult(val) {
     if (isUndecided(val)) return val;
@@ -232,7 +332,6 @@ export const comparisonFunctions = {
             if (!leftType || leftType === "invalid" || leftType !== rightType) {
                 throw new Error("COMPARE requires two values from the same built-in ordered domain");
             }
-            const result = compare(args[0], args[1]);
             if (isEnclosed(args[0]) || isEnclosed(args[1])) {
                 const mask = possibleRelations(args[0], args[1]);
                 if (mask === Relation.LESS) return new Integer(-1n);
@@ -240,11 +339,38 @@ export const comparisonFunctions = {
                 if (mask === Relation.GREATER) return new Integer(1n);
                 return UNDECIDED;
             }
+            const result = compare(args[0], args[1]);
             return new Integer(BigInt(result < 0 ? -1 : result > 0 ? 1 : 0));
         },
         pure: true,
         doc: "Compare two values; returns -1, 0, or 1",
     },
+    COMPARE_CHAIN: {
+        lazy: true,
+        impl(args, context, evaluate) {
+            const [operations, ...operands] = args;
+            const registry = context?.getEnv?.("__registry__", null);
+            if (!registry) throw new Error("A comparison chain requires an active evaluator registry");
+            const operand = (node) => {
+                const value = evaluate(node);
+                if (isHole(value)) throw new Error("Cannot use undefined/hole value in computation (in a comparison chain)");
+                return value;
+            };
+            let previous = operand(operands[0]);
+            let undecided = null;
+            for (let index = 0; index < operations.length; index++) {
+                const next = operand(operands[index + 1]);
+                const link = registry.call(operations[index], [previous, next], context, evaluate);
+                if (isUndecided(link)) undecided ??= link;
+                else if (link === null || link === undefined) return null;
+                previous = next;
+            }
+            return undecided ?? new Integer(1);
+        },
+        pure: false,
+        doc: "Chained comparison a < b <= c — every adjacent pair must hold; each operand is evaluated once",
+    },
+
     EQ: {
         impl(args, context, evaluate) {
             const [rawA, b] = args;
@@ -255,7 +381,9 @@ export const comparisonFunctions = {
             if (a && b && typeof a.equals === "function") {
                 return boolResult(a.equals(b));
             }
-            if (a && b && a.type === "string" && b.type === "string") return boolResult(a.value === b.value); return boolResult(a === b);
+            if (a && b && a.type === "string" && b.type === "string") return boolResult(a.value === b.value);
+            const structural = structuralEquality(a, b, elementEquality(context, evaluate));
+            return boolResult(structural === null ? a === b : structural);
         },
         preempt: (args) => args[1] instanceof HaloNeighborhood,
         pure: false,
@@ -272,7 +400,10 @@ export const comparisonFunctions = {
             if (a && b && typeof a.equals === "function") {
                 return boolResult(!a.equals(b));
             }
-            if (a && b && a.type === "string" && b.type === "string") return boolResult(a.value !== b.value); return boolResult(a !== b);
+            if (a && b && a.type === "string" && b.type === "string") return boolResult(a.value !== b.value);
+            const structural = structuralEquality(a, b, elementEquality(context, evaluate));
+            if (isUndecided(structural)) return structural;
+            return boolResult(structural === null ? a !== b : !structural);
         },
         preempt: (args) => args[1] instanceof HaloNeighborhood,
         pure: false,
@@ -284,7 +415,7 @@ export const comparisonFunctions = {
             const refinement = maybeRefineForHalo(args[0], args[1], "lt", context, evaluate);
             const left = refinement.value;
             const decision = haloDecision(left, args[1], "lt", refinement.diagnostic) ?? relationDecision(left, args[1], "lt");
-            return decision === null ? boolResult(compare(left, args[1]) < 0) : boolResult(decision);
+            return decision === null ? orderResult(left, args[1], (c) => c < 0) : boolResult(decision);
         },
         preempt: (args) => args[1] instanceof HaloNeighborhood,
         pure: false,
@@ -296,7 +427,7 @@ export const comparisonFunctions = {
             const refinement = maybeRefineForHalo(args[0], args[1], "gt", context, evaluate);
             const left = refinement.value;
             const decision = haloDecision(left, args[1], "gt", refinement.diagnostic) ?? relationDecision(left, args[1], "gt");
-            return decision === null ? boolResult(compare(left, args[1]) > 0) : boolResult(decision);
+            return decision === null ? orderResult(left, args[1], (c) => c > 0) : boolResult(decision);
         },
         preempt: (args) => args[1] instanceof HaloNeighborhood,
         pure: false,
@@ -308,7 +439,7 @@ export const comparisonFunctions = {
             const refinement = maybeRefineForHalo(args[0], args[1], "lte", context, evaluate);
             const left = refinement.value;
             const decision = haloDecision(left, args[1], "lte", refinement.diagnostic) ?? relationDecision(left, args[1], "lte");
-            return decision === null ? boolResult(compare(left, args[1]) <= 0) : boolResult(decision);
+            return decision === null ? orderResult(left, args[1], (c) => c <= 0) : boolResult(decision);
         },
         preempt: (args) => args[1] instanceof HaloNeighborhood,
         pure: false,
@@ -320,7 +451,7 @@ export const comparisonFunctions = {
             const refinement = maybeRefineForHalo(args[0], args[1], "gte", context, evaluate);
             const left = refinement.value;
             const decision = haloDecision(left, args[1], "gte", refinement.diagnostic) ?? relationDecision(left, args[1], "gte");
-            return decision === null ? boolResult(compare(left, args[1]) >= 0) : boolResult(decision);
+            return decision === null ? orderResult(left, args[1], (c) => c >= 0) : boolResult(decision);
         },
         preempt: (args) => args[1] instanceof HaloNeighborhood,
         pure: false,

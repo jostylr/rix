@@ -19,7 +19,7 @@
 | `<` | `LT` | `a < b` |
 | `>` | `GT` | `a > b` |
 | `<=` | `LTE` | `x <= 10` |
-| `>=` | `GTE` | `x >= 0` |
+| `>=` | `GTE` | `x >= 0` — comparisons chain: `0 <= x < 10` holds when every adjacent pair holds |
 | `&&` | `AND` | `a > 0 && b > 0` |
 | `||` | `OR` | `x == 0 || y == 0` |
 | `?|` | `HOLE_COALESCE` | `a[2] ?| 9` — returns left if not a hole, else right |
@@ -91,9 +91,19 @@ An uppercase-leading callable identifier (like `F`, `G`) followed by an adjacent
 From loosest to tightest:
 1. Addition/subtraction (`+`, `-`)
 2. Explicit multiplication (`*`, `/`, `//`, `%`)
-3. Implicit multiplication (adjacency of non-callable expressions)
+3. Unspaced implicit multiplication (`2x`, `3(x+1)`); spaced adjacency (`a b`) has the precedence of explicit multiplication
 4. Implicit application (adjacency where left is callable)
 5. Exponentiation (`^`)
+
+Adjacency written with a space is ordinary multiplication and shares the
+precedence of `*` and `/`, read left to right: `a/b c` is `a/b*c`, which is
+`(a/b)*c`, and `1/2 x` is half of `x`. Adjacency with no space forms one tight
+term that binds above `/`: `1/2x` is `1/(2x)` and `2x/3y` is `(2x)/(3y)`.
+
+Units follow the same rule. `1/2 ~[m]` is half a metre and `1/2~[m]` is
+`1/(2~[m])`. RiX prints a fractional magnitude with the space so that its
+output reads back as the same value. Lint rule RX1709 flags a factor or unit
+written directly after an integer fraction.
 
 #### Key rules
 
@@ -1465,10 +1475,10 @@ Map literals reject duplicate keys after canonicalization:
 | `EQ(a, b)` | Value equality (returns 1 or null) | `a == b` |
 | `SAME_CELL(a, b)` | Identity — same cell (returns 1 or null) | `a === b` |
 | `NEQ(a, b)` | Not equal | `a != b` |
-| `LT(a, b)` | Less than | `a < b` |
-| `GT(a, b)` | Greater than | `a > b` |
-| `LTE(a, b)` | Less or equal | `a <= b` |
-| `GTE(a, b)` | Greater or equal | `a >= b` |
+| `LT(a, b)` | Less than; null when either operand is null | `a < b` |
+| `GT(a, b)` | Greater than; null when either operand is null | `a > b` |
+| `LTE(a, b)` | Less or equal; null when either operand is null | `a <= b` |
+| `GTE(a, b)` | Greater or equal; null when either operand is null | `a >= b` |
 | `MIN(args...)` | N-ary minimum (numbers or strings; null args ignored) | `{<< a, b, c }` |
 | `MAX(args...)` | N-ary maximum (numbers or strings; null args ignored) | `{>> a, b, c }` |
 

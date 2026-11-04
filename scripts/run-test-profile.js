@@ -33,6 +33,7 @@ export const shortTests = new Set([
     "tests/eval/arity-cap.test.js",
     "tests/eval/brace-refactor.test.js",
     "tests/eval/cells.test.js",
+    "tests/eval/collection-value-semantics.test.js",
     "tests/eval/colon-string.test.js",
     "tests/eval/comma-sequence.test.js",
     "tests/eval/core-syntax-capabilities.test.js",

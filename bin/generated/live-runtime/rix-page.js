@@ -15506,7 +15506,7 @@ LinalgSparseIndices(value,shape,limits) -> {;
     indices=value ? :Tuple ?: value.ToArray() ?_ value;
     indices ? :Array ?_> .Error("Sparse indices must be an Array or Tuple");
     indices.Len()==shape.Len() ?_> .Error("Sparse index rank mismatch");
-    indices.All((key,axis)->(key ? :Integer) && key<=limits[:maxindex] && (shape[axis]==:countable ?: key>=0 ?_ key>=1 && key<=shape[axis]))
+    indices.All((key,axis)->(key ? :Integer) && key<=limits[:maxindex] && (shape[axis]==:countable ?: key>=0 ?_ (key>=1 && key<=shape[axis])))
       ?_> .Error("Sparse index is outside its axis or index budget");indices;
 };
 LinalgSparseCompare(left,right) -> {;
@@ -38477,7 +38477,7 @@ symbolicNamespace._proto = {=
 `
   });
 
-  // ../packages/core/src/base-system.js
+  // ../../../../../../../../ai-repos/ratmath/packages/core/src/base-system.js
   class BaseSystem {
     #base;
     #radix;
@@ -38896,7 +38896,7 @@ symbolicNamespace._proto = {=
   BaseSystem.registerPrefix("m", BaseSystem.BASE60);
   BaseSystem.registerPrefix("y", BaseSystem.BASE64);
 
-  // ../packages/core/src/bigint.js
+  // ../../../../../../../../ai-repos/ratmath/packages/core/src/bigint.js
   function toExactBigInt(value, label = "Value") {
     if (typeof value === "number") {
       if (!Number.isSafeInteger(value)) {
@@ -38913,7 +38913,7 @@ symbolicNamespace._proto = {=
     throw new TypeError(`${label} must be an integer number, string, or bigint`);
   }
 
-  // ../packages/core/src/rational.js
+  // ../../../../../../../../ai-repos/ratmath/packages/core/src/rational.js
   var POWERS_OF_5 = Object.freeze({
     16: 5n ** 16n,
     8: 5n ** 8n,
@@ -39258,19 +39258,7 @@ symbolicNamespace._proto = {=
         const reciprocal = this.reciprocal();
         return reciprocal.pow(-n);
       }
-      let resultNum = 1n;
-      let resultDen = 1n;
-      let num = this.#numerator;
-      let den = this.#denominator;
-      for (let i = n < 0n ? -n : n;i > 0n; i >>= 1n) {
-        if (i & 1n) {
-          resultNum *= num;
-          resultDen *= den;
-        }
-        num *= num;
-        den *= den;
-      }
-      return new Rational(resultNum, resultDen);
+      return new Rational(this.#numerator ** n, this.#denominator ** n);
     }
     equals(other) {
       return this.#numerator === other.numerator && this.#denominator === other.denominator;
@@ -40229,7 +40217,7 @@ symbolicNamespace._proto = {=
     }
   }
 
-  // ../packages/core/src/rational-interval.js
+  // ../../../../../../../../ai-repos/ratmath/packages/core/src/rational-interval.js
   function hasTerminatingDecimal(value) {
     let denominator = value.denominator;
     while (denominator % 2n === 0n)
@@ -40842,7 +40830,7 @@ symbolicNamespace._proto = {=
     }
   }
 
-  // ../packages/core/src/rational-interval-set.js
+  // ../../../../../../../../ai-repos/ratmath/packages/core/src/rational-interval-set.js
   function asRational(value, name) {
     if (value === null)
       return null;
@@ -41155,7 +41143,7 @@ symbolicNamespace._proto = {=
     }
   }
 
-  // ../packages/core/src/range-arithmetic.js
+  // ../../../../../../../../ai-repos/ratmath/packages/core/src/range-arithmetic.js
   var ZERO = Rational.zero;
   var ONE = Rational.one;
   var RESULT_SCHEMA = "ratmath.range-operation-result@1";
@@ -41507,7 +41495,7 @@ symbolicNamespace._proto = {=
     });
   }
 
-  // ../packages/core/src/fraction.js
+  // ../../../../../../../../ai-repos/ratmath/packages/core/src/fraction.js
   class Fraction {
     #numerator;
     #denominator;
@@ -41928,7 +41916,7 @@ symbolicNamespace._proto = {=
     }
   }
 
-  // ../packages/core/src/fraction-interval.js
+  // ../../../../../../../../ai-repos/ratmath/packages/core/src/fraction-interval.js
   class FractionInterval {
     #low;
     #high;
@@ -42030,7 +42018,7 @@ symbolicNamespace._proto = {=
     }
   }
 
-  // ../packages/core/src/integer.js
+  // ../../../../../../../../ai-repos/ratmath/packages/core/src/integer.js
   class Integer {
     #value;
     static zero = new Integer(0);
@@ -42175,17 +42163,7 @@ symbolicNamespace._proto = {=
         const positiveResult = this.pow(positiveExp);
         return new Rational(1, positiveResult.value);
       }
-      let result = 1n;
-      let base = this.#value;
-      let n = exp;
-      while (n > 0n) {
-        if (n & 1n) {
-          result *= base;
-        }
-        base *= base;
-        n >>= 1n;
-      }
-      return new Integer(result);
+      return new Integer(this.#value ** exp);
     }
     equals(other) {
       return this.#value === other.value;
@@ -42338,7 +42316,7 @@ symbolicNamespace._proto = {=
     }
   }
 
-  // ../packages/core/src/certified-approximation.js
+  // ../../../../../../../../ai-repos/ratmath/packages/core/src/certified-approximation.js
   var Relation = Object.freeze({
     LESS: 1,
     EQUAL: 2,
@@ -42801,7 +42779,7 @@ symbolicNamespace._proto = {=
     });
   }
 
-  // ../packages/core/src/type-promotion.js
+  // ../../../../../../../../ai-repos/ratmath/packages/core/src/type-promotion.js
   class TypePromotion {
     constructor() {
       throw new TypeError("TypePromotion is a static utility class");
@@ -42946,7 +42924,7 @@ symbolicNamespace._proto = {=
     }
   }
 
-  // ../packages/core/src/numeral-system.js
+  // ../../../../../../../../ai-repos/ratmath/packages/core/src/numeral-system.js
   var NUMERAL_SYSTEM_SCHEMA = "ratmath.numeral-system@1";
   var NUMERAL_LIMITS = Object.freeze({ tokens: 256, tokenLength: 32, sourceLength: 65536, digits: 4096, bits: 16384 });
   var reserved = /[\s+\-*/^!()[\]:.#~_`?\\]/u;
@@ -43259,7 +43237,7 @@ symbolicNamespace._proto = {=
     }
   }
 
-  // ../packages/core/src/number-parser.js
+  // ../../../../../../../../ai-repos/ratmath/packages/core/src/number-parser.js
   var DIGITS = String.raw`\d(?:_?\d)*`;
   var MAX_EXPANDED_DIGITS = 1e5;
   function inputString(input, label = "number") {
@@ -52560,13 +52538,26 @@ ${formatOutputText(slide, format)}`).join(`
   function isLazySequence(value) {
     return Boolean(value && value.type === "lazy_sequence" && value._lazy);
   }
+  function lazyCacheLimit(options) {
+    const ceiling = ASYNC_LIMITS.outputItems;
+    const requested = options.maxCache ?? ceiling;
+    if (requested < ceiling)
+      return requested;
+    return Math.max(ceiling, options.explicitLength ?? 0);
+  }
+  function lazyCacheFault(limit) {
+    const fault = asyncLimitFault("lazy cache", limit);
+    fault.message = `Sequence limit of ${limit} elements exceeded; give the sequence an explicit count (|; n or |^ n) to allow more`;
+    return fault;
+  }
   function createLazySequence(options) {
     for (const [key, fallback] of [["maxCache", ASYNC_LIMITS.outputItems], ["maxPending", ASYNC_LIMITS.queued]]) {
       if (!Number.isSafeInteger(options[key] ?? fallback) || (options[key] ?? fallback) < 1)
         throw new Error(`Lazy ${key} must be a positive safe integer`);
     }
-    if ((options.cache?.length || 0) > Math.min(options.maxCache ?? ASYNC_LIMITS.outputItems, ASYNC_LIMITS.outputItems))
-      throw asyncLimitFault("lazy cache", options.maxCache ?? ASYNC_LIMITS.outputItems);
+    const maxCache = lazyCacheLimit(options);
+    if ((options.cache?.length || 0) > maxCache)
+      throw lazyCacheFault(maxCache);
     const sequence = {
       type: "lazy_sequence",
       _lazy: {
@@ -52578,11 +52569,12 @@ ${formatOutputText(slide, format)}`).join(`
         pending: null,
         pendingCount: 0,
         maxPending: Math.min(options.maxPending ?? ASYNC_LIMITS.queued, ASYNC_LIMITS.queued),
-        maxCache: Math.min(options.maxCache ?? ASYNC_LIMITS.outputItems, ASYNC_LIMITS.outputItems),
+        maxCache,
         cache: options.cache ? options.cache.map(requireConcreteLazyValue) : [],
         done: false,
         unresolved: null,
         knownLength: options.knownLength ?? null,
+        explicitLength: options.explicitLength ?? null,
         maxIterations: options.maxIterations ?? 1e4,
         label: options.label || "generator"
       },
@@ -52615,7 +52607,7 @@ ${formatOutputText(slide, format)}`).join(`
       return false;
     }
     if (lazy.cache.length >= lazy.maxCache)
-      throw asyncLimitFault("lazy cache", lazy.maxCache);
+      throw lazyCacheFault(lazy.maxCache);
     return true;
   }
   function commitPull(lazy, state, result, budget) {
@@ -52731,7 +52723,7 @@ ${formatOutputText(slide, format)}`).join(`
     if (lazy.knownLength === null && options.allowUnknown !== true && !lazy.done) {
       throw new Error(`Cannot materialize unbounded or predicate-bounded ${lazy.label} without an explicit bound`);
     }
-    const limit = options.maxIterations ?? lazy.maxIterations;
+    const limit = options.maxIterations ?? Math.max(lazy.maxIterations, lazy.explicitLength ?? 0);
     let attempts = 0;
     while (!lazy.done) {
       const result = pullLazyValue(sequence, Math.max(0, limit - attempts));
@@ -52766,6 +52758,7 @@ ${formatOutputText(slide, format)}`).join(`
         done: restart ? false : source.done,
         unresolved: restart ? null : source.unresolved,
         knownLength: source.knownLength,
+        explicitLength: source.explicitLength,
         maxIterations: source.maxIterations,
         label: source.label
       },
@@ -52786,6 +52779,8 @@ ${formatOutputText(slide, format)}`).join(`
       }),
       knownLength: lazyKnownLength(source),
       maxIterations: source._lazy.maxIterations,
+      maxCache: source._lazy.maxCache,
+      explicitLength: source._lazy.explicitLength,
       label: options.label || "lazy map",
       pull(state) {
         state.index++;
@@ -52811,6 +52806,8 @@ ${formatOutputText(slide, format)}`).join(`
       }),
       knownLength: null,
       maxIterations: source._lazy.maxIterations,
+      maxCache: source._lazy.maxCache,
+      explicitLength: source._lazy.explicitLength,
       label: options.label || "lazy filter",
       pull(state, _self, budget) {
         let attempts = 0;
@@ -54776,6 +54773,9 @@ ${formatOutputText(slide, format)}`).join(`
   function formatMonomial(powers) {
     return [...powers.entries()].sort(([a], [b]) => a.name.localeCompare(b.name)).map(([generator, exponent]) => exponent === 1 ? generator.name : `${generator.name}^${exponent}`).join("*");
   }
+  function spacedBeforeGenerator(text) {
+    return /^-?\d+\/\d+$/.test(text) ? `${text} ` : text;
+  }
   function formatExact(value, formatScalar = (scalar) => scalar.toString()) {
     if (value?.type === "exact_generator")
       return `1~{${value.name}}`;
@@ -54784,7 +54784,7 @@ ${formatOutputText(slide, format)}`).join(`
       const negative = isNegative(term.coefficient);
       const coefficient = absRational(term.coefficient);
       const monomial = formatMonomial(term.powers);
-      const body = monomial ? `${isOne(coefficient) ? "1" : formatScalar(coefficient)}~{${monomial}}` : formatScalar(coefficient);
+      const body = monomial ? `${isOne(coefficient) ? "1" : spacedBeforeGenerator(formatScalar(coefficient))}~{${monomial}}` : formatScalar(coefficient);
       if (pieces.length === 0)
         pieces.push(negative ? `-${body}` : body);
       else
@@ -58011,13 +58011,14 @@ format:
       this.token = options.token || null;
     }
   }
+  var STRING_TOKEN_VALUE = Symbol("string literal");
 
   class Parser {
     constructor(tokens, systemLookup, source = "", customOperators = new Map, limits = sourceLimits()) {
       this.limits = limits;
       this.expressionDepth = 0;
       this.nodeCount = 0;
-      this.tokens = tokens;
+      this.tokens = tokens.map((token) => token.type === "String" && token.kind !== "comment" ? { ...token, text: token.value, value: STRING_TOKEN_VALUE } : token);
       this.systemLookup = systemLookup || (() => ({ type: "identifier" }));
       this.source = source;
       this.customOperators = customOperators;
@@ -58198,6 +58199,10 @@ format:
         return true;
       return false;
     }
+    adjacencyPrecedence() {
+      const spaced = this.current.pos && this.current.pos[1] > this.current.pos[0];
+      return spaced ? PRECEDENCE.MULTIPLICATION : JUXTAPOSITION_PRECEDENCE;
+    }
     parseExpression(minPrec = 0) {
       checkSourceLimit("parseDepth", ++this.expressionDepth, this.limits, this.current.pos?.[1] || 0);
       try {
@@ -58261,7 +58266,7 @@ format:
             return this.parseEmbeddedLanguage(token);
           } else {
             return this.createNode("String", {
-              value: token.value,
+              value: token.text,
               kind: token.kind,
               original: token.original,
               pos: token.pos
@@ -58387,7 +58392,7 @@ format:
               this.advance();
               const delimiter = (template.original.match(/^"+/) || [""])[0].length;
               return this.createNode(delimiter >= 3 ? "DocumentTemplate" : "InterpolatedString", {
-                body: template.value,
+                body: template.text,
                 delimiter,
                 original: token.original + template.original
               });
@@ -59293,7 +59298,7 @@ format:
         if (this.current.value === "(") {
           this.validateKnownSystemCallable(left);
           if (!this.isCallableNode(left)) {
-            if (JUXTAPOSITION_PRECEDENCE < minPrec) {
+            if (this.adjacencyPrecedence() < minPrec) {
               break;
             }
             left = this.parseCall(left);
@@ -59328,10 +59333,11 @@ format:
               });
               continue;
             }
-            if (JUXTAPOSITION_PRECEDENCE < minPrec) {
+            const adjacency = this.adjacencyPrecedence();
+            if (adjacency < minPrec) {
               break;
             }
-            const right = this.parseExpression(JUXTAPOSITION_PRECEDENCE + 1);
+            const right = this.parseExpression(adjacency + 1);
             left = this.createNode("ImplicitMultiplication", {
               left,
               right,
@@ -59353,12 +59359,11 @@ format:
           left = this.parseDerivative(left);
           continue;
         }
-        if (this.current.value === "~[") {
-          left = this.parseScientificUnit(left);
-          continue;
-        }
-        if (this.current.value === "~{") {
-          left = this.parseMathematicalUnit(left);
+        if (this.current.value === "~[" || this.current.value === "~{") {
+          const spaced = this.current.pos[1] > this.current.pos[0];
+          if (spaced && PRECEDENCE.MULTIPLICATION < minPrec)
+            break;
+          left = this.current.value === "~[" ? this.parseScientificUnit(left) : this.parseMathematicalUnit(left);
           continue;
         }
         if (this.current.value === "{=" || this.current.value === "{!") {
@@ -60957,7 +60962,7 @@ format:
       const pathToken = this.current;
       this.advance();
       const pathNode = this.createNode("String", {
-        value: pathToken.value,
+        value: pathToken.text,
         kind: pathToken.kind,
         original: pathToken.original
       });
@@ -61690,7 +61695,7 @@ format:
       return null;
     }
     parseEmbeddedLanguage(token) {
-      const content = token.value;
+      const content = token.text;
       if (content.startsWith(".")) {
         let depth = 0;
         let colonIndex = -1;
@@ -61858,7 +61863,7 @@ format:
       return statements;
     }
     parseCall(target) {
-      if (target.type === "UserIdentifier" && /^[\p{L}]/u.test(target.name) || target.type === "Number" || target.type === "Grouping" && !this.isCallableNode(target)) {
+      if (target.type === "UserIdentifier" && /^[\p{L}]/u.test(target.name) || target.type === "Number" || target.type === "ImplicitMultiplication" || target.type === "BinaryOperation" || target.type === "UnaryOperation" || target.type === "Grouping" && !this.isCallableNode(target)) {
         const grouping = this.parseGrouping();
         return this.createNode("ImplicitMultiplication", {
           left: target,
@@ -62525,7 +62530,9 @@ ${indentStr})`;
     return denominator.length ? `${top}/${denominator.join("*")}` : top;
   }
   function formatQuantity(quantity, formatScalar) {
-    return `${formatScalar(displayMagnitude(quantity))}~[${formatUnit(quantity.displayUnit)}]`;
+    const magnitude = formatScalar(displayMagnitude(quantity));
+    const separator = /^-?\d+\/\d+$/.test(magnitude) ? " " : "";
+    return `${magnitude}${separator}~[${formatUnit(quantity.displayUnit)}]`;
   }
   function unitEntry(collection, name) {
     if (!collection || collection.type !== "map" || !(collection.entries instanceof Map)) {
@@ -67653,6 +67660,36 @@ ${indentStr})`;
     return signal.value;
   }
 
+  // src/runtime/fresh-collection.js
+  function isIndexAssignable(value) {
+    return value !== null && typeof value === "object" && (value.type === "sequence" || value.type === "map") && (Array.isArray(value.values) || value.entries instanceof Map);
+  }
+  function markFreshMutable(result, args = []) {
+    if (!isIndexAssignable(result) || args.includes(result))
+      return result;
+    if (!(result._ext instanceof Map))
+      result._ext = new Map;
+    if (!result._ext.has("_mutable"))
+      result._ext.set("_mutable", new Integer(1n));
+    return result;
+  }
+  function withFreshMutableResults(definitions, names) {
+    for (const name of names) {
+      const definition = definitions[name];
+      if (!definition)
+        throw new Error(`Unknown collection operation: ${name}`);
+      const impl = definition.impl;
+      definition.impl = function freshMutableResult(args, ...rest) {
+        const result = impl.call(this, args, ...rest);
+        if (result && typeof result.then === "function") {
+          return result.then((value) => markFreshMutable(value, args));
+        }
+        return markFreshMutable(result, args);
+      };
+    }
+    return definitions;
+  }
+
   // src/eval/functions/functions.js
   function callableValue(value) {
     return isReactiveNode(value) ? value.peek() : value;
@@ -68024,6 +68061,14 @@ ${indentStr})`;
       return func(...callArgs);
     }
     throw new Error("Callback is not callable");
+  }
+  var PIPE_SYNTAX = { PMAP: "|>>", PFILTER: "|>?", PREDUCE: "|>:", PREVERSE: "|<>", PSORT: "|><", PALL: "|>&&", PANY: "|>||" };
+  function pipeSourceError(operation, source) {
+    const base = `${operation} requires a collection`;
+    const isFunction = source && typeof source === "object" && ["lambda", "function", "multifunction", "partial", "arityCap"].includes(source.type);
+    if (!isFunction)
+      return new Error(base);
+    return new Error(`${base}, but the pipe ${PIPE_SYNTAX[operation] ?? ""} received a function. ` + "'->' binds tighter than a pipe; wrap the function body in parentheses if the pipe belongs inside it");
   }
   var functionFunctions = {
     CALL: {
@@ -68868,7 +68913,7 @@ ${indentStr})`;
         } else if (collection && Array.isArray(collection.values)) {
           items = collection.values;
         } else {
-          throw new Error("PMAP requires a collection");
+          throw pipeSourceError("PMAP", collection);
         }
         const results = items.map((item, i) => {
           const loc = new Integer(BigInt(i + 1));
@@ -68957,7 +69002,7 @@ ${indentStr})`;
         } else if (collection && Array.isArray(collection.values)) {
           items = collection.values;
         } else {
-          throw new Error("PFILTER requires a collection");
+          throw pipeSourceError("PFILTER", collection);
         }
         const results = [];
         for (let i = 0;i < items.length; i++) {
@@ -69038,7 +69083,7 @@ ${indentStr})`;
         } else if (collection && Array.isArray(collection.values)) {
           items = collection.values;
         } else {
-          throw new Error("PREDUCE requires a collection");
+          throw pipeSourceError("PREDUCE", collection);
         }
         let acc = initProvided ? explicitInit : items[0];
         const startIdx = initProvided ? 0 : 1;
@@ -69065,7 +69110,7 @@ ${indentStr})`;
         } else if (collection && Array.isArray(collection.values)) {
           return { type: collection.type || "sequence", values: [...collection.values].reverse() };
         } else {
-          throw new Error("PREVERSE requires a collection");
+          throw pipeSourceError("PREVERSE", collection);
         }
       },
       pure: true,
@@ -69091,7 +69136,7 @@ ${indentStr})`;
         } else if (collection && Array.isArray(collection.values)) {
           items = collection.values;
         } else {
-          throw new Error("PSORT requires a collection");
+          throw pipeSourceError("PSORT", collection);
         }
         const func = evaluate(funcNode);
         let uncertainOrdering = false;
@@ -69237,7 +69282,7 @@ ${indentStr})`;
         } else if (collection && Array.isArray(collection.values)) {
           items = collection.values;
         } else {
-          throw new Error("PALL requires a collection");
+          throw pipeSourceError("PALL", collection);
         }
         if (items.length === 0) {
           return null;
@@ -69322,7 +69367,7 @@ ${indentStr})`;
         } else if (collection && Array.isArray(collection.values)) {
           items = collection.values;
         } else {
-          throw new Error("PANY requires a collection");
+          throw pipeSourceError("PANY", collection);
         }
         let uncertain = false;
         for (let i = 0;i < items.length; i++) {
@@ -69346,6 +69391,7 @@ ${indentStr})`;
       doc: "Keyword argument wrapper"
     }
   };
+  withFreshMutableResults(functionFunctions, ["PSPLIT", "PCHUNK", "PEXPECT", "PMAP", "PFILTER", "PREVERSE", "PSORT"]);
 
   // src/eval/format.js
   function shapedValueAtTuple(shaped, tuple) {
@@ -78796,14 +78842,122 @@ ${indented.join(`,
         return 0;
       }
     }
+    const hostA = exactHostInteger(a);
+    const hostB = exactHostInteger(b);
+    if ((hostA !== a || hostB !== b) && isCoreNumeric(hostA) && isCoreNumeric(hostB))
+      return compare(hostA, hostB);
     const valA = a && a.type === "string" ? a.value : a;
     const valB = b && b.type === "string" ? b.value : b;
+    const kindA = orderedPrimitiveKind(valA);
+    if (kindA === null || kindA !== orderedPrimitiveKind(valB)) {
+      throw new Error(`Cannot order ${describeOperand(a)} and ${describeOperand(b)}`);
+    }
     if (valA < valB)
       return -1;
     if (valA > valB)
       return 1;
     return 0;
   }
+  function exactHostInteger(value) {
+    if (typeof value === "bigint")
+      return new Integer(value);
+    if (typeof value === "number" && Number.isSafeInteger(value))
+      return new Integer(BigInt(value));
+    return value;
+  }
+  function orderedPrimitiveKind(value) {
+    if (typeof value === "string")
+      return "string";
+    if (typeof value === "number" || typeof value === "bigint")
+      return "number";
+    return null;
+  }
+  function describeOperand(value) {
+    if (value === null || value === undefined)
+      return "null";
+    if (typeof value !== "object")
+      return typeof value;
+    return value.type ?? value.constructor?.name ?? "object";
+  }
+  function orderResult(left, right, accept) {
+    if (left === null || left === undefined || right === null || right === undefined)
+      return null;
+    if (isUndecided(left))
+      return left;
+    if (isUndecided(right))
+      return right;
+    return boolResult2(accept(compare(left, right)));
+  }
+  function elementEquality(context, evaluate) {
+    const registry = context?.getEnv?.("__registry__", null);
+    return (left, right) => {
+      if (left === right)
+        return true;
+      if (left === null || left === undefined || right === null || right === undefined)
+        return false;
+      if (!registry?.invokeWithVariant)
+        return left === right;
+      const result = registry.invokeWithVariant("EQ", [left, right], context, evaluate).value;
+      if (isUndecided(result))
+        return result;
+      return result !== null && result !== undefined;
+    };
+  }
+  function allEqual(count, decide) {
+    let undecided = null;
+    for (let index = 0;index < count; index++) {
+      const decision = decide(index);
+      if (isUndecided(decision))
+        undecided ??= decision;
+      else if (!decision)
+        return false;
+    }
+    return undecided ?? true;
+  }
+  function structuralEquality(a, b, equal) {
+    if (a === b)
+      return a !== null && typeof a === "object" && STRUCTURAL_TYPES.has(a.type) ? true : null;
+    if (!a || !b || typeof a !== "object" || typeof b !== "object")
+      return null;
+    if (!STRUCTURAL_TYPES.has(a.type) || !STRUCTURAL_TYPES.has(b.type))
+      return null;
+    if (a.type !== b.type)
+      return false;
+    if (a.type === "map") {
+      if (!(a.entries instanceof Map) || !(b.entries instanceof Map))
+        return null;
+      if (a.entries.size !== b.entries.size)
+        return false;
+      const keys = [...a.entries.keys()];
+      if (!keys.every((key) => b.entries.has(key)))
+        return false;
+      return allEqual(keys.length, (index) => equal(a.entries.get(keys[index]), b.entries.get(keys[index])));
+    }
+    if (!Array.isArray(a.values) || !Array.isArray(b.values))
+      return null;
+    if (a.values.length !== b.values.length)
+      return false;
+    if (a.type === "set") {
+      const unmatched = [...b.values];
+      return allEqual(a.values.length, (index) => {
+        let undecided = null;
+        for (let candidate = 0;candidate < unmatched.length; candidate++) {
+          const decision = equal(a.values[index], unmatched[candidate]);
+          if (isUndecided(decision)) {
+            undecided ??= decision;
+            continue;
+          }
+          if (decision) {
+            unmatched.splice(candidate, 1);
+            return true;
+          }
+        }
+        return undecided ?? false;
+      });
+    }
+    return allEqual(a.values.length, (index) => equal(a.values[index], b.values[index]));
+  }
+  var STRUCTURAL_TYPES = new Set(["sequence", "tuple", "set", "map"]);
   function boolResult2(val) {
     if (isUndecided(val))
       return val;
@@ -78870,7 +79024,6 @@ ${indented.join(`,
         if (!leftType || leftType === "invalid" || leftType !== rightType) {
           throw new Error("COMPARE requires two values from the same built-in ordered domain");
         }
-        const result = compare(args[0], args[1]);
         if (isEnclosed(args[0]) || isEnclosed(args[1])) {
           const mask = possibleRelations(args[0], args[1]);
           if (mask === Relation.LESS)
@@ -78881,10 +79034,40 @@ ${indented.join(`,
             return new Integer(1n);
           return UNDECIDED;
         }
+        const result = compare(args[0], args[1]);
         return new Integer(BigInt(result < 0 ? -1 : result > 0 ? 1 : 0));
       },
       pure: true,
       doc: "Compare two values; returns -1, 0, or 1"
+    },
+    COMPARE_CHAIN: {
+      lazy: true,
+      impl(args, context, evaluate) {
+        const [operations, ...operands] = args;
+        const registry = context?.getEnv?.("__registry__", null);
+        if (!registry)
+          throw new Error("A comparison chain requires an active evaluator registry");
+        const operand = (node) => {
+          const value = evaluate(node);
+          if (isHole(value))
+            throw new Error("Cannot use undefined/hole value in computation (in a comparison chain)");
+          return value;
+        };
+        let previous = operand(operands[0]);
+        let undecided = null;
+        for (let index = 0;index < operations.length; index++) {
+          const next = operand(operands[index + 1]);
+          const link = registry.call(operations[index], [previous, next], context, evaluate);
+          if (isUndecided(link))
+            undecided ??= link;
+          else if (link === null || link === undefined)
+            return null;
+          previous = next;
+        }
+        return undecided ?? new Integer(1);
+      },
+      pure: false,
+      doc: "Chained comparison a < b <= c — every adjacent pair must hold; each operand is evaluated once"
     },
     EQ: {
       impl(args, context, evaluate) {
@@ -78899,7 +79082,8 @@ ${indented.join(`,
         }
         if (a && b && a.type === "string" && b.type === "string")
           return boolResult2(a.value === b.value);
-        return boolResult2(a === b);
+        const structural = structuralEquality(a, b, elementEquality(context, evaluate));
+        return boolResult2(structural === null ? a === b : structural);
       },
       preempt: (args) => args[1] instanceof HaloNeighborhood,
       pure: false,
@@ -78918,7 +79102,10 @@ ${indented.join(`,
         }
         if (a && b && a.type === "string" && b.type === "string")
           return boolResult2(a.value !== b.value);
-        return boolResult2(a !== b);
+        const structural = structuralEquality(a, b, elementEquality(context, evaluate));
+        if (isUndecided(structural))
+          return structural;
+        return boolResult2(structural === null ? a !== b : !structural);
       },
       preempt: (args) => args[1] instanceof HaloNeighborhood,
       pure: false,
@@ -78929,7 +79116,7 @@ ${indented.join(`,
         const refinement = maybeRefineForHalo(args[0], args[1], "lt", context, evaluate);
         const left = refinement.value;
         const decision = haloDecision(left, args[1], "lt", refinement.diagnostic) ?? relationDecision(left, args[1], "lt");
-        return decision === null ? boolResult2(compare(left, args[1]) < 0) : boolResult2(decision);
+        return decision === null ? orderResult(left, args[1], (c) => c < 0) : boolResult2(decision);
       },
       preempt: (args) => args[1] instanceof HaloNeighborhood,
       pure: false,
@@ -78940,7 +79127,7 @@ ${indented.join(`,
         const refinement = maybeRefineForHalo(args[0], args[1], "gt", context, evaluate);
         const left = refinement.value;
         const decision = haloDecision(left, args[1], "gt", refinement.diagnostic) ?? relationDecision(left, args[1], "gt");
-        return decision === null ? boolResult2(compare(left, args[1]) > 0) : boolResult2(decision);
+        return decision === null ? orderResult(left, args[1], (c) => c > 0) : boolResult2(decision);
       },
       preempt: (args) => args[1] instanceof HaloNeighborhood,
       pure: false,
@@ -78951,7 +79138,7 @@ ${indented.join(`,
         const refinement = maybeRefineForHalo(args[0], args[1], "lte", context, evaluate);
         const left = refinement.value;
         const decision = haloDecision(left, args[1], "lte", refinement.diagnostic) ?? relationDecision(left, args[1], "lte");
-        return decision === null ? boolResult2(compare(left, args[1]) <= 0) : boolResult2(decision);
+        return decision === null ? orderResult(left, args[1], (c) => c <= 0) : boolResult2(decision);
       },
       preempt: (args) => args[1] instanceof HaloNeighborhood,
       pure: false,
@@ -78962,7 +79149,7 @@ ${indented.join(`,
         const refinement = maybeRefineForHalo(args[0], args[1], "gte", context, evaluate);
         const left = refinement.value;
         const decision = haloDecision(left, args[1], "gte", refinement.diagnostic) ?? relationDecision(left, args[1], "gte");
-        return decision === null ? boolResult2(compare(left, args[1]) >= 0) : boolResult2(decision);
+        return decision === null ? orderResult(left, args[1], (c) => c >= 0) : boolResult2(decision);
       },
       preempt: (args) => args[1] instanceof HaloNeighborhood,
       pure: false,
@@ -79207,6 +79394,7 @@ ${indented.join(`,
         stop: state.stop
       }),
       knownLength: numericLimit,
+      explicitLength: numericLimit,
       maxIterations,
       label: "sequence generator",
       maxCache: ctx.getEnv?.("asyncLimits", {})?.outputItems,
@@ -79300,14 +79488,15 @@ ${indented.join(`,
     }
     if (!eager)
       return sequence;
+    const materializeIterations = Math.max(maxIterations, numericLimit ?? 0);
     if (execution)
-      return materializeLazySequenceAsync(sequence, { allowUnknown: true, maxIterations, signal: execution.signal }).then((materialized) => {
+      return materializeLazySequenceAsync(sequence, { allowUnknown: true, maxIterations: materializeIterations, signal: execution.signal }).then((materialized) => {
         if (isUndecided(materialized))
           return UNDECIDED;
         materialized._ext = new Map([["_mutable", new Integer(1n)]]);
         return attachBuiltinProto(materialized);
       });
-    const materialized = materializeLazySequence(sequence, { allowUnknown: true, maxIterations });
+    const materialized = materializeLazySequence(sequence, { allowUnknown: true, maxIterations: materializeIterations });
     if (isUndecided(materialized))
       return UNDECIDED;
     materialized._ext = new Map([["_mutable", new Integer(1n)]]);
@@ -79797,6 +79986,7 @@ ${indented.join(`,
       doc: "N-ary concatenation fold"
     }
   };
+  withFreshMutableResults(collectionFunctions, ["CONCAT", "NARY_CONCAT"]);
 
   // src/runtime/methods.js
   function int6(value) {
@@ -82716,6 +82906,22 @@ ${indented.join(`,
     }
     return ast.map(lowerNode);
   }
+  var COMPARISON_CHAIN_OPS = new Set(["<", ">", "<=", ">=", "==", "!="]);
+  function comparisonChainLinks(node) {
+    const operands = [];
+    const operators = [];
+    const visit = (current) => {
+      if (current?.type === "BinaryOperation" && COMPARISON_CHAIN_OPS.has(current.operator)) {
+        visit(current.left);
+        operators.push(current.operator);
+        visit(current.right);
+      } else {
+        operands.push(current);
+      }
+    };
+    visit(node);
+    return { operands, operators };
+  }
   function lowerNode(node) {
     if (!node || !node.type) {
       return node;
@@ -83114,6 +83320,15 @@ ${indented.join(`,
       }
       if (op === "?=") {
         throw new Error(`'?=' is not a comparison operator — use '==' for equality comparison, or use '?=' only in parameter default position (e.g., (x ?= 2) -> ...)`);
+      }
+      if (COMPARISON_CHAIN_OPS.has(op)) {
+        const links = comparisonChainLinks(node);
+        if (links.operators.some((operator) => operator.startsWith("<")) && links.operators.some((operator) => operator.startsWith(">"))) {
+          throw new Error("A comparison chain cannot mix '<' and '>' directions; write the two comparisons separately and join them with &&");
+        }
+        if (links.operators.length > 1) {
+          return ir2("COMPARE_CHAIN", links.operators.map((operator) => BINARY_OP_MAP[operator]), ...links.operands.map(lowerNode));
+        }
       }
       const sysFn = BINARY_OP_MAP[op];
       if (sysFn) {
@@ -91095,6 +91310,7 @@ ${pad}}`;
       doc: "Recursively set (flag≠_) or remove (flag=_) ._mutable on all nested arrays/maps/tensors. Called via .DeepMutable(value, flag)."
     }
   };
+  withFreshMutableResults(stdlibFunctions, ["IRANGE"]);
 
   // src/eval/functions/diagnostics.js
   var EMPTY_MAP = Object.freeze({ type: "map", entries: new Map });
@@ -107949,6 +108165,8 @@ Evidence: ${JSON.stringify(frame.snapshot)}
     thorough: 3,
     pedantic: 4
   });
+  var PIPE_NODE_TYPES = new Set(["Pipe", "ExplicitPipe", "Map", "Filter", "Every", "Some", "Reduce", "SliceStrict", "SliceClamp", "Split", "Chunk", "Sort", "Reverse"]);
+  var FUNCTION_NODE_TYPES = new Set(["FunctionLambda", "FunctionDefinition", "FunctionVariantDefinition"]);
   var RIX_LINT_PROFILES = Object.freeze({
     default: ["core", "syntax"],
     plugin: ["core", "syntax", "plugin"],
@@ -107984,6 +108202,8 @@ Evidence: ${JSON.stringify(frame.snapshot)}
     RX1705: { level: 3, profiles: ["teaching", "style"], title: "Block introduces capture boundary" },
     RX1706: { level: 4, profiles: ["teaching", "style"], title: "Function value reference" },
     RX1707: { level: 2, profiles: ["syntax", "teaching"], title: "Mixed numeric notation systems" },
+    RX1708: { level: 3, profiles: ["syntax", "teaching"], title: "Pipe applies to a function, not its body" },
+    RX1709: { level: 2, profiles: ["syntax", "teaching"], title: "Factor or unit written directly after a fraction" },
     RX1801: { level: 2, profiles: ["math", "teaching"], title: "Exact division versus truncation" },
     RX1802: { level: 3, profiles: ["math", "teaching"], title: "Fraction equality policy" },
     RX1803: { level: 3, profiles: ["math"], title: "Exactness discarded" },

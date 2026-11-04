@@ -39,6 +39,7 @@ import {
 import { UNDECIDED, decisionState } from "../../runtime/decision.js";
 import { resolveMethod } from "../../runtime/methods.js";
 import { isFunctionReturnControl, isFunctionReturnSignal, returnedValue } from "../../runtime/function-return.js";
+import { withFreshMutableResults } from "../../runtime/fresh-collection.js";
 
 const isTruthy = (val) => decisionState(val) === "truth";
 
@@ -500,6 +501,19 @@ function invokeTraversalCallback(func, callArgs, context, evaluate) {
         return func(...callArgs);
     }
     throw new Error("Callback is not callable");
+}
+
+const PIPE_SYNTAX = { PMAP: "|>>", PFILTER: "|>?", PREDUCE: "|>:", PREVERSE: "|<>", PSORT: "|><", PALL: "|>&&", PANY: "|>||" };
+
+// A function on the left of a pipe almost always means an unparenthesised
+// lambda body: `(x) -> xs |>: F` parses as `((x) -> xs) |>: F`.
+function pipeSourceError(operation, source) {
+    const base = `${operation} requires a collection`;
+    const isFunction = source && typeof source === "object" &&
+        ["lambda", "function", "multifunction", "partial", "arityCap"].includes(source.type);
+    if (!isFunction) return new Error(base);
+    return new Error(`${base}, but the pipe ${PIPE_SYNTAX[operation] ?? ""} received a function. ` +
+        "'->' binds tighter than a pipe; wrap the function body in parentheses if the pipe belongs inside it");
 }
 
 export const functionFunctions = {
@@ -1463,7 +1477,7 @@ export const functionFunctions = {
             } else if (collection && Array.isArray(collection.values)) {
                 items = collection.values;
             } else {
-                throw new Error("PMAP requires a collection");
+                throw pipeSourceError("PMAP", collection);
             }
 
             // Callback receives (val, locator, src) where locator is 1-based Integer position.
@@ -1572,7 +1586,7 @@ export const functionFunctions = {
             } else if (collection && Array.isArray(collection.values)) {
                 items = collection.values;
             } else {
-                throw new Error("PFILTER requires a collection");
+                throw pipeSourceError("PFILTER", collection);
             }
 
             // Callback receives (val, locator, src) where locator is 1-based Integer position.
@@ -1666,7 +1680,7 @@ export const functionFunctions = {
             } else if (collection && Array.isArray(collection.values)) {
                 items = collection.values;
             } else {
-                throw new Error("PREDUCE requires a collection");
+                throw pipeSourceError("PREDUCE", collection);
             }
 
             // Callback receives (acc, val, locator, src) where locator is 1-based Integer position.
@@ -1699,7 +1713,7 @@ export const functionFunctions = {
             } else if (collection && Array.isArray(collection.values)) {
                 return { type: collection.type || "sequence", values: [...collection.values].reverse() };
             } else {
-                throw new Error("PREVERSE requires a collection");
+                throw pipeSourceError("PREVERSE", collection);
             }
         },
         pure: true,
@@ -1729,7 +1743,7 @@ export const functionFunctions = {
             } else if (collection && Array.isArray(collection.values)) {
                 items = collection.values;
             } else {
-                throw new Error("PSORT requires a collection");
+                throw pipeSourceError("PSORT", collection);
             }
 
             const func = evaluate(funcNode);
@@ -1879,7 +1893,7 @@ export const functionFunctions = {
             } else if (collection && Array.isArray(collection.values)) {
                 items = collection.values;
             } else {
-                throw new Error("PALL requires a collection");
+                throw pipeSourceError("PALL", collection);
             }
 
             if (items.length === 0) {
@@ -1971,7 +1985,7 @@ export const functionFunctions = {
             } else if (collection && Array.isArray(collection.values)) {
                 items = collection.values;
             } else {
-                throw new Error("PANY requires a collection");
+                throw pipeSourceError("PANY", collection);
             }
 
             // Callback receives (val, locator, src) where locator is 1-based Integer position.
@@ -1997,3 +2011,6 @@ export const functionFunctions = {
         doc: "Keyword argument wrapper",
     },
 };
+
+// Arrays and maps built by these operations behave like literals.
+withFreshMutableResults(functionFunctions, ["PSPLIT", "PCHUNK", "PEXPECT", "PMAP", "PFILTER", "PREVERSE", "PSORT"]);

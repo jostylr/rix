@@ -427,8 +427,13 @@ export function formatUnit(unit) {
     return denominator.length ? `${top}/${denominator.join("*")}` : top;
 }
 
+// A unit written directly after a fraction binds to its denominator, so a
+// fractional magnitude is printed with a space: `1/2 ~[m]` reads back as half
+// a metre.
 export function formatQuantity(quantity, formatScalar) {
-    return `${formatScalar(displayMagnitude(quantity))}~[${formatUnit(quantity.displayUnit)}]`;
+    const magnitude = formatScalar(displayMagnitude(quantity));
+    const separator = /^-?\d+\/\d+$/.test(magnitude) ? " " : "";
+    return `${magnitude}${separator}~[${formatUnit(quantity.displayUnit)}]`;
 }
 
 function unitEntry(collection, name) {

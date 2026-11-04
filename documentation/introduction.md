@@ -495,6 +495,32 @@ x === z     ## null (different cells, even though equal values)
 
 This distinction matters for tracking mutations: two names sharing a cell will always agree, but two independent copies will not.
 
+For arrays, tuples, sets and maps, `==` compares contents: arrays and tuples element by element, sets regardless of order, maps key by key. An undecided element comparison leaves the whole result undecided unless another element already differs.
+
+```rix
+[1, 2] == [1, 2]            ##@ == 1
+{| 1, 2 |} == {| 2, 1 |}    ##@ == 1
+[1, 2] == {: 1, 2 }         ## null (an array is not a tuple)
+[1:2] == [1:2]              ## ? (interval equality is undecided)
+##
+```
+
+Comparisons chain the way they do in mathematics: `a < b <= c` holds when every adjacent pair holds, and each operand is evaluated once. `==` and `!=` join the same chain.
+
+```rix
+0 < 5 < 10       ##@ == 1
+0 < 5 < 3        ## null: 5 < 3 fails
+3 > 2 > 1        ##@ == 1
+2 == 2 == 2      ##@ == 1
+##
+```
+
+A parenthesised comparison is an ordinary value, so `(a < b) == 1` compares the result of `a < b` with `1`.
+
+A chain runs in one direction. Mixing `<` and `>`, as in `1 < 2 > 1.5`, is an error; write the two comparisons separately and join them with `&&`.
+
+The ordering operators `<`, `>`, `<=`, `>=` return null when either operand is null, pass an undecided operand through as undecided, and raise an error when the operands are not from the same ordered domain, as in `5 < "abc"`.
+
 #### Headered Outfitting, Sticky Semantics, And Constructor Capture
 
 RiX uses a shared `/ ... /` header syntax for value outfitting and for constructor defaults:
@@ -630,6 +656,22 @@ a b            ##@ == 63
 ```
 
 Note that `ab` is a single identifier, not `a * b`. Only separate tokens produce multiplication.
+
+A space between two values is ordinary multiplication, with the same precedence as `*` and `/` and read left to right. Values written with no space form one tight term:
+
+```rix
+x := 6;
+y := 3;
+12/x y         ##@ == 6
+12/x*y         ##@ == 6
+1/2 x          ##@ == 3
+12/2y          ##@ == 2
+1/2x           ##@ == 1/12
+2x/2y          ##@ == 2
+##
+```
+
+Units follow the same rule: `1/2 ~[m]` is half a metre, while `1/2~[m]` is `1/(2~[m])`. RiX prints a fractional magnitude with the space, so its output reads back as the same value.
 
 **Implicit callable application** — an uppercase function name followed by an adjacent expression calls that function, consuming the **maximal multiplicative chunk** to its right as the argument:
 
@@ -1168,6 +1210,8 @@ There are also N-ary operation braces for applying operations across arbitrary e
 ###  Loop Headers
 
 Loops use a default max of `10000` iterations unless the host runtime changes `defaultLoopMax`.
+
+Generated sequences have a matching default of `10000` elements. A sequence written with an explicit count, such as `[1, |+ 1, |; 50000]` or `[1, |+ 1, |^ 50000]`, may exceed it, because the count is its bound; a predicate-terminated or unbounded sequence keeps the default.
 
 - `{@ ... }` and `{@name@ ... }` use the default max.
 - `{@:100@ ... }` and `{@name:100@ ... }` set an explicit finite cap.
