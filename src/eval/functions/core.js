@@ -738,6 +738,8 @@ function exactPrefixedText(text, prefix, quoted = false) {
  */
 function parseLiteral(str) {
     if (typeof str !== "string") return str;
+    // Plain decimal digits need no general grammar; always a fresh Integer.
+    if (/^[0-9]+$/.test(str)) return new Integer(BigInt(str));
 
     // Decimal/integer uncertainty intervals are part of RatMath Core's shared
     // number grammar. Keep RiX-specific bases and radix shifts below.
