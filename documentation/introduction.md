@@ -508,10 +508,10 @@ For arrays, tuples, sets and maps, `==` compares contents: arrays and tuples ele
 Comparisons chain the way they do in mathematics: `a < b <= c` holds when every adjacent pair holds, and each operand is evaluated once. `==` and `!=` join the same chain.
 
 ```rix
-0 < 5 < 10       ##@ == 1
-0 < 5 < 3        ## null: 5 < 3 fails
-3 > 2 > 1        ##@ == 1
-2 == 2 == 2      ##@ == 1
+0 < 5 < 10 ##@ == 1;
+0 < 5 < 3;       ## null: 5 < 3 fails
+3 > 2 > 1 ##@ == 1;
+2 == 2 == 2 ##@ == 1
 ##
 ```
 
