@@ -471,9 +471,13 @@ function exactPositiveIndex(value, label) {
     return index;
 }
 
-function sceneEntries(value, runtime, name) {
+// Scene callbacks may be async (Promise-returning) under the async evaluator,
+// so scenes are collected by a generator that yields each callback result and
+// is driven synchronously or with awaits, one callback at a time.
+function* sceneEntrySteps(value, runtime, name) {
     let ordinal = 0;
-    return sequence(value, `${name} entries`).flatMap((entry, group) => {
+    const scenes = [];
+    for (const [group, entry] of sequence(value, `${name} entries`).entries()) {
         let scene;
         let states;
         let label = null;
@@ -490,7 +494,7 @@ function sceneEntries(value, runtime, name) {
             if (pair.length !== 2) throw new Error(`${name} entry ${group + 1} must be a [scene, states] tuple`);
             [scene, states] = pair;
         }
-        return sequence(states, `${name} entry ${group + 1} states`).map((state, index) => {
+        for (const [index, state] of sequence(states, `${name} entry ${group + 1} states`).entries()) {
             const originEntries = new Map([
                 ["entry", int(group + 1)],
                 ["state", int(index + 1)],
@@ -502,19 +506,35 @@ function sceneEntries(value, runtime, name) {
                 entries: originEntries,
                 _ext: new Map([["immutable", int(1)]]),
             });
-            const content = invokeControlCallable(scene, [state, origin], runtime, `${name} entry ${group + 1} scene`);
+            const content = yield invokeControlCallable(scene, [state, origin], runtime, `${name} entry ${group + 1} scene`);
             if (!isBlockOutput(content)) {
                 const actual = isOutputValue(content) ? content.kind : typeof content;
                 throw new Error(`${name} scene ${group + 1}.${index + 1} must return block output; received ${actual}`);
             }
             ordinal += 1;
-            return Object.freeze({
+            scenes.push(Object.freeze({
                 state,
                 origin,
                 content,
-            });
-        });
-    });
+            }));
+        }
+    }
+    return scenes;
+}
+
+// Collect scenes, then finish synchronously or after the async callbacks settle.
+function withSceneEntries(value, runtime, name, finish) {
+    const steps = sceneEntrySteps(value, runtime, name);
+    if (runtime?.execution?.promiseAware) {
+        return (async () => {
+            let step = steps.next();
+            while (!step.done) step = steps.next(await step.value);
+            return finish(step.value);
+        })();
+    }
+    let step = steps.next();
+    while (!step.done) step = steps.next(step.value);
+    return finish(step.value);
 }
 
 /**
@@ -527,13 +547,15 @@ export function createSnapshots(args, runtime = null) {
     if (has(entry, "columns")) {
         throw new Error("Snapshots no longer accepts columns; pass its ordered list to a grid renderer instead");
     }
-    const snapshots = Object.freeze(sceneEntries(get(entry, "entries"), runtime, "Snapshots"));
-    if (snapshots.length === 0) throw new Error("Snapshots requires at least one rendered scene");
-    return output("snapshots", {
-        snapshots,
-        title: asString(get(entry, "title")),
-        caption: asString(get(entry, "caption")),
-        style: optionalMap(get(entry, "style"), "Snapshots style"),
+    return withSceneEntries(get(entry, "entries"), runtime, "Snapshots", (scenes) => {
+        const snapshots = Object.freeze(scenes);
+        if (snapshots.length === 0) throw new Error("Snapshots requires at least one rendered scene");
+        return output("snapshots", {
+            snapshots,
+            title: asString(get(entry, "title")),
+            caption: asString(get(entry, "caption")),
+            style: optionalMap(get(entry, "style"), "Snapshots style"),
+        });
     });
 }
 
@@ -544,23 +566,25 @@ export function createSnapshots(args, runtime = null) {
  */
 export function createTimelineSequence(args, runtime = null) {
     const entry = spec(args, ["entries", "duration"], "Timeline.Sequence");
-    const frames = Object.freeze(sceneEntries(get(entry, "entries"), runtime, "Timeline.Sequence"));
-    if (frames.length === 0) throw new Error("Timeline.Sequence requires at least one rendered frame");
-    const duration = get(entry, "duration");
-    const frameDurations = timelineFrameDurations(get(entry, "frameDurations"), frames.length);
-    if (frameDurations && duration !== null && duration !== undefined) {
-        throw new Error("Timeline.Sequence accepts either duration or frameDurations, not both");
-    }
-    return output("timeline", {
-        frames,
-        duration: duration === null || duration === undefined ? null : positiveExactNumber(duration, "Timeline.Sequence duration"),
-        frameDurations,
-        markers: timelineMarkers(get(entry, "markers"), frames.length),
-        tracks: timelineTracks(get(entry, "tracks"), frames.length),
-        preferencesKey: asString(get(entry, "preferencesKey")),
-        easing: asString(get(entry, "easing")) || "linear",
-        transition: timelineTransition(get(entry, "transition")),
-        title: asString(get(entry, "title")),
+    return withSceneEntries(get(entry, "entries"), runtime, "Timeline.Sequence", (scenes) => {
+        const frames = Object.freeze(scenes);
+        if (frames.length === 0) throw new Error("Timeline.Sequence requires at least one rendered frame");
+        const duration = get(entry, "duration");
+        const frameDurations = timelineFrameDurations(get(entry, "frameDurations"), frames.length);
+        if (frameDurations && duration !== null && duration !== undefined) {
+            throw new Error("Timeline.Sequence accepts either duration or frameDurations, not both");
+        }
+        return output("timeline", {
+            frames,
+            duration: duration === null || duration === undefined ? null : positiveExactNumber(duration, "Timeline.Sequence duration"),
+            frameDurations,
+            markers: timelineMarkers(get(entry, "markers"), frames.length),
+            tracks: timelineTracks(get(entry, "tracks"), frames.length),
+            preferencesKey: asString(get(entry, "preferencesKey")),
+            easing: asString(get(entry, "easing")) || "linear",
+            transition: timelineTransition(get(entry, "transition")),
+            title: asString(get(entry, "title")),
+        });
     });
 }
 
@@ -3333,10 +3357,11 @@ export function createGraphicsOutputCollection() {
         extension.set(name.toUpperCase(), {
             type: "method_builtin",
             name,
-            impl: (args, context, evaluate, invoke) => constructor(args.slice(1), {
+            impl: (args, context, evaluate, invoke, execution) => constructor(args.slice(1), {
                 context,
                 evaluate,
                 invoke,
+                execution,
             }),
         });
     }
@@ -3358,10 +3383,11 @@ export function createTimelineOutputCollection() {
         extension.set(name.toUpperCase(), {
             type: "method_builtin",
             name,
-            impl: (args, context, evaluate, invoke) => constructor(args.slice(1), {
+            impl: (args, context, evaluate, invoke, execution) => constructor(args.slice(1), {
                 context,
                 evaluate,
                 invoke,
+                execution,
             }),
         });
     }
@@ -3387,10 +3413,11 @@ export function createControlsOutputCollection() {
         extension.set(name.toUpperCase(), {
             type: "method_builtin",
             name,
-            impl: (args, context, evaluate, invoke) => constructor(args.slice(1), {
+            impl: (args, context, evaluate, invoke, execution) => constructor(args.slice(1), {
                 context,
                 evaluate,
                 invoke,
+                execution,
             }),
         });
     }

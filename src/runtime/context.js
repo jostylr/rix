@@ -15,6 +15,90 @@ import { Cell, deepCopyValue } from "./cell.js";
 import { forkRuntimeRandom } from "./random.js";
 import { initializeSymbolScope } from "./math-expression.js";
 
+/**
+ * A read-only scope map for a concurrent child whose snapshot cells are made
+ * on first lookup. Concurrent collection items usually read a few names, so
+ * deep-copying every visible binding (plugin graphs included) up front made
+ * each item cost O(scope size). Values are captured when the child is
+ * created; each is deep-copied once, through the child's shared memo.
+ */
+class LazySnapshotScope extends Map {
+    #pending;
+    #order;
+    #snapshot;
+
+    constructor(source, snapshot) {
+        super();
+        this.#pending = new Map([...source].map(([name, cell]) => [name, cell.value]));
+        this.#order = [...this.#pending.keys()];
+        this.#snapshot = snapshot;
+    }
+
+    #take(name) {
+        const value = this.#pending.get(name);
+        this.#pending.delete(name);
+        super.set(name, this.#snapshot(value));
+    }
+
+    #materialize() {
+        if (this.#pending.size === 0) return;
+        const extra = [...super.entries()].filter(([name]) => !this.#order.includes(name));
+        for (const name of this.#order) if (this.#pending.has(name)) this.#take(name);
+        const ordered = [...this.#order.filter((name) => super.has(name)).map((name) => [name, super.get(name)]), ...extra];
+        super.clear();
+        for (const [name, cell] of ordered) super.set(name, cell);
+    }
+
+    get(name) {
+        if (this.#pending.has(name)) this.#take(name);
+        return super.get(name);
+    }
+    has(name) { return this.#pending.has(name) || super.has(name); }
+    set(name, cell) { this.#pending?.delete(name); return super.set(name, cell); }
+    delete(name) { const pending = this.#pending.delete(name); return super.delete(name) || pending; }
+    clear() { this.#pending.clear(); super.clear(); }
+    get size() { return this.#pending.size + super.size; }
+    keys() { this.#materialize(); return super.keys(); }
+    values() { this.#materialize(); return super.values(); }
+    entries() { this.#materialize(); return super.entries(); }
+    forEach(callback, thisArg) { this.#materialize(); return super.forEach(callback, thisArg); }
+    [Symbol.iterator]() { return this.entries(); }
+}
+
+/**
+ * A scope that shares the cells of a LazySnapshotScope (as push() shares the
+ * cells of any Map) without forcing every pending snapshot. Names defined in
+ * this scope stay local to it.
+ */
+class ForwardingScope extends Map {
+    #source;
+    #onCell;
+
+    constructor(source, onCell) {
+        super();
+        this.#source = source;
+        this.#onCell = onCell;
+    }
+
+    #pull(name) {
+        if (super.has(name) || !this.#source.has(name)) return;
+        const cell = this.#source.get(name);
+        this.#onCell(cell);
+        super.set(name, cell);
+    }
+
+    #pullAll() { for (const name of this.#source.keys()) this.#pull(name); }
+    get(name) { this.#pull(name); return super.get(name); }
+    has(name) { return super.has(name) || this.#source.has(name); }
+    delete(name) { this.#pull(name); return super.delete(name); }
+    get size() { this.#pullAll(); return super.size; }
+    keys() { this.#pullAll(); return super.keys(); }
+    values() { this.#pullAll(); return super.values(); }
+    entries() { this.#pullAll(); return super.entries(); }
+    forEach(callback, thisArg) { this.#pullAll(); return super.forEach(callback, thisArg); }
+    [Symbol.iterator]() { return this.entries(); }
+}
+
 export class Context {
     constructor() {
         // Global scope: Map<name, Cell>
@@ -55,9 +139,12 @@ export class Context {
             initial instanceof Map
                 ? initial
                 : new Map(initial ? Object.entries(initial) : []);
-        const bindings = new Map();
+        const forward = rawMap instanceof LazySnapshotScope && options.snapshot !== true;
+        const bindings = forward
+            ? new ForwardingScope(rawMap, (cell) => { if (options.readOnly === true) this.readOnlyCells.add(cell); })
+            : new Map();
         const snapshotMemo = options.snapshot === true ? new WeakMap() : null;
-        for (const [k, v] of rawMap) {
+        for (const [k, v] of forward ? [] : rawMap) {
             // If already a Cell (e.g. passed from setCell context), share it;
             // otherwise wrap in a new Cell.
             const sourceCell = v instanceof Cell ? v : new Cell(v);
@@ -480,19 +567,16 @@ export class Context {
         // preserves aliases and avoids copying shared plugin/provenance graphs
         // once for every visible name; never reuse it in another child.
         const snapshotMemo = new WeakMap();
-        child.globalScope = new Map([...this.globalScope].map(([name, cell]) => {
-            const snapshot = new Cell(deepCopyValue(cell.value, snapshotMemo));
+        const snapshotCell = (value) => {
+            const snapshot = new Cell(deepCopyValue(value, snapshotMemo));
             child.readOnlyCells.add(snapshot);
-            return [name, snapshot];
-        }));
+            return snapshot;
+        };
+        child.globalScope = new LazySnapshotScope(this.globalScope, snapshotCell);
         child.globalReadOnly = true;
         child.globalScopedEnv = new Map(this.globalScopedEnv);
         child.localScopes = this.localScopes.map((scope) => ({
-            bindings: new Map([...scope.bindings].map(([name, cell]) => {
-                const snapshot = new Cell(deepCopyValue(cell.value, snapshotMemo));
-                child.readOnlyCells.add(snapshot);
-                return [name, snapshot];
-            })),
+            bindings: new LazySnapshotScope(scope.bindings, snapshotCell),
             scopedEnv: new Map(scope.scopedEnv || []),
             isolated: scope.isolated === true,
             readThrough: scope.readThrough === true,
