@@ -1,4 +1,4 @@
-import { parse } from "../../parser/parser.js";
+import { parse, scanIntervalRun } from "../../parser/parser.js";
 import { tokenize } from "../../parser/tokenizer.js";
 
 const PIPE_OPERATORS = new Set([
@@ -77,6 +77,17 @@ export function formatRix(source, options = {}) {
     visit(ast);
     const tokens = tokenize(input).filter((token) => token.type !== "End");
     if (tokens.length === 0) return input;
+
+    // Spacing around an interval colon carries meaning (`1:2 + 3:4` adds two
+    // intervals, `1:n+1` adds to an endpoint, `1: 2+3 :4` is a betweenness
+    // test), so unspaced runs that hold an unspaced colon keep their spacing.
+    const intervalRun = new Set();
+    for (let index = 0; index < tokens.length; index++) {
+        const run = scanIntervalRun(tokens, index);
+        if (run) for (const member of run.tokens) intervalRun.add(member);
+    }
+    const spacedBefore = (index) => index > 0 && index < tokens.length && tokens[index].pos[1] > tokens[index].pos[0];
+    const joinedInRun = (index) => intervalRun.has(index) && intervalRun.has(index - 1) && !spacedBefore(index);
 
     const profile = options.profile === "compact" ? "compact" : "readable";
     const indentWidth = Math.max(1, Math.min(8, Number(options.indentWidth) || 4));
@@ -193,7 +204,19 @@ export function formatRix(source, options = {}) {
             continue;
         }
 
-        if (SPACED_OPERATORS.has(value) && !isUnary(value, previous)) {
+        if (value === ":" && token.type === "Symbol" && !intervalRun.has(index)
+            && (spacedBefore(index) || spacedBefore(index + 1))) {
+            if (spacedBefore(index)) space();
+            write(value);
+            if (spacedBefore(index + 1)) space();
+            previous = token;
+            previousWasUnary = false;
+            continue;
+        }
+
+        const tightInRun = joinedInRun(index) && joinedInRun(index + 1);
+        if (TIGHT_OPERATORS.has(value) && value !== ":" && !intervalRun.has(index) && !isUnary(value, previous)
+            && ((intervalRun.has(index - 1) && spacedBefore(index)) || (intervalRun.has(index + 1) && spacedBefore(index + 1)))) {
             space();
             write(value);
             space();
@@ -202,7 +225,16 @@ export function formatRix(source, options = {}) {
             continue;
         }
 
-        if (TIGHT_OPERATORS.has(value) || isUnary(value, previous)) {
+        if (SPACED_OPERATORS.has(value) && !isUnary(value, previous) && !tightInRun) {
+            space();
+            write(value);
+            space();
+            previous = token;
+            previousWasUnary = false;
+            continue;
+        }
+
+        if (TIGHT_OPERATORS.has(value) || isUnary(value, previous) || (tightInRun && SPACED_OPERATORS.has(value))) {
             previousWasUnary = isUnary(value, previous);
             write(value);
             previous = token;
@@ -212,6 +244,7 @@ export function formatRix(source, options = {}) {
         const attachedBacktick = token.type === "String" && token.kind === "backtick"
             && previous?.type === "Identifier";
         if (previous && !attachedBacktick && !previousWasUnary && !atLineStart
+            && !joinedInRun(index)
             && !OPENERS.has(previous.value)
             && previous.value !== "."
             && previous.value !== "@"

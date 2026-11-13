@@ -105,6 +105,20 @@ Units follow the same rule. `1/2 ~[m]` is half a metre and `1/2~[m]` is
 output reads back as the same value. Lint rule RX1709 flags a factor or unit
 written directly after an integer fraction.
 
+Interval colons are spacing-aware too. A colon with no space on either side
+belongs to the unspaced run of text around it, and that run is a single
+operand for any spaced operator: `1:2 + 3:4` is `(1:2) + (3:4)`, `1:2 * 2` is
+`(1:2) * 2`, and `2 * 1/2:3/4` is `2 * (1/2:3/4)`. Inside the run the ordinary
+precedences apply with `:` lowest, so `1/2:3/4` has fraction endpoints and
+`1:n+1` is `1:(n+1)`, which keeps slices such as `xs[1:n+1]` unchanged. A
+colon with a space on either side keeps its low precedence, below `+`:
+`1: 2+3 :4` is `1:(2+3):4` and `1 : 2 + 3` is `1:5`.
+
+One unspaced form is redirected. A `+`, `-` or `*` that has an unspaced colon
+on both sides, as in `1:2+3:4`, combines the two intervals; lint rule RX1710
+asks for spaces around the operator. `/` is not redirected, so `0:1/2:1`
+keeps its fraction midpoint. `rix format` preserves the spacing of these runs.
+
 #### Key rules
 
 - `3 F` does **not** implicitly call `F` — it is `3 * F`, which errors if `F` is a bare function value.
@@ -1162,7 +1176,7 @@ A colon in prefix position (where a value is expected) followed by an identifier
 | `:some_key` | `"some_key"` | Underscores allowed |
 | `:123` | `"123"` | Number becomes string |
 | `a:b` | interval | `:` in infix position = interval |
-| `a :b` | interval | Whitespace doesn't change infix `:` |
+| `a :b` | interval | Still infix `:`; spacing only affects how it groups with neighbouring operators |
 
 Colon-strings work anywhere a value is expected: in arrays (`[:a, :b]`), as function arguments, after `=` or `:=`, after commas, etc. They are syntactic sugar for quoted strings and evaluate identically.
 

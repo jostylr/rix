@@ -4,6 +4,13 @@
 
 ### Changed
 
+- Interval colons are spacing-aware. An unspaced colon groups with the
+  unspaced text around it before any spaced operator, so `1:2 + 3:4` is `4:6`
+  and `1:2 * 2` is `2:4` (previously `1:5:4` and `1:4`). Unspaced endpoint
+  arithmetic (`1:n+1`, `xs[1:n+1]`), fraction endpoints (`1/2:3/4`) and spaced
+  colons (`1: 2+3 :4`) are unchanged. `+`, `-` or `*` between two unspaced
+  intervals, as in `1:2+3:4`, now combines them and is reported by the new lint
+  rule RX1710. `rix format` preserves the spacing these forms depend on.
 - `0^0` now throws "Zero cannot be raised to the power of zero", matching
   Core's `Integer.pow`, `Rational.pow` and the `R` tag. It previously returned `1`.
 

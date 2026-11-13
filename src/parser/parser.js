@@ -551,6 +551,79 @@ export class RixParseError extends Error {
 
 const STRING_TOKEN_VALUE = Symbol("string literal");
 
+/**
+ * The unspaced run of tokens starting at `start`, if it has an unspaced
+ * interval colon at its top level (see Parser.findIntervalRun). Brackets count
+ * as one item whatever they contain. `splitOperators` collects the `+`, `-`
+ * and `*` tokens that sit between two unspaced colons; a run stops at one.
+ * Returns null or { end, stop, members }: `stop` is the first token after the
+ * whole unspaced run and `end` the first token after its leading interval.
+ */
+export function scanIntervalRun(tokens, start, splitOperators = new Set()) {
+  const isOpen = (value) => typeof value === "string"
+    && (value === "(" || value === "[" || value === "~[" || value === "~{" || value.startsWith("{"));
+  const isClose = (value) => typeof value === "string"
+    && (value === ")" || value === "]" || (value.endsWith("}") && !value.startsWith("{")));
+  const endsOperand = (token) => token.type === "Number" || token.type === "ActiveBaseNumber"
+    || token.type === "Identifier" || token.type === "OuterIdentifier" || token.type === "PlaceHolder"
+    || token.type === "String" || isClose(token.value);
+  const top = [];
+  let index = start;
+  while (index < tokens.length) {
+    const token = tokens[index];
+    if (index > start && token.pos[1] > token.pos[0]) break;
+    if (token.type === "End" || token.type === "SemicolonSequence" || token.type === "Invalid") break;
+    if (token.type === "String" && token.kind === "comment") break;
+    if (token.value === ";" || token.value === "," || isClose(token.value)) break;
+    if (index > start && splitOperators.has(index)) break;
+    top.push(index);
+    if (isOpen(token.value)) {
+      let depth = 1;
+      index++;
+      while (index < tokens.length && depth > 0) {
+        const value = tokens[index].value;
+        if (isOpen(value)) depth++;
+        else if (isClose(value)) depth--;
+        index++;
+      }
+      if (depth > 0) return null;
+      top.push(index - 1);
+      continue;
+    }
+    index++;
+  }
+  if (top.length < 3) return null;
+  const tightColons = [];
+  for (let k = 1; k < top.length - 1; k++) {
+    const token = tokens[top[k]];
+    if (token.type === "Symbol" && token.value === ":" && top[k - 1] === top[k] - 1
+      && endsOperand(tokens[top[k] - 1]) && top[k + 1] === top[k] + 1) {
+      tightColons.push(top[k]);
+    }
+  }
+  if (tightColons.length === 0) return null;
+  let end = index;
+  if (tightColons.length > 1) {
+    const first = tightColons[0];
+    const last = tightColons[tightColons.length - 1];
+    const splits = [];
+    for (let k = 1; k < top.length - 1; k++) {
+      const at = top[k];
+      const token = tokens[at];
+      if (at > first && at < last && token.type === "Symbol"
+        && (token.value === "+" || token.value === "-" || token.value === "*")
+        && endsOperand(tokens[at - 1])) {
+        splits.push(at);
+      }
+    }
+    if (splits.length > 0) {
+      for (const at of splits) splitOperators.add(at);
+      end = splits[0];
+    }
+  }
+  return { end, stop: index, members: new Set(top.filter((at) => at < end)), tokens: top };
+}
+
 class Parser {
   constructor(tokens, systemLookup, source = "", customOperators = new Map(), limits = sourceLimits()) {
     this.limits = limits;
@@ -572,6 +645,10 @@ class Parser {
     this.skippedComments = [];
     this.stopExpressionAtOffset = null;
     this.disablePostfixCheckParsing = false;
+    // Spacing-aware interval colons (see findIntervalRun).
+    this.intervalRun = null;
+    this.intervalRunCache = new Map();
+    this.intervalSplitOperators = new Set();
     this.advance();
   }
 
@@ -579,8 +656,10 @@ class Parser {
     do {
       if (this.position < this.tokens.length) {
         this.current = this.tokens[this.position];
+        this.currentIndex = this.position;
         this.position++;
       } else {
+        this.currentIndex = this.tokens.length;
         this.current = {
           type: "End",
           value: null,
@@ -764,11 +843,54 @@ class Parser {
   // Parse expression with given minimum precedence
   parseExpression(minPrec = 0) {
     checkSourceLimit("parseDepth", ++this.expressionDepth, this.limits, this.current.pos?.[1] || 0);
+    const outerRun = this.intervalRun;
     try {
+      // Inside the run being parsed, operands are ordinary. Anywhere else
+      // (a bracket's interior, or source after the run) starts afresh.
+      if (outerRun && outerRun.members.has(this.currentIndex)) {
+        const left = this.parsePrefix();
+        if (!left) this.error("Expected an expression");
+        return this.parseExpressionRec(left, minPrec, false);
+      }
+      const run = this.findIntervalRun(this.currentIndex);
+      this.intervalRun = run;
       const left = this.parsePrefix();
       if (!left) this.error("Expected an expression");
-      return this.parseExpressionRec(left, minPrec, false);
-    } finally { this.expressionDepth--; }
+      if (!run) return this.parseExpressionRec(left, minPrec, false);
+      // An unspaced colon and its endpoints are one operand for any spaced
+      // operator around them: `1:2 + 3:4` adds two intervals.
+      const unit = this.parseExpressionRec(left, PRECEDENCE.INTERVAL, false);
+      this.intervalRun = null;
+      return this.parseExpressionRec(unit, minPrec, false);
+    } finally {
+      this.intervalRun = outerRun;
+      this.expressionDepth--;
+    }
+  }
+
+  /**
+   * Spacing-aware interval colons.
+   *
+   * A colon written with no space on either side belongs with the unspaced
+   * text around it: `1:2 + 3:4` is `(1:2) + (3:4)` and `2 * 1/2:3/4` is
+   * `2 * (1/2:3/4)`. Inside that unspaced run the ordinary precedences apply,
+   * so `1:n+1` keeps arithmetic on the endpoint and `1/2:3/4` keeps fraction
+   * endpoints. A colon with a space on either side keeps its low precedence:
+   * `1: 2+3 :4` asks whether 5 lies between 1 and 4.
+   *
+   * One unspaced case is redirected: `+`, `-` or `*` with an unspaced colon
+   * on both sides, as in `1:2+3:4`, combines the intervals (lint RX1710 asks
+   * for the spaces). `/` is left alone so `0:1/2:1` keeps its fraction.
+   *
+   * Returns null, or { end, members } for the run starting at token `start`:
+   * `members` are the top-level token indices of the run and `end` is the
+   * index of the first token after it.
+   */
+  findIntervalRun(start) {
+    if (this.intervalRunCache.has(start)) return this.intervalRunCache.get(start);
+    const result = scanIntervalRun(this.tokens, start, this.intervalSplitOperators);
+    this.intervalRunCache.set(start, result);
+    return result;
   }
 
   parseDecisionBranchExpression() {
@@ -2023,6 +2145,7 @@ class Parser {
 
   parseExpressionRec(left, minPrec, stopAtGenerators = false) {
     while (this.current.type !== "End") {
+      if (this.intervalRun && this.currentIndex >= this.intervalRun.end) break;
       if (this.stopExpressionAtOffset !== null && this.current.pos?.[0] >= this.stopExpressionAtOffset) {
         break;
       }
@@ -2217,7 +2340,12 @@ class Parser {
         break;
       }
 
+      const operatorIndex = this.currentIndex;
       left = this.parseInfix(left, symbolInfo);
+      // `1:2+3:4`: the operator combined two unspaced intervals (lint RX1710).
+      if (this.intervalSplitOperators.has(operatorIndex) && left?.type === "BinaryOperation") {
+        left.unspacedIntervalOperands = true;
+      }
     }
 
     return left;

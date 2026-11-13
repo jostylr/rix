@@ -673,6 +673,20 @@ y := 3;
 
 Units follow the same rule: `1/2 ~[m]` is half a metre, while `1/2~[m]` is `1/(2~[m])`. RiX prints a fractional magnitude with the space, so its output reads back as the same value.
 
+**Interval colons** use spacing the same way. A colon with no space on either side stays with the unspaced text around it, so an interval written tightly is one operand for the spaced operators beside it. Inside the unspaced text the usual precedences apply, which keeps fraction endpoints and endpoint arithmetic. A colon with a space beside it binds loosely, below `+`:
+
+```rix
+1:2 + 3:4      ##@ == 4:6
+1:2 * 2        ##@ == 2:4
+1/2:3/4 + 1    ##@ == 3/2:7/4
+n := 3;
+1:n+1          ##@ == 1:4
+1: 2+1 :4      ##@ == 1
+##
+```
+
+The last line is a betweenness test, `1:3:4`. One fully unspaced form is redirected: `+`, `-` or `*` with an unspaced colon on both sides, as in `1:2+3:4`, combines the two intervals, and lint rule RX1710 asks for the spaces. A `/` there stays a fraction, so `0:1/2:1` still asks whether `1/2` lies between 0 and 1.
+
 **Implicit callable application** — an uppercase function name followed by an adjacent expression calls that function, consuming the **maximal multiplicative chunk** to its right as the argument:
 
 ```rix

@@ -50,6 +50,7 @@ export const RIX_LINT_RULES = Object.freeze({
     RX1707: { level: 2, profiles: ["syntax", "teaching"], title: "Mixed numeric notation systems" },
     RX1708: { level: 3, profiles: ["syntax", "teaching"], title: "Pipe applies to a function, not its body" },
     RX1709: { level: 2, profiles: ["syntax", "teaching"], title: "Factor or unit written directly after a fraction" },
+    RX1710: { level: 2, profiles: ["syntax", "teaching"], title: "Interval arithmetic written without spaces" },
     RX1801: { level: 2, profiles: ["math", "teaching"], title: "Exact division versus truncation" },
     RX1802: { level: 3, profiles: ["math", "teaching"], title: "Fraction equality policy" },
     RX1803: { level: 3, profiles: ["math"], title: "Exactness discarded" },
@@ -1168,6 +1169,16 @@ export function analyzeRix(source, options = {}) {
                     `Add a space after the fraction, as in ${node.left.value}/${denominator.value} x, or parenthesise the denominator if that is what you mean.`,
                 );
             }
+        }
+
+        if (node.type === "BinaryOperation" && node.unspacedIntervalOperands) {
+            emit(
+                "RX1710",
+                "warning",
+                node,
+                `'${node.operator}' has an unspaced interval on both sides, so it combines the two intervals rather than changing an endpoint.`,
+                `Put spaces around '${node.operator}', as in 1:2 ${node.operator} 3:4. For arithmetic inside an endpoint, space the colons instead, as in 1: 2${node.operator}3 :4.`,
+            );
         }
 
         if (node.type === "ImplicitMultiplication") {

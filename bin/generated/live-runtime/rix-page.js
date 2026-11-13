@@ -39172,6 +39172,17 @@ symbolicNamespace._proto = {=
     }
     return { maxCount, long, intermediates };
   };
+  function positiveDenominatorBound(value) {
+    let bound = value;
+    if (typeof bound === "number" && Number.isSafeInteger(bound))
+      bound = BigInt(bound);
+    if (typeof bound?.value === "bigint" && bound.denominator === undefined)
+      bound = bound.value;
+    if (typeof bound !== "bigint" || bound < 1n) {
+      throw new Error("Maximum denominator must be a positive integer (bigint, safe integer or Integer)");
+    }
+    return bound;
+  }
   function exactParts(other) {
     if (typeof other?.value === "bigint" && other.denominator === undefined) {
       return [other.value, 1n];
@@ -40336,9 +40347,7 @@ symbolicNamespace._proto = {=
       return this.subtract(target).abs();
     }
     bestApproximation(maxDenominator) {
-      if (typeof maxDenominator !== "bigint" || maxDenominator < 1n) {
-        throw new Error("Maximum denominator must be a positive bigint");
-      }
+      maxDenominator = positiveDenominatorBound(maxDenominator);
       if (this.#denominator <= maxDenominator) {
         return new Rational(this.#numerator, this.#denominator);
       }
@@ -40382,9 +40391,7 @@ symbolicNamespace._proto = {=
       return new Rational(negative ? -resultNumerator : resultNumerator, resultDenominator);
     }
     bestConvergent(maxDenominator) {
-      if (typeof maxDenominator !== "bigint" || maxDenominator < 1n) {
-        throw new Error("Maximum denominator must be a positive bigint");
-      }
+      maxDenominator = positiveDenominatorBound(maxDenominator);
       const negative = this.#numerator < 0n;
       let numerator = negative ? -this.#numerator : this.#numerator;
       let denominator = this.#denominator;
@@ -58202,6 +58209,74 @@ format:
     }
   }
   var STRING_TOKEN_VALUE = Symbol("string literal");
+  function scanIntervalRun(tokens, start, splitOperators = new Set) {
+    const isOpen = (value) => typeof value === "string" && (value === "(" || value === "[" || value === "~[" || value === "~{" || value.startsWith("{"));
+    const isClose = (value) => typeof value === "string" && (value === ")" || value === "]" || value.endsWith("}") && !value.startsWith("{"));
+    const endsOperand = (token) => token.type === "Number" || token.type === "ActiveBaseNumber" || token.type === "Identifier" || token.type === "OuterIdentifier" || token.type === "PlaceHolder" || token.type === "String" || isClose(token.value);
+    const top = [];
+    let index = start;
+    while (index < tokens.length) {
+      const token = tokens[index];
+      if (index > start && token.pos[1] > token.pos[0])
+        break;
+      if (token.type === "End" || token.type === "SemicolonSequence" || token.type === "Invalid")
+        break;
+      if (token.type === "String" && token.kind === "comment")
+        break;
+      if (token.value === ";" || token.value === "," || isClose(token.value))
+        break;
+      if (index > start && splitOperators.has(index))
+        break;
+      top.push(index);
+      if (isOpen(token.value)) {
+        let depth = 1;
+        index++;
+        while (index < tokens.length && depth > 0) {
+          const value = tokens[index].value;
+          if (isOpen(value))
+            depth++;
+          else if (isClose(value))
+            depth--;
+          index++;
+        }
+        if (depth > 0)
+          return null;
+        top.push(index - 1);
+        continue;
+      }
+      index++;
+    }
+    if (top.length < 3)
+      return null;
+    const tightColons = [];
+    for (let k = 1;k < top.length - 1; k++) {
+      const token = tokens[top[k]];
+      if (token.type === "Symbol" && token.value === ":" && top[k - 1] === top[k] - 1 && endsOperand(tokens[top[k] - 1]) && top[k + 1] === top[k] + 1) {
+        tightColons.push(top[k]);
+      }
+    }
+    if (tightColons.length === 0)
+      return null;
+    let end = index;
+    if (tightColons.length > 1) {
+      const first = tightColons[0];
+      const last = tightColons[tightColons.length - 1];
+      const splits = [];
+      for (let k = 1;k < top.length - 1; k++) {
+        const at = top[k];
+        const token = tokens[at];
+        if (at > first && at < last && token.type === "Symbol" && (token.value === "+" || token.value === "-" || token.value === "*") && endsOperand(tokens[at - 1])) {
+          splits.push(at);
+        }
+      }
+      if (splits.length > 0) {
+        for (const at of splits)
+          splitOperators.add(at);
+        end = splits[0];
+      }
+    }
+    return { end, stop: index, members: new Set(top.filter((at) => at < end)), tokens: top };
+  }
 
   class Parser {
     constructor(tokens, systemLookup, source = "", customOperators = new Map, limits = sourceLimits()) {
@@ -58217,14 +58292,19 @@ format:
       this.skippedComments = [];
       this.stopExpressionAtOffset = null;
       this.disablePostfixCheckParsing = false;
+      this.intervalRun = null;
+      this.intervalRunCache = new Map;
+      this.intervalSplitOperators = new Set;
       this.advance();
     }
     advance() {
       do {
         if (this.position < this.tokens.length) {
           this.current = this.tokens[this.position];
+          this.currentIndex = this.position;
           this.position++;
         } else {
+          this.currentIndex = this.tokens.length;
           this.current = {
             type: "End",
             value: null,
@@ -58395,14 +58475,35 @@ format:
     }
     parseExpression(minPrec = 0) {
       checkSourceLimit("parseDepth", ++this.expressionDepth, this.limits, this.current.pos?.[1] || 0);
+      const outerRun = this.intervalRun;
       try {
+        if (outerRun && outerRun.members.has(this.currentIndex)) {
+          const left = this.parsePrefix();
+          if (!left)
+            this.error("Expected an expression");
+          return this.parseExpressionRec(left, minPrec, false);
+        }
+        const run = this.findIntervalRun(this.currentIndex);
+        this.intervalRun = run;
         const left = this.parsePrefix();
         if (!left)
           this.error("Expected an expression");
-        return this.parseExpressionRec(left, minPrec, false);
+        if (!run)
+          return this.parseExpressionRec(left, minPrec, false);
+        const unit = this.parseExpressionRec(left, PRECEDENCE.INTERVAL, false);
+        this.intervalRun = null;
+        return this.parseExpressionRec(unit, minPrec, false);
       } finally {
+        this.intervalRun = outerRun;
         this.expressionDepth--;
       }
+    }
+    findIntervalRun(start) {
+      if (this.intervalRunCache.has(start))
+        return this.intervalRunCache.get(start);
+      const result = scanIntervalRun(this.tokens, start, this.intervalSplitOperators);
+      this.intervalRunCache.set(start, result);
+      return result;
     }
     parseDecisionBranchExpression() {
       let expression = this.parseExpression(PRECEDENCE.CONDITION + 1);
@@ -59461,6 +59562,8 @@ format:
     }
     parseExpressionRec(left, minPrec, stopAtGenerators = false) {
       while (this.current.type !== "End") {
+        if (this.intervalRun && this.currentIndex >= this.intervalRun.end)
+          break;
         if (this.stopExpressionAtOffset !== null && this.current.pos?.[0] >= this.stopExpressionAtOffset) {
           break;
         }
@@ -59578,7 +59681,11 @@ format:
         if (stopAtGenerators && this.isGeneratorOperator(this.current.value)) {
           break;
         }
+        const operatorIndex = this.currentIndex;
         left = this.parseInfix(left, symbolInfo);
+        if (this.intervalSplitOperators.has(operatorIndex) && left?.type === "BinaryOperation") {
+          left.unspacedIntervalOperands = true;
+        }
       }
       return left;
     }
@@ -77154,6 +77261,8 @@ ${indented.join(`,
         }
         const expValue = exp instanceof Integer ? exp.value : Number(exp.toString());
         if (base instanceof Integer && Object.getPrototypeOf(base) === Integer.prototype && typeof expValue === "bigint" && expValue >= 0n) {
+          if (base.value === 0n && expValue === 0n)
+            throw new Error("Zero cannot be raised to the power of zero");
           return new Integer(base.value ** expValue);
         }
         return base.pow(expValue);
@@ -108753,6 +108862,7 @@ Evidence: ${JSON.stringify(frame.snapshot)}
     RX1707: { level: 2, profiles: ["syntax", "teaching"], title: "Mixed numeric notation systems" },
     RX1708: { level: 3, profiles: ["syntax", "teaching"], title: "Pipe applies to a function, not its body" },
     RX1709: { level: 2, profiles: ["syntax", "teaching"], title: "Factor or unit written directly after a fraction" },
+    RX1710: { level: 2, profiles: ["syntax", "teaching"], title: "Interval arithmetic written without spaces" },
     RX1801: { level: 2, profiles: ["math", "teaching"], title: "Exact division versus truncation" },
     RX1802: { level: 3, profiles: ["math", "teaching"], title: "Fraction equality policy" },
     RX1803: { level: 3, profiles: ["math"], title: "Exactness discarded" },
