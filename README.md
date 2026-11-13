@@ -46,7 +46,7 @@ For a project or an embedded application:
 npm install @ratmath/rix
 ```
 
-Or use `bun add @ratmath/rix`. Core (`@ratmath/core` ^0.6.0) and other required
+Or use `bun add @ratmath/rix`. Core (`@ratmath/core` ^0.7.0) and other required
 JavaScript dependencies are installed automatically. Bundled RiX plugins ship
 with this package; they do not require separate npm installs.
 

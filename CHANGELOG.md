@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Changed
+
+- `0^0` now throws "Zero cannot be raised to the power of zero", matching
+  Core's `Integer.pow`, `Rational.pow` and the `R` tag. It previously returned `1`.
+
 ### Performance
 
 - Cache immutable plugin operator declarations across fresh sessions. The bounded

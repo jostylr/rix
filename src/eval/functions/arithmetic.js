@@ -655,6 +655,8 @@ export const arithmeticFunctions = {
             // Native BigInt exponentiation for Integer powers, independent of
             // the installed Core release's pow implementation.
             if (base instanceof Integer && Object.getPrototypeOf(base) === Integer.prototype && typeof expValue === "bigint" && expValue >= 0n) {
+                // 0^0 is undefined, as in Core's Integer.pow and Rational.pow.
+                if (base.value === 0n && expValue === 0n) throw new Error("Zero cannot be raised to the power of zero");
                 return new Integer(base.value ** expValue);
             }
             return base.pow(expValue);
