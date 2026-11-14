@@ -115111,6 +115111,9 @@ $${outputName};`;
   var OPENERS = new Set(["(", "[", "{", "{=", "{?", "{;", "{|", "{:", "{@", "{!", "{#", "{$", "{$$"]);
   var CLOSERS = new Set([")", "]", "}"]);
   var EXPANDABLE_OPENERS = new Set(["{=", "{?", "{;", "{|", "{:", "{@", "{!", "{"]);
+  var OPERAND_TYPES = new Set(["Number", "ActiveBaseNumber", "Identifier", "OuterIdentifier", "PlaceHolder"]);
+  var POSTFIX_CHECKS = new Set(["##@", "##:", "##!", "##_", "##!>"]);
+  var PREFIX_SIGILS = new Set(["@", "@@", "@@@", "$", "$$", "::", ":::"]);
   // src/tools/language-service/index.js
   var RIX_SEMANTIC_TOKEN_TYPES = Object.freeze([
     "namespace",
