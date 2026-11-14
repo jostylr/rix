@@ -18,6 +18,7 @@ export const documentationTests = new Set([
 export const suiteOnlyTests = new Set([
     "tests/eval/async-concurrency.test.js",
     "tests/eval/geometry-plugin.test.js",
+    "tests/tools/formatter-corpus.test.js",
 ]);
 
 // The short profile is the edit/compile feedback loop. Keep it broad across
@@ -84,6 +85,8 @@ export const shortTests = new Set([
     "tests/tools/control-panel-view.test.js",
     "tests/tools/graphic-view.test.js",
     "tests/tools/language-service.test.js",
+    "tests/tools/formatter-meaning.test.js",
+    "tests/parser/spaced-interval-colon.test.js",
     "tests/tools/lsp.test.js",
     "tests/tools/rix-to-ir.test.js",
     "tests/tools/sheet-view.test.js",

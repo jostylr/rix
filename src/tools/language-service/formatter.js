@@ -188,6 +188,18 @@ function layoutRix(input, ast, options) {
     const indentWidth = Math.max(1, Math.min(8, Number(options.indentWidth) || 4));
     const printWidth = Math.max(40, Number(options.printWidth) || 100);
     const commaCounts = containerCommaCounts(tokens);
+    const flatWidth = (open) => {
+        let depth = 0;
+        let width = 0;
+        for (let at = open; at < tokens.length; at++) {
+            if (isComment(tokens[at])) return Infinity;
+            if (isOpener(tokens[at])) depth++;
+            else if (CLOSERS.has(tokens[at].value)) depth--;
+            if (at > open) width += printableToken(input, tokens[at]).trim().length + 1;
+            if (depth === 0) break;
+        }
+        return width;
+    };
     const stack = [];
     let output = "";
     let lineLength = 0;
@@ -285,7 +297,9 @@ function layoutRix(input, ast, options) {
                 if (spacedBefore(index)) space();
             }
             write(rawToken(input, token));
-            const estimatedWide = lineLength + input.slice(token.pos[2], tokens.find((item, candidate) => candidate > index && CLOSERS.has(item.value))?.pos?.[1] || token.pos[2]).length > printWidth;
+            // Width is measured from the group's tokens laid flat, never from the
+            // source's own spacing, so formatting twice gives the same layout.
+            const estimatedWide = lineLength + flatWidth(index) > printWidth;
             // The predicate of a postfix check ends at the line break, so it is
             // never spread over several lines.
             const expanded = profile === "readable" && !openCheck && EXPANDABLE_OPENERS.has(value)

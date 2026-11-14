@@ -25,6 +25,10 @@
   between adjacent operands is now kept as written, and every result is parsed
   again: a top-level statement whose meaning would change is left exactly as
   written.
+- `rix format` is stable: formatting its own output changes nothing. The
+  readable profile measured line width from the source's spacing, so 47
+  repository files reflowed on a second run; it now measures the tokens laid
+  flat. A suite-only test formats every plugin and example twice.
 
 ### Performance
 
