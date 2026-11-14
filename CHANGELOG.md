@@ -14,6 +14,18 @@
 - `0^0` now throws "Zero cannot be raised to the power of zero", matching
   Core's `Integer.pow`, `Rational.pow` and the `R` tag. It previously returned `1`.
 
+### Fixed
+
+- `rix format` no longer changes what code means. Across the repository's RiX
+  sources it changed 464 of 3,738 formattings: it split fused products
+  (`1/2x` became `1/2 x`), joined lines after postfix checks (`##@ ...`),
+  dropped quotes from strings that spell operators (`":="`), broke empty sigil
+  braces (`{; }`), unit text (`3~[m*s]`), `{#x}`, `::x`, `@"..."` and
+  `10^-20`, and spread postfix-check predicates over several lines. Spacing
+  between adjacent operands is now kept as written, and every result is parsed
+  again: a top-level statement whose meaning would change is left exactly as
+  written.
+
 ### Performance
 
 - Cache immutable plugin operator declarations across fresh sessions. The bounded
