@@ -11,6 +11,8 @@
   colons (`1: 2+3 :4`) are unchanged. `+`, `-` or `*` between two unspaced
   intervals, as in `1:2+3:4`, now combines them and is reported by the new lint
   rule RX1710. `rix format` preserves the spacing these forms depend on.
+- Depends on `@ratmath/core` ^0.8.0, whose `R` reads the interval colon by
+  spacing as RiX does.
 - `0^0` now throws "Zero cannot be raised to the power of zero", matching
   Core's `Integer.pow`, `Rational.pow` and the `R` tag. It previously returned `1`.
 
