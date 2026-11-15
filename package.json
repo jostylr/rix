@@ -141,11 +141,11 @@
   "author": "James Taylor",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/jostylr/rix.git"
+    "url": "git+https://github.com/ratmath/rix.git"
   },
   "homepage": "https://docs.rix.ratmath.com/",
   "bugs": {
-    "url": "https://github.com/jostylr/rix/issues"
+    "url": "https://github.com/ratmath/rix/issues"
   },
   "publishConfig": {
     "access": "public"

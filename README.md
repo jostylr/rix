@@ -13,7 +13,7 @@ formats including SVG, HTML, LaTeX, and PDF.
 [Getting started](https://docs.rix.ratmath.com/getting-started.html)
 
 Release **0.1.0** is an alpha and makes no source- or API-compatibility commitment.
-See the [release notes](https://github.com/jostylr/rix/blob/main/CHANGELOG.md).
+See the [release notes](https://github.com/ratmath/rix/blob/main/CHANGELOG.md).
 
 ## Install
 
@@ -236,7 +236,7 @@ Node users do not need Bun or a bundler to create them.
 - [Capstone tutorials](https://docs.rix.ratmath.com/tutorial/capstones.html): complete workflows combining calculation, output, and host integration.
 - [Publication workflows](https://docs.rix.ratmath.com/eval/publication-workflows.html): build documents and multiple output formats with `rix publish build.json`.
 - [Editor and agent tooling](https://docs.rix.ratmath.com/editor-and-agent-tooling.html): formatting, verification, language server, and VS Code integration.
-- [Source and issues](https://github.com/jostylr/rix).
+- [Source and issues](https://github.com/ratmath/rix).
 
 The package installs `rix`, `rix-to-ir`, `rix-language-server`, and `rix-worker`.
 For example, `rix format --check example.rix` checks formatting and
@@ -247,7 +247,7 @@ For example, `rix format --check example.rix` checks formatting and
 For coordinated source development, use the umbrella workspace:
 
 ```sh
-git clone --recurse-submodules https://github.com/jostylr/ratmath.git
+git clone --recurse-submodules https://github.com/ratmath/ratmath.git
 cd ratmath
 bun install
 cd rix
@@ -289,7 +289,7 @@ For a local Core/RiX rehearsal, use
 the registry gate or record a successful full release verification.
 
 See the [developer guide](https://docs.rix.ratmath.com/developer-guide.html) and
-[source development instructions](https://github.com/jostylr/rix/blob/main/development-instructions.md).
+[source development instructions](https://github.com/ratmath/rix/blob/main/development-instructions.md).
 With Quarto installed, `bun run build:docs` builds the documentation and
 `bun run preview:docs` previews it. These development commands require the
 source repository; the npm package contains the runtime and examples.

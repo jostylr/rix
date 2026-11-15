@@ -123,8 +123,8 @@ filters:
 
 website:
   title: "RiX"
-  site-url: https://jostylr.github.io/rix/
-  repo-url: https://github.com/jostylr/rix
+  site-url: https://docs.rix.ratmath.com/
+  repo-url: https://github.com/ratmath/rix
   repo-subdir: documentation
   repo-actions: [edit, issue]
   favicon: rix-logo.png
@@ -146,7 +146,7 @@ website:
         href: developer-guide.qmd
     right:
       - icon: github
-        href: https://github.com/jostylr/rix
+        href: https://github.com/ratmath/rix
         aria-label: RiX on GitHub
   sidebar:
     style: docked

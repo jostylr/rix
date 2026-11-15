@@ -1,1 +1,1 @@
-Sitemap: https://jostylr.github.io/rix/sitemap.xml
+Sitemap: https://docs.rix.ratmath.com/sitemap.xml

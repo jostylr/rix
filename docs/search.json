@@ -2113,7 +2113,7 @@
     "href": "getting-started.html#clone-and-test",
     "title": "Getting started",
     "section": "Clone and test",
-    "text": "Clone and test\ngit clone https://github.com/jostylr/ratmath.git\ncd ratmath\nbun run prep\ncd rix\nbun run build:package\nbun run test:short\nThe workspace preparation command initializes pinned repositories and installs their dependencies. The manifest requires Core ^0.6.0 for NumeralSystem. Standalone registry installation requires that Core version to be published first; workspace development uses the matching local Core implementation. From rix/, use bun run test:suite for the complete verification (longer than the short development checks).\nThe RiX test suite exercises tokenizer, parser, lowering, evaluator, runtime, CLI, examples, exact values, types, methods, Shaped storage, mathematical tensors, generators, and diagnostics."
+    "text": "Clone and test\ngit clone https://github.com/ratmath/ratmath.git\ncd ratmath\nbun run prep\ncd rix\nbun run build:package\nbun run test:short\nThe workspace preparation command initializes pinned repositories and installs their dependencies. The manifest requires Core ^0.6.0 for NumeralSystem. Standalone registry installation requires that Core version to be published first; workspace development uses the matching local Core implementation. From rix/, use bun run test:suite for the complete verification (longer than the short development checks).\nThe RiX test suite exercises tokenizer, parser, lowering, evaluator, runtime, CLI, examples, exact values, types, methods, Shaped storage, mathematical tensors, generators, and diagnostics."
   },
   {
     "objectID": "getting-started.html#install-the-package",

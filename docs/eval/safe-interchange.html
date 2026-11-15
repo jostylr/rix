@@ -285,7 +285,7 @@ ul.task-list li input[type="checkbox"] {
 </ul>
             <ul class="navbar-nav navbar-nav-scroll ms-auto">
   <li class="nav-item compact">
-    <a class="nav-link" href="https://github.com/jostylr/rix"> <i class="bi bi-github" role="img" aria-label="RiX on GitHub">
+    <a class="nav-link" href="https://github.com/ratmath/rix"> <i class="bi bi-github" role="img" aria-label="RiX on GitHub">
 </i> 
 <span class="menu-text"></span></a>
   </li>  
@@ -335,7 +335,7 @@ ul.task-list li input[type="checkbox"] {
   <li><a href="#explicit-recipe-refinement" id="toc-explicit-recipe-refinement" class="nav-link" data-scroll-target="#explicit-recipe-refinement">Explicit recipe refinement</a></li>
   </ul></li>
   </ul>
-<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/safe-interchange.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+<div class="toc-actions"><ul><li><a href="https://github.com/ratmath/rix/edit/main/documentation/eval/safe-interchange.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/ratmath/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
 <!-- main -->
 <main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"></header>
@@ -403,7 +403,7 @@ frozen := .RealImportJSON(text);
 <p>Its recipe <code>kind</code> is <code>expression</code>. The recipe <code>graph</code> must exactly match the expression subject’s graph (or the named-constant subject converted to a <code>namedConstant</code> graph node). Explicit requirements must match all five fields. The adapter calls only already-loaded, permitted <code>.numerics</code> and <code>.oracle</code> capabilities. A missing capability remains a frozen result.</p>
 <p>Supported graph nodes are exact <code>constant</code>, <code>namedConstant</code> pi/e, <code>negate</code>, <code>add</code>, <code>subtract</code>, <code>multiply</code>, <code>divide</code>, bounded Integer <code>power</code>, and unary <code>call</code>. Calls use existing stable IDs <code>rix.function.sqrt@1</code>, <code>exp@1</code>, <code>log@1</code>, <code>sin@1</code>, <code>cos@1</code>, <code>tan@1</code> (each with the <code>rix.function.</code> prefix). Their required branches are respectively <code>nonnegative</code>, <code>real</code>, <code>positive</code>, <code>real</code>, <code>real</code>, <code>poleFree</code>. Providers must still establish each domain; a branch label is no proof. Graphs have at most 128 nodes, depth 32, and powers between -64 and 64. Unknown semantic IDs or branch choices stay opaque.</p>
 <p>Use async evaluation for <code>.RealRefineImported(real,{= width=1/1000,maxCalls=256, maxIterations=256 })</code>. Import and inspection remain synchronous. Budgets are positive, at most 4,096 calls/iterations, and split between provider refinement and a fresh deterministic replay. Construction has the separate graph/power bounds. Successful checking requires equal exact endpoints and a result nested in the saved enclosure; contradiction never replaces it. An insufficient work/domain result stays frozen with diagnostics. Successful snapshots carry a bounded embedded replay-evidence record and local <code>:providerChecked</code> verification. This is replay of the installed certified algorithm, not a second mathematical algorithm or a general proof checker.</p>
-<p>Host code may explicitly construct a <code>RealRecipeRegistry</code> and register trusted versioned <code>refine</code>/<code>check</code> functions. Deserialized input cannot access that API. Opaque functions, external providers, general root/ODE recipe revival and cryptographic canonicalization remain later scope. The full design is in <a href="https://github.com/jostylr/rix/blob/main/plugins/numerics/refinable-real-json.md">refinable-real JSON</a>.</p>
+<p>Host code may explicitly construct a <code>RealRecipeRegistry</code> and register trusted versioned <code>refine</code>/<code>check</code> functions. Deserialized input cannot access that API. Opaque functions, external providers, general root/ODE recipe revival and cryptographic canonicalization remain later scope. The full design is in <a href="https://github.com/ratmath/rix/blob/main/plugins/numerics/refinable-real-json.md">refinable-real JSON</a>.</p>
 
 
 </section>
@@ -500,7 +500,7 @@ frozen := .RealImportJSON(text);
     }
       var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
       var mailtoRegex = new RegExp(/^mailto:/);
-        var filterRegex = new RegExp("https:\/\/jostylr\.github\.io\/rix\/");
+        var filterRegex = new RegExp("https:\/\/docs\.rix\.ratmath\.com\/");
       var isInternal = (href) => {
           return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
       }
@@ -840,7 +840,7 @@ frozen := .RealImportJSON(text);
 </div>   
     <div class="nav-footer-center">
       &nbsp;
-    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/safe-interchange.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/ratmath/rix/edit/main/documentation/eval/safe-interchange.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/ratmath/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
 <p>Documentation built with <a href="https://quarto.org/">Quarto</a></p>
 </div>
