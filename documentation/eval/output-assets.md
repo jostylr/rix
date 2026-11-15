@@ -18,11 +18,11 @@ recording := .Audio({=
 ```
 
 The host resolves bytes only when explicitly exporting a bundle. Web REPL,
-Notebook engine, and RiXCel evaluation sessions expose `exportOutputBundle(value)`
+Notebook engine, and RiX Ripple evaluation sessions expose `exportOutputBundle(value)`
 and `importOutputBundle(json)`. The result has `document`, `manifest`, a `files`
 Map of relative paths to bytes, `html`, and `text`; exports also return `json`.
 These are host JavaScript APIs, not ambient filesystem capabilities granted to
-RiX code. Web and RiXCel currently expose them to embedding applications.
+RiX code. Web and RiX Ripple currently expose them to embedding applications.
 Notebook's native and browser publication exports use the same resolver for
 structured output and copy its assets beside the exported note.
 
@@ -118,4 +118,4 @@ The executable host example `examples/documents/portable-assets.mjs` builds a
 self-contained SVG image bundle from a generated RiX graphic. Host integration
 tests additionally generate a PNG, include a selected local image and audio
 transcript, move the export, remove the original asset folder, disable network
-access, and import into fresh Web, Notebook, and RiXCel sessions.
+access, and import into fresh Web, Notebook, and RiX Ripple sessions.

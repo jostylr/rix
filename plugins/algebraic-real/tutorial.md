@@ -8,8 +8,8 @@ order: 999
 
 The algebraic-real plugin is written entirely in RiX and delegates polynomial
 work to the pure-RiX `.poly` dependency. Its algorithms use exact Integer and
-Rational arithmetic, so the same certificate path runs in the CLI, RiX Web,
-and RiX Notebook without a JavaScript plugin boundary or duplicate Polynomial
+Rational arithmetic, so the same certificate path runs in the CLI, RiX Playground,
+and RiX Weave without a JavaScript plugin boundary or duplicate Polynomial
 representation.
 
 ## Construct an isolated root

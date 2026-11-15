@@ -27,7 +27,7 @@ const DOCUMENT_VIEW_KEYS = Object.freeze([
 ]);
 
 function fail(path, message) {
-    throw new Error(`Invalid RiXCel document at ${path}: ${message}`);
+    throw new Error(`Invalid RiX Ripple document at ${path}: ${message}`);
 }
 
 function plainObject(value, path) {
@@ -73,7 +73,7 @@ function documentInput(value) {
     try {
         return JSON.parse(input);
     } catch (error) {
-        throw new Error(`Invalid RiXCel JSON: ${error.message}`);
+        throw new Error(`Invalid RiX Ripple JSON: ${error.message}`);
     }
 }
 
@@ -317,7 +317,7 @@ export function rixCelEventCommand(event, binding = "document") {
     if (event.type === "slot:batch") {
         return `{; ${event.edits.map((edit) => rixCelEventCommand({ type: "slot:set", ...edit }, binding)).join("; ")} }`;
     }
-    throw new Error(`Unsupported RiXCel history event type: ${event.type}`);
+    throw new Error(`Unsupported RiX Ripple history event type: ${event.type}`);
 }
 
 function normalizeEvent(rawEvent, offset, id, shape) {
@@ -481,14 +481,14 @@ function versionOneToVersionTwo(input) {
     };
 }
 
-/** Parse, migrate, validate, and canonicalize a sparse, replayable RiXCel document. */
+/** Parse, migrate, validate, and canonicalize a sparse, replayable RiX Ripple document. */
 export function parseRixCelDocument(value) {
     let input = plainObject(documentInput(value), "$");
     if (input.version === undefined || input.version === 0) input = draftToVersionOne(input);
     if (input.format !== RIXCEL_FORMAT) fail("$.format", `must equal "${RIXCEL_FORMAT}"`);
     if (!Number.isSafeInteger(input.version)) fail("$.version", "must be an integer");
     if (input.version > RIXCEL_VERSION) {
-        throw new Error(`Unsupported RiXCel document version ${input.version}; this runtime supports through version ${RIXCEL_VERSION}`);
+        throw new Error(`Unsupported RiX Ripple document version ${input.version}; this runtime supports through version ${RIXCEL_VERSION}`);
     }
     if (input.version === 1) input = versionOneToVersionTwo(input);
     if (input.version === 2) input = { ...input, version: RIXCEL_VERSION, events: input.events?.map(({command,...event})=>event) };
@@ -690,7 +690,7 @@ export function materializeRixCelDocument(value) {
 
 /** Export current sheet state as a sparse event log. Runtime caches are never persisted. */
 export function exportRixCelDocument(sheet) {
-    if (!isFormulaSheet(sheet)) throw new Error("RiXCel export requires a FormulaSheet");
+    if (!isFormulaSheet(sheet)) throw new Error("RiX Ripple export requires a FormulaSheet");
     let document = importedDocuments.get(sheet) ?? createRixCelDocument({
         id: sheet.id,
         shape: [...sheet.shape],
@@ -701,7 +701,7 @@ export function exportRixCelDocument(sheet) {
     const previousSlots = new Map(previous.slots.map(slot=>[indexKey(slot.index),slot]));
     for (const slot of sheet.materializedSlots()) {
         const index = [...slot.index];
-        if (typeof slot.source !== "string") throw new Error(`RiXCel export requires source for grid[${index.join(",")}]`);
+        if (typeof slot.source !== "string") throw new Error(`RiX Ripple export requires source for grid[${index.join(",")}]`);
         const current = { source: slot.source, assignmentMode: slot.assignmentMode, view: slot.view ?? {} };
         const old = previousSlots.get(indexKey(index)) ?? document.defaultSlot;
         if (JSON.stringify(current) !== JSON.stringify({source:old.source,assignmentMode:old.assignmentMode,view:old.view})) {
@@ -724,7 +724,7 @@ export function stringifyRixCelDocument(value, options = {}) {
     const document = isFormulaSheet(value) ? exportRixCelDocument(value) : parseRixCelDocument(value);
     const space = options.space ?? 2;
     if (!Number.isInteger(space) || space < 0 || space > 10) {
-        throw new Error("RiXCel JSON indentation must be an integer from 0 through 10");
+        throw new Error("RiX Ripple JSON indentation must be an integer from 0 through 10");
     }
     return JSON.stringify(document, null, space);
 }
@@ -732,19 +732,19 @@ export function stringifyRixCelDocument(value, options = {}) {
 /** Rebuild a lazy FormulaSheet whose graph contains only active edited slots. */
 export function importRixCelDocument(value, options = {}) {
     const { document, view, slots } = replayRixCelDocument(value);
-    if (typeof options.compileFormula !== "function") throw new Error("RiXCel import requires a formula compiler");
-    if (typeof options.runFormula !== "function") throw new Error("RiXCel import requires a deferred formula evaluator");
+    if (typeof options.compileFormula !== "function") throw new Error("RiX Ripple import requires a formula compiler");
+    if (typeof options.runFormula !== "function") throw new Error("RiX Ripple import requires a deferred formula evaluator");
     let defaultFormula;
     try {
         defaultFormula = options.compileFormula(document.defaultSlot.source);
     } catch (error) {
-        throw new Error(`RiXCel default slot source did not compile: ${error.message}`);
+        throw new Error(`RiX Ripple default slot source did not compile: ${error.message}`);
     }
     const entries = slots.map((slot) => {
         try {
             return { index: slot.index, formula: options.compileFormula(slot.source) };
         } catch (error) {
-            throw new Error(`RiXCel source for grid[${slot.index.join(",")}] did not compile: ${error.message}`);
+            throw new Error(`RiX Ripple source for grid[${slot.index.join(",")}] did not compile: ${error.message}`);
         }
     });
     const slotMetadata = new Map(slots.map((slot) => [indexKey(slot.index), {

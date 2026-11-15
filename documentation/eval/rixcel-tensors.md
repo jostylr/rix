@@ -1,6 +1,6 @@
-# Explicit tensor planes in RiXCel
+# Explicit tensor planes in RiX Ripple
 
-RiXCel materializes a tensor only when explicitly requested. A finite `Shaped`,
+RiX Ripple materializes a tensor only when explicitly requested. A finite `Shaped`,
 Matrix, Vector, Covector or Tensor supplies its components. Select one complete
 plane with two distinct, 1-based `viewAxes` and a rank-matching `slice`: visible
 axes are `null`, hidden axes are fixed positive indices. Defaults select axes

@@ -72,7 +72,7 @@ graph refresh a named reactive `Fragment`, `Graphic`, `Table`, or other output.
 - [x] Add a toggle control with explicit on/off RiX values rather than JavaScript booleans.
 - [x] Add a range control backed by one exact interval-valued reactive identity.
 - [x] Add a reset action with an explicit initial-value snapshot.
-- [x] Add a runnable RiX Web tutorial and extend it alongside each control.
+- [x] Add a runnable RiX Playground tutorial and extend it alongside each control.
 
 ### Panel behavior
 
@@ -95,8 +95,8 @@ graph refresh a named reactive `Fragment`, `Graphic`, `Table`, or other output.
 
 ### Accessibility and hosts
 
-- [x] Verify range keyboard behavior, focus restoration, labels, and live value announcements in RiX Web and RiX Notebook.
-- [x] Add shared control-panel styling to RiX Web, RiX Notebook, and standalone RiXCel hosts.
+- [x] Verify range keyboard behavior, focus restoration, labels, and live value announcements in RiX Playground and RiX Weave.
+- [x] Add shared control-panel styling to RiX Playground, RiX Weave, and standalone RiX Ripple hosts.
 - [x] Exercise panels in live HTML and Quarto export.
 - [x] Add an end-to-end example combining controls, a reactive table, and a draggable graphic.
 
@@ -135,8 +135,8 @@ Native range inputs retain the browser's keyboard behavior and accessible
 labels. Dual-handle ranges restore focus to the edited endpoint after a
 reactive rerender; staged Apply restores action focus. The remounted panel's
 polite live region receives the committed value or atomic-apply announcement.
-RiX Web and RiX Notebook style the same semantic class names, and standalone
-RiXCel includes the RiX Web output stylesheet during its build.
+RiX Playground and RiX Weave style the same semantic class names, and standalone
+RiX Ripple includes the RiX Playground output stylesheet during its build.
 
 The runnable **Reactive control panels** tutorial exercises immediate and
 staged panels in live HTML, inert export snapshots, and a final reactive

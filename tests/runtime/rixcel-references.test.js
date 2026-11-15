@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { rewriteRixCelReferences } from "../../src/index.js";
 
-describe("RiXCel structural reference rewriting", () => {
+describe("RiX Ripple structural reference rewriting", () => {
     test("moves literal absolute grid coordinates on the inserted axis", () => {
         const result = rewriteRixCelReferences(
             "grid[2, 3] + grid[3,3] + grid[10, 4]",

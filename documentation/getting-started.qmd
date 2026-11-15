@@ -16,7 +16,7 @@ project. Use the matching RiX and Core checkouts in the RatMath workspace.
 ## Clone and test
 
 ```sh
-git clone https://github.com/jostylr/ratmath.git
+git clone https://github.com/ratmath/ratmath.git
 cd ratmath
 bun run prep
 cd rix
@@ -38,7 +38,7 @@ The RiX test suite exercises tokenizer, parser, lowering, evaluator, runtime, CL
 For Bun, use `bunx --bun --package @ratmath/rix rix`. In an application, install
 with `npm install @ratmath/rix` or `bun add @ratmath/rix`, import
 `parseAndEvaluate` from `@ratmath/rix`, and run your module with Node or Bun.
-The [README](https://github.com/jostylr/rix#use-as-a-javascript-module) includes
+The [README](https://github.com/ratmath/rix#use-as-a-javascript-module) includes
 complete standalone and persistent-session examples.
 
 ## Open the REPL

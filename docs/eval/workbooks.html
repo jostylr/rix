@@ -320,7 +320,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </ul>
             <ul class="navbar-nav navbar-nav-scroll ms-auto">
   <li class="nav-item compact">
-    <a class="nav-link" href="https://github.com/jostylr/rix"> <i class="bi bi-github" role="img" aria-label="RiX on GitHub">
+    <a class="nav-link" href="https://github.com/ratmath/rix"> <i class="bi bi-github" role="img" aria-label="RiX on GitHub">
 </i> 
 <span class="menu-text"></span></a>
   </li>  
@@ -364,7 +364,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#rixcel-workbooks-owned-exports-and-atomic-updates" id="toc-rixcel-workbooks-owned-exports-and-atomic-updates" class="nav-link active" data-scroll-target="#rixcel-workbooks-owned-exports-and-atomic-updates">RiXCel workbooks: owned exports and atomic updates</a>
+  <li><a href="#rixcel-workbooks-owned-exports-and-atomic-updates" id="toc-rixcel-workbooks-owned-exports-and-atomic-updates" class="nav-link active" data-scroll-target="#rixcel-workbooks-owned-exports-and-atomic-updates">RiX Ripple workbooks: owned exports and atomic updates</a>
   <ul class="collapse">
   <li><a href="#host-protocol" id="toc-host-protocol" class="nav-link" data-scroll-target="#host-protocol">Host protocol</a></li>
   <li><a href="#external-values-and-disposal" id="toc-external-values-and-disposal" class="nav-link" data-scroll-target="#external-values-and-disposal">External values and disposal</a></li>
@@ -372,7 +372,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#tensor-snapshots-regions-and-formatting" id="toc-tensor-snapshots-regions-and-formatting" class="nav-link" data-scroll-target="#tensor-snapshots-regions-and-formatting">Tensor snapshots, regions and formatting</a></li>
   </ul></li>
   </ul>
-<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/workbooks.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+<div class="toc-actions"><ul><li><a href="https://github.com/ratmath/rix/edit/main/documentation/eval/workbooks.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/ratmath/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
 <!-- main -->
 <main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"></header>
@@ -382,9 +382,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 
 <section id="rixcel-workbooks-owned-exports-and-atomic-updates" class="level1">
-<h1>RiXCel workbooks: owned exports and atomic updates</h1>
-<p>A <code>.rixbook</code> file contains several version-3 RiXCel documents plus explicit <code>names</code>, <code>exports</code>, and <code>imports</code> for each document. Open it in RiXCel and choose a document from the toolbar. Editing an input document updates every dependent output together. Each document keeps its own history; undo also recomputes other documents. Save/reopen and local recovery preserve the complete workbook.</p>
-<p>Try <a href="https://github.com/jostylr/rix/blob/main/examples/rixcel/cross-sheet.rixbook">cross-sheet.rixbook</a>: <code>sales</code> exports a subtotal and <code>report</code> applies its own tax rate. The report formula is:</p>
+<h1>RiX Ripple workbooks: owned exports and atomic updates</h1>
+<p>A <code>.rixbook</code> file contains several version-3 RiX Ripple documents plus explicit <code>names</code>, <code>exports</code>, and <code>imports</code> for each document. Open it in RiX Ripple and choose a document from the toolbar. Editing an input document updates every dependent output together. Each document keeps its own history; undo also recomputes other documents. Save/reopen and local recovery preserve the complete workbook.</p>
+<p>Try <a href="https://github.com/ratmath/rix/blob/main/examples/rixcel/cross-sheet.rixbook">cross-sheet.rixbook</a>: <code>sales</code> exports a subtotal and <code>report</code> applies its own tax rate. The report formula is:</p>
 <pre class="rix"><code>imports.Get(:subtotal) * (1 + names.Get(:tax))</code></pre>
 <p>The namespaces are local values, with no leading dot:</p>
 <ul>
@@ -427,7 +427,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p><code>await book.refresh("rates")</code> performs one explicit fetch and one atomic update. Failure, invalid metadata, timeout or cancellation retains the previous snapshot. A response arriving after another epoch is rejected as stale; retry explicitly. The host may use an abort signal, but ignored signals cannot force a third-party operation to stop. Late results never publish. Imports never trigger refresh.</p>
 <p>Scheduling is off by default. <code>book.schedule("rates", intervalMs)</code> requires <code>hostPolicy: {allowScheduledRefresh:true}</code> and an interval of at least 1000ms (or the host’s higher minimum), and at most 2,147,483,647ms. It skips overlapping refreshes and returns a cancel function. <code>dispose()</code> cancels timers, aborts pending refreshes, removes listeners and invalidates live views. Standalone browser files have no refresh providers; embedding hosts install them explicitly. The Cel worker protocol also supports <code>select-document</code>, <code>refresh-external</code> and <code>dispose</code> requests.</p>
 <p>Default hard ceilings (hosts may lower them): 32 documents, 32 external sources, 4096 materialized nodes, 50,000 reads, 8192 evaluations, 65,536 characters per formula, 8 million workbook-text characters, 200,000 evaluator steps and 2000ms per candidate. Refresh allows four concurrent sources and a 5000ms timeout. The mathematical JSON codec additionally bounds each snapshot. These are cooperative work/data bounds, not claims of process memory isolation.</p>
-<p>See <a href="https://github.com/jostylr/rix/blob/main/schemas/rixcel-workbook-v1.schema.json">the workbook schema</a> and <a href="../design/eval/rixcel-format.html">the document format</a>.</p>
+<p>See <a href="https://github.com/ratmath/rix/blob/main/schemas/rixcel-workbook-v1.schema.json">the workbook schema</a> and <a href="../design/eval/rixcel-format.html">the document format</a>.</p>
 </section>
 <section id="notebook-embedding-and-host-reuse" class="level2">
 <h2 class="anchored" data-anchor-id="notebook-embedding-and-host-reuse">Notebook embedding and host reuse</h2>
@@ -535,7 +535,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     }
       var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
       var mailtoRegex = new RegExp(/^mailto:/);
-        var filterRegex = new RegExp("https:\/\/jostylr\.github\.io\/rix\/");
+        var filterRegex = new RegExp("https:\/\/docs\.rix\.ratmath\.com\/");
       var isInternal = (href) => {
           return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
       }
@@ -875,7 +875,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>   
     <div class="nav-footer-center">
       &nbsp;
-    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/workbooks.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/ratmath/rix/edit/main/documentation/eval/workbooks.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/ratmath/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
 <p>Documentation built with <a href="https://quarto.org/">Quarto</a></p>
 </div>

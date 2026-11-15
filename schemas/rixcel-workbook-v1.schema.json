@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://rix.ratmath.com/schema/rixcel-workbook/v1.schema.json",
-  "title": "Canonical RiXCel workbook v1",
+  "title": "Canonical RiX Ripple workbook v1",
   "description": "Document-owned definitions and explicit import references. Runtime validates unique IDs, references, coordinates and work limits. No executable provider or schedule is serialized. Parsing does not evaluate formulas.",
   "type": "object",
   "required": [

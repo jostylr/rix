@@ -192,7 +192,7 @@ for media renderers and external production tools.
 renderer. Browser hosts expose the retained timeline directly with transport,
 range, comparison, exact inspection, and complete text-track controls. A grid
 or comic-strip renderer can group the flat list later by
-`origin["entry"]` and `origin["state"]`. See the [RiX Web reactive scenes tutorial](https://rix.ratmath.com/tutorial/reactive-scenes-and-snapshots.html)
+`origin["entry"]` and `origin["state"]`. See the [RiX Playground reactive scenes tutorial](https://rix.ratmath.com/tutorial/reactive-scenes-and-snapshots.html)
 for the full workflow and the [plugin contract](../design/interactive-output-plugins.md)
 for renderer-extension boundaries.
 

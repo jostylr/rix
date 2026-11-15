@@ -320,7 +320,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </ul>
             <ul class="navbar-nav navbar-nav-scroll ms-auto">
   <li class="nav-item compact">
-    <a class="nav-link" href="https://github.com/jostylr/rix"> <i class="bi bi-github" role="img" aria-label="RiX on GitHub">
+    <a class="nav-link" href="https://github.com/ratmath/rix"> <i class="bi bi-github" role="img" aria-label="RiX on GitHub">
 </i> 
 <span class="menu-text"></span></a>
   </li>  
@@ -442,7 +442,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#deferred-review-gate" id="toc-deferred-review-gate" class="nav-link" data-scroll-target="#deferred-review-gate">Deferred review gate</a></li>
   </ul></li>
   </ul>
-<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/design/editor-tooling.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+<div class="toc-actions"><ul><li><a href="https://github.com/ratmath/rix/edit/main/documentation/design/editor-tooling.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/ratmath/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
 <!-- main -->
 <main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"></header>
@@ -499,7 +499,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>The initial design review established these defaults:</p>
 <ul>
 <li>The extension begins in <code>rix/editors/vscode</code>, not a separate repository. It retains its own package, version, build, tests, and release workflow.</li>
-<li>Desktop is the first complete target. The portable language-service core and extension client should avoid unnecessary Node-only coupling so static web support can follow. A later web worker should reuse the evaluator subset already proven by RiX Web.</li>
+<li>Desktop is the first complete target. The portable language-service core and extension client should avoid unnecessary Node-only coupling so static web support can follow. A later web worker should reuse the evaluator subset already proven by RiX Playground.</li>
 <li>Desktop execution uses the Node-compatible runtime supplied by VS Code and a version-matched worker bundled with the extension. The first release does not discover or require Bun.</li>
 <li>Inline checks participate in Check File and display source feedback by default. Discovery, source decorations, and Test Explorer publication are independently configurable.</li>
 <li>Formatting uses a Prettier-style document model with readable and compact profiles. It borrows the settled principles of JavaScript formatters without pretending RiX is JavaScript.</li>
@@ -1137,7 +1137,7 @@ RiX: Select Plugins and Capabilities</code></pre>
 </tbody>
 </table>
 <p>The existing structured-output HTML traversal escapes text and filters URLs, so it is a useful implementation reference. It is not itself the webview trust boundary. In particular, the standalone HTML renderer accepts caller-provided CSS and returns a complete document; its output must be treated as untrusted markup.</p>
-<p>The first release may keep preview deliberately small: text in Output plus portable Fragment/Table/Sheet/Graphic output already handled in-process by RiX Web. It does not run PDF, PNG rasterization, LaTeX, Quarto, video, or other external toolchains. Additional current renderer outputs can be enabled later only after their MIME and permission class joins the allowlist.</p>
+<p>The first release may keep preview deliberately small: text in Output plus portable Fragment/Table/Sheet/Graphic output already handled in-process by RiX Playground. It does not run PDF, PNG rasterization, LaTeX, Quarto, video, or other external toolchains. Additional current renderer outputs can be enabled later only after their MIME and permission class joins the allowlist.</p>
 <p>If untrusted HTML or SVG sanitization becomes necessary, use a pinned and promptly updated DOMPurify release with an explicit profile, together with the webview CSP. The initial SVG profile forbids scripts, event attributes, <code>foreignObject</code>, external URLs, <code>&lt;style&gt;</code>, and inline style attributes. The first release accepts no plugin-provided CSS; previews use extension-owned theme styles. Structural DOM construction remains preferable to sanitizing strings.</p>
 <p>Requirements include:</p>
 <ul>
@@ -1154,7 +1154,7 @@ RiX: Select Plugins and Capabilities</code></pre>
 </section>
 <section id="web-follow-up-boundary" class="level3">
 <h3 class="anchored" data-anchor-id="web-follow-up-boundary">Web follow-up boundary</h3>
-<p>The first web follow-up should match the functionality already exercised by the RiX Web calculator rather than define a new browser runtime. Its worker bundle may include:</p>
+<p>The first web follow-up should match the functionality already exercised by the RiX Playground calculator rather than define a new browser runtime. Its worker bundle may include:</p>
 <ul>
 <li>tokenizer, Pratt parser, Lezer parser, lint, scopes, completion, and formatting;</li>
 <li><code>Context</code>, the default registry/system context, synchronous and asynchronous evaluation, exact values, reactive values, and session reset/disposal;</li>
@@ -1679,7 +1679,7 @@ rix verify --json file.rix</code></pre>
     }
       var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
       var mailtoRegex = new RegExp(/^mailto:/);
-        var filterRegex = new RegExp("https:\/\/jostylr\.github\.io\/rix\/");
+        var filterRegex = new RegExp("https:\/\/docs\.rix\.ratmath\.com\/");
       var isInternal = (href) => {
           return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
       }
@@ -2019,7 +2019,7 @@ rix verify --json file.rix</code></pre>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
-    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/design/editor-tooling.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/ratmath/rix/edit/main/documentation/design/editor-tooling.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/ratmath/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
 <p>Documentation built with <a href="https://quarto.org/">Quarto</a></p>
 </div>

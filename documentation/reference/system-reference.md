@@ -102,7 +102,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.FILESTREAM` | function | — | UTF-8 file byte stream through an explicitly granted host service |
 | `.FILTER` | lazy function | Collections, Arrays | Filter a collection with a predicate — callback receives (val, locator, src) |
 | `.FIRST` | function | Core, Collections, Arrays | First element of a collection |
-| `.FORMULASHEET` | function | RiXCel | Create a formula-backed sheet from a shaped or rectangular array of deferred RiX formulas |
+| `.FORMULASHEET` | function | RiX Ripple | Create a formula-backed sheet from a shaped or rectangular array of deferred RiX formulas |
 | `.FRAGMENT` | function | Output | Compose portable output values |
 | `.GETEL` | function | Core, Collections, Arrays | Get element at index (1-based) |
 | `.GRAPHICS` | value | — | Intrinsic portable 2D scene language |
@@ -220,7 +220,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.RANGERECIPROCAL` | function | — | Exact defined image of range-set reciprocal |
 | `.RANGESUBTRACT` | function | — | Exact Cartesian image of range-set subtraction |
 | `.RATIONALBOX` | function | — | Construct a checked Cartesian box of closed bounded rational intervals |
-| `.REACTIVEGRAPH` | function | RiXCel | Create a transactional graph of reactive source and computed nodes |
+| `.REACTIVEGRAPH` | function | RiX Ripple | Create a transactional graph of reactive source and computed nodes |
 | `.REACTIVESTREAM` | function | — | Bounded events from an explicitly passed reactive source |
 | `.REALEXPORTJSON` | function | — | Export a deterministic real envelope with exact scalar tags |
 | `.REALIMPORTINFO` | function | — | Inspect imported real evidence without activating a provider |
@@ -237,12 +237,12 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.RENDERER` | value | — | Discover installed output renderers and their target contracts |
 | `.RETRY` | lazy function | — | Repeat deferred work for expected error tuple values under a bounded retry policy |
 | `.REVERSE` | function | — | Reverse a collection (returns new copy) |
-| `.RIXCELEXPORT` | function | RiXCel | Serialize a FormulaSheet to canonical versioned RiXCel JSON |
-| `.RIXCELEXPORTCSV` | function | RiXCel | Export the computed values of a rank-2 FormulaSheet as CSV |
-| `.RIXCELEXPORTTSV` | function | RiXCel | Export the computed values of a rank-2 FormulaSheet as TSV |
-| `.RIXCELIMPORT` | function | RiXCel | Rebuild a FormulaSheet by compiling authoritative source from RiXCel JSON |
-| `.RIXCELIMPORTCSV` | function | RiXCel | Import CSV values into a rank-2 FormulaSheet; optional header=1 uses the first row as labels |
-| `.RIXCELIMPORTTSV` | function | RiXCel | Import TSV values into a rank-2 FormulaSheet; optional header=1 uses the first row as labels |
+| `.RIXCELEXPORT` | function | RiX Ripple | Serialize a FormulaSheet to canonical versioned RiX Ripple JSON |
+| `.RIXCELEXPORTCSV` | function | RiX Ripple | Export the computed values of a rank-2 FormulaSheet as CSV |
+| `.RIXCELEXPORTTSV` | function | RiX Ripple | Export the computed values of a rank-2 FormulaSheet as TSV |
+| `.RIXCELIMPORT` | function | RiX Ripple | Rebuild a FormulaSheet by compiling authoritative source from RiX Ripple JSON |
+| `.RIXCELIMPORTCSV` | function | RiX Ripple | Import CSV values into a rank-2 FormulaSheet; optional header=1 uses the first row as labels |
+| `.RIXCELIMPORTTSV` | function | RiX Ripple | Import TSV values into a rank-2 FormulaSheet; optional header=1 uses the first row as labels |
 | `.RNG` | function | Random | Install a fresh RNG for the current lexical scope and its subscopes |
 | `.SAMECELL` | lazy function | — | Identity comparison (===) — returns 1 if both sides refer to the same cell, null otherwise |
 | `.SAMESYMBOL` | function | — | Compare symbol identities independently of mathematical equality |
@@ -732,10 +732,10 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `REFINEMENT_UNSUPPORTED` | eager, pure | Construct a structured unsupported numerical result |
 | `REGEX` | eager, effectful/unspecified | Create a regex matching function |
 | `RETRIEVE` | eager, effectful/unspecified | Look up a variable in the current scope chain |
-| `RIXCELEXPORT` | eager, effectful/unspecified | Serialize a FormulaSheet to canonical versioned RiXCel JSON |
+| `RIXCELEXPORT` | eager, effectful/unspecified | Serialize a FormulaSheet to canonical versioned RiX Ripple JSON |
 | `RIXCELEXPORTCSV` | eager, effectful/unspecified | Export the computed values of a rank-2 FormulaSheet as CSV |
 | `RIXCELEXPORTTSV` | eager, effectful/unspecified | Export the computed values of a rank-2 FormulaSheet as TSV |
-| `RIXCELIMPORT` | eager, effectful/unspecified | Rebuild a FormulaSheet by compiling authoritative source from RiXCel JSON |
+| `RIXCELIMPORT` | eager, effectful/unspecified | Rebuild a FormulaSheet by compiling authoritative source from RiX Ripple JSON |
 | `RIXCELIMPORTCSV` | eager, effectful/unspecified | Import CSV values into a rank-2 FormulaSheet; optional header=1 uses the first row as labels |
 | `RIXCELIMPORTTSV` | eager, effectful/unspecified | Import TSV values into a rank-2 FormulaSheet; optional header=1 uses the first row as labels |
 | `SAME_CELL` | lazy, effectful/unspecified | Identity comparison (===) — returns 1 if both sides refer to the same cell, null otherwise |

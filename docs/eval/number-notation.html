@@ -320,7 +320,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </ul>
             <ul class="navbar-nav navbar-nav-scroll ms-auto">
   <li class="nav-item compact">
-    <a class="nav-link" href="https://github.com/jostylr/rix"> <i class="bi bi-github" role="img" aria-label="RiX on GitHub">
+    <a class="nav-link" href="https://github.com/ratmath/rix"> <i class="bi bi-github" role="img" aria-label="RiX on GitHub">
 </i> 
 <span class="menu-text"></span></a>
   </li>  
@@ -371,7 +371,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#balanced-negative-radix-and-bijective-systems" id="toc-balanced-negative-radix-and-bijective-systems" class="nav-link" data-scroll-target="#balanced-negative-radix-and-bijective-systems">Balanced, negative-radix, and bijective systems</a></li>
   <li><a href="#host-and-json-configuration" id="toc-host-and-json-configuration" class="nav-link" data-scroll-target="#host-and-json-configuration">Host and JSON configuration</a></li>
   </ul>
-<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/number-notation.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+<div class="toc-actions"><ul><li><a href="https://github.com/ratmath/rix/edit/main/documentation/eval/number-notation.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/ratmath/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
 <!-- main -->
 <main class="content" id="quarto-document-content">
@@ -471,7 +471,7 @@ ordinary := 101;
 </tr>
 </tbody>
 </table>
-<p>Display profiles are presentation only. A displayed <code>0.142…</code> is not a RiX number literal and must not be used to reconstruct the value. RiX Web’s result insertion control uses the exact source value (<code>1/7</code>) instead of the displayed text.</p>
+<p>Display profiles are presentation only. A displayed <code>0.142…</code> is not a RiX number literal and must not be used to reconstruct the value. RiX Playground’s result insertion control uses the exact source value (<code>1/7</code>) instead of the displayed text.</p>
 </section>
 <section id="strict-active-base-literals" class="level2">
 <h2 class="anchored" data-anchor-id="strict-active-base-literals">Strict active-base literals</h2>
@@ -533,7 +533,7 @@ bijective := #AA;
 <span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"display"</span><span class="fu">:</span> <span class="st">".[12],b,.."</span></span>
 <span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">}</span></span>
 <span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The CLI’s persistent <code>config.json</code> accepts the same section. RiX Web exposes it through the <strong>Numbers</strong> panel; settings are session-scoped unless <strong>Remember in this browser</strong> is selected.</p>
+<p>The CLI’s persistent <code>config.json</code> accepts the same section. RiX Playground exposes it through the <strong>Numbers</strong> panel; settings are session-scoped unless <strong>Remember in this browser</strong> is selected.</p>
 
 
 </section>
@@ -629,7 +629,7 @@ bijective := #AA;
     }
       var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
       var mailtoRegex = new RegExp(/^mailto:/);
-        var filterRegex = new RegExp("https:\/\/jostylr\.github\.io\/rix\/");
+        var filterRegex = new RegExp("https:\/\/docs\.rix\.ratmath\.com\/");
       var isInternal = (href) => {
           return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
       }
@@ -969,7 +969,7 @@ bijective := #AA;
 </div>   
     <div class="nav-footer-center">
       &nbsp;
-    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/number-notation.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/ratmath/rix/edit/main/documentation/eval/number-notation.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/ratmath/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
 <p>Documentation built with <a href="https://quarto.org/">Quarto</a></p>
 </div>

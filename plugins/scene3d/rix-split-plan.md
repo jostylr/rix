@@ -23,7 +23,7 @@ schema.
 Acceptance criteria:
 
 - the catalog reports `scene3d` as `kind: rix`;
-- construction and malformed-value tests pass in Node and RiX Web;
+- construction and malformed-value tests pass in Node and RiX Playground;
 - glTF renders scenes produced by the RiX constructor without a compatibility
   conversion;
 - the historical JavaScript constructor code becomes reference-only.

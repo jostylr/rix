@@ -63,7 +63,7 @@ The initial design review established these defaults:
 - Desktop is the first complete target. The portable language-service core and
   extension client should avoid unnecessary Node-only coupling so static web
   support can follow. A later web worker should reuse the evaluator subset
-  already proven by RiX Web.
+  already proven by RiX Playground.
 - Desktop execution uses the Node-compatible runtime supplied by VS Code and a
   version-matched worker bundled with the extension. The first release does not
   discover or require Bun.
@@ -672,7 +672,7 @@ transport and security policy remain host-owned.
 ### Web follow-up boundary
 
 The first web follow-up should match the functionality already exercised by
-the RiX Web calculator rather than define a new browser runtime. Its worker
+the RiX Playground calculator rather than define a new browser runtime. Its worker
 bundle may include:
 
 - tokenizer, Pratt parser, Lezer parser, lint, scopes, completion, and

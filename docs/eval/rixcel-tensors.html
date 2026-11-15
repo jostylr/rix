@@ -320,7 +320,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </ul>
             <ul class="navbar-nav navbar-nav-scroll ms-auto">
   <li class="nav-item compact">
-    <a class="nav-link" href="https://github.com/jostylr/rix"> <i class="bi bi-github" role="img" aria-label="RiX on GitHub">
+    <a class="nav-link" href="https://github.com/ratmath/rix"> <i class="bi bi-github" role="img" aria-label="RiX on GitHub">
 </i> 
 <span class="menu-text"></span></a>
   </li>  
@@ -364,9 +364,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#explicit-tensor-planes-in-rixcel" id="toc-explicit-tensor-planes-in-rixcel" class="nav-link active" data-scroll-target="#explicit-tensor-planes-in-rixcel">Explicit tensor planes in RiXCel</a></li>
+  <li><a href="#explicit-tensor-planes-in-rixcel" id="toc-explicit-tensor-planes-in-rixcel" class="nav-link active" data-scroll-target="#explicit-tensor-planes-in-rixcel">Explicit tensor planes in RiX Ripple</a></li>
   </ul>
-<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/rixcel-tensors.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+<div class="toc-actions"><ul><li><a href="https://github.com/ratmath/rix/edit/main/documentation/eval/rixcel-tensors.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/ratmath/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
 <!-- main -->
 <main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"></header>
@@ -376,8 +376,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 
 <section id="explicit-tensor-planes-in-rixcel" class="level1">
-<h1>Explicit tensor planes in RiXCel</h1>
-<p>RiXCel materializes a tensor only when explicitly requested. A finite <code>Shaped</code>, Matrix, Vector, Covector or Tensor supplies its components. Select one complete plane with two distinct, 1-based <code>viewAxes</code> and a rank-matching <code>slice</code>: visible axes are <code>null</code>, hidden axes are fixed positive indices. Defaults select axes 1 and 2 with hidden indices 1. A rank-one value becomes a single column.</p>
+<h1>Explicit tensor planes in RiX Ripple</h1>
+<p>RiX Ripple materializes a tensor only when explicitly requested. A finite <code>Shaped</code>, Matrix, Vector, Covector or Tensor supplies its components. Select one complete plane with two distinct, 1-based <code>viewAxes</code> and a rank-matching <code>slice</code>: visible axes are <code>null</code>, hidden axes are fixed positive indices. Defaults select axes 1 and 2 with hidden indices 1. A rank-one value becomes a single column.</p>
 <p>The shared JavaScript helpers live in <code>src/runtime/rixcel-tensor.js</code>:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> options <span class="op">=</span> { <span class="dt">viewAxes</span><span class="op">:</span> [<span class="dv">3</span><span class="op">,</span> <span class="dv">1</span>]<span class="op">,</span> <span class="dt">slice</span><span class="op">:</span> [<span class="kw">null</span><span class="op">,</span> <span class="dv">2</span><span class="op">,</span> <span class="kw">null</span>] }<span class="op">;</span></span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> plane <span class="op">=</span> <span class="fu">rixCelTensorPlane</span>(tensor<span class="op">,</span> options)<span class="op">;</span></span>
@@ -489,7 +489,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     }
       var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
       var mailtoRegex = new RegExp(/^mailto:/);
-        var filterRegex = new RegExp("https:\/\/jostylr\.github\.io\/rix\/");
+        var filterRegex = new RegExp("https:\/\/docs\.rix\.ratmath\.com\/");
       var isInternal = (href) => {
           return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
       }
@@ -829,7 +829,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>   
     <div class="nav-footer-center">
       &nbsp;
-    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/rixcel-tensors.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/ratmath/rix/edit/main/documentation/eval/rixcel-tensors.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/ratmath/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
 <p>Documentation built with <a href="https://quarto.org/">Quarto</a></p>
 </div>

@@ -1,6 +1,6 @@
-# RiXCel document format
+# RiX Ripple document format
 
-RiXCel files use UTF-8 JSON and the `.rixcel` extension. The root `format` and
+RiX Ripple files use UTF-8 JSON and the `.rixcel` extension. The root `format` and
 integer `version` fields identify the schema. Version 3 is a sparse, rank-N,
 source-authoritative event log. Version 0 drafts, dense version 1 and sparse version 2 documents
 remain readable and migrate to version 3 in memory.

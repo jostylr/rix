@@ -19,14 +19,14 @@ or the [generated runtime catalog](reference/system-reference.md).
 | [Handwritten IR snapshot](design/eval/ir-format.md) | [Generated IR registry](reference/system-reference.md#internal-ir-registry) |
 | [Document roadmap and notation proposals](design/eval/document-output-todo.md) | [Document persistence](eval/document-persistence.md), [publication layout](eval/publication-plan.md), and [assets](eval/output-assets.md) |
 | [Reactive control delivery plan](design/eval/control-panel-todo.md) | [Reactive controls](eval/controls-guide.md) |
-| [RiXCel delivery checklist](design/eval/rixcel-todo.md) | [Workbooks](eval/workbooks.md), [tensor editing](eval/rixcel-tensors.md), and [regional output](eval/rixcel-regions.md) |
+| [RiX Ripple delivery checklist](design/eval/rixcel-todo.md) | [Workbooks](eval/workbooks.md), [tensor editing](eval/rixcel-tensors.md), and [regional output](eval/rixcel-regions.md) |
 | [Structural arithmetic completion record](design/eval/structural-arithmetic-todo.md) | [Structural values](eval/objects/structural-values.md) |
 | [Editor and language-server proposal](design/editor-tooling.md) | [Editor and coding-agent tooling](editor-and-agent-tooling.md) |
 | [Plugin roadmap and rendering proposals](design/plugins.md) | [Plugin catalog](plugin-catalog.md) and [renderer guide](eval/renderer-guide.md) |
 
 Current implementation contracts remain searchable even when their source lives
 under `design/`. In particular, concurrency semantics, runtime performance
-measurements, output contracts, and the RiXCel format are useful current
+measurements, output contracts, and the RiX Ripple format are useful current
 references. File location alone does not determine whether a page is historical.
 
 Unpublished scratch notes, old generated parser HTML, and reports outside the

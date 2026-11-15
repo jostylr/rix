@@ -6,7 +6,7 @@ status: implemented
 ---
 
 This plugin is written entirely in RiX. The same coefficient rules and exact
-refinement code run in the CLI, RiX Web, and RiX Notebook without a JavaScript
+refinement code run in the CLI, RiX Playground, and RiX Weave without a JavaScript
 plugin permission boundary.
 
 ## Finite continued fractions

@@ -349,7 +349,7 @@ window.Quarto = {
 </ul>
             <ul class="navbar-nav navbar-nav-scroll ms-auto">
   <li class="nav-item compact">
-    <a class="nav-link" href="https://github.com/jostylr/rix"> <i class="bi bi-github" role="img" aria-label="RiX on GitHub">
+    <a class="nav-link" href="https://github.com/ratmath/rix"> <i class="bi bi-github" role="img" aria-label="RiX on GitHub">
 </i> 
 <span class="menu-text"></span></a>
   </li>  
@@ -497,7 +497,7 @@ window.Quarto = {
   </ul></li>
   </ul></li>
   </ul>
-<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/introduction.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+<div class="toc-actions"><ul><li><a href="https://github.com/ratmath/rix/edit/main/documentation/introduction.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/ratmath/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
 <!-- main -->
 <main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"></header>
@@ -2115,7 +2115,7 @@ measuredDistance := (3:4)~[m]</code></pre>
 </ul>
 <p>Compatible quantities convert automatically for addition and preserve the left operand’s display unit. Incompatible dimensions are errors. Explicit conversion uses <code>.ConvertUnit(value, targetUnit)</code>; the source unit is already carried by the value.</p>
 <p>Interval magnitudes remain intervals through unit conversion and arithmetic. The default angle units are <code>rad</code>, <code>deg</code>, and <code>turn</code>, all connected exactly through the canonical <code>pi</code> generator.</p>
-<p>Unit values are callable constructors, which is especially useful for affine coordinates: <code>.Units[:degC](20)</code>. See the <a href="https://rix.ratmath.com/tutorial/units.html">RiX Web units tutorial</a> and <a href="./design/eval/units-and-exact-generators.html"><code>units-and-exact-generators.md</code></a> for the runtime design.</p>
+<p>Unit values are callable constructors, which is especially useful for affine coordinates: <code>.Units[:degC](20)</code>. See the <a href="https://rix.ratmath.com/tutorial/units.html">RiX Playground units tutorial</a> and <a href="./design/eval/units-and-exact-generators.html"><code>units-and-exact-generators.md</code></a> for the runtime design.</p>
 <p>Exact complex values use <code>.Exact[:i]</code> and the <code>.Complex</code> operation map. Division within a single algebraic extension is exact, so <code>1/.Exact[:i]</code> reduces to <code>-i</code>. <code>.Complex.Conjugate(z)</code>, <code>.Complex.Re(z)</code>, <code>.Complex.Im(z)</code>, and <code>.Complex.NormSquared(z)</code> work without selecting a floating approximation.</p>
 <p>For multiplication-oriented work, <code>.Complex.Cayley(z)</code> converts to exact Cayley polar form <code>Cayley(r, t)</code>, with <code>t = tan(Arg(z)/2)</code>. The direction is an algebraic stereographic coordinate rather than a stored angle. Multiplication, division, powers, reciprocal, and conjugation stay in that form; addition and subtraction take an exact Cartesian bridge. Convert back with <code>c.Cartesian()</code>. See <a href="./design/eval/cayley-polar.html">the Cayley polar design</a>.</p>
 <hr>
@@ -2354,7 +2354,7 @@ measuredDistance := (3:4)~[m]</code></pre>
     }
       var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
       var mailtoRegex = new RegExp(/^mailto:/);
-        var filterRegex = new RegExp("https:\/\/jostylr\.github\.io\/rix\/");
+        var filterRegex = new RegExp("https:\/\/docs\.rix\.ratmath\.com\/");
       var isInternal = (href) => {
           return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
       }
@@ -2694,7 +2694,7 @@ measuredDistance := (3:4)~[m]</code></pre>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
-    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/introduction.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/ratmath/rix/edit/main/documentation/introduction.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/ratmath/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
 <p>Documentation built with <a href="https://quarto.org/">Quarto</a></p>
 </div>

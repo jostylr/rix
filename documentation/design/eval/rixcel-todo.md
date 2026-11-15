@@ -2,7 +2,7 @@
 search: false
 ---
 
-# RiXCel implementation checklist
+# RiX Ripple implementation checklist
 
 ::: {.callout-note title="Historical planning and delivery record"}
 This page preserves earlier plans and completion notes; proposed APIs and
@@ -32,7 +32,7 @@ Checked items are implemented in the current RiX repository.
 
 ## 1. Renderer and notebook integration
 
-- [x] Add dedicated Sheet styling to RiX Web.
+- [x] Add dedicated Sheet styling to RiX Playground.
 - [x] Render a selected-address indicator such as `C2 · grid[2,3]`.
 - [x] Add pointer and keyboard selection without enabling value edits.
 - [x] Let formula/source editors insert canonical addresses by activation.
@@ -51,7 +51,7 @@ Checked items are implemented in the current RiX repository.
 - [x] Apply the same interaction protocol to at least one Graphic example.
 - [x] Define snapshot and serialization behavior for live widgets.
 
-## 3. RiXCel document runtime
+## 3. RiX Ripple document runtime
 
 - [x] Specify the versioned `.rixcel` JSON format.
 - [x] Define a formula-slot entity separate from immediate `Binding` lenses.
@@ -97,9 +97,9 @@ Checked items are implemented in the current RiX repository.
   preserve source/version metadata and dispose timers/pending work.
 - [x] Add round-trip and migration tests for `.rixcel` documents.
 
-## 4. Standalone RiXCel editor
+## 4. Standalone RiX Ripple editor
 
-- [x] Replace the placeholder `apps/cel` package with a RiXCel web app.
+- [x] Replace the placeholder `apps/cel` package with a RiX Ripple web app.
 - [x] Implement bounded 2D grid-window rendering with row/column navigation.
 - [x] Edit formula bodies from FormulaSheet grid cells.
 - [x] Add a dedicated formula bar, assignment-mode control, and exact-value display.
@@ -124,9 +124,9 @@ Checked items are implemented in the current RiX repository.
 - [ ] Define and test a limited Excel-formula-to-RiX translator.
 - [x] Export computed values to CSV/TSV.
 - [ ] Export computed values to `.xlsx`.
-- [ ] Embed a RiXCel document as a notebook widget.
+- [ ] Embed a RiX Ripple document as a notebook widget.
 - [ ] Publish explicit named sheet exports to notebook RiX code.
-- [ ] Detect import cycles across RiX scripts and RiXCel documents.
+- [ ] Detect import cycles across RiX scripts and RiX Ripple documents.
 
 ## 6. Higher-dimensional and advanced behavior
 

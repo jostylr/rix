@@ -320,7 +320,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </ul>
             <ul class="navbar-nav navbar-nav-scroll ms-auto">
   <li class="nav-item compact">
-    <a class="nav-link" href="https://github.com/jostylr/rix"> <i class="bi bi-github" role="img" aria-label="RiX on GitHub">
+    <a class="nav-link" href="https://github.com/ratmath/rix"> <i class="bi bi-github" role="img" aria-label="RiX on GitHub">
 </i> 
 <span class="menu-text"></span></a>
   </li>  
@@ -405,7 +405,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#implementation-sequence" id="toc-implementation-sequence" class="nav-link" data-scroll-target="#implementation-sequence">Implementation sequence</a></li>
   </ul></li>
   </ul>
-<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/design/eval/output-model.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+<div class="toc-actions"><ul><li><a href="https://github.com/ratmath/rix/edit/main/documentation/design/eval/output-model.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/ratmath/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
 <!-- main -->
 <main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"></header>
@@ -426,7 +426,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 <div class="callout-body-container callout-body">
-<p>The initial portable-output slice is implemented: <code>.Text</code>, <code>.Paragraph</code>, <code>.Heading</code>, <code>.Fragment</code>, <code>.Section</code>, <code>.List</code>, <code>.ListItem</code>, <code>.Quote</code>, <code>.Callout</code>, <code>.CodeBlock</code>, <code>.MathBlock</code>, <code>.Table</code>, <code>.Grid</code>, <code>.Sheet</code>, <code>.Graphics</code>, <code>.Figure</code>, <code>.Image</code>, <code>.Audio</code>, <code>.Video</code>, <code>.Slide</code>, <code>.Slides</code>, and <code>.ControlPanel</code> construct typed immutable output records. The CLI has a text fallback, and the RiX notebook and RiX Web calculator render tables and grids as HTML and retained 2D scenes as inline SVG. <code>Sheet</code> has host-neutral text and HTML renderers plus shared notebook and web interaction. <code>.Algebra.SyntheticDivision(root, coefficients)</code> returns a ruled exact <code>Grid</code>; after <code>.Plugin.Load("plot")</code>, <code>.plot.Polynomial(coefficients, domain, options?)</code> constructs a portable sampled <code>Graphic</code>. Sheets, <code>.Graphics.DragPoint</code>, and exact <code>.Controls.Slider</code>, <code>.Controls.Input</code>, <code>.Controls.Choice</code>, <code>.Controls.Toggle</code>, <code>.Controls.Range</code>, and <code>.Controls.Reset</code> panels now share host-owned widget sessions for semantic edits without storing DOM state in output values.</p>
+<p>The initial portable-output slice is implemented: <code>.Text</code>, <code>.Paragraph</code>, <code>.Heading</code>, <code>.Fragment</code>, <code>.Section</code>, <code>.List</code>, <code>.ListItem</code>, <code>.Quote</code>, <code>.Callout</code>, <code>.CodeBlock</code>, <code>.MathBlock</code>, <code>.Table</code>, <code>.Grid</code>, <code>.Sheet</code>, <code>.Graphics</code>, <code>.Figure</code>, <code>.Image</code>, <code>.Audio</code>, <code>.Video</code>, <code>.Slide</code>, <code>.Slides</code>, and <code>.ControlPanel</code> construct typed immutable output records. The CLI has a text fallback, and the RiX notebook and RiX Playground calculator render tables and grids as HTML and retained 2D scenes as inline SVG. <code>Sheet</code> has host-neutral text and HTML renderers plus shared notebook and web interaction. <code>.Algebra.SyntheticDivision(root, coefficients)</code> returns a ruled exact <code>Grid</code>; after <code>.Plugin.Load("plot")</code>, <code>.plot.Polynomial(coefficients, domain, options?)</code> constructs a portable sampled <code>Graphic</code>. Sheets, <code>.Graphics.DragPoint</code>, and exact <code>.Controls.Slider</code>, <code>.Controls.Input</code>, <code>.Controls.Choice</code>, <code>.Controls.Toggle</code>, <code>.Controls.Range</code>, and <code>.Controls.Reset</code> panels now share host-owned widget sessions for semantic edits without storing DOM state in output values.</p>
 <p>The record-level document slice—lists, quotations/callouts, code and math blocks, semantic inline content, and portable image/audio/video asset references—is implemented. Its remaining template grammar, persistence, and host-asset work is tracked in <a href="../../design/eval/document-output-todo.html">Document blocks, inline content, and assets</a>.</p>
 <p><code>@"..."</code> text templates and <code>@"""..."""</code> document templates are executable. The latter supports blank-line blocks, <code>h1:</code> through <code>h6:</code>, plus <code>fig:</code> and <code>table:</code> wrappers around standalone <code>@{...}</code> structured insertions. Output methods, renderer negotiation, geometry, 3D scenes, plugin manifests, and non-HTML export targets remain design work. Examples involving those features are deliberately marked as intended contracts rather than current executable code.</p>
 </div>
@@ -749,7 +749,7 @@ $$x := 3/2;
 <p>The formatter result is retained in the portable <code>display</code> snapshot while the control’s <code>value</code> remains the original exact RiX value. Slider fields are <code>value</code>, <code>low</code>, <code>high</code>, and <code>step</code>; Range adds <code>start</code> and <code>end</code>; Choice adds <code>option</code>; Toggle adds <code>off</code> and <code>on</code>; Reset adds <code>initial</code>. A validator is a unary RiX function returning <code>_</code> for success or an error string for rejection.</p>
 <p>Each rendered control publishes both its <code>controlId</code> and reactive <code>targetId</code>. The distinction lets multiple control kinds intentionally share one <code>$$name</code> while the widget session still applies the correct value mapping.</p>
 <p>Plain values in a <code>Fragment</code> or <code>Grid</code> cell are retained as values. A renderer uses its formatting protocol to display an exact rational, interval, polynomial, or string without converting it at construction time.</p>
-<p><code>Sheet</code> similarly retains exact visible values, but also records each visible cell’s complete 1-based tensor index and a canonical address such as <code>grid[2,3,1]</code>. For rank greater than two, <code>viewAxes</code> chooses the displayed axes and <code>slice</code> fixes every hidden axis. The current value is a static snapshot; live editing belongs to the planned <code>Binding</code>/<code>Widget</code> layer described in the <a href="../../design/eval/rixcel-architecture.html">RiXCel architecture</a>.</p>
+<p><code>Sheet</code> similarly retains exact visible values, but also records each visible cell’s complete 1-based tensor index and a canonical address such as <code>grid[2,3,1]</code>. For rank greater than two, <code>viewAxes</code> chooses the displayed axes and <code>slice</code> fixes every hidden axis. The current value is a static snapshot; live editing belongs to the planned <code>Binding</code>/<code>Widget</code> layer described in the <a href="../../design/eval/rixcel-architecture.html">RiX Ripple architecture</a>.</p>
 <section id="current-2d-scene-primitives" class="level3">
 <h3 class="anchored" data-anchor-id="current-2d-scene-primitives">Current 2D scene primitives</h3>
 <p><code>Graphic</code> is the portable scene root. Its child nodes may be nested through <code>.Graphics.Group</code>, <code>.Graphics.Transform</code>, and <code>.Graphics.Clip</code>; leaf nodes are <code>.Graphics.Path</code>, <code>.Graphics.Rectangle</code>, <code>.Graphics.Circle</code>, <code>.Graphics.Text</code>, and the interactive <code>.Graphics.DragPoint</code>. The current SVG renderer maps the following small style vocabulary without exposing raw SVG or DOM access:</p>
@@ -829,7 +829,7 @@ $view</code></pre>
         ], {= opacity=1 })
     ], {= translate=[60, 0], rotate=8, origin=[60, 60] })
 ])</code></pre>
-<p>The RiX Web structured-output tutorial runs a larger example using every primitive, including clipping. Geometry and plotting plugins should prefer returning this vocabulary over backend-specific SVG strings.</p>
+<p>The RiX Playground structured-output tutorial runs a larger example using every primitive, including clipping. Geometry and plotting plugins should prefer returning this vocabulary over backend-specific SVG strings.</p>
 <p><code>Graphics.Path</code> has a concise point form for polylines and polygons, plus a command form for renderer-independent curves and arcs:</p>
 <pre class="rix"><code>curve := .Graphics.Path({=
     commands = [
@@ -1470,7 +1470,7 @@ defaultEnabled: false
     }
       var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
       var mailtoRegex = new RegExp(/^mailto:/);
-        var filterRegex = new RegExp("https:\/\/jostylr\.github\.io\/rix\/");
+        var filterRegex = new RegExp("https:\/\/docs\.rix\.ratmath\.com\/");
       var isInternal = (href) => {
           return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
       }
@@ -1810,7 +1810,7 @@ defaultEnabled: false
 </div>   
     <div class="nav-footer-center">
       &nbsp;
-    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/design/eval/output-model.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/ratmath/rix/edit/main/documentation/design/eval/output-model.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/ratmath/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
 <p>Documentation built with <a href="https://quarto.org/">Quarto</a></p>
 </div>

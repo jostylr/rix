@@ -1,4 +1,4 @@
-# RiXCel sheet-view examples
+# RiX Ripple sheet-view examples
 
 These examples cover portable `.Sheet(...)` views, reactive formulas, exact
 value interchange, and source-backed persistence. Run them from the `rix/` directory:
@@ -13,7 +13,7 @@ bun bin/rix.js examples/rixcel/reactive-bindings.rix
 bun bin/rix.js examples/rixcel/reactive-view.rix
 ```
 
-The CLI prints a deterministic text representation. RiX Web and notebook hosts
+The CLI prints a deterministic text representation. RiX Playground and notebook hosts
 can call `renderOutputHtml` to render the same value as an address-aware grid.
 
 `sheet-views.rix` demonstrates:
@@ -22,7 +22,7 @@ can call `renderOutputHtml` to render the same value as an address-aware grid.
 - dual spreadsheet/RiX column labels;
 - a selected depth plane from a rank-3 tensor;
 - alternate visible tensor axes;
-- a live `.Sheet(.Bind(prices))` view in RiX Web and the notebook
+- a live `.Sheet(.Bind(prices))` view in RiX Playground and the notebook
   (`live-sheet.rix`).
 - a formula-backed sheet with dependency evaluation and an update epoch
   (`formula-sheet.rix`).

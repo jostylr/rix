@@ -285,7 +285,7 @@ ul.task-list li input[type="checkbox"] {
 </ul>
             <ul class="navbar-nav navbar-nav-scroll ms-auto">
   <li class="nav-item compact">
-    <a class="nav-link" href="https://github.com/jostylr/rix"> <i class="bi bi-github" role="img" aria-label="RiX on GitHub">
+    <a class="nav-link" href="https://github.com/ratmath/rix"> <i class="bi bi-github" role="img" aria-label="RiX on GitHub">
 </i> 
 <span class="menu-text"></span></a>
   </li>  
@@ -337,7 +337,7 @@ ul.task-list li input[type="checkbox"] {
   <li><a href="#typed-operator-variants" id="toc-typed-operator-variants" class="nav-link" data-scroll-target="#typed-operator-variants">Typed operator variants</a></li>
   </ul></li>
   </ul>
-<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/plugin-catalog.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+<div class="toc-actions"><ul><li><a href="https://github.com/ratmath/rix/edit/main/documentation/plugin-catalog.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/ratmath/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
 <!-- main -->
 <main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"></header>
@@ -375,7 +375,7 @@ defaultEnabled: false
 <li><strong>RiX web:</strong> first-party packages live in <code>rix/plugins/&lt;id&gt;/</code>. The web generator has an explicit reviewed-package list and writes its static adapter at <code>rix-web/src/generated/bundled-plugin-catalog.js</code>. Only selected packages become part of the published browser bundle; a browser never scans a visitor’s filesystem. Add a package to that list only after approving its browser-safe JavaScript installer (if it has one).</li>
 <li><strong>RiX Notebook:</strong> put project-local entries under <code>&lt;project&gt;/plugins/</code>, add app-wide roots in <strong>Settings</strong>, or configure portable in-project roots with <code>plugin_dirs = ["shared-plugins"]</code> in <code>project.toml</code> or <code>notebook.toml</code>. Either manifest can enable known entries with <code>plugins = ["plugin-id"]</code>. The notebook settings can additionally name app-wide automatically loaded plugin IDs. Bundled JavaScript installers remain trusted by virtue of the signed app; a discovered JavaScript plugin needs an explicit notebook-user approval unless the user has enabled the global JavaScript-plugin setting.</li>
 </ul>
-<p>In the web host, a <code>.plugin.rix.js</code> must be imported by the application’s bundle/catalog source to be executable. RiX Notebook may import a discovered desktop JavaScript plugin only after its approval flow has run. A project <code>.plugin.rix</code> is retained as source and can be loaded through the regular RiX plugin boundary.</p>
+<p>In the web host, a <code>.plugin.rix.js</code> must be imported by the application’s bundle/catalog source to be executable. RiX Weave may import a discovered desktop JavaScript plugin only after its approval flow has run. A project <code>.plugin.rix</code> is retained as source and can be loaded through the regular RiX plugin boundary.</p>
 <pre class="rix"><code>.Plugin.List()
 .Plugin.Info("exact-statistics")
 .Plugin.Load("exact-statistics")
@@ -407,7 +407,7 @@ k := i * j;
 o := .exactAlgebras.Octonion(1, 2, 3, 4, 5, 6, 7, 8);
 one := o * .exactAlgebras.Inverse(o);</code></pre>
 <p>The initial namespace also provides <code>Components</code>, <code>Conjugate</code>, and <code>NormSquared</code>. Quaternion and octonion dimensions are not mixed implicitly, and division is exact right division (<code>a / b</code> is <code>a * Inverse(b)</code>). The plugin is intentionally a foundation for later semantic types, named basis values, and matrix or polynomial integrations.</p>
-<p>RiX-backed plugin entries are evaluated only when loaded. JavaScript-backed entries are discoverable from the same header but require a host-approved installer. Discovery alone never imports arbitrary JavaScript: a web host must bundle it, while RiX Notebook requires the user’s explicit approval or global preference before importing it. This keeps the boundary explicit: RiX plugins run at a host-controlled RiX load boundary, while JavaScript plugins are trusted host extensions.</p>
+<p>RiX-backed plugin entries are evaluated only when loaded. JavaScript-backed entries are discoverable from the same header but require a host-approved installer. Discovery alone never imports arbitrary JavaScript: a web host must bundle it, while RiX Weave requires the user’s explicit approval or global preference before importing it. This keeps the boundary explicit: RiX plugins run at a host-controlled RiX load boundary, while JavaScript plugins are trusted host extensions.</p>
 </section>
 <section id="exact-statistics-and-complex-visualization" class="level2">
 <h2 class="anchored" data-anchor-id="exact-statistics-and-complex-visualization">Exact statistics and complex visualization</h2>
@@ -525,7 +525,7 @@ coloring := .complexViz.DomainColoring({=
     }
       var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
       var mailtoRegex = new RegExp(/^mailto:/);
-        var filterRegex = new RegExp("https:\/\/jostylr\.github\.io\/rix\/");
+        var filterRegex = new RegExp("https:\/\/docs\.rix\.ratmath\.com\/");
       var isInternal = (href) => {
           return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
       }
@@ -865,7 +865,7 @@ coloring := .complexViz.DomainColoring({=
 </div>   
     <div class="nav-footer-center">
       &nbsp;
-    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/plugin-catalog.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/ratmath/rix/edit/main/documentation/plugin-catalog.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/ratmath/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
 <p>Documentation built with <a href="https://quarto.org/">Quarto</a></p>
 </div>

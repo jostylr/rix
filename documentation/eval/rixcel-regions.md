@@ -1,6 +1,6 @@
-# RiXCel named regions and block formatting
+# RiX Ripple named regions and block formatting
 
-RiXCel v3 records named regions and formatting as sparse history events. Bounds
+RiX Ripple v3 records named regions and formatting as sparse history events. Bounds
 are inclusive numeric coordinates with one entry per tensor axis, including
 hidden plane axes. They never change formulas, exact values, dependency targets,
 or the numeric `grid[...]` addresses. A name is navigation metadata, not a new

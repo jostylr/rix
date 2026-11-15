@@ -18,7 +18,7 @@ No capstone requires RiX-Ed, network access, or a hosted service.
 
 **Prerequisites:** the [output guide](../eval/output-guide.md) and
 [publication workflows](../eval/publication-workflows.md). Start with the existing
-[publication project](https://github.com/jostylr/rix/blob/main/examples/publication-workflow/README.md), which
+[publication project](https://github.com/ratmath/rix/blob/main/examples/publication-workflow/README.md), which
 already contains two sources, local SVG media, named inputs, and a Notebook project.
 
 ```sh
@@ -42,9 +42,9 @@ See the project README for the native and browser Notebook export path.
 
 ## 2. Report proved roots, ODE bounds, and unfinished work together
 
-**Prerequisites:** [validated box search](https://github.com/jostylr/rix/blob/main/plugins/numerics/validated-boxes-tutorial.md)
-and [ODE tubes](https://github.com/jostylr/rix/blob/main/plugins/ode/tutorial.md). These bundled plugins are loaded by
-[the capstone source](https://github.com/jostylr/rix/blob/main/examples/capstones/certified-exploration.rix).
+**Prerequisites:** [validated box search](https://github.com/ratmath/rix/blob/main/plugins/numerics/validated-boxes-tutorial.md)
+and [ODE tubes](https://github.com/ratmath/rix/blob/main/plugins/ode/tutorial.md). These bundled plugins are loaded by
+[the capstone source](https://github.com/ratmath/rix/blob/main/examples/capstones/certified-exploration.rix).
 
 ```sh
 bun bin/rix.js examples/capstones/certified-exploration.rix
@@ -66,7 +66,7 @@ result renders as static HTML or CLI text without a plotting or worker host.
 ## 3. Display rounded numbers without replacing exact source
 
 **Prerequisites:** [numeric presentation](../eval/numeric-presentation.md).
-The existing [numeric-presentation source](https://github.com/jostylr/rix/blob/main/examples/renderers/numeric-presentation.rix)
+The existing [numeric-presentation source](https://github.com/ratmath/rix/blob/main/examples/renderers/numeric-presentation.rix)
 contains fractions, a reversed interval, a table, a sheet, a control snapshot,
 and a graphic under one presentation policy.
 
@@ -84,13 +84,13 @@ native backend and reports unavailability when it is missing.
 The control is deliberately snapshotted, so the saved report does not imply a
 live connection to a future evaluation. Change the rational source and rebuild
 to update every format. For positional numeral systems, continue with
-[the radix tutorial](https://github.com/jostylr/rix/blob/main/plugins/radix/tutorial.md) and its exact parsing rules.
+[the radix tutorial](https://github.com/ratmath/rix/blob/main/plugins/radix/tutorial.md) and its exact parsing rules.
 
 ## 4. Resolve tensor coordinates before choosing a sheet projection
 
 **Prerequisites:** [tensor sheets](../eval/rixcel-tensors.md) and the
 [Sheet guide](../eval/sheet-guide.md). Reuse the tested
-[sheet-view source](https://github.com/jostylr/rix/blob/main/examples/rixcel/sheet-views.rix).
+[sheet-view source](https://github.com/ratmath/rix/blob/main/examples/rixcel/sheet-views.rix).
 
 ```sh
 bun bin/rix.js examples/rixcel/sheet-views.rix
@@ -111,7 +111,7 @@ label before continuing. Large/infinite layouts need an explicit finite window;
 
 **Prerequisites:** basic JavaScript hosting and
 [concurrency safety](../eval/concurrency-safety.md). Run the
-[host source](https://github.com/jostylr/rix/blob/main/examples/capstones/async-cancellation.mjs) with Bun:
+[host source](https://github.com/ratmath/rix/blob/main/examples/capstones/async-cancellation.mjs) with Bun:
 
 ```sh
 bun examples/capstones/async-cancellation.mjs
@@ -134,23 +134,23 @@ adapter may remain active until it returns. The example performs no external I/O
 ## 6. Rebuild a spreadsheet from portable source and exchange values
 
 **Prerequisites:** [workbooks](../eval/workbooks.md) and the
-[RiXCel example guide](https://github.com/jostylr/rix/blob/main/examples/rixcel/README.md). Reuse both sources:
+[RiX Ripple example guide](https://github.com/ratmath/rix/blob/main/examples/rixcel/README.md). Reuse both sources:
 
 ```sh
 bun bin/rix.js examples/rixcel/persistence.rix
 bun bin/rix.js examples/rixcel/delimited.rix
 ```
 
-The first builds a FormulaSheet, exports canonical RiXCel JSON, imports it into a
+The first builds a FormulaSheet, exports canonical RiX Ripple JSON, imports it into a
 fresh context, and displays recomputed values: 10, 20, 3, and **23**. Inspect the
 printed JSON: formulas are saved source, not trusted serialized closures or cached
 executable state. The browser Cel app can open the existing
-[`budget.rixcel`](https://github.com/jostylr/rix/blob/main/examples/rixcel/budget.rixcel) fixture and save edits.
+[`budget.rixcel`](https://github.com/ratmath/rix/blob/main/examples/rixcel/budget.rixcel) fixture and save edits.
 
 The second imports CSV values, displays a sheet, and exports TSV. Its foreign
 `=SUM(A1:A2)` formula remains **inert text**. Decimal 4.5 is exact rational input;
 CSV/TSV do not preserve a workbook's formula graph, history, or complete metadata.
-Use RiXCel/RiXBook for those semantics. See the
+Use RiX Ripple/RiXBook for those semantics. See the
 [format and validation contract](../design/eval/rixcel-format.md) for version
 migration and rejected malformed input. Spreadsheet export capability differs by
 host: portable JSON and CSV remain available without a native dialog or XLSX host.

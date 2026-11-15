@@ -6,7 +6,7 @@ status: implemented
 ---
 
 The plugin itself is written in RiX, so the same definitions run in the CLI,
-RiX Web, and RiX Notebook without a JavaScript plugin permission boundary.
+RiX Playground, and RiX Weave without a JavaScript plugin permission boundary.
 
 ## A sequence is not yet a certified real
 

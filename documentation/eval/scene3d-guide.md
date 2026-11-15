@@ -165,7 +165,7 @@ The return value includes screen coordinates for accessible DOM or Canvas text
 overlays. Exact Scene3D coordinates cross to Float32 only during GPU execution,
 and the plan reports that approximation as a diagnostic.
 
-RiX Web applies each retained annotation policy after projection. `occlusion`
+RiX Playground applies each retained annotation policy after projection. `occlusion`
 may be `"show"`, `"fade"`, or `"hide"`; fade and hide compare the annotation
 anchor with projected mesh depth without removing the semantic annotation from
 the scene. Its toolbar searches exact picking identities and descriptions and
@@ -236,7 +236,7 @@ bun bin/rix.js --out=tmp/tesseract-out examples/geometry/tesseract.rix
 ```
 
 This creates `tesseract.svg` from a deterministic wireframe snapshot and
-`tesseract.gltf` from the same retained 3D scene. The corresponding RiX Web
+`tesseract.gltf` from the same retained 3D scene. The corresponding RiX Playground
 tutorials run the browser-safe parts directly.
 
 Bounded implicit-region, ODE trajectory/event, ND affine section, linked 4D

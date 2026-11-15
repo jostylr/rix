@@ -305,5 +305,5 @@ export function installBrowserApproxMathPlugin({ systemContext, registry, metada
     return systemContext;
 }
 
-/** Browser host entry used by the RiX Web generated plugin catalog. */
+/** Browser host entry used by the RiX Playground generated plugin catalog. */
 export const install = installBrowserApproxMathPlugin;

@@ -9,7 +9,7 @@ on a browser DOM.
 live view whose semantic edits are handled by a host-owned widget session.
 `.Sheet(.FormulaSheet(...))` displays the current results of a separate
 formula-backed model. Formula source can be persisted in the versioned
-[RiXCel document format](../design/eval/rixcel-format.md).
+[RiX Ripple document format](../design/eval/rixcel-format.md).
 
 ## Basic shaped view
 
@@ -27,7 +27,7 @@ grid[2,1]  grid[2,2]  grid[2,3]
 ```
 
 HTML renderers expose the address as `data-rix-address` and as the cell title.
-RiX Web and the RiX notebook enhance this markup with pointer and keyboard
+RiX Playground and the RiX notebook enhance this markup with pointer and keyboard
 selection. Selecting an entry shows `C2 · grid[2,3]` without parsing a display
 label back into RiX source.
 
@@ -42,7 +42,7 @@ m := {:2x3: 1, 2, 3; 4, 5, 6}
 ```
 
 Use the arrow keys, Home, and End to move around a focused sheet. In a read-only
-Sheet, Enter or a double-click activates the selected address. In RiX Web this
+Sheet, Enter or a double-click activates the selected address. In RiX Playground this
 inserts the canonical address into the formula input; in the notebook it
 inserts the address at the current editor selection. Selection never mutates
 the source shaped.
@@ -141,7 +141,7 @@ depth2 := .Sheet(t, {=
 The top-right visible entry has value `9`, shaped index `[1,3,2]`, and address
 `cube[1,3,2]`.
 
-RiX Web and the notebook render a selector for every hidden axis. Changing a
+RiX Playground and the notebook render a selector for every hidden axis. Changing a
 selector swaps the visible plane in the immutable snapshot; it does not mutate
 the shaped. The portable Sheet value retains one plane record for every hidden
 axis combination so this interaction also works in static and live notebook
@@ -207,7 +207,7 @@ A Binding captures the RiX `Cell` behind the name. If `m` is later rebound with
 `:=`, an existing Binding continues to refer to the original Cell instead of
 silently switching targets.
 
-RiX Web and the editable notebook result pane translate edits into semantic
+RiX Playground and the editable notebook result pane translate edits into semantic
 `sheet:set` events containing a full 1-based shaped index and a RiX value. A
 host-owned `WidgetSession` validates the index, updates the Binding, increments
 its revision, and creates a refreshed Sheet. The browser DOM is never stored in
@@ -346,9 +346,9 @@ namespaces supplied by the [workbook host](workbooks.md).
 
 Formula copy/paste keeps source semantics explicit. `grid[1,1]` is copied as
 an absolute coordinate and `near[0,-1]` remains relative to whichever cell
-receives the formula. RiXCel does not infer or rewrite references from display
+receives the formula. RiX Ripple does not infer or rewrite references from display
 labels. The clipboard also retains the separate assignment mode when the
-source and destination both support the RiXCel formula format.
+source and destination both support the RiX Ripple formula format.
 
 Selecting a formula cell also shows its currently tracked dependency addresses,
 for example `Depends on: grid[1,1]`. These are the edges observed during the
@@ -380,7 +380,7 @@ last committed values remain available and involved slots retain diagnostics.
 
 This is deliberately distinct from `.Bind`: a Binding editor computes one new
 value immediately, whereas a FormulaSheet owns source, compiled formulas, and
-the dependency graph. In RiX Web and the notebook, Enter on a FormulaSheet
+the dependency graph. In RiX Playground and the notebook, Enter on a FormulaSheet
 cell edits its stored formula body; the WidgetSession passes source and mode to
 the FormulaSheet compiler, publishes a `sheet:formula` event, and refreshes all
 dependent cells.
@@ -397,8 +397,8 @@ assignment mode, and JSON-safe view metadata. Import validates and recompiles
 source in a fresh FormulaSheet context, then rebuilds values and dependencies
 through an initial epoch. Compiled IR and runtime caches are deliberately not
 trusted or persisted. See the
-[RiXCel format specification](../design/eval/rixcel-format.md). The standalone
-RiXCel editor provides browser file-open/save; explicit imports and sparse
+[RiX Ripple format specification](../design/eval/rixcel-format.md). The standalone
+RiX Ripple editor provides browser file-open/save; explicit imports and sparse
 rank-N storage remain on the implementation checklist.
 
 ## CSV and TSV interchange
@@ -575,7 +575,7 @@ from the current sheet without adding a whole-sheet dependency;
 `.Sheet($values)` makes an enclosing reactive output rebuild after any slot
 changes.
 
-When RiX Web receives a direct final read such as `$frag`, it renders the
+When RiX Playground receives a direct final read such as `$frag`, it renders the
 current Fragment and subscribes to that node. Each successful graph commit
 replaces the portable output and remounts its interactive children. Removing
 or rerunning the output disposes the old subscription. `.LiveView` is retained

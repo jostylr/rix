@@ -320,7 +320,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </ul>
             <ul class="navbar-nav navbar-nav-scroll ms-auto">
   <li class="nav-item compact">
-    <a class="nav-link" href="https://github.com/jostylr/rix"> <i class="bi bi-github" role="img" aria-label="RiX on GitHub">
+    <a class="nav-link" href="https://github.com/ratmath/rix"> <i class="bi bi-github" role="img" aria-label="RiX on GitHub">
 </i> 
 <span class="menu-text"></span></a>
   </li>  
@@ -364,7 +364,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#rixcel-architecture" id="toc-rixcel-architecture" class="nav-link active" data-scroll-target="#rixcel-architecture">RiXCel architecture</a>
+  <li><a href="#rixcel-architecture" id="toc-rixcel-architecture" class="nav-link active" data-scroll-target="#rixcel-architecture">RiX Ripple architecture</a>
   <ul class="collapse">
   <li><a href="#status" id="toc-status" class="nav-link" data-scroll-target="#status">Status</a></li>
   <li><a href="#vocabulary" id="toc-vocabulary" class="nav-link" data-scroll-target="#vocabulary">Vocabulary</a></li>
@@ -375,7 +375,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#two-execution-models" id="toc-two-execution-models" class="nav-link" data-scroll-target="#two-execution-models">Two execution models</a>
   <ul class="collapse">
   <li><a href="#immediate-binding-view" id="toc-immediate-binding-view" class="nav-link" data-scroll-target="#immediate-binding-view">Immediate Binding view</a></li>
-  <li><a href="#formula-backed-rixcel-sheet" id="toc-formula-backed-rixcel-sheet" class="nav-link" data-scroll-target="#formula-backed-rixcel-sheet">Formula-backed RiXCel sheet</a></li>
+  <li><a href="#formula-backed-rixcel-sheet" id="toc-formula-backed-rixcel-sheet" class="nav-link" data-scroll-target="#formula-backed-rixcel-sheet">Formula-backed RiX Ripple sheet</a></li>
   </ul></li>
   <li><a href="#reactive-document-model" id="toc-reactive-document-model" class="nav-link" data-scroll-target="#reactive-document-model">Reactive document model</a></li>
   <li><a href="#dependencies-and-cycles" id="toc-dependencies-and-cycles" class="nav-link" data-scroll-target="#dependencies-and-cycles">Dependencies and cycles</a></li>
@@ -384,7 +384,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#security-and-imports" id="toc-security-and-imports" class="nav-link" data-scroll-target="#security-and-imports">Security and imports</a></li>
   </ul></li>
   </ul>
-<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/design/eval/rixcel-architecture.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+<div class="toc-actions"><ul><li><a href="https://github.com/ratmath/rix/edit/main/documentation/design/eval/rixcel-architecture.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/ratmath/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
 <!-- main -->
 <main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"></header>
@@ -394,11 +394,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 
 <section id="rixcel-architecture" class="level1">
-<h1>RiXCel architecture</h1>
+<h1>RiX Ripple architecture</h1>
 <section id="status" class="level2">
 <h2 class="anchored" data-anchor-id="status">Status</h2>
 <p>The portable <code>.Sheet(...)</code> output value adapts existing tensors, matrices, and sequences into a two-dimensional snapshot with exact values, rank-N plane selection, canonical RiX addresses, and host-neutral text/HTML rendering.</p>
-<p>RiX Web, the RiX notebook, and live notebook exports now share a host-side selection enhancer. It provides a dual address indicator, pointer selection, roving keyboard focus, and semantic select/activate events. Activation inserts the canonical address in the editable RiX hosts.</p>
+<p>RiX Playground, the RiX notebook, and live notebook exports now share a host-side selection enhancer. It provides a dual address indicator, pointer selection, roving keyboard focus, and semantic select/activate events. Activation inserts the canonical address in the editable RiX hosts.</p>
 <p>The Binding/Widget slice is also implemented: <code>.Bind(variable)</code> captures RiX Cell identity, <code>.Sheet(.Bind(variable))</code> creates a live Sheet, and a host-owned <code>WidgetSession</code> routes validated semantic edits.</p>
 <p>The same host-owned protocol now supports interactive Graphics. <code>.Graphics.DragPoint($$point)</code> retains a reactive node identity and dispatches validated <code>graphic:position</code> records without putting DOM state in the scene.</p>
 <p>Formula-backed sheets use <code>.FormulaSheet(...)</code>. Each sheet owns deferred formulas, evaluates them in an isolated sheet context, records <code>grid[...]</code> dependencies, detects complete cycle paths, incrementally recomputes transitive dependents, and atomically commits successful epochs. It is a coordinate adapter over the general <code>.ReactiveGraph(...)</code> runtime, exposed as <code>formulaSheet.Graph()</code>. Named scalar computations can therefore join the same graph as formula slots. <code>.Sheet(formulaSheet)</code> stages current results and editable formula source for display. Sparse rank-N <code>.rixcel</code> documents (now version 3, with v0–2 migration) round-trip authoritative source and executable-style edit history. The standalone editor uses that log for recovery and undo/redo. Structural edits, dependency rewrites, range fills, and formatting are validated atomic document events. Explicit tensor planes support rank-N edits, retained formula spills, and collision checks.</p>
@@ -407,7 +407,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="vocabulary" class="level2">
 <h2 class="anchored" data-anchor-id="vocabulary">Vocabulary</h2>
-<p>RiX already uses <strong>Cell</strong> for the mutable box behind a scope binding. RiXCel therefore uses distinct internal terms:</p>
+<p>RiX already uses <strong>Cell</strong> for the mutable box behind a scope binding. RiX Ripple therefore uses distinct internal terms:</p>
 <ul>
 <li><strong>slot</strong>: a sheet coordinate containing RiX source and presentation metadata;</li>
 <li><strong>RiX Cell</strong>: a runtime binding box with alias/copy/update semantics;</li>
@@ -420,7 +420,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="separation-of-model-output-and-interaction" class="level2">
 <h2 class="anchored" data-anchor-id="separation-of-model-output-and-interaction">Separation of model, output, and interaction</h2>
-<pre class="text"><code>RiX value or RiXCel document
+<pre class="text"><code>RiX value or RiX Ripple document
              |
              v
       portable Sheet value
@@ -489,7 +489,7 @@ near[0,-1]
 book[:sales][2,3]
 names[:tax_rate]
 imports[:rates][:usd][1,1]</code></pre>
-<p>These names belong to FormulaSheet/RiXCel evaluation, not the portable <code>Sheet</code> constructor.</p>
+<p>These names belong to FormulaSheet/RiX Ripple evaluation, not the portable <code>Sheet</code> constructor.</p>
 </section>
 <section id="data-adapters" class="level2">
 <h2 class="anchored" data-anchor-id="data-adapters">Data adapters</h2>
@@ -498,14 +498,14 @@ imports[:rates][:usd][1,1]</code></pre>
 <li><code>.Sheet(value)</code> creates a read-only snapshot.</li>
 <li><code>.Sheet(.Bind(variable))</code> creates a live value editor.</li>
 <li><code>.FormulaSheet(formulas)</code> creates formula slots from deferred RiX bodies.</li>
-<li><code>RiXCel.From(value)</code> will materialize literal RiX source into independent formula slots.</li>
+<li><code>RiX Ripple.From(value)</code> will materialize literal RiX source into independent formula slots.</li>
 <li>A linked import will create slot formulas that depend on the original value.</li>
 </ol>
 <p>The UI must ask which behavior is intended rather than guessing. A live handle is never persisted. <code>WidgetSession.snapshot()</code> creates a detached Sheet with the current exact plane records, <code>binding=null</code>, and <code>editable=false</code>.</p>
 </section>
 <section id="two-execution-models" class="level2">
 <h2 class="anchored" data-anchor-id="two-execution-models">Two execution models</h2>
-<p>RiXCel must keep immediate Binding views and formula-backed sheets as different entities.</p>
+<p>RiX Ripple must keep immediate Binding views and formula-backed sheets as different entities.</p>
 <section id="immediate-binding-view" class="level3">
 <h3 class="anchored" data-anchor-id="immediate-binding-view">Immediate Binding view</h3>
 <p><code>.Sheet(.Bind(value))</code> evaluates editor input immediately in the host RiX context, then writes the resulting value through the Binding. A reference to the edited tensor reads the last committed value:</p>
@@ -513,8 +513,8 @@ imports[:rates][:usd][1,1]</code></pre>
 <p>This is deliberately not dependency evaluation. Referring to the current tensor while calculating a replacement is valid because the write has not happened yet.</p>
 </section>
 <section id="formula-backed-rixcel-sheet" class="level3">
-<h3 class="anchored" data-anchor-id="formula-backed-rixcel-sheet">Formula-backed RiXCel sheet</h3>
-<p>A RiXCel sheet owns formula slots and an isolated execution context. The implemented dense rank-N model is constructed from deferred formulas:</p>
+<h3 class="anchored" data-anchor-id="formula-backed-rixcel-sheet">Formula-backed RiX Ripple sheet</h3>
+<p>A RiX Ripple sheet owns formula slots and an isolated execution context. The implemented dense rank-N model is constructed from deferred formulas:</p>
 <pre class="rix"><code>model := .FormulaSheet([
     [@{1},                 @{ grid[1,1] + 1 }],
     [@{ grid[1,2] * 2 },   @{ grid[2,1] + 1 }]
@@ -536,7 +536,7 @@ state           clean, dirty, evaluating, or error
 dependencies    slot identities read during the last successful evaluation
 diagnostics     parse, cycle, or runtime diagnostics
 view            presentation metadata</code></pre>
-<p>The implemented version-2 <code>.rixcel</code> JSON format persists the document ID, shape, a default slot, canonical edit events, a history cursor, failed drafts, formula source, assignment mode, and JSON-safe view metadata. It does not persist compiled IR, values, dependencies, graph state, or caches. <code>.RiXCelImport</code> validates, replays, and recompiles source before a fresh initial epoch reconstructs those runtime records. See <a href="../../design/eval/rixcel-format.html">RiXCel document format</a>.</p>
+<p>The implemented version-2 <code>.rixcel</code> JSON format persists the document ID, shape, a default slot, canonical edit events, a history cursor, failed drafts, formula source, assignment mode, and JSON-safe view metadata. It does not persist compiled IR, values, dependencies, graph state, or caches. <code>.RiXCelImport</code> validates, replays, and recompiles source before a fresh initial epoch reconstructs those runtime records. See <a href="../../design/eval/rixcel-format.html">RiX Ripple document format</a>.</p>
 <p>Deferred syntax such as <code>@{ ... }</code> is the programmatic formula representation. Stored source is now authoritative for source edits and deferred IR is rebuilt from it. A deferred value captured from an arbitrary caller scope is not the formula context; the sheet evaluates its lowered formula inside a document-owned context containing <code>grid</code>, <code>row</code>, <code>col</code>, <code>index</code>, and eventually <code>names</code> and explicit imports.</p>
 <p>Formula editing uses a different semantic event from Binding value editing. This event and its WidgetSession route are implemented:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>{ <span class="dt">type</span><span class="op">:</span> <span class="st">"sheet:formula"</span><span class="op">,</span> <span class="dt">index</span><span class="op">:</span> [<span class="dv">2</span><span class="op">,</span> <span class="dv">3</span>]<span class="op">,</span> <span class="dt">source</span><span class="op">:</span> <span class="st">"price * quantity"</span><span class="op">,</span> <span class="dt">assignmentMode</span><span class="op">:</span> <span class="st">":="</span> }</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -587,7 +587,7 @@ $frag</code></pre>
 </section>
 <section id="reactive-document-model" class="level2">
 <h2 class="anchored" data-anchor-id="reactive-document-model">Reactive document model</h2>
-<p>RiXCel version 2 is a sparse rank-N event log. An edited slot event stores:</p>
+<p>RiX Ripple version 2 is a sparse rank-N event log. An edited slot event stores:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb18"><pre class="sourceCode json code-with-copy"><code class="sourceCode json"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
 <span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"id"</span><span class="fu">:</span> <span class="st">"budget:event:7"</span><span class="fu">,</span></span>
 <span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"sequence"</span><span class="fu">:</span> <span class="dv">7</span><span class="fu">,</span></span>
@@ -622,7 +622,7 @@ $frag</code></pre>
 </section>
 <section id="standalone-host" class="level2">
 <h2 class="anchored" data-anchor-id="standalone-host">Standalone host</h2>
-<p><code>apps/cel</code> is now the first standalone RiXCel host. It reuses the portable Sheet renderer, FormulaSheet runtime, and WidgetSession rather than owning a second formula engine. The initial shell provides:</p>
+<p><code>apps/cel</code> is now the first standalone RiX Ripple host. It reuses the portable Sheet renderer, FormulaSheet runtime, and WidgetSession rather than owning a second formula engine. The initial shell provides:</p>
 <ul>
 <li>formula editing with modes and exact-value feedback;</li>
 <li>native <code>.rixcel</code> open/save and browser-local recovery;</li>
@@ -633,7 +633,7 @@ $frag</code></pre>
 </section>
 <section id="security-and-imports" class="level2">
 <h2 class="anchored" data-anchor-id="security-and-imports">Security and imports</h2>
-<p>RiXCel imports should reuse RiX script capability groups and explicit import/export contracts. A browser host resolves document-relative resources through a virtual document resolver rather than granting formulas arbitrary filesystem or network access.</p>
+<p>RiX Ripple imports should reuse RiX script capability groups and explicit import/export contracts. A browser host resolves document-relative resources through a virtual document resolver rather than granting formulas arbitrary filesystem or network access.</p>
 <p>Imported spreadsheet formulas are data until explicitly translated to RiX. Unsupported foreign formulas must be preserved as metadata and must not be executed.</p>
 
 
@@ -731,7 +731,7 @@ $frag</code></pre>
     }
       var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
       var mailtoRegex = new RegExp(/^mailto:/);
-        var filterRegex = new RegExp("https:\/\/jostylr\.github\.io\/rix\/");
+        var filterRegex = new RegExp("https:\/\/docs\.rix\.ratmath\.com\/");
       var isInternal = (href) => {
           return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
       }
@@ -1071,7 +1071,7 @@ $frag</code></pre>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
-    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/design/eval/rixcel-architecture.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/ratmath/rix/edit/main/documentation/design/eval/rixcel-architecture.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/ratmath/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
 <p>Documentation built with <a href="https://quarto.org/">Quarto</a></p>
 </div>

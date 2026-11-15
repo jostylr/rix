@@ -286,7 +286,7 @@ ul.task-list li input[type="checkbox"] {
 </ul>
             <ul class="navbar-nav navbar-nav-scroll ms-auto">
   <li class="nav-item compact">
-    <a class="nav-link" href="https://github.com/jostylr/rix"> <i class="bi bi-github" role="img" aria-label="RiX on GitHub">
+    <a class="nav-link" href="https://github.com/ratmath/rix"> <i class="bi bi-github" role="img" aria-label="RiX on GitHub">
 </i> 
 <span class="menu-text"></span></a>
   </li>  
@@ -337,7 +337,7 @@ ul.task-list li input[type="checkbox"] {
   <li><a href="#script-capability-groups" id="toc-script-capability-groups" class="nav-link" data-scroll-target="#script-capability-groups">Script capability groups</a></li>
   <li><a href="#internal-ir-registry" id="toc-internal-ir-registry" class="nav-link" data-scroll-target="#internal-ir-registry">Internal IR registry</a></li>
   </ul>
-<div class="toc-actions"><ul class="collapse"><li><a href="https://github.com/jostylr/rix/edit/main/documentation/reference/system-reference.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+<div class="toc-actions"><ul class="collapse"><li><a href="https://github.com/ratmath/rix/edit/main/documentation/reference/system-reference.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/ratmath/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
 <!-- main -->
 <main class="content" id="quarto-document-content">
@@ -919,7 +919,7 @@ Note
 <tr class="odd">
 <td><code>.FORMULASHEET</code></td>
 <td>function</td>
-<td>RiXCel</td>
+<td>RiX Ripple</td>
 <td>Create a formula-backed sheet from a shaped or rectangular array of deferred RiX formulas</td>
 </tr>
 <tr class="even">
@@ -1627,7 +1627,7 @@ Note
 <tr class="odd">
 <td><code>.REACTIVEGRAPH</code></td>
 <td>function</td>
-<td>RiXCel</td>
+<td>RiX Ripple</td>
 <td>Create a transactional graph of reactive source and computed nodes</td>
 </tr>
 <tr class="even">
@@ -1729,37 +1729,37 @@ Note
 <tr class="even">
 <td><code>.RIXCELEXPORT</code></td>
 <td>function</td>
-<td>RiXCel</td>
-<td>Serialize a FormulaSheet to canonical versioned RiXCel JSON</td>
+<td>RiX Ripple</td>
+<td>Serialize a FormulaSheet to canonical versioned RiX Ripple JSON</td>
 </tr>
 <tr class="odd">
 <td><code>.RIXCELEXPORTCSV</code></td>
 <td>function</td>
-<td>RiXCel</td>
+<td>RiX Ripple</td>
 <td>Export the computed values of a rank-2 FormulaSheet as CSV</td>
 </tr>
 <tr class="even">
 <td><code>.RIXCELEXPORTTSV</code></td>
 <td>function</td>
-<td>RiXCel</td>
+<td>RiX Ripple</td>
 <td>Export the computed values of a rank-2 FormulaSheet as TSV</td>
 </tr>
 <tr class="odd">
 <td><code>.RIXCELIMPORT</code></td>
 <td>function</td>
-<td>RiXCel</td>
-<td>Rebuild a FormulaSheet by compiling authoritative source from RiXCel JSON</td>
+<td>RiX Ripple</td>
+<td>Rebuild a FormulaSheet by compiling authoritative source from RiX Ripple JSON</td>
 </tr>
 <tr class="even">
 <td><code>.RIXCELIMPORTCSV</code></td>
 <td>function</td>
-<td>RiXCel</td>
+<td>RiX Ripple</td>
 <td>Import CSV values into a rank-2 FormulaSheet; optional header=1 uses the first row as labels</td>
 </tr>
 <tr class="odd">
 <td><code>.RIXCELIMPORTTSV</code></td>
 <td>function</td>
-<td>RiXCel</td>
+<td>RiX Ripple</td>
 <td>Import TSV values into a rank-2 FormulaSheet; optional header=1 uses the first row as labels</td>
 </tr>
 <tr class="even">
@@ -3059,7 +3059,7 @@ Note
 <td><code>combinatorics</code>, <code>comb</code></td>
 </tr>
 <tr class="even">
-<td><code>RiXCel</code></td>
+<td><code>RiX Ripple</code></td>
 <td><code>FORMULASHEET</code>, <code>REACTIVEGRAPH</code>, <code>RIXCELEXPORT</code>, <code>RIXCELIMPORT</code>, <code>RIXCELIMPORTCSV</code>, <code>RIXCELIMPORTTSV</code>, <code>RIXCELEXPORTCSV</code>, <code>RIXCELEXPORTTSV</code></td>
 </tr>
 </tbody>
@@ -4231,7 +4231,7 @@ Note
 <tr class="even">
 <td><code>RIXCELEXPORT</code></td>
 <td>eager, effectful/unspecified</td>
-<td>Serialize a FormulaSheet to canonical versioned RiXCel JSON</td>
+<td>Serialize a FormulaSheet to canonical versioned RiX Ripple JSON</td>
 </tr>
 <tr class="odd">
 <td><code>RIXCELEXPORTCSV</code></td>
@@ -4246,7 +4246,7 @@ Note
 <tr class="odd">
 <td><code>RIXCELIMPORT</code></td>
 <td>eager, effectful/unspecified</td>
-<td>Rebuild a FormulaSheet by compiling authoritative source from RiXCel JSON</td>
+<td>Rebuild a FormulaSheet by compiling authoritative source from RiX Ripple JSON</td>
 </tr>
 <tr class="even">
 <td><code>RIXCELIMPORTCSV</code></td>
@@ -4610,7 +4610,7 @@ Note
     }
       var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
       var mailtoRegex = new RegExp(/^mailto:/);
-        var filterRegex = new RegExp("https:\/\/jostylr\.github\.io\/rix\/");
+        var filterRegex = new RegExp("https:\/\/docs\.rix\.ratmath\.com\/");
       var isInternal = (href) => {
           return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
       }
@@ -4950,7 +4950,7 @@ Note
 </div>   
     <div class="nav-footer-center">
       &nbsp;
-    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/reference/system-reference.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/ratmath/rix/edit/main/documentation/reference/system-reference.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/ratmath/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
 <p>Documentation built with <a href="https://quarto.org/">Quarto</a></p>
 </div>

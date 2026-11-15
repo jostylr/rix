@@ -6,7 +6,7 @@ The initial portable-output slice is implemented: `.Text`, `.Paragraph`,
 `.Callout`, `.CodeBlock`, `.MathBlock`, `.Table`, `.Grid`, `.Sheet`,
 `.Graphics`, `.Figure`, `.Image`, `.Audio`, `.Video`, `.Slide`, `.Slides`, and
 `.ControlPanel` construct typed immutable output records. The CLI has a
-text fallback, and the RiX notebook and RiX Web calculator render tables and
+text fallback, and the RiX notebook and RiX Playground calculator render tables and
 grids as HTML and retained 2D scenes as inline SVG. `Sheet` has host-neutral
 text and HTML renderers plus shared notebook and web interaction.
 `.Algebra.SyntheticDivision(root,
@@ -322,7 +322,7 @@ cell's complete 1-based tensor index and a canonical address such as
 `grid[2,3,1]`. For rank greater than two, `viewAxes` chooses the displayed axes
 and `slice` fixes every hidden axis. The current value is a static snapshot;
 live editing belongs to the planned `Binding`/`Widget` layer described in the
-[RiXCel architecture](rixcel-architecture.md).
+[RiX Ripple architecture](rixcel-architecture.md).
 
 ### Current 2D scene primitives
 
@@ -408,7 +408,7 @@ badge := .Graphics.Graphic([240, 120], [
 ])
 ```
 
-The RiX Web structured-output tutorial runs a larger example using every
+The RiX Playground structured-output tutorial runs a larger example using every
 primitive, including clipping. Geometry and plotting plugins should prefer
 returning this vocabulary over backend-specific SVG strings.
 

@@ -2,7 +2,7 @@
 plugins: [scene3d, nd, png, gif, gltf]
 **/
 
-## CLI companion for the RiX-Web Scene3D and nD labs. Run with --out=DIR.
+## CLI companion for the RiX Playground Scene3D and nD labs. Run with --out=DIR.
 ## It writes two PNG snapshots, one animated slice GIF, and one glTF scene.
 
 SliceEdgePoints(polytope, level) -> {;

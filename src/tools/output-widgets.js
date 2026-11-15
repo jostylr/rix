@@ -2,7 +2,7 @@
  * Mount runtime-backed interactions for rendered output trees.
  *
  * This keeps host-specific source evaluation in a callback while sharing the
- * observable/widget mechanics between RiX Web and the notebook.
+ * observable/widget mechanics between RiX Playground and the notebook.
  */
 
 import { replaceOutputHtml } from "./incremental-svg.js";

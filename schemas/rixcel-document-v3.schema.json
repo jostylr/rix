@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://rix.ratmath.com/schema/rixcel-document/v3.schema.json",
-  "title": "Canonical RiXCel document v3",
+  "title": "Canonical RiX Ripple document v3",
   "description": "Sparse source-authoritative structural history. Runtime parsing/replay validates shape products, active-prefix dimensions, unique edits, canonical commands, rewrites and stable IDs. Schema validation does not execute formulas. Versions 0\u20132 migrate in the runtime.",
   "type": "object",
   "required": [

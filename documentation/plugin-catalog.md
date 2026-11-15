@@ -91,7 +91,7 @@ The cache is an internal implementation detail, not a public runtime API.
   unless the user has enabled the global JavaScript-plugin setting.
 
 In the web host, a `.plugin.rix.js` must be imported by the application's
-bundle/catalog source to be executable. RiX Notebook may import a discovered
+bundle/catalog source to be executable. RiX Weave may import a discovered
 desktop JavaScript plugin only after its approval flow has run. A project
 `.plugin.rix` is retained as source and can be loaded through the regular RiX
 plugin boundary.
@@ -173,7 +173,7 @@ and matrix or polynomial integrations.
 RiX-backed plugin entries are evaluated only when loaded. JavaScript-backed
 entries are discoverable from the same header but require a host-approved
 installer. Discovery alone never imports arbitrary JavaScript: a web host must
-bundle it, while RiX Notebook requires the user's explicit approval or global
+bundle it, while RiX Weave requires the user's explicit approval or global
 preference before importing it. This keeps the boundary explicit: RiX plugins
 run at a host-controlled RiX load boundary, while JavaScript plugins are
 trusted host extensions.

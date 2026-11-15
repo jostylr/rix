@@ -60,7 +60,7 @@ $$workbench2 := .geometry.Workbench($graph2,{=
 $workbench2;
 ```
 
-RiX Web supplies the object tree, property inspector, keyboard traversal,
+RiX Playground supplies the object tree, property inspector, keyboard traversal,
 session movement history, and export button. The same value still renders as
 ordinary Graphics in static hosts.
 

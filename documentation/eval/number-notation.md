@@ -59,7 +59,7 @@ A profile is a comma-separated list. Whitespace around entries is ignored.
 | `b/`, `x/` | improper fraction in that base |
 
 Display profiles are presentation only. A displayed `0.142…` is not a RiX
-number literal and must not be used to reconstruct the value. RiX Web's result
+number literal and must not be used to reconstruct the value. RiX Playground's result
 insertion control uses the exact source value (`1/7`) instead of the displayed
 text.
 
@@ -199,6 +199,6 @@ RiX workspace configuration accepts a `numbers` section:
 }
 ```
 
-The CLI's persistent `config.json` accepts the same section. RiX Web exposes it
+The CLI's persistent `config.json` accepts the same section. RiX Playground exposes it
 through the **Numbers** panel; settings are session-scoped unless **Remember in
 this browser** is selected.

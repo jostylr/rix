@@ -895,7 +895,7 @@ and the chosen-dual basis convention.
 - [x] Migrate runtime methods, standard functions, destructuring diagnostics,
   formatter labels, reference generation, editor tooling, and completions.
 - [x] Migrate all bundled plugins and examples from generic tensor assumptions.
-- [x] Update RiX Web and RiX Notebook consumers in coordinated changes.
+- [x] Update RiX Playground and RiX Weave consumers in coordinated changes.
 - [x] Replace `.TGEN` and every other superseded capability after its selected
   replacement works in every host; remove rather than deprecate the old name.
 - [x] Regenerate the system reference and search the repository for stale uses
@@ -964,7 +964,7 @@ Implementation is not complete until tests cover at least these cases:
   canonical spelling.
 - [x] Repository-owned serialized fixtures and IR use only the new names; old
   experimental tags and IR functions are rejected or unknown.
-- [ ] CLI, workers, RiX Web, RiX Notebook, sheets, renderers, and bundled
+- [ ] CLI, workers, RiX Playground, RiX Weave, sheets, renderers, and bundled
   plugins pass their targeted suites.
 - [x] The complete RiX suite passes after old names and compatibility adapters
   have been removed.

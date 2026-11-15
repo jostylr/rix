@@ -6,7 +6,7 @@ description: "An accessible, runnable course guide from finite probability throu
 This is a stand-alone guide for a first undergraduate course in probability,
 statistics, or data analysis. You can read it in order or start from the part
 that matches your course. Every RiX block marked **Run** is checked by the RiX
-documentation build and can be copied into the REPL, RiX Web, or a notebook.
+documentation build and can be copied into the REPL, RiX Playground, or a notebook.
 
 RiX keeps three jobs separate:
 

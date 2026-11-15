@@ -16,7 +16,7 @@ export const documentationNavigation = [
     contents: [
       page("introduction.md", "Complete introduction"),
       page("tutorial/capstones.md", "End-to-end projects"),
-      { text: "Interactive tutorials (RiX Web)", href: "https://rix.ratmath.com/tutorial/", external: true },
+      { text: "Interactive tutorials (RiX Playground)", href: "https://rix.ratmath.com/tutorial/", external: true },
       page("eval/sheet-guide.md", "Sheet views"),
       page("eval/workbooks.md", "Workbooks and cross-sheet dependencies"),
       page("eval/rixcel-tensors.md", "Tensor spills and rectangular edits"),
@@ -124,8 +124,8 @@ export const documentationNavigation = [
       page("design/eval/transformation-reference.md", "Symbolic transformations"),
       page("design/eval/output-model.md", "Structured output, documents, and graphics"),
       page("design/interactive-output-plugins.md", "Interactive output extension contracts"),
-      page("design/eval/rixcel-architecture.md", "RiXCel architecture"),
-      page("design/eval/rixcel-format.md", "RiXCel document format"),
+      page("design/eval/rixcel-architecture.md", "RiX Ripple architecture"),
+      page("design/eval/rixcel-format.md", "RiX Ripple document format"),
     ],
   },
   {

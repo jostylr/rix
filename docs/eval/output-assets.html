@@ -320,7 +320,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </ul>
             <ul class="navbar-nav navbar-nav-scroll ms-auto">
   <li class="nav-item compact">
-    <a class="nav-link" href="https://github.com/jostylr/rix"> <i class="bi bi-github" role="img" aria-label="RiX on GitHub">
+    <a class="nav-link" href="https://github.com/ratmath/rix"> <i class="bi bi-github" role="img" aria-label="RiX on GitHub">
 </i> 
 <span class="menu-text"></span></a>
   </li>  
@@ -371,7 +371,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#rendering-and-moving-an-export" id="toc-rendering-and-moving-an-export" class="nav-link" data-scroll-target="#rendering-and-moving-an-export">Rendering and moving an export</a></li>
   </ul></li>
   </ul>
-<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/output-assets.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+<div class="toc-actions"><ul><li><a href="https://github.com/ratmath/rix/edit/main/documentation/eval/output-assets.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/ratmath/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
 <!-- main -->
 <main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"></header>
@@ -393,7 +393,7 @@ recording := .Audio({=
     title="Explanation", transcript="The shared interval is nonempty."
 });
 .Fragment([picture, recording]);</code></pre>
-<p>The host resolves bytes only when explicitly exporting a bundle. Web REPL, Notebook engine, and RiXCel evaluation sessions expose <code>exportOutputBundle(value)</code> and <code>importOutputBundle(json)</code>. The result has <code>document</code>, <code>manifest</code>, a <code>files</code> Map of relative paths to bytes, <code>html</code>, and <code>text</code>; exports also return <code>json</code>. These are host JavaScript APIs, not ambient filesystem capabilities granted to RiX code. Web and RiXCel currently expose them to embedding applications. Notebook’s native and browser publication exports use the same resolver for structured output and copy its assets beside the exported note.</p>
+<p>The host resolves bytes only when explicitly exporting a bundle. Web REPL, Notebook engine, and RiX Ripple evaluation sessions expose <code>exportOutputBundle(value)</code> and <code>importOutputBundle(json)</code>. The result has <code>document</code>, <code>manifest</code>, a <code>files</code> Map of relative paths to bytes, <code>html</code>, and <code>text</code>; exports also return <code>json</code>. These are host JavaScript APIs, not ambient filesystem capabilities granted to RiX code. Web and RiX Ripple currently expose them to embedding applications. Notebook’s native and browser publication exports use the same resolver for structured output and copy its assets beside the exported note.</p>
 <section id="host-grants" class="level2">
 <h2 class="anchored" data-anchor-id="host-grants">Host grants</h2>
 <p>Import <code>createMemoryAssetStore</code>, <code>bundleOutputDocument</code>, <code>encodeOutputBundle</code>, and <code>decodeOutputBundle</code> from <code>@ratmath/rix/output-assets</code> (also exported from the main and runtime entry points). A memory store sees only preloaded entries:</p>
@@ -418,7 +418,7 @@ recording := .Audio({=
 <h2 class="anchored" data-anchor-id="rendering-and-moving-an-export">Rendering and moving an export</h2>
 <p>HTML images load lazily, use their declared accessible name, and use intrinsic dimensions when no display dimensions are supplied. An explicit width or height keeps the other dimension automatic. Audio/video have native keyboard controls, an accessible name, no automatic preload, and visible transcripts. External media is a link without a network-loaded <code>src</code>. Captions and transcripts survive Markdown, Quarto, and LaTeX. Static formats use links for audio/video. Portable LaTeX embeds PNG/JPEG; unsupported image formats retain an accessible link and a diagnostic.</p>
 <p>Write the <code>files</code> Map beside <code>html</code>/Markdown/LaTeX, preserving its relative paths. The single JSON bundle can also be moved and imported before extracting its verified file map. Notebook exports write a <code>&lt;note&gt;.rix-output.json</code> sidecar for structured publications and the same content-addressed files in each selected output directory. Ordinary notebook Markdown assets retain the existing project-copy behavior.</p>
-<p>The executable host example <code>examples/documents/portable-assets.mjs</code> builds a self-contained SVG image bundle from a generated RiX graphic. Host integration tests additionally generate a PNG, include a selected local image and audio transcript, move the export, remove the original asset folder, disable network access, and import into fresh Web, Notebook, and RiXCel sessions.</p>
+<p>The executable host example <code>examples/documents/portable-assets.mjs</code> builds a self-contained SVG image bundle from a generated RiX graphic. Host integration tests additionally generate a PNG, include a selected local image and audio transcript, move the export, remove the original asset folder, disable network access, and import into fresh Web, Notebook, and RiX Ripple sessions.</p>
 
 
 </section>
@@ -515,7 +515,7 @@ recording := .Audio({=
     }
       var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
       var mailtoRegex = new RegExp(/^mailto:/);
-        var filterRegex = new RegExp("https:\/\/jostylr\.github\.io\/rix\/");
+        var filterRegex = new RegExp("https:\/\/docs\.rix\.ratmath\.com\/");
       var isInternal = (href) => {
           return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
       }
@@ -855,7 +855,7 @@ recording := .Audio({=
 </div>   
     <div class="nav-footer-center">
       &nbsp;
-    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/output-assets.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/ratmath/rix/edit/main/documentation/eval/output-assets.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/ratmath/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
 <p>Documentation built with <a href="https://quarto.org/">Quarto</a></p>
 </div>
