@@ -1,7 +1,7 @@
-# RiXCel workbooks: owned exports and atomic updates
+# RiX Ripple workbooks: owned exports and atomic updates
 
-A `.rixbook` file contains several version-3 RiXCel documents plus explicit
-`names`, `exports`, and `imports` for each document. Open it in RiXCel and choose
+A `.rixbook` file contains several version-3 RiX Ripple documents plus explicit
+`names`, `exports`, and `imports` for each document. Open it in RiX Ripple and choose
 a document from the toolbar. Editing an input document updates every dependent
 output together. Each document keeps its own history; undo also recomputes other
 documents. Save/reopen and local recovery preserve the complete workbook.

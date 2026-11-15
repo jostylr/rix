@@ -38,7 +38,7 @@
           "href": "tutorial/capstones.html"
         },
         {
-          "text": "Interactive tutorials (RiX Web)",
+          "text": "Interactive tutorials (RiX Playground)",
           "href": "https://rix.ratmath.com/tutorial/",
           "external": true
         },
@@ -381,11 +381,11 @@
           "href": "design/interactive-output-plugins.html"
         },
         {
-          "text": "RiXCel architecture",
+          "text": "RiX Ripple architecture",
           "href": "design/eval/rixcel-architecture.html"
         },
         {
-          "text": "RiXCel document format",
+          "text": "RiX Ripple document format",
           "href": "design/eval/rixcel-format.html"
         }
       ]

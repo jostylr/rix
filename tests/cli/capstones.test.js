@@ -22,9 +22,9 @@ test("tensor capstone resolves labeled coordinates before presentation", () => {
   expect(html).toContain("Column 2 by depth");
 });
 
-test("RiXCel capstone roundtrips formulas and keeps foreign CSV formulas inert", () => {
+test("RiX Ripple capstone roundtrips formulas and keeps foreign CSV formulas inert", () => {
   const restored = renderOutputHtml(evaluate("rixcel/persistence.rix"), formatValue);
-  expect(restored).toContain("Restored RiXCel document");
+  expect(restored).toContain("Restored RiX Ripple document");
   const values = parseAndEvaluate(source("rixcel/persistence.rix") + "; [restored[1,1],restored[1,2],restored[2,1],restored[2,2]]", { context: new Context() });
   expect(values.values.map(String)).toEqual(["10", "20", "3", "23"]);
   const csv = renderOutputHtml(evaluate("rixcel/delimited.rix"), formatValue);

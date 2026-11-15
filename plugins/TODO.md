@@ -16,7 +16,7 @@ into staged, testable work. Phase 1 always means the same thing:
 - one small but genuinely useful end-to-end use case;
 - a loadable plugin with a stable lowercase ID and a narrow public API;
 - a reference `README.md`;
-- a runnable `tutorial.md` suitable for RiX Web and RiX Notebook;
+- a runnable `tutorial.md` suitable for RiX Playground and RiX Weave;
 - focused tests in Node and every supported host; and
 - explicit diagnostics for unsupported inputs instead of silent fallback.
 
@@ -129,7 +129,7 @@ The initial vertical slice is implemented:
 ```text
 oracle P1 -> numerics P1 -> plot P1 refinement adapter
           -> core Graphic -> svg P1 + canvas P1
-          -> RiX Web and RiX Notebook tutorials
+          -> RiX Playground and RiX Weave tutorials
 ```
 
 ## Phase 3 focus revision (2026-08-29)
@@ -231,7 +231,7 @@ buttons. Change it to `implemented` only when its Phase 1 code and tests work.
 
 Every statement in a tutorial's RiX code fences must end with a semicolon,
 including assignments, calls, final expressions, and multiline constructor
-calls. Tutorials are shared by the CLI, RiX Web, and RiX Notebook, so they must
+calls. Tutorials are shared by the CLI, RiX Playground, and RiX Weave, so they must
 use valid script syntax rather than relying on a particular host's interactive
 newline normalization.
 
@@ -306,7 +306,7 @@ newline normalization.
    - [x] Provide README documentation and a polynomial tutorial.
    - [x] Add direct plugin tests for fitting, constant polynomials, and invalid
      ranges.
-   - [x] Make the tutorial pass in both RiX Web and RiX Notebook.
+   - [x] Make the tutorial pass in both RiX Playground and RiX Weave.
 2. **Phase 2 — General 2D functions and data**
    - [x] Add `.plot.Function`, `.plot.Parametric`, scatter, line, bar, and
      step plots.
@@ -336,7 +336,7 @@ newline normalization.
      exact stored-value interval, rounding, and elementary functions.
    - [x] Provide Node and browser installers.
    - [x] Provide reference documentation and tutorial.
-   - [x] Consolidate plugin-specific tests across Node, RiX Web, and RiX
+   - [x] Consolidate plugin-specific tests across Node, RiX Playground, and RiX
      Notebook catalogs.
    - [x] Mark certification metadata as approximate rather than enclosed.
    - [x] Separate `Sample`/`Enclose` from structured unsupported `Refine`, and
@@ -368,7 +368,7 @@ newline normalization.
      bisection procedures for a rational number.
    - [x] Implement bounded `Ask`, `CheckRange`, and `Refine` with a visible
      bisection trace.
-   - [x] Make the tutorial runnable in CLI, RiX Web, and RiX Notebook; then set
+   - [x] Make the tutorial runnable in CLI, RiX Playground, and RiX Weave; then set
      `status: implemented`.
    - [x] Adapt Oracle answers to RiX decisions and connect language Halo
      comparison/membership through the shared certified-refinement contract.
@@ -1428,7 +1428,7 @@ The RiX/host extraction sequence is specified in
    - [x] Define versioned Scene, perspective/orthographic Camera, Mesh,
      Polyline, PointCloud, Material, Group, and Transform values.
    - [x] Demonstrate deterministic camera-projected wireframe snapshots.
-   - [x] Add reference documentation, RiX Web tutorial, schema/projection tests,
+   - [x] Add reference documentation, RiX Playground tutorial, schema/projection tests,
      and a CLI fixture.
    - [x] Add retained Light constructors and a lit snapshot mode.
 2. **Phase 2 — Curves, surfaces, and interaction metadata**
@@ -1494,7 +1494,7 @@ The RiX/host extraction sequence is specified in
    - [x] Render paths, groups, transforms, clips, text, rectangles, circles,
      figures, and accessibility metadata.
    - [x] Add README, tutorial, focused source fixtures, and CLI/runtime tests.
-   - [x] Add explicit RiX Web/Notebook renderer-plugin integration tests.
+   - [x] Add explicit RiX Playground/Notebook renderer-plugin integration tests.
 2. **Phase 2 — Complete 2D scene fidelity**
    - [x] Add reusable definitions, markers, gradients, patterns, masks, style
      inheritance, font policy, and stable IDs.
@@ -1708,10 +1708,10 @@ The RiX/host extraction sequence is specified in
 ## Cross-plugin release gates
 
 1. **Phase 1 gate**
-   - [x] Every implemented tutorial is discovered automatically by RiX Web.
+   - [x] Every implemented tutorial is discovered automatically by RiX Playground.
    - [x] Plugin tutorials appear after the core tutorial sections and are
      grouped by theme.
-   - [x] RiX Notebook recognizes an opened first-party `plugins/<id>/tutorial.md`,
+   - [x] RiX Weave recognizes an opened first-party `plugins/<id>/tutorial.md`,
      enables the bundled plugin when available, and provides a rescan/rerun
      action for project-local RiX plugins.
    - [x] Proposed tutorials are readable but cannot misleadingly run.

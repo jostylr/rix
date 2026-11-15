@@ -364,7 +364,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#rixcel-named-regions-and-block-formatting" id="toc-rixcel-named-regions-and-block-formatting" class="nav-link active" data-scroll-target="#rixcel-named-regions-and-block-formatting">RiXCel named regions and block formatting</a></li>
+  <li><a href="#rixcel-named-regions-and-block-formatting" id="toc-rixcel-named-regions-and-block-formatting" class="nav-link active" data-scroll-target="#rixcel-named-regions-and-block-formatting">RiX Ripple named regions and block formatting</a></li>
   </ul>
 <div class="toc-actions"><ul><li><a href="https://github.com/ratmath/rix/edit/main/documentation/eval/rixcel-regions.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/ratmath/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
@@ -376,8 +376,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 
 <section id="rixcel-named-regions-and-block-formatting" class="level1">
-<h1>RiXCel named regions and block formatting</h1>
-<p>RiXCel v3 records named regions and formatting as sparse history events. Bounds are inclusive numeric coordinates with one entry per tensor axis, including hidden plane axes. They never change formulas, exact values, dependency targets, or the numeric <code>grid[...]</code> addresses. A name is navigation metadata, not a new formula variable or implicit reference alias.</p>
+<h1>RiX Ripple named regions and block formatting</h1>
+<p>RiX Ripple v3 records named regions and formatting as sparse history events. Bounds are inclusive numeric coordinates with one entry per tensor axis, including hidden plane axes. They never change formulas, exact values, dependency targets, or the numeric <code>grid[...]</code> addresses. A name is navigation metadata, not a new formula variable or implicit reference alias.</p>
 <pre class="rix"><code>sheet := .FormulaSheet([[@{1/3}, @{2}], [@{3}, @{4}]]);
 sheet := sheet.SetRegion("Summary", [1,1], [2,2]);
 sheet := sheet.FormatRegion([1,1], [2,2], "" {"bold":true,"numberFormat":"decimal","precision":2} "".Slice(2,-1));

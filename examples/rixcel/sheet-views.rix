@@ -40,7 +40,7 @@ rowByDepth := .Sheet(cube, {=
 });
 
 .Fragment([
-    .Heading(1, "RiXCel portable Sheet views"),
+    .Heading(1, "RiX Ripple portable Sheet views"),
     matrixView,
     depthTwo,
     .Text(@"South forecast cost: @{forecastCost}"),

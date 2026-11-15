@@ -107,7 +107,7 @@ silently freezing dependencies.
 
 `Workbench(graph, options)` lowers every drawable node with a stable object id
 and embeds the portable construction record in `rix.geometry.workbench@1`
-metadata. RiX Web recognizes that metadata and adds an object/dependency tree,
+metadata. RiX Playground recognizes that metadata and adds an object/dependency tree,
 exact property inspector, keyboard navigation, movement undo/redo, and JSON
 export. Reactive point handles are created directly with `Graphics.DragPoint`
 so the native constructor can retain `$$` identity, then passed as
@@ -186,7 +186,7 @@ $$workbench := .geometry.AuthoringWorkbench($graph,actions,{=
 $workbench;
 ```
 
-RiX Web exposes Point, Line, Circle, Intersection, Distance, and caller-defined
+RiX Playground exposes Point, Line, Circle, Intersection, Distance, and caller-defined
 exact Transform tools. Point keeps focus on the
 authoring surface across reactive redraws and supports arrow-key cursor movement
 plus Enter/Space placement. Line and Circle consume two distinct point ids from

@@ -8,7 +8,7 @@ import { tokenize } from '../parser/tokenizer.js';
 
 export const RIXCEL_WORKBOOK_FORMAT = 'rixcel-workbook';
 export const RIXCEL_WORKBOOK_LIMITS = Object.freeze({ documents:32, nodes:4096, reads:50000, evaluations:8192, sourceLength:65536, textLength:8000000, maxSteps:200000, maxTimeMs:2000, refreshTimeMs:5000, refreshConcurrent:4 });
-const fail = message => { throw new Error(`RiXCel workbook: ${message}`); };
+const fail = message => { throw new Error(`RiX Ripple workbook: ${message}`); };
 const str = value => value?.type==='string' ? value.value : value;
 function identifier(value,label) { value=str(value); if(typeof value!=='string'||!value.length||value.length>128||/[\u0000-\u001f\u007f]/u.test(value)) fail(`${label} must be a string of 1..128 characters`); return value; }
 function ownRecord(value,label) { if(!value||typeof value!=='object'||Array.isArray(value)||![Object.prototype,null].includes(Object.getPrototypeOf(value))) fail(`${label} must be a plain record`); return value; }

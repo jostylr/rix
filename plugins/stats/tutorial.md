@@ -99,7 +99,7 @@ and widens the p-value bounds honestly.
 ## Build portable representations
 
 Tables and plots are core output values. The same histogram and box plot can
-therefore be displayed in RiX Web or exported through any compatible renderer.
+therefore be displayed in RiX Playground or exported through any compatible renderer.
 
 ```rix
 .Plugin.Load("stats");

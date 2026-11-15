@@ -48,13 +48,13 @@ function numericReference(tokens, offset) {
  * unchanged because a structural edit cannot safely infer their intent.
  */
 export function rewriteRixCelReferences(source, options = {}) {
-    if (typeof source !== "string") throw new Error("RiXCel formula source must be a string");
-    const axis = positiveInteger(options.axis, "RiXCel insertion axis");
-    const coordinate = positiveInteger(options.coordinate, "RiXCel insertion coordinate");
-    const count = positiveInteger(options.count ?? 1, "RiXCel insertion count");
+    if (typeof source !== "string") throw new Error("RiX Ripple formula source must be a string");
+    const axis = positiveInteger(options.axis, "RiX Ripple insertion axis");
+    const coordinate = positiveInteger(options.coordinate, "RiX Ripple insertion coordinate");
+    const count = positiveInteger(options.count ?? 1, "RiX Ripple insertion count");
     const origin = options.originIndex ?? null;
     if (origin !== null && (!Array.isArray(origin) || origin.length < axis)) {
-        throw new Error(`RiXCel formula origin must contain axis ${axis}`);
+        throw new Error(`RiX Ripple formula origin must contain axis ${axis}`);
     }
 
     const tokens = tokenize(source);
@@ -80,7 +80,7 @@ export function rewriteRixCelReferences(source, options = {}) {
                 dynamic.push({ kind: "near", position: token.pos[1] });
                 continue;
             }
-            const oldOrigin = positiveInteger(origin[axis - 1], `RiXCel formula origin axis ${axis}`);
+            const oldOrigin = positiveInteger(origin[axis - 1], `RiX Ripple formula origin axis ${axis}`);
             const oldTarget = oldOrigin + nextValue;
             const newOrigin = oldOrigin >= coordinate ? oldOrigin + count : oldOrigin;
             const newTarget = oldTarget >= coordinate ? oldTarget + count : oldTarget;

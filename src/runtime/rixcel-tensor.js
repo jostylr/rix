@@ -5,7 +5,7 @@ import { UNDECIDED } from './decision.js';
 import { appendRixCelEvent, replayRixCelDocument } from './rixcel-document.js';
 
 const LIMIT = 4096;
-const fail = message => { throw new Error(`RiXCel tensor plane: ${message}`); };
+const fail = message => { throw new Error(`RiX Ripple tensor plane: ${message}`); };
 function axes(value, rank, label) {
     const result = value ?? (rank === 1 ? [1] : [1, 2]);
     if (!Array.isArray(result) || result.length !== Math.min(2, rank)

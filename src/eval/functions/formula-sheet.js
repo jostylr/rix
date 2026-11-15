@@ -344,12 +344,12 @@ export const formulaSheetFunctions = {
     RIXCELEXPORT: {
         pure: false,
         impl: rixCelExportCapability,
-        doc: "Serialize a FormulaSheet to canonical versioned RiXCel JSON",
+        doc: "Serialize a FormulaSheet to canonical versioned RiX Ripple JSON",
     },
     RIXCELIMPORT: {
         pure: false,
         impl: rixCelImportCapability,
-        doc: "Rebuild a FormulaSheet by compiling authoritative source from RiXCel JSON",
+        doc: "Rebuild a FormulaSheet by compiling authoritative source from RiX Ripple JSON",
     },
     RIXCELIMPORTCSV: {
         pure: false,

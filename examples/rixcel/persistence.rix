@@ -1,4 +1,4 @@
-## RiXCel JSON stores source and rebuilds runtime state on import.
+## RiX Ripple JSON stores source and rebuilds runtime state on import.
 
 model := .FormulaSheet(
     {:2x2:
@@ -22,7 +22,7 @@ saved := .RiXCelExport(model);
 restored := .RiXCelImport(saved);
 
 .Fragment([
-    .Heading(2, "Restored RiXCel document"),
+    .Heading(2, "Restored RiX Ripple document"),
     .Text(saved),
     .Sheet(restored)
 ])

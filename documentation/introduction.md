@@ -2069,7 +2069,7 @@ The default angle units are `rad`, `deg`, and `turn`, all connected exactly
 through the canonical `pi` generator.
 
 Unit values are callable constructors, which is especially useful for affine
-coordinates: `.Units[:degC](20)`. See the [RiX Web units tutorial](https://rix.ratmath.com/tutorial/units.html)
+coordinates: `.Units[:degC](20)`. See the [RiX Playground units tutorial](https://rix.ratmath.com/tutorial/units.html)
 and [`units-and-exact-generators.md`](design/eval/units-and-exact-generators.md)
 for the runtime design.
 

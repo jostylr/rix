@@ -1,5 +1,5 @@
 ## One FormulaSheet graph can drive a complete reactive document.
-## Edit any input in RiX Web or the notebook to refresh its dependents.
+## Edit any input in RiX Playground or the notebook to refresh its dependents.
 
 values := .FormulaSheet({:1x3: @{120}, @{40}, @{8}});
 

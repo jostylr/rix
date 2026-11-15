@@ -109,7 +109,7 @@ describe("promise-aware reactive boundary", () => {
         expect(value.value).toBe(6n);
     });
 
-    test("retains FormulaSheet and RiXCel dependency evaluation through the async entry point", async () => {
+    test("retains FormulaSheet and RiX Ripple dependency evaluation through the async entry point", async () => {
         const value = await parseAndEvaluateAsync(`
             sheet := .FormulaSheet([[@{ 1 }, @{ grid[1,1] + 1 }]]);
             saved := .RiXCelExport(sheet);

@@ -3,7 +3,7 @@ plugins: [scene3d]
 **/
 
 ## Browser showcase: an exact retained 3D scene with live camera, projection,
-## shading, and object-rotation controls. Load this file directly in RiX-Web.
+## shading, and object-rotation controls. Load this file directly in RiX Playground.
 
 CayleyPair(t) -> {= c=(1-t^2)/(1+t^2), s=2*t/(1+t^2) };
 

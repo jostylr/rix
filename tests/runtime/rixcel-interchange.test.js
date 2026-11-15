@@ -6,7 +6,7 @@ import {
     renderOutputHtml,
 } from "../../src/index.js";
 
-describe("RiXCel delimited interchange", () => {
+describe("RiX Ripple delimited interchange", () => {
     test("imports CSV values, headers, quoted fields, and inert foreign formulas", () => {
         const sheet = parseAndEvaluate(`
             .RiXCelImportCsv("""name,value,note

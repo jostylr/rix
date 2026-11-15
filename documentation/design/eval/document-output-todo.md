@@ -468,7 +468,7 @@ the important relationship between the panel and its reactive values.
 
 ### 4. Integrate media safely
 
-- [ ] Add host asset stores for RiX Web, Notebook, and RiXCel with package-
+- [ ] Add host asset stores for RiX Playground, Notebook, and RiX Ripple with package-
   relative/content-addressed references and explicit external-URL approval.
 - [ ] Finish cross-host image sizing/lazy-loading and missing-asset
   diagnostics over the implemented asset metadata and Figure captions.

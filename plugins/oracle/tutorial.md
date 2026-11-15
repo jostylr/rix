@@ -96,7 +96,7 @@ budget ends, RiX still uses the best certified enclosure to prove a result
 when it can, otherwise the decision is undecided with `:budgetExhausted`
 details.
 
-The trace is suitable for the CLI, RiX Web, or a document renderer. A renderer
+The trace is suitable for the CLI, RiX Playground, or a document renderer. A renderer
 does not query the oracle itself; the bounded mathematical operation first
 produces a portable interval and evidence.
 

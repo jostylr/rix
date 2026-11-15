@@ -451,7 +451,7 @@ $view</code></pre>
 <li><label><input type="checkbox" checked="">Add a toggle control with explicit on/off RiX values rather than JavaScript booleans.</label></li>
 <li><label><input type="checkbox" checked="">Add a range control backed by one exact interval-valued reactive identity.</label></li>
 <li><label><input type="checkbox" checked="">Add a reset action with an explicit initial-value snapshot.</label></li>
-<li><label><input type="checkbox" checked="">Add a runnable RiX Web tutorial and extend it alongside each control.</label></li>
+<li><label><input type="checkbox" checked="">Add a runnable RiX Playground tutorial and extend it alongside each control.</label></li>
 </ul>
 </section>
 <section id="panel-behavior" class="level3">
@@ -480,8 +480,8 @@ $view</code></pre>
 <section id="accessibility-and-hosts" class="level3">
 <h3 class="anchored" data-anchor-id="accessibility-and-hosts">Accessibility and hosts</h3>
 <ul class="task-list">
-<li><label><input type="checkbox" checked="">Verify range keyboard behavior, focus restoration, labels, and live value announcements in RiX Web and RiX Notebook.</label></li>
-<li><label><input type="checkbox" checked="">Add shared control-panel styling to RiX Web, RiX Notebook, and standalone RiXCel hosts.</label></li>
+<li><label><input type="checkbox" checked="">Verify range keyboard behavior, focus restoration, labels, and live value announcements in RiX Playground and RiX Weave.</label></li>
+<li><label><input type="checkbox" checked="">Add shared control-panel styling to RiX Playground, RiX Weave, and standalone RiX Ripple hosts.</label></li>
 <li><label><input type="checkbox" checked="">Exercise panels in live HTML and Quarto export.</label></li>
 <li><label><input type="checkbox" checked="">Add an end-to-end example combining controls, a reactive table, and a draggable graphic.</label></li>
 </ul>
@@ -496,7 +496,7 @@ $view</code></pre>
 <h2 class="anchored" data-anchor-id="snapshot-and-export-contract">Snapshot and export contract</h2>
 <p><code>panel.Snapshot()</code> and the host helper <code>createControlPanelSnapshot(panel)</code> produce an inert output value. Each control retains its semantic kind, target ID, exact current value, exact bounds/options, formatted display snapshots, labels, help, and validation message snapshot. Reactive-node and validator function handles are removed, and the native controls render disabled with <code>data-rix-interactive="false"</code>.</p>
 <p><code>serializeControlPanel(panel)</code> wraps that detached value in versioned <code>rix.control-panel</code> JSON. Exact integers, rationals, intervals, maps, and sequences use explicit JSON records, so no <code>BigInt</code> or floating-point coercion is required. <code>renderControlPanelStaticHtml</code> supplies the no-JavaScript HTML form, while <code>renderControlPanelMarkdown</code> supplies document source usable unchanged by Markdown and Quarto HTML/PDF pipelines.</p>
-<p>Native range inputs retain the browser’s keyboard behavior and accessible labels. Dual-handle ranges restore focus to the edited endpoint after a reactive rerender; staged Apply restores action focus. The remounted panel’s polite live region receives the committed value or atomic-apply announcement. RiX Web and RiX Notebook style the same semantic class names, and standalone RiXCel includes the RiX Web output stylesheet during its build.</p>
+<p>Native range inputs retain the browser’s keyboard behavior and accessible labels. Dual-handle ranges restore focus to the edited endpoint after a reactive rerender; staged Apply restores action focus. The remounted panel’s polite live region receives the committed value or atomic-apply announcement. RiX Playground and RiX Weave style the same semantic class names, and standalone RiX Ripple includes the RiX Playground output stylesheet during its build.</p>
 <p>The runnable <strong>Reactive control panels</strong> tutorial exercises immediate and staged panels in live HTML, inert export snapshots, and a final reactive Fragment containing a control panel, table, and draggable Graphic.</p>
 
 

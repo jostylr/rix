@@ -1,4 +1,4 @@
-# RiXCel architecture
+# RiX Ripple architecture
 
 ## Status
 
@@ -7,7 +7,7 @@ adapts existing tensors, matrices, and sequences into a two-dimensional
 snapshot with exact values, rank-N plane selection, canonical RiX addresses,
 and host-neutral text/HTML rendering.
 
-RiX Web, the RiX notebook, and live notebook exports now share a host-side
+RiX Playground, the RiX notebook, and live notebook exports now share a host-side
 selection enhancer. It provides a dual address indicator, pointer selection,
 roving keyboard focus, and semantic select/activate events. Activation inserts
 the canonical address in the editable RiX hosts.
@@ -50,7 +50,7 @@ record.
 
 ## Vocabulary
 
-RiX already uses **Cell** for the mutable box behind a scope binding. RiXCel
+RiX already uses **Cell** for the mutable box behind a scope binding. RiX Ripple
 therefore uses distinct internal terms:
 
 - **slot**: a sheet coordinate containing RiX source and presentation metadata;
@@ -66,7 +66,7 @@ language. Runtime and storage code should use `slot` where ambiguity matters.
 ## Separation of model, output, and interaction
 
 ```text
-RiX value or RiXCel document
+RiX value or RiX Ripple document
              |
              v
       portable Sheet value
@@ -195,7 +195,7 @@ names[:tax_rate]
 imports[:rates][:usd][1,1]
 ```
 
-These names belong to FormulaSheet/RiXCel evaluation, not the portable `Sheet`
+These names belong to FormulaSheet/RiX Ripple evaluation, not the portable `Sheet`
 constructor.
 
 ## Data adapters
@@ -205,7 +205,7 @@ Four conversions are deliberately different:
 1. `.Sheet(value)` creates a read-only snapshot.
 2. `.Sheet(.Bind(variable))` creates a live value editor.
 3. `.FormulaSheet(formulas)` creates formula slots from deferred RiX bodies.
-4. `RiXCel.From(value)` will materialize literal RiX source into independent
+4. `RiX Ripple.From(value)` will materialize literal RiX source into independent
    formula slots.
 5. A linked import will create slot formulas that depend on the original value.
 
@@ -215,7 +215,7 @@ the current exact plane records, `binding=null`, and `editable=false`.
 
 ## Two execution models
 
-RiXCel must keep immediate Binding views and formula-backed sheets as different
+RiX Ripple must keep immediate Binding views and formula-backed sheets as different
 entities.
 
 ### Immediate Binding view
@@ -232,9 +232,9 @@ This is deliberately not dependency evaluation. Referring to the current
 tensor while calculating a replacement is valid because the write has not
 happened yet.
 
-### Formula-backed RiXCel sheet
+### Formula-backed RiX Ripple sheet
 
-A RiXCel sheet owns formula slots and an isolated execution context. The
+A RiX Ripple sheet owns formula slots and an isolated execution context. The
 implemented dense rank-N model is constructed from deferred formulas:
 
 ```rix
@@ -280,7 +280,7 @@ formula source, assignment mode, and JSON-safe view metadata. It does not
 persist compiled IR, values, dependencies, graph state, or caches.
 `.RiXCelImport` validates, replays, and recompiles source before a fresh initial
 epoch reconstructs those runtime records. See
-[RiXCel document format](rixcel-format.md).
+[RiX Ripple document format](rixcel-format.md).
 
 Deferred syntax such as `@{ ... }` is the programmatic formula representation.
 Stored source is now authoritative for source edits and deferred IR is rebuilt
@@ -425,7 +425,7 @@ spanning multiple independent ReactiveGraphs remain a future protocol extension.
 
 ## Reactive document model
 
-RiXCel version 2 is a sparse rank-N event log. An edited slot event stores:
+RiX Ripple version 2 is a sparse rank-N event log. An edited slot event stores:
 
 ```json
 {
@@ -488,7 +488,7 @@ new relative offset is calculated.
 
 ## Standalone host
 
-`apps/cel` is now the first standalone RiXCel host. It reuses the portable
+`apps/cel` is now the first standalone RiX Ripple host. It reuses the portable
 Sheet renderer, FormulaSheet runtime, and WidgetSession rather than owning a
 second formula engine. The initial shell provides:
 
@@ -509,7 +509,7 @@ dependency. Multi-cell paste and directional fill commit as one atomic
 
 ## Security and imports
 
-RiXCel imports should reuse RiX script capability groups and explicit
+RiX Ripple imports should reuse RiX script capability groups and explicit
 import/export contracts. A browser host resolves document-relative resources
 through a virtual document resolver rather than granting formulas arbitrary
 filesystem or network access.

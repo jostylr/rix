@@ -23,7 +23,7 @@ The implementation has four goals:
 4. keep theorem-level claims distinct from facts observed in a finite run.
 
 The plugin is first-party and should initially remain in the RiX repository so
-the value schemas, evaluator integration, CLI, and RiX Web presentation evolve
+the value schemas, evaluator integration, CLI, and RiX Playground presentation evolve
 together.
 
 ## 2. Paper model and runtime model
@@ -349,7 +349,7 @@ never presented as a proof of the oracle axioms.
 ## 6. Required paper demonstrations
 
 The first stable release is not complete until these constructions are
-included in tests and in a RiX Web tutorial.
+included in tests and in a RiX Playground tutorial.
 
 ### 6.1 Rational procedures
 
@@ -519,7 +519,7 @@ Default display should be structured:
 - Refinement: exact enclosure, achieved width, status, and compact trace;
 - Validation: checked properties, evidence level, tests, and counterexamples.
 
-RiX Web can add expandable traces and interval diagrams. The CLI uses the same
+RiX Playground can add expandable traces and interval diagrams. The CLI uses the same
 values as tables/text. Neither host receives privileged mathematical behavior.
 
 ## 11. Dependencies and permissions
@@ -582,10 +582,10 @@ At minimum, reject or diagnose:
 
 ### Host integration tests
 
-- identical structured results in CLI and RiX Web;
+- identical structured results in CLI and RiX Playground;
 - tutorial code evaluated cell by cell;
 - readable text fallback for every value;
-- expandable trace presentation in RiX Web; and
+- expandable trace presentation in RiX Playground; and
 - sandbox denial tests showing that the plugin needs no elevated permissions.
 
 ## 14. Implementation phases
@@ -618,7 +618,7 @@ The plugin is ready to advertise as implemented when:
 6. proof, constructor guarantee, assumption, and sampled evidence are visibly
    different;
 7. Numerics can refine an Oracle through the common protocol;
-8. the CLI and RiX Web show the same portable result values;
+8. the CLI and RiX Playground show the same portable result values;
 9. the tutorial is executable and covered by tests; and
 10. documentation cites the current paper source and records any deliberate
     deviation from it.

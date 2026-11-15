@@ -7,5 +7,5 @@ outside `rix/plugins/`.
 - `example-array-js/` shows a host-approved JavaScript plugin.
 - `example-array-rix/` shows the equivalent plugin written in RiX.
 
-Both are bundled into the RiX Web tutorial runtime and discoverable by the RiX
+Both are bundled into the RiX Playground tutorial runtime and discoverable by the RiX
 CLI, so their README and tutorial commands can be run unchanged.

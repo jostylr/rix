@@ -16,7 +16,7 @@ import {
     stringifyRixCelDocument,
 } from "../../src/index.js";
 
-describe("RiXCel documents", () => {
+describe("RiX Ripple documents", () => {
     test("round-trips authoritative rank-N formula source through sparse history", () => {
         const result = parseAndEvaluate(`
             original := .FormulaSheet(
@@ -239,8 +239,8 @@ describe("RiXCel documents", () => {
         })).toThrow("canonical RiX command");
         expect(() => parseRixCelDocument({ ...base, cursor: 1 })).toThrow("from 0 through 0");
         expect(() => parseRixCelDocument({ ...base, version: RIXCEL_VERSION + 1 }))
-            .toThrow(`Unsupported RiXCel document version ${RIXCEL_VERSION + 1}`);
+            .toThrow(`Unsupported RiX Ripple document version ${RIXCEL_VERSION + 1}`);
         expect(() => parseRixCelDocument("{ definitely not JSON"))
-            .toThrow("Invalid RiXCel JSON");
+            .toThrow("Invalid RiX Ripple JSON");
     });
 });

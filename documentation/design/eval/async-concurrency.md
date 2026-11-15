@@ -672,7 +672,7 @@ inherits, but does not broaden, the caller's other permissions.
 ## Host lifecycle
 
 Interactive hosts keep background tasks alive until they finish, are cancelled,
-or the session closes. RiX Web reset/page disposal and the exported runtime
+or the session closes. RiX Playground reset/page disposal and the exported runtime
 disposal API request cancellation, close task-owned streams, and drain cleanup
 for a bounded grace period.
 
@@ -992,7 +992,7 @@ reactive batch later publishes `result` and `status` together.
   imports, case, loop, trial, hole-coalescing, destructuring, collections, and
   pipes. Promise-aware generator callbacks and some diagnostic/reactive host
   extensions remain tracked separately.
-- [x] Make the CLI, CLI REPL, generated-page host, RiX Web REPL, and tutorial
+- [x] Make the CLI, CLI REPL, generated-page host, RiX Playground REPL, and tutorial
   runner select/await the async entry point. Notebook host work remains pending.
 - [x] Verify that raw promises cannot be assigned, collected, formatted, or
   returned as RiX values.
@@ -1093,7 +1093,7 @@ reactive batch later publishes `result` and `status` together.
 
 - [x] Implement `DETACH` as immediate null plus a supervisor-owned task.
 - [x] Add session-close cancellation, task-owned resource disposal, and bounded
-  cleanup; RiX Web invokes it on reset and page disposal.
+  cleanup; RiX Playground invokes it on reset and page disposal.
 - [x] Reserve detached capacity before launch, bound tasks/error retention, preserve
   spawn source/task paths, honor inherited deadlines, and reject acquisition during shutdown.
 - [x] Define and implement CLI drain-by-default plus exported host/session

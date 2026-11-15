@@ -1,6 +1,6 @@
 # Scene3D and nD browser labs
 
-These examples are designed to be pasted or opened as source in RiX-Web. They
+These examples are designed to be pasted or opened as source in RiX Playground. They
 use only browser-approved plugins and portable output values:
 
 - `scene3d-studio.rix` — retained meshes, groups, transforms, a bounded exact
@@ -13,11 +13,11 @@ use only browser-approved plugins and portable output values:
   a live `w` slider and an eleven-frame portable timeline.
 
 Condensed versions of the three labs also appear under **Help → Runnable
-examples → Spatial labs** in RiX-Web, so no file picker is required.
+examples → Spatial labs** in RiX Playground, so no file picker is required.
 
 ## What is interactive today
 
-RiX-Web mounts core `ControlPanel` values. Moving a slider or choice replaces
+RiX Playground mounts core `ControlPanel` values. Moving a slider or choice replaces
 the exact reactive `$$` value and recomputes the named `$view`. Scene3D is
 currently retained mathematics rather than a WebGL viewport: interaction
 rebuilds a deterministic 2D camera snapshot as a portable core `Graphic`.

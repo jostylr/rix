@@ -42,7 +42,7 @@ as XML. It is never interpreted as markup or executable source.
 calls `resolveLeaf` only for numeric literals, ordinary variable names, and
 reactive reads such as `$width`. The resolver must return the current exact
 Core value (or a result response with a `value` field). Hosts should read
-reactive snapshots without recomputing formulas. RiX Web uses `readExactLeaf`
+reactive snapshots without recomputing formulas. RiX Playground uses `readExactLeaf`
 for this contract and captures the trace when a numeric response is produced.
 Opening an older output therefore retains its original arithmetic snapshot.
 
@@ -66,7 +66,7 @@ steps and a visible diagnostic. No unbounded evaluation history is collected.
 
 ## Web integration and acceptance
 
-RiX Web adds presentation-only dashboard pins/groups and 64-snapshot histories
+RiX Playground adds presentation-only dashboard pins/groups and 64-snapshot histories
 for at most 128 reactive identities. Histories hold canonical exact strings;
 source values above 8,192 UTF-8 bytes remain available as current values but
 are omitted from history. Pins/groups round-trip through session files;

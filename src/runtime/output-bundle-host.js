@@ -1,4 +1,4 @@
-/** Shared inert publication boundary for Web, Notebook, and RiXCel. */
+/** Shared inert publication boundary for Web, Notebook, and RiX Ripple. */
 import { bundleOutputDocument, createMemoryAssetStore, encodeOutputBundle, decodeOutputBundle } from "./output-assets.js";
 import { renderOutputHtml, formatOutputText } from "./output.js";
 

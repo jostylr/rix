@@ -134,14 +134,14 @@ adapter may remain active until it returns. The example performs no external I/O
 ## 6. Rebuild a spreadsheet from portable source and exchange values
 
 **Prerequisites:** [workbooks](../eval/workbooks.md) and the
-[RiXCel example guide](https://github.com/ratmath/rix/blob/main/examples/rixcel/README.md). Reuse both sources:
+[RiX Ripple example guide](https://github.com/ratmath/rix/blob/main/examples/rixcel/README.md). Reuse both sources:
 
 ```sh
 bun bin/rix.js examples/rixcel/persistence.rix
 bun bin/rix.js examples/rixcel/delimited.rix
 ```
 
-The first builds a FormulaSheet, exports canonical RiXCel JSON, imports it into a
+The first builds a FormulaSheet, exports canonical RiX Ripple JSON, imports it into a
 fresh context, and displays recomputed values: 10, 20, 3, and **23**. Inspect the
 printed JSON: formulas are saved source, not trusted serialized closures or cached
 executable state. The browser Cel app can open the existing
@@ -150,7 +150,7 @@ executable state. The browser Cel app can open the existing
 The second imports CSV values, displays a sheet, and exports TSV. Its foreign
 `=SUM(A1:A2)` formula remains **inert text**. Decimal 4.5 is exact rational input;
 CSV/TSV do not preserve a workbook's formula graph, history, or complete metadata.
-Use RiXCel/RiXBook for those semantics. See the
+Use RiX Ripple/RiXBook for those semantics. See the
 [format and validation contract](../design/eval/rixcel-format.md) for version
 migration and rejected malformed input. Spreadsheet export capability differs by
 host: portable JSON and CSV remain available without a native dialog or XLSX host.

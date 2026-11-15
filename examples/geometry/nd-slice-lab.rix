@@ -70,7 +70,7 @@ $$view := {;
         }),
         .Figure(SliceGraphic($sliceLevel), @"Current section w = @{$sliceLevel}; @{points.Len()} edge intersections."),
         .Heading(2, "Portable animation"),
-        .Paragraph("The program also materializes an eleven-frame Timeline.Sequence. RiX-Web can inspect individual frames; the CLI GIF renderer rasterizes and encodes the same exact sequence."),
+        .Paragraph("The program also materializes an eleven-frame Timeline.Sequence. RiX Playground can inspect individual frames; the CLI GIF renderer rasterizes and encodes the same exact sequence."),
         .Timeline.Render(@sliceTimeline, 6),
         .Table(
             ["Property", "Value"],

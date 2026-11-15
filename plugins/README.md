@@ -2,7 +2,7 @@
 
 This directory contains first-party RiX plugin packages and specifications.
 An implemented package owns its machine-readable entry point, implementation
-files, reference README, and a small tutorial suitable for the RiX Web tutorial
+files, reference README, and a small tutorial suitable for the RiX Playground tutorial
 series. A specification-only directory has no discoverable manifest until it
 can actually be loaded.
 
@@ -72,7 +72,7 @@ JavaScript plugin installer. RiX plugins are evaluated only when a user calls
 `.Plugin.Load(id)`.
 
 RiX code in every plugin `tutorial.md` must use script syntax: each statement,
-including the last expression in a code fence, ends with `;`. The RiX Web test
+including the last expression in a code fence, ends with `;`. The RiX Playground test
 suite parses these tutorial cells and verifies that no host-specific newline
 normalization is needed.
 
